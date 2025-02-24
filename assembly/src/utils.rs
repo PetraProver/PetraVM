@@ -1,7 +1,4 @@
-use crate::{
-    interpreter::{Channel, Interpreter, ProgramChannelInput, StateChannelInput},
-    sli::SliTrace,
-};
+use crate::emulator::{Channel, Interpreter, ProgramChannelInput, StateChannelInput};
 
 pub trait Event {
     fn fire(
@@ -15,11 +12,11 @@ pub trait Event {
 
 #[derive(Debug)]
 pub struct RetEvent {
-    pc: u32,
-    fp: u32,
-    timestamp: u32,
-    fp_0_val: u32,
-    fp_1_val: u32,
+    pc: u16,
+    fp: u16,
+    timestamp: u16,
+    fp_0_val: u16,
+    fp_1_val: u16,
 }
 
 #[derive(Default, Debug)]
@@ -33,9 +30,9 @@ impl RetTrace {
     }
 
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
-        interpreter.pc = interpreter.vrom[interpreter.fp as usize];
-        interpreter.pc = interpreter.vrom[interpreter.fp as usize + 1];
-        interpreter.timestamp += 1;
+        interpreter.set_pc(interpreter.get_vrom_index(interpreter.get_fp() as usize) as u16);
+        interpreter.set_fp(interpreter.get_vrom_index(interpreter.get_fp() as usize + 1) as u16);
+        interpreter.set_timestamp(interpreter.get_timestamp() + 1);
         RetEvent::new(&interpreter)
     }
 }
@@ -43,11 +40,11 @@ impl RetTrace {
 impl RetEvent {
     pub fn new(interpreter: &Interpreter) -> Self {
         Self {
-            pc: interpreter.pc,
-            fp: interpreter.fp,
-            timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom[interpreter.fp as usize],
-            fp_1_val: interpreter.vrom[interpreter.fp as usize + 1],
+            pc: interpreter.get_pc(),
+            fp: interpreter.get_fp(),
+            timestamp: interpreter.get_timestamp(),
+            fp_0_val: interpreter.get_vrom_index(interpreter.get_fp() as usize) as u16,
+            fp_1_val: interpreter.get_vrom_index(interpreter.get_fp() as usize + 1) as u16,
         }
     }
 }
@@ -62,10 +59,4 @@ impl Event for RetEvent {
         state_channel.push((self.fp_0_val, self.fp_1_val, self.timestamp + 1));
         program_channel.push((self.pc, 0x00 as u32));
     }
-
-    // fn apply_event(&self, interpreter: &mut Interpreter) {
-    //     interpreter.pc = interpreter.vrom[self.fp as usize];
-    //     interpreter.pc = interpreter.vrom[self.fp as usize + 1];
-    //     interpreter.timestamp += 1;
-    // }
 }

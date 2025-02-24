@@ -1,5 +1,5 @@
 use crate::{
-    interpreter::{Channel, Interpreter, ProgramChannelInput, StateChannelInput},
+    emulator::{Channel, Interpreter, ProgramChannelInput, StateChannelInput},
     utils::Event,
 };
 
@@ -11,10 +11,10 @@ pub enum ShiftKind {
 
 // Struture of an event for one of the shifts.
 #[derive(Debug, Clone)]
-pub struct SliEventStruct {
-    pc: u32,
-    fp: u32,
-    timestamp: u32,
+pub struct SliEvent {
+    pc: u16,
+    fp: u16,
+    timestamp: u16,
     dst: u32,
     dst_val: u32,
     src: u32,
@@ -25,11 +25,11 @@ pub struct SliEventStruct {
 
 #[derive(Default, Debug)]
 pub struct SliTrace {
-    shifts_events: [Vec<SliEventStruct>; 32],
+    shifts_events: [Vec<SliEvent>; 32],
 }
 
 impl SliTrace {
-    pub fn push_event(&mut self, event: SliEventStruct) {
+    pub fn push_event(&mut self, event: SliEvent) {
         let shift = event.shift;
         self.shifts_events[shift as usize].push(event);
     }
@@ -40,9 +40,9 @@ impl SliTrace {
         src: u32,
         imm: u32,
         kind: ShiftKind,
-    ) -> SliEventStruct {
-        assert!((src as usize) < interpreter.vrom.len());
-        let src_val = interpreter.vrom[src as usize];
+    ) -> SliEvent {
+        assert!((src as usize) < interpreter.get_vrom_size());
+        let src_val = interpreter.get_vrom_index(src as usize);
         let new_val = if imm == 0 || imm >= 32 {
             0
         } else {
@@ -51,20 +51,19 @@ impl SliTrace {
                 ShiftKind::Right => src_val >> imm,
             }
         };
-        if dst as usize > interpreter.vrom.len() - 1 {
-            interpreter
-                .vrom
-                .extend(&vec![0; dst as usize - interpreter.vrom.len() + 1]);
+        if dst as usize > interpreter.get_vrom_size() - 1 {
+            interpreter.extend_size(&vec![0; dst as usize - interpreter.get_vrom_size() + 1]);
         }
-        let pc = interpreter.pc;
-        interpreter.vrom[dst as usize] = new_val;
-        interpreter.pc += 1;
-        interpreter.timestamp += 1;
+        let pc = interpreter.get_pc();
+        let timestamp = interpreter.get_timestamp();
+        interpreter.set_vrom_index(dst as usize, new_val);
+        interpreter.set_pc(pc + 1);
+        interpreter.set_timestamp(timestamp + 1);
 
-        SliEventStruct::new(
+        SliEvent::new(
             pc,
-            interpreter.fp,
-            interpreter.timestamp,
+            interpreter.get_fp(),
+            timestamp,
             dst,
             new_val,
             src,
@@ -75,11 +74,11 @@ impl SliTrace {
     }
 }
 
-impl SliEventStruct {
+impl SliEvent {
     pub fn new(
-        pc: u32,
-        fp: u32,
-        timestamp: u32,
+        pc: u16,
+        fp: u16,
+        timestamp: u16,
         dst: u32,
         dst_val: u32,
         src: u32,
@@ -101,7 +100,7 @@ impl SliEventStruct {
     }
 }
 
-impl Event for SliEventStruct {
+impl Event for SliEvent {
     fn fire(
         &self,
         state_channel: &mut Channel<StateChannelInput>,
@@ -114,25 +113,4 @@ impl Event for SliEventStruct {
             ShiftKind::Right => program_channel.push((self.pc, 0x1c as u32)),
         }
     }
-
-    // fn apply_event(&self, interpreter: &mut Interpreter) {
-    //     assert!((self.src as usize) < interpreter.vrom.len());
-    //     let src_val = interpreter.vrom[self.src as usize];
-    //     let new_val = if self.shift == 0 || self.shift >= 32 {
-    //         0
-    //     } else {
-    //         match self.kind {
-    //             ShiftKind::Left => src_val << self.shift,
-    //             ShiftKind::Right => src_val >> self.shift,
-    //         }
-    //     };
-    //     if self.dst as usize > interpreter.vrom.len() {
-    //         interpreter
-    //             .vrom
-    //             .extend(&vec![0; self.dst as usize - interpreter.vrom.len()]);
-    //     }
-    //     interpreter.vrom[self.dst as usize] = new_val;
-    //     interpreter.pc += 1;
-    //     interpreter.timestamp += 1;
-    // }
 }
