@@ -1,0 +1,6 @@
+[package]
+name = "tables"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
