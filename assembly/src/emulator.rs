@@ -16,6 +16,17 @@ pub enum Opcode {
     Xori = 1,
 }
 
+impl From<u32> for Opcode {
+    fn from(value: u32) -> Self {
+        match value {
+            // TODO: What are the actual values
+            0x01 => Opcode::Bnz,
+            0x02 => Opcode::Xori,
+            _ => panic!("Invalid opcode: {:#X}", value),
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 struct Interpreter {
     pc: u16,
@@ -59,13 +70,7 @@ impl IndexMut<usize> for ProgramRom {
     }
 }
 
-#[derive(Debug, Default)]
-struct Instruction {
-    opcode: Opcode,
-    src1: u32,
-    src2: u32,
-    dst: u32,
-}
+type Instruction = [u32; 4];
 
 #[derive(Debug, Default)]
 struct InterpreterError;
@@ -90,14 +95,10 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let Instruction {
-            opcode,
-            src1,
-            src2,
-            dst,
-        } = &self.prom[self.pc as usize];
+        let [opcode, src1, src2, dst] = &self.prom[self.pc as usize];
+        let opcode = Opcode::from(*opcode);
         match opcode {
-            Opcode::Bnz => {
+            BNZ => {
                 let cond = self.vrom[self.fp as usize + *src1 as usize];
                 if cond != 0 {
                     self.pc = *src2 as u16;
@@ -236,13 +237,7 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let trace = ZCrayTrace::generate(ProgramRom(vec![Instruction {
-            opcode: Opcode::Bnz,
-            src1: 0,
-            src2: 0,
-            dst: 0,
-        }]))
-        .expect("Ocuh!");
+        let trace = ZCrayTrace::generate(ProgramRom(vec![[0, 0, 0, 0]])).expect("Ocuh!");
         trace.validate();
     }
 }
