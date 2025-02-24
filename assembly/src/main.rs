@@ -1,5 +1,6 @@
 mod instruction_args;
 mod instructions_with_labels;
+mod emulator;
 
 use instructions_with_labels::{InstructionsWithLabels, parse_instructions};
 
