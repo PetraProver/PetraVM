@@ -1,9 +1,6 @@
 [package]
-name = "zcrayvm-assembly"
+name = "tables"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-thiserror = "2.0.11"
-num_enum = "=0.5.3"
-

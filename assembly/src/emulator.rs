@@ -92,46 +92,54 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let [opcode, src1, src2, dst] = &self.prom[self.pc as usize];
-        let opcode = Opcode::try_from(*opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
+        let [opcode, src1, src2, dst] = self.prom[self.pc as usize];
+        let opcode = Opcode::try_from(opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
             Opcode::Bnz => {
-                let cond = self.vrom[self.fp as usize + *src1 as usize];
-                if cond != 0 {
-                    self.pc = *src2 as u16;
-                } else {
-                    self.pc += 1;
-                }
-                trace.bnz.push(BnzEvent {
-                    timestamp: self.timestamp,
-                    pc: self.pc,
-                    fp: self.fp,
-                    cond: *src1 as u16,
-                    con_val: cond,
-                    target: *src2,
-                });
+                self.generate_bnz(trace, src1, src2);
             }
             Opcode::Xori => {
-                let src1_val = self.vrom[self.fp as usize + *src1 as usize];
-                let imm = *src2;
-                let dst_val = src1_val ^ imm;
-                self.vrom[self.fp as usize + *dst as usize] = dst_val;
-                self.pc += 1;
-                trace.xori.push(XoriEvent {
-                    timestamp: self.timestamp,
-                    pc: self.pc,
-                    fp: self.fp,
-                    dst: *dst as u16,
-                    dst_val,
-                    src1: *src1 as u16,
-                    src1_val,
-                    target: imm,
-                    imm,
-                });
+                self.generate_xori(trace, src1, src2, dst);
             }
         }
         self.timestamp += 1;
         Ok(Some(()))
+    }
+
+fn generate_xori(&mut self, trace: &mut ZCrayTrace, src1: u32, src2: u32, dst: u32) {
+        let src1_val = self.vrom[self.fp as usize + src1 as usize];
+        let imm = src2;
+        let dst_val = src1_val ^ imm;
+        self.vrom[self.fp as usize + dst as usize] = dst_val;
+        self.pc += 1;
+        trace.xori.push(XoriEvent {
+            timestamp: self.timestamp,
+            pc: self.pc,
+            fp: self.fp,
+            dst: dst as u16,
+            dst_val,
+            src1: src1 as u16,
+            src1_val,
+            target: imm,
+            imm,
+        });
+    }
+
+fn generate_bnz(&mut self, trace: &mut ZCrayTrace, src1: u32, src2: u32) {
+        let cond = self.vrom[self.fp as usize + src1 as usize];
+        if cond != 0 {
+            self.pc =  src2 as u16;
+        } else {
+            self.pc += 1;
+        }
+        trace.bnz.push(BnzEvent {
+            timestamp: self.timestamp,
+            pc: self.pc,
+            fp: self.fp,
+            cond: *src1 as u16,
+            con_val: cond,
+            target: *src2,
+        });
     }
 }
 
@@ -205,6 +213,7 @@ struct XoriEvent {
 impl XoriEvent {
     fn fire(&self, prom_chan: &mut PromChannel, vrom_chan: &mut Channel<u32>) {
         prom_chan.push((self.pc, Opcode::Xori.into(), self.src1, self.target));
+        vrom_chan.push(self.dst_val);
     }
 }
 
