@@ -7,8 +7,8 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{
-    sli::{ShiftKind, SliTrace},
-    utils::RetTrace,
+    sli::{ShiftKind, SliEvent},
+    utils::{Event, RetEvent},
 };
 
 #[derive(Debug, Default)]
@@ -16,8 +16,8 @@ pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-pub(crate) type StateChannelInput = (u16, u16, u16); // (PC, FP, TIMESTAMP)
-pub(crate) type ProgramChannelInput = (u16, u32); // (PC, OPCODE)
+type StateChannelInput = (u16, u16, u16); // PC, FP, Timestamp
+pub(crate) type StateChannel = Channel<StateChannelInput>;
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u32)]
@@ -31,7 +31,7 @@ pub enum Opcode {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct Interpreter {
+pub struct Interpreter {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -53,16 +53,6 @@ impl Index<usize> for ValueRom {
 impl IndexMut<usize> for ValueRom {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index] // Forward indexing to the inner vector
-    }
-}
-
-impl ValueRom {
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn extend(&mut self, slice: &[u32]) {
-        self.0.extend(slice);
     }
 }
 
@@ -146,11 +136,11 @@ impl Interpreter {
     }
 
     pub(crate) fn get_vrom_size(&self) -> usize {
-        self.vrom.len()
+        self.vrom.0.len()
     }
 
     pub(crate) fn extend_size(&mut self, slice: &[u32]) {
-        self.vrom.extend(slice);
+        self.vrom.0.extend(slice);
     }
 
     pub(crate) fn get_prom_index(&self, index: usize) -> &Instruction {
@@ -218,19 +208,19 @@ impl Interpreter {
     }
 
     fn generate_ret(&mut self, trace: &mut ZCrayTrace) {
-        let new_ret_event = RetTrace::generate_event(self);
-        trace.ret.push_event(new_ret_event);
+        let new_ret_event = RetEvent::generate_event(self);
+        trace.ret.push(new_ret_event);
     }
 
     fn generate_slli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
         // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
         // new_shift_event.apply_event(self);
-        let new_shift_event = SliTrace::generate_event(self, dst, src, imm, ShiftKind::Left);
-        trace.shift.push_event(new_shift_event);
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
+        trace.shift.push(new_shift_event);
     }
     fn generate_srli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
-        let new_shift_event = SliTrace::generate_event(self, dst, src, imm, ShiftKind::Right);
-        trace.shift.push_event(new_shift_event);
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
+        trace.shift.push(new_shift_event);
     }
 }
 
@@ -302,17 +292,17 @@ struct XoriEvent {
 }
 
 impl XoriEvent {
-    fn fire(&self, prom_chan: &mut PromChannel, vrom_chan: &mut Channel<u32>) {
-        prom_chan.push((self.pc, Opcode::Xori.into(), self.src1, self.target));
+    fn fire(&self, prom_chan: &mut StateChannel) {
+        prom_chan.push((self.pc, self.fp, self.timestamp));
     }
 }
 
 #[derive(Debug, Default)]
-struct ZCrayTrace {
+pub struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xori: Vec<XoriEvent>,
-    shift: SliTrace,
-    ret: RetTrace,
+    shift: Vec<SliEvent>,
+    ret: Vec<RetEvent>,
 }
 
 impl ZCrayTrace {
@@ -351,9 +341,9 @@ mod tests {
     fn test_sli_ret() {
         // let prom = vec![[0; 4], [0x1b, 3, 2, 5], [0x1c, 5, 4, 7], [0; 4]];
         let instructions = vec![
-            Instruction::new(Opcode::Slli, 2, 5, 3),
-            Instruction::new(Opcode::Srli, 4, 7, 5),
-            Instruction::new(Opcode::Ret, 0, 0, 0),
+            [Opcode::Slli as u32, 2, 5, 3],
+            [Opcode::Srli as u32, 4, 7, 5],
+            [Opcode::Ret as u32, 0, 0, 0],
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);

@@ -1,5 +1,5 @@
 use crate::{
-    emulator::{Channel, Interpreter, ProgramChannelInput, StateChannelInput},
+    emulator::{Channel, Interpreter, StateChannel},
     utils::Event,
 };
 
@@ -23,15 +23,29 @@ pub struct SliEvent {
     kind: ShiftKind,
 }
 
-#[derive(Default, Debug)]
-pub struct SliTrace {
-    shifts_events: [Vec<SliEvent>; 32],
-}
-
-impl SliTrace {
-    pub fn push_event(&mut self, event: SliEvent) {
-        let shift = event.shift;
-        self.shifts_events[shift as usize].push(event);
+impl SliEvent {
+    pub fn new(
+        pc: u16,
+        fp: u16,
+        timestamp: u16,
+        dst: u32,
+        dst_val: u32,
+        src: u32,
+        src_val: u32,
+        shift: u32,
+        kind: ShiftKind,
+    ) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_val,
+            src,
+            src_val,
+            shift,
+            kind,
+        }
     }
 
     pub fn generate_event(
@@ -74,43 +88,9 @@ impl SliTrace {
     }
 }
 
-impl SliEvent {
-    pub fn new(
-        pc: u16,
-        fp: u16,
-        timestamp: u16,
-        dst: u32,
-        dst_val: u32,
-        src: u32,
-        src_val: u32,
-        shift: u32,
-        kind: ShiftKind,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src,
-            src_val,
-            shift,
-            kind,
-        }
-    }
-}
-
 impl Event for SliEvent {
-    fn fire(
-        &self,
-        state_channel: &mut Channel<StateChannelInput>,
-        program_channel: &mut Channel<ProgramChannelInput>,
-    ) {
+    fn fire(&self, state_channel: &mut StateChannel) {
         state_channel.pull((self.pc, self.fp, self.timestamp));
         state_channel.push((self.pc + 1, self.fp, self.timestamp + 1));
-        match self.kind {
-            ShiftKind::Left => program_channel.push((self.pc, 0x1b as u32)),
-            ShiftKind::Right => program_channel.push((self.pc, 0x1c as u32)),
-        }
     }
 }
