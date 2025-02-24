@@ -4,6 +4,8 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
 use crate::{
     sli::{ShiftKind, SliTrace},
     utils::RetTrace,
@@ -17,14 +19,15 @@ pub struct Channel<T> {
 pub(crate) type StateChannelInput = (u16, u16, u16); // (PC, FP, TIMESTAMP)
 pub(crate) type ProgramChannelInput = (u16, u32); // (PC, OPCODE)
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
+#[repr(u32)]
 pub enum Opcode {
     #[default]
-    Bnz = 0,
-    Xori = 1,
-    Srli = 2,
-    Slli = 3,
-    Ret = 4,
+    Bnz = 0x01,
+    Xori = 0x02,
+    Srli = 0x03,
+    Slli = 0x04,
+    Ret = 0x05,
 }
 
 #[derive(Debug, Default)]
@@ -86,27 +89,12 @@ impl ProgramRom {
     }
 }
 
-#[derive(Debug, Default)]
-struct Instruction {
-    opcode: Opcode,
-    src1: u32,
-    src2: u32,
-    dst: u32,
-}
+type Instruction = [u32; 4];
 
-impl Instruction {
-    fn new(opcode: Opcode, src1: u32, src2: u32, dst: u32) -> Self {
-        Self {
-            opcode,
-            src1,
-            src2,
-            dst,
-        }
-    }
+#[derive(Debug)]
+enum InterpreterError {
+    InvalidOpcode,
 }
-
-#[derive(Debug, Default)]
-struct InterpreterError;
 
 impl Interpreter {
     pub fn new(prom: ProgramRom) -> Self {
@@ -184,12 +172,8 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let Instruction {
-            opcode,
-            src1,
-            src2,
-            dst,
-        } = &self.prom[self.pc as usize - 1];
+        let [opcode, src1, src2, dst] = &self.prom[self.pc as usize - 1];
+        let opcode = Opcode::try_from(*opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
             Opcode::Bnz => {
                 let cond = self.vrom[self.fp as usize + *src1 as usize];
@@ -318,8 +302,8 @@ struct XoriEvent {
 }
 
 impl XoriEvent {
-    fn fire(&self, prom_chan: &mut Channel<u32>, vrom_chan: &mut Channel<u32>) {
-        unimplemented!();
+    fn fire(&self, prom_chan: &mut PromChannel, vrom_chan: &mut Channel<u32>) {
+        prom_chan.push((self.pc, Opcode::Xori.into(), self.src1, self.target));
     }
 }
 
@@ -359,13 +343,7 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let trace = ZCrayTrace::generate(ProgramRom(vec![Instruction {
-            opcode: Opcode::Bnz,
-            src1: 0,
-            src2: 0,
-            dst: 0,
-        }]))
-        .expect("Ocuh!");
+        let trace = ZCrayTrace::generate(ProgramRom(vec![[0, 0, 0, 0]])).expect("Ocuh!");
         trace.validate();
     }
 
