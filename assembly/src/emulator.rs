@@ -4,27 +4,22 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use num_enum::{TryFromPrimitive, IntoPrimitive};
+
 #[derive(Debug, Default)]
 pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-#[derive(Debug, Default)]
+type PromChannel = Channel<(u16, u32, u16, u32)>;
+type VromChannel = Channel<u32>;
+
+#[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
+#[repr(u32)]
 pub enum Opcode {
     #[default]
-    Bnz = 0,
-    Xori = 1,
-}
-
-impl From<u32> for Opcode {
-    fn from(value: u32) -> Self {
-        match value {
-            // TODO: What are the actual values
-            0x01 => Opcode::Bnz,
-            0x02 => Opcode::Xori,
-            _ => panic!("Invalid opcode: {:#X}", value),
-        }
-    }
+    Bnz = 0x01,
+    Xori = 0x02,
 }
 
 #[derive(Debug, Default)]
@@ -72,8 +67,10 @@ impl IndexMut<usize> for ProgramRom {
 
 type Instruction = [u32; 4];
 
-#[derive(Debug, Default)]
-struct InterpreterError;
+#[derive(Debug)]
+enum InterpreterError {
+    InvalidOpcode,
+}
 
 impl Interpreter {
     pub fn new(prom: ProgramRom) -> Self {
@@ -96,9 +93,9 @@ impl Interpreter {
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, src1, src2, dst] = &self.prom[self.pc as usize];
-        let opcode = Opcode::from(*opcode);
+        let opcode = Opcode::try_from(*opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
-            BNZ => {
+            Opcode::Bnz => {
                 let cond = self.vrom[self.fp as usize + *src1 as usize];
                 if cond != 0 {
                     self.pc = *src2 as u16;
@@ -206,8 +203,8 @@ struct XoriEvent {
 }
 
 impl XoriEvent {
-    fn fire(&self, prom_chan: &mut Channel<u32>, vrom_chan: &mut Channel<u32>) {
-        unimplemented!();
+    fn fire(&self, prom_chan: &mut PromChannel, vrom_chan: &mut Channel<u32>) {
+        prom_chan.push((self.pc, Opcode::Xori.into(), self.src1, self.target));
     }
 }
 
