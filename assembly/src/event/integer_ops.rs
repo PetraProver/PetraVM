@@ -1,10 +1,11 @@
-use crate::emulator::{Interpreter, StateChannel};
-
-use super::Event;
+use crate::{
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    event::Event,
+};
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
-pub(crate) struct AddIEvent {
+pub(crate) struct AddiEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -16,7 +17,7 @@ pub(crate) struct AddIEvent {
     cout: u32,
 }
 
-impl AddIEvent {
+impl AddiEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -67,16 +68,20 @@ impl AddIEvent {
     }
 }
 
-impl Event for AddIEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
-        state_channel.pull((self.pc, self.fp, self.timestamp));
-        state_channel.push((self.pc + 1, self.fp, self.timestamp + 1));
+impl Event for AddiEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc + 1, self.fp, self.timestamp + 1));
     }
 }
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
-pub(crate) struct MulIEvent {
+pub(crate) struct MuliEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -88,7 +93,7 @@ pub(crate) struct MulIEvent {
     cout: u32,
 }
 
-impl MulIEvent {
+impl MuliEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -139,9 +144,13 @@ impl MulIEvent {
     }
 }
 
-impl Event for MulIEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
-        state_channel.pull((self.pc, self.fp, self.timestamp));
-        state_channel.push((self.pc + 1, self.fp, self.timestamp + 1));
+impl Event for MuliEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc + 1, self.fp, self.timestamp + 1));
     }
 }

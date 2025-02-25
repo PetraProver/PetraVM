@@ -1,4 +1,4 @@
-use crate::emulator::{Interpreter, StateChannel};
+use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
 use super::Event;
 
@@ -13,16 +13,15 @@ pub(crate) struct BnzEvent {
 }
 
 impl Event for BnzEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
         unimplemented!();
     }
 }
 
 impl BnzEvent {
-
     pub fn generate_event(interpreter: &mut Interpreter, cond: u16, target: u16) -> BnzEvent {
         let cond_val = interpreter.vrom[interpreter.fp as usize + cond as usize];
-        let event = BnzEvent{
+        let event = BnzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
             fp: interpreter.fp,

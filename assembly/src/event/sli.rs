@@ -1,5 +1,5 @@
 use crate::{
-    emulator::{Channel, Interpreter, StateChannel},
+    emulator::{Channel, Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
 };
 
@@ -11,7 +11,7 @@ pub enum ShiftKind {
 
 // Struture of an event for one of the shifts.
 #[derive(Debug, Clone)]
-pub struct SlIEvent {
+pub struct SliEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -23,7 +23,7 @@ pub struct SlIEvent {
     kind: ShiftKind,
 }
 
-impl SlIEvent {
+impl SliEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -54,7 +54,7 @@ impl SlIEvent {
         src: u32,
         imm: u32,
         kind: ShiftKind,
-    ) -> SlIEvent {
+    ) -> SliEvent {
         println!("src = {}, vrom_size = {}", src, interpreter.vrom_size());
         assert!((src as usize) < interpreter.vrom_size());
         let src_val = interpreter.vrom[src as usize];
@@ -71,11 +71,11 @@ impl SlIEvent {
         }
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.vrom[dst as usize] =  new_val;
+        interpreter.vrom[dst as usize] = new_val;
         interpreter.pc = pc + 1;
         interpreter.timestamp = timestamp + 1;
 
-        SlIEvent::new(
+        SliEvent::new(
             pc,
             interpreter.fp,
             timestamp,
@@ -89,9 +89,13 @@ impl SlIEvent {
     }
 }
 
-impl Event for SlIEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
-        state_channel.pull((self.pc, self.fp, self.timestamp));
-        state_channel.push((self.pc + 1, self.fp, self.timestamp + 1));
+impl Event for SliEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc + 1, self.fp, self.timestamp + 1));
     }
 }

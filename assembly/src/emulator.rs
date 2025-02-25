@@ -7,12 +7,12 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::{AndIEvent, XorIEvent},
+    b32::{AndiEvent, XoriEvent},
     branch::BnzEvent,
-    call::TailIEvent,
-    integer_ops::{AddIEvent, MulIEvent},
+    call::TailiEvent,
+    integer_ops::{AddiEvent, MuliEvent},
     ret::RetEvent,
-    sli::{ShiftKind, SlIEvent},
+    sli::{ShiftKind, SliEvent},
     Event,
     ImmediateBinaryOperation, // Add the import for RetEvent
 };
@@ -22,8 +22,34 @@ pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-type StateChannelInput = (u16, u16, u16); // PC, FP, Timestamp
-pub(crate) type StateChannel = Channel<StateChannelInput>;
+type PromChannel = Channel<(u16, u32, u16, u32)>;
+type VromChannel = Channel<u32>;
+type StateChannel = Channel<(u16, u16, u16)>; // PC, FP, Timestamp
+
+pub struct InterpreterChannels {
+    pub state_channel: StateChannel,
+}
+
+impl Default for InterpreterChannels {
+    fn default() -> Self {
+        InterpreterChannels {
+            state_channel: StateChannel::default(),
+        }
+    }
+}
+
+type VromTable32 = HashMap<u32, u32>;
+pub struct InterpreterTables {
+    pub vrom_table_32: VromTable32,
+}
+
+impl Default for InterpreterTables {
+    fn default() -> Self {
+        InterpreterTables {
+            vrom_table_32: VromTable32::default(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u32)]
@@ -169,7 +195,7 @@ impl Interpreter {
 
     fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_xori_event = XorIEvent::generate_event(self, dst as u16, src as u16, imm);
+        let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
         trace.xori.push(new_xori_event);
     }
 
@@ -182,35 +208,37 @@ impl Interpreter {
         // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
         // new_shift_event.apply_event(self);
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_shift_event = SlIEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
         trace.shift.push(new_shift_event);
     }
     fn generate_srli(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_shift_event = SlIEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
     }
 
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) {
         let [_, target, next_fp, _] = self.prom[self.pc as usize - 1];
-        let new_taili_event = TailIEvent::generate_event(self, target as u16, next_fp as u16);
+        let new_taili_event = TailiEvent::generate_event(self, target as u16, next_fp as u16);
         trace.taili.push(new_taili_event);
-    }
-    fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
-        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_addi_event = AddIEvent::generate_event(self, dst, src, imm);
-        trace.addi.push(new_addi_event);
-    }
-    fn generate_muli(&mut self, trace: &mut ZCrayTrace) {
-        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_muli_event = MulIEvent::generate_event(self, dst, src, imm);
-        trace.muli.push(new_muli_event);
     }
 
     fn generate_andi(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_andi_event = AndIEvent::generate_event(self, dst as u16, src as u16, imm);
+        let new_andi_event = AndiEvent::generate_event(self, dst as u16, src as u16, imm);
         trace.andi.push(new_andi_event);
+    }
+
+    fn generate_muli(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_muli_event = MuliEvent::generate_event(self, dst, src, imm);
+        trace.muli.push(new_muli_event);
+    }
+    
+    fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_addi_event = AddiEvent::generate_event(self, dst, src, imm);
+        trace.addi.push(new_addi_event);
     }
 }
 
@@ -255,12 +283,12 @@ impl<T: Hash + Eq> Channel<T> {
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
-    xori: Vec<XorIEvent>,
-    andi: Vec<AndIEvent>,
-    shift: Vec<SlIEvent>,
-    addi: Vec<AddIEvent>,
-    muli: Vec<MulIEvent>,
-    taili: Vec<TailIEvent>,
+    xori: Vec<XoriEvent>,
+    andi: Vec<AndiEvent>,
+    shift: Vec<SliEvent>,
+    addi: Vec<AddiEvent>,
+    muli: Vec<MuliEvent>,
+    taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
 }
 
@@ -282,6 +310,16 @@ impl ZCrayTrace {
     }
 
     fn validate(&self) {
+        let mut channels = InterpreterChannels::default();
+        let mut tables = InterpreterTables::default();
+
+        self.bnz
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.xori
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
         unimplemented!()
     }
 }

@@ -1,4 +1,4 @@
-use crate::emulator::{Interpreter, StateChannel};
+use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
 use super::Event;
 
@@ -37,8 +37,12 @@ impl RetEvent {
 }
 
 impl Event for RetEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
-        state_channel.pull((self.pc, self.fp, self.timestamp));
-        state_channel.push((self.fp_0_val, self.fp_1_val, self.timestamp + 1));
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.fp_0_val, self.fp_1_val, self.timestamp + 1));
     }
 }

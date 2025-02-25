@@ -1,3 +1,5 @@
+use crate::emulator::{InterpreterChannels, InterpreterTables};
+
 pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
@@ -5,10 +7,8 @@ pub(crate) mod integer_ops;
 pub(crate) mod ret;
 pub(crate) mod sli;
 
-use crate::emulator::StateChannel;
-
 pub trait Event {
-    fn fire(&self, state_channel: &mut StateChannel);
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
 
 pub(crate) trait BinaryOperation: Sized {

@@ -1,11 +1,11 @@
 use crate::{
-    emulator::{Interpreter, StateChannel},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
 };
 
 // Struture of an event for TAILI.
 #[derive(Debug, Clone)]
-pub(crate) struct TailIEvent {
+pub(crate) struct TailiEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -16,7 +16,7 @@ pub(crate) struct TailIEvent {
     old_fp_val: u16,
 }
 
-impl TailIEvent {
+impl TailiEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -64,9 +64,13 @@ impl TailIEvent {
     }
 }
 
-impl Event for TailIEvent {
-    fn fire(&self, state_channel: &mut StateChannel) {
-        state_channel.pull((self.pc, self.fp, self.timestamp));
-        state_channel.push((self.target, self.next_fp_val, self.timestamp + 1));
+impl Event for TailiEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.target, self.next_fp_val, self.timestamp + 1));
     }
 }
