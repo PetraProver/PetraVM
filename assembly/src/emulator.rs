@@ -7,9 +7,10 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::XoriEvent,
+    b32::{AndiEvent, XoriEvent},
     branch::BnzEvent,
-    call::TailIEvent,
+    call::TailiEvent,
+    integer_ops::{AddiEvent, MuliEvent},
     ret::RetEvent,
     sli::{ShiftKind, SliEvent},
     Event,
@@ -290,7 +291,6 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
-    taili: Vec<TailIEvent>,
 }
 
 impl ZCrayTrace {

@@ -69,7 +69,7 @@ impl AddiEvent {
 }
 
 impl Event for AddiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
@@ -145,7 +145,7 @@ impl MuliEvent {
 }
 
 impl Event for MuliEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));

@@ -17,7 +17,7 @@ pub(crate) struct XoriEvent {
 }
 
 impl Event for XoriEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
         channels
             .state_channel
             .push((self.pc, self.fp, self.timestamp));
@@ -67,7 +67,7 @@ pub(crate) struct AndiEvent {
 }
 
 impl Event for AndiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
         unimplemented!()
     }
 }

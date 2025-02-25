@@ -8,7 +8,7 @@ pub(crate) mod ret;
 pub(crate) mod sli;
 
 pub trait Event {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: InterpreterTables);
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
 
 pub(crate) trait BinaryOperation: Sized {
