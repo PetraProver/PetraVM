@@ -11,7 +11,7 @@ pub enum ShiftKind {
 
 // Struture of an event for one of the shifts.
 #[derive(Debug, Clone)]
-pub struct SliEvent {
+pub struct SlIEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -23,7 +23,7 @@ pub struct SliEvent {
     kind: ShiftKind,
 }
 
-impl SliEvent {
+impl SlIEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -54,7 +54,7 @@ impl SliEvent {
         src: u32,
         imm: u32,
         kind: ShiftKind,
-    ) -> SliEvent {
+    ) -> SlIEvent {
         println!("src = {}, vrom_size = {}", src, interpreter.vrom_size());
         assert!((src as usize) < interpreter.vrom_size());
         let src_val = interpreter.vrom[src as usize];
@@ -75,7 +75,7 @@ impl SliEvent {
         interpreter.pc = pc + 1;
         interpreter.timestamp = timestamp + 1;
 
-        SliEvent::new(
+        SlIEvent::new(
             pc,
             interpreter.fp,
             timestamp,
@@ -89,7 +89,7 @@ impl SliEvent {
     }
 }
 
-impl Event for SliEvent {
+impl Event for SlIEvent {
     fn fire(&self, state_channel: &mut StateChannel) {
         state_channel.pull((self.pc, self.fp, self.timestamp));
         state_channel.push((self.pc + 1, self.fp, self.timestamp + 1));

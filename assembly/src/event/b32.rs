@@ -5,7 +5,7 @@ use crate::emulator::{Interpreter, StateChannel};
 use super::{BinaryOperation, Event, ImmediateBinaryOperation};
 
 #[derive(Debug, Default, Clone)]
-pub(crate) struct XoriEvent {
+pub(crate) struct XorIEvent {
     timestamp: u16,
     pc: u16,
     fp: u16,
@@ -16,13 +16,13 @@ pub(crate) struct XoriEvent {
     imm: u32,
 }
 
-impl Event for XoriEvent {
+impl Event for XorIEvent {
     fn fire(&self, prom_chan: &mut StateChannel) {
         prom_chan.push((self.pc, self.fp, self.timestamp));
     }
 }
 
-impl ImmediateBinaryOperation for XoriEvent {
+impl ImmediateBinaryOperation for XorIEvent {
 
     fn new(
         timestamp: u16,
@@ -48,13 +48,14 @@ impl ImmediateBinaryOperation for XoriEvent {
 
 }
 
-impl BinaryOperation for XoriEvent {
+impl BinaryOperation for XorIEvent {
     fn operation(val: u32, imm: u32) -> u32 {
         val ^ imm
     }
 }
 
-pub(crate) struct AndiEvent {
+#[derive(Debug, Default, Clone)]
+pub(crate) struct AndIEvent {
     timestamp: u16,
     pc: u16,
     fp: u16,
@@ -65,13 +66,13 @@ pub(crate) struct AndiEvent {
     imm: u32,
 }
 
-impl Event for AndiEvent {
+impl Event for AndIEvent {
     fn fire(&self, prom_chan: &mut StateChannel) {
         unimplemented!()
     }
 }
 
-impl ImmediateBinaryOperation for AndiEvent {
+impl ImmediateBinaryOperation for AndIEvent {
     
         fn new(
             timestamp: u16,
@@ -97,7 +98,7 @@ impl ImmediateBinaryOperation for AndiEvent {
         
 }
 
-impl BinaryOperation for AndiEvent {
+impl BinaryOperation for AndIEvent {
     fn operation(val: u32, imm: u32) -> u32 {
         val & imm
     }

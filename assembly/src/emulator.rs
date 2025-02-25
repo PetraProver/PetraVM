@@ -7,12 +7,12 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::XoriEvent,
+    b32::{AndIEvent, XorIEvent},
     branch::BnzEvent,
     call::TailIEvent,
     integer_ops::{AddIEvent, MulIEvent},
     ret::RetEvent,
-    sli::{ShiftKind, SliEvent},
+    sli::{ShiftKind, SlIEvent},
     Event,
     ImmediateBinaryOperation, // Add the import for RetEvent
 };
@@ -31,12 +31,13 @@ pub enum Opcode {
     #[default]
     Bnz = 0x01,
     Xori = 0x02,
-    Srli = 0x03,
-    Slli = 0x04,
-    Addi = 0x05,
-    Muli = 0x06,
-    Ret = 0x07,
-    Taili = 0x08,
+    Andi = 0x03,
+    Srli = 0x04,
+    Slli = 0x05,
+    Addi = 0x06,
+    Muli = 0x07,
+    Ret = 0x08,
+    Taili = 0x09,
 }
 
 #[derive(Debug, Default)]
@@ -154,6 +155,7 @@ impl Interpreter {
             Opcode::Muli => self.generate_muli(trace),
             Opcode::Ret => self.generate_ret(trace),
             Opcode::Taili => self.generate_taili(trace),
+            Opcode::Andi => self.generate_andi(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -167,7 +169,7 @@ impl Interpreter {
 
     fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
+        let new_xori_event = XorIEvent::generate_event(self, dst as u16, src as u16, imm);
         trace.xori.push(new_xori_event);
     }
 
@@ -180,12 +182,12 @@ impl Interpreter {
         // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
         // new_shift_event.apply_event(self);
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
+        let new_shift_event = SlIEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
         trace.shift.push(new_shift_event);
     }
     fn generate_srli(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
+        let new_shift_event = SlIEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
     }
 
@@ -203,6 +205,12 @@ impl Interpreter {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_muli_event = MulIEvent::generate_event(self, dst, src, imm);
         trace.muli.push(new_muli_event);
+    }
+
+    fn generate_andi(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_andi_event = AndIEvent::generate_event(self, dst as u16, src as u16, imm);
+        trace.andi.push(new_andi_event);
     }
 }
 
@@ -247,8 +255,9 @@ impl<T: Hash + Eq> Channel<T> {
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
-    xori: Vec<XoriEvent>,
-    shift: Vec<SliEvent>,
+    xori: Vec<XorIEvent>,
+    andi: Vec<AndIEvent>,
+    shift: Vec<SlIEvent>,
     addi: Vec<AddIEvent>,
     muli: Vec<MulIEvent>,
     taili: Vec<TailIEvent>,
@@ -298,6 +307,73 @@ mod tests {
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
+        let traces = ZCrayTrace::generate_with_vrom(prom, vrom);
+        println!("final trace {:?}", traces);
+    }
+
+    #[test]
+    fn test_compiled_collatz() {
+        //collatz:
+        // ;; Frame:
+        // 	;; Slot @0: Return PC
+        // 	;; Slot @1: Return FP
+        // 	;; Slot @2: Arg: n
+        //  ;; Slot @3: Return value
+        // 	;; Slot @4: Local: n == 1
+        // 	;; Slot @5: Local: n % 2
+        // 	;; Slot @6: Local: 3*n
+        // 	;; Slot @7: ND Local: Next FP
+        // 	;; Slot @8: Local: n >> 2 or 3*n + 1
+
+        // 	;; Branch to recursion label if value in slot 2 is not 1
+        // 	XORI @5, @2, #1
+        // 	BNZ case_recurse, @5 ;; branch if n == 1
+        // 	XORI @3 @2 #0
+        // 	RET
+        // ;;
+
+        // case_recurse:
+        // 	ANDI @6, #1 ;; n % 2 is & 0x00..01
+        // BNZ case_odd, @6  ;; branch if n % 2 == 0u32
+
+        // 	;; case even
+        // ;; n >> 1
+        // 	SRLI @8[2], @2, #1
+        // TAILI collatz, @8
+
+        // case_odd:
+        // 	MULI @7, @2, #3u32
+        // 	ADDI @9, @7, #1u32
+        // 	TAILI collatz, @8
+
+        //     }
+
+        // labels
+        let collatz = 0;
+        let case_recurse = 4;
+        let case_odd = 8;
+        let instructions = vec![
+            // collatz:
+            [Opcode::Xori as u32, 4, 2, 1],           //  0: XORI 4 2 1
+            [Opcode::Bnz as u32, 4, case_recurse, 0], //  1: BNZ 4 case_recurse
+            // case_return:
+            [Opcode::Xori as u32, 3, 2, 0], //  2: XORI 3 2 0
+            [Opcode::Ret as u32, 0, 0, 0],  //  3: RET
+            // case_recurse:
+            [Opcode::Andi as u32, 6, 0, 1],       //  4: ANDI 6 0 1
+            [Opcode::Bnz as u32, 6, case_odd, 0], //  5: BNZ 6 case_odd 0 0
+            // case_even:
+            [Opcode::Srli as u32, 8, 2, 1],        //  6: SRLI 8 2 1
+            [Opcode::Taili as u32, collatz, 8, 0], // 7: TAILI collatz 8 0
+            // case_odd:
+            [Opcode::Muli as u32, 7, 2, 3],        //  8: MULI 7 2 3
+            [Opcode::Addi as u32, 9, 7, 1],        //  9: ADDI 9 7 1
+            [Opcode::Taili as u32, collatz, 8, 0], //  10: TAILI collatz 8 0
+        ];
+        let initial_val = 3999;
+        let prom = ProgramRom(instructions);
+        // return PC = 0, return FP = 0, n = 3999
+        let vrom = ValueRom(vec![0, 0, initial_val]);
         let traces = ZCrayTrace::generate_with_vrom(prom, vrom);
         println!("final trace {:?}", traces);
     }
