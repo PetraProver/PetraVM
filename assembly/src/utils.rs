@@ -5,7 +5,7 @@ pub trait Event {
 }
 
 #[derive(Debug)]
-pub struct RetEvent {
+pub(crate) struct RetEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -14,20 +14,22 @@ pub struct RetEvent {
 }
 
 impl RetEvent {
-    pub fn new(interpreter: &Interpreter) -> Self {
+    pub(crate) fn new(interpreter: &Interpreter) -> Self {
+        let fp = interpreter.fp as usize;
         Self {
-            pc: interpreter.get_pc(),
-            fp: interpreter.get_fp(),
-            timestamp: interpreter.get_timestamp(),
-            fp_0_val: interpreter.get_vrom_index(interpreter.get_fp() as usize) as u16,
-            fp_1_val: interpreter.get_vrom_index(interpreter.get_fp() as usize + 1) as u16,
+            pc: interpreter.pc,
+            fp: interpreter.fp,
+            timestamp: interpreter.timestamp,
+            fp_0_val: interpreter.vrom[fp] as u16,
+            fp_1_val: interpreter.vrom[fp + 1] as u16,
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
-        interpreter.set_pc(interpreter.get_vrom_index(interpreter.get_fp() as usize) as u16);
-        interpreter.set_fp(interpreter.get_vrom_index(interpreter.get_fp() as usize + 1) as u16);
-        interpreter.set_timestamp(interpreter.get_timestamp() + 1);
+    pub(crate) fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
+        let fp = interpreter.fp as usize;
+        interpreter.pc = interpreter.vrom[fp] as u16;
+        interpreter.fp = interpreter.vrom[fp + 1] as u16;
+        interpreter.timestamp = interpreter.timestamp + 1;
         RetEvent::new(&interpreter)
     }
 }
