@@ -4,15 +4,19 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use num_enum::{TryFromPrimitive, IntoPrimitive};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+
+use crate::events::{
+    b32::XoriEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event // Add the import for RetEvent
+};
 
 #[derive(Debug, Default)]
 pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-type PromChannel = Channel<(u16, u32, u16, u32)>;
-type VromChannel = Channel<u32>;
+type StateChannelInput = (u16, u16, u16); // PC, FP, Timestamp
+pub(crate) type StateChannel = Channel<StateChannelInput>;
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u32)]
@@ -20,19 +24,22 @@ pub enum Opcode {
     #[default]
     Bnz = 0x01,
     Xori = 0x02,
+    Srli = 0x03,
+    Slli = 0x04,
+    Ret = 0x05,
 }
 
 #[derive(Debug, Default)]
-struct Interpreter {
-    pc: u16,
-    fp: u16,
-    timestamp: u16,
-    prom: ProgramRom,
-    vrom: ValueRom,
+pub struct Interpreter {
+    pub(crate) pc: u16,
+    pub(crate) fp: u16,
+    pub(crate) timestamp: u16,
+    pub(crate) prom: ProgramRom,
+    pub(crate) vrom: ValueRom,
 }
 
 #[derive(Debug, Default)]
-struct ValueRom(Vec<u32>);
+pub(crate) struct ValueRom(Vec<u32>);
 
 impl Index<usize> for ValueRom {
     type Output = u32;
@@ -65,6 +72,12 @@ impl IndexMut<usize> for ProgramRom {
     }
 }
 
+impl ProgramRom {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 type Instruction = [u32; 4];
 
 #[derive(Debug)]
@@ -83,52 +96,93 @@ impl Interpreter {
         }
     }
 
+    pub fn new_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Self {
+        Self {
+            pc: 1,
+            fp: 0,
+            timestamp: 0,
+            prom,
+            vrom,
+        }
+    }
+
+    pub(crate) fn get_pc(&self) -> u16 {
+        self.pc
+    }
+
+    pub(crate) fn set_pc(&mut self, pc: u16) {
+        self.pc = pc;
+    }
+
+    pub(crate) fn get_fp(&self) -> u16 {
+        self.fp
+    }
+
+    pub(crate) fn set_fp(&mut self, fp: u16) {
+        self.fp = fp;
+    }
+
+    pub(crate) fn get_timestamp(&self) -> u16 {
+        self.timestamp
+    }
+
+    pub(crate) fn set_timestamp(&mut self, timestamp: u16) {
+        self.timestamp = timestamp;
+    }
+
+    pub(crate) fn get_vrom_index(&self, index: usize) -> u32 {
+        self.vrom[index]
+    }
+
+    pub(crate) fn get_vrom_size(&self) -> usize {
+        self.vrom.0.len()
+    }
+
+    pub(crate) fn extend_size(&mut self, slice: &[u32]) {
+        self.vrom.0.extend(slice);
+    }
+
+    pub(crate) fn get_prom_index(&self, index: usize) -> &Instruction {
+        &self.prom[index]
+    }
+
+    pub(crate) fn set_vrom_index(&mut self, index: usize, val: u32) {
+        self.vrom[index] = val;
+    }
+
+    pub(crate) fn is_halted(&self) -> bool {
+        self.pc == 0
+    }
+
     pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
         let mut trace = ZCrayTrace::default();
         while let Some(_) = self.step(&mut trace)? {
-            // Do nothing
+            if self.is_halted() {
+                return Ok(trace);
+            }
         }
         Ok(trace)
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let [opcode, src1, src2, dst] = self.prom[self.pc as usize];
+        let [opcode, ..] = self.prom[self.pc as usize - 1];
         let opcode = Opcode::try_from(opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
-            Opcode::Bnz => {
-                self.generate_bnz(trace, src1, src2);
-            }
-            Opcode::Xori => {
-                self.generate_xori(trace, src1, src2, dst);
-            }
+            Opcode::Bnz => self.generate_bnz(trace),
+            Opcode::Xori => self.generate_xori(trace),
+            Opcode::Slli => self.generate_slli(trace),
+            Opcode::Srli => self.generate_srli(trace),
+            Opcode::Ret => self.generate_ret(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
     }
 
-fn generate_xori(&mut self, trace: &mut ZCrayTrace, src1: u32, src2: u32, dst: u32) {
-        let src1_val = self.vrom[self.fp as usize + src1 as usize];
-        let imm = src2;
-        let dst_val = src1_val ^ imm;
-        self.vrom[self.fp as usize + dst as usize] = dst_val;
-        self.pc += 1;
-        trace.xori.push(XoriEvent {
-            timestamp: self.timestamp,
-            pc: self.pc,
-            fp: self.fp,
-            dst: dst as u16,
-            dst_val,
-            src1: src1 as u16,
-            src1_val,
-            target: imm,
-            imm,
-        });
-    }
-
-fn generate_bnz(&mut self, trace: &mut ZCrayTrace, src1: u32, src2: u32) {
+    fn generate_bnz(&mut self, trace: &mut ZCrayTrace) {
+        let [_, src1, src2, _] = self.prom[self.pc as usize - 1];
         let cond = self.vrom[self.fp as usize + src1 as usize];
         if cond != 0 {
-            self.pc =  src2 as u16;
+            self.pc = src2 as u16;
         } else {
             self.pc += 1;
         }
@@ -136,10 +190,34 @@ fn generate_bnz(&mut self, trace: &mut ZCrayTrace, src1: u32, src2: u32) {
             timestamp: self.timestamp,
             pc: self.pc,
             fp: self.fp,
-            cond: *src1 as u16,
+            cond: src1 as u16,
             con_val: cond,
-            target: *src2,
+            target: src2,
         });
+    }
+
+    fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
+        trace.xori.push(new_xori_event);
+    }
+    
+    fn generate_ret(&mut self, trace: &mut ZCrayTrace) {
+        let new_ret_event = RetEvent::generate_event(self);
+        trace.ret.push(new_ret_event);
+    }
+
+    fn generate_slli(&mut self, trace: &mut ZCrayTrace,) {
+        // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
+        // new_shift_event.apply_event(self);
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
+        trace.shift.push(new_shift_event);
+    }
+    fn generate_srli(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
+        trace.shift.push(new_shift_event);
     }
 }
 
@@ -197,35 +275,25 @@ impl BnzEvent {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-struct XoriEvent {
-    timestamp: u16,
-    pc: u16,
-    fp: u16,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    target: u32,
-    imm: u32,
-}
-
-impl XoriEvent {
-    fn fire(&self, prom_chan: &mut PromChannel, vrom_chan: &mut Channel<u32>) {
-        prom_chan.push((self.pc, Opcode::Xori.into(), self.src1, self.target));
-        vrom_chan.push(self.dst_val);
-    }
-}
-
 #[derive(Debug, Default)]
-struct ZCrayTrace {
+pub struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xori: Vec<XoriEvent>,
+    shift: Vec<SliEvent>,
+    ret: Vec<RetEvent>,
 }
 
 impl ZCrayTrace {
     fn generate(prom: ProgramRom) -> Result<Self, InterpreterError> {
         let mut interpreter = Interpreter::new(prom);
+
+        let trace = interpreter.run()?;
+
+        Ok(trace)
+    }
+
+    fn generate_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Result<Self, InterpreterError> {
+        let mut interpreter = Interpreter::new_with_vrom(prom, vrom);
 
         let trace = interpreter.run()?;
 
@@ -245,5 +313,19 @@ mod tests {
     fn test_zcray() {
         let trace = ZCrayTrace::generate(ProgramRom(vec![[0, 0, 0, 0]])).expect("Ocuh!");
         trace.validate();
+    }
+
+    #[test]
+    fn test_sli_ret() {
+        // let prom = vec![[0; 4], [0x1b, 3, 2, 5], [0x1c, 5, 4, 7], [0; 4]];
+        let instructions = vec![
+            [Opcode::Slli as u32, 2, 5, 3],
+            [Opcode::Srli as u32, 4, 7, 5],
+            [Opcode::Ret as u32, 0, 0, 0],
+        ];
+        let prom = ProgramRom(instructions);
+        let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
+        let traces = ZCrayTrace::generate_with_vrom(prom, vrom);
+        println!("final trace {:?}", traces);
     }
 }

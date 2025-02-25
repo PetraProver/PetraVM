@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*", "assembly"]
+members = ["assembly"]
 
 [workspace.package]
 name = "zCrayVM"
