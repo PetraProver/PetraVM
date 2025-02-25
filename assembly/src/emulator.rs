@@ -10,7 +10,6 @@ use crate::event::{
     b32::XoriEvent,
     branch::BnzEvent,
     call::TailIEvent,
-    call::TailIEvent,
     integer_ops::{AddIEvent, MulIEvent},
     ret::RetEvent,
     sli::{ShiftKind, SliEvent},
@@ -151,9 +150,8 @@ impl Interpreter {
             Opcode::Xori => self.generate_xori(trace),
             Opcode::Slli => self.generate_slli(trace),
             Opcode::Srli => self.generate_srli(trace),
-            Opcode::Taili => self.generate_taili(trace, *dst as u16, *src1 as u16),
-            Opcode::Addi => self.generate_addi(trace, *dst, *src1, *src2),
-            Opcode::Muli => self.generate_muli(trace, *dst, *src1, *src2),
+            Opcode::Addi => self.generate_addi(trace),
+            Opcode::Muli => self.generate_muli(trace),
             Opcode::Ret => self.generate_ret(trace),
             Opcode::Taili => self.generate_taili(trace),
         }
@@ -196,15 +194,13 @@ impl Interpreter {
         let new_taili_event = TailIEvent::generate_event(self, target as u16, next_fp as u16);
         trace.taili.push(new_taili_event);
     }
-    fn generate_taili(&mut self, trace: &mut ZCrayTrace, target: u16, next_fp: u16) {
-        let new_taili_event = TailIEvent::generate_event(self, target, next_fp);
-        trace.taili.push(new_taili_event);
-    }
-    fn generate_addi(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+    fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_addi_event = AddIEvent::generate_event(self, dst, src, imm);
         trace.addi.push(new_addi_event);
     }
-    fn generate_muli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+    fn generate_muli(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_muli_event = MulIEvent::generate_event(self, dst, src, imm);
         trace.muli.push(new_muli_event);
     }
@@ -257,7 +253,6 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MulIEvent>,
     taili: Vec<TailIEvent>,
     ret: Vec<RetEvent>,
-    taili: Vec<TailIEvent>,
 }
 
 impl ZCrayTrace {
@@ -288,7 +283,8 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let trace = ZCrayTrace::generate(ProgramRom(vec![[0, 0, 0, 0]])).expect("Ocuh!");
+        let trace =
+            ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u32, 0, 0, 0]])).expect("Ouch!");
         trace.validate();
     }
 

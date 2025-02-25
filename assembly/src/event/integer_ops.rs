@@ -1,7 +1,6 @@
-use crate::{
-    emulator::{Interpreter, StateChannel},
-    utils::Event,
-};
+use crate::emulator::{Interpreter, StateChannel};
+
+use super::Event;
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
