@@ -54,6 +54,7 @@ impl BinaryOperation for XoriEvent {
     }
 }
 
+#[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u16,
     pc: u16,
