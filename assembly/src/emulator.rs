@@ -7,7 +7,13 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::XoriEvent, branch::BnzEvent, call::TailIEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event, ImmediateBinaryOperation // Add the import for RetEvent
+    b32::XoriEvent,
+    branch::BnzEvent,
+    call::TailIEvent,
+    ret::RetEvent,
+    sli::{ShiftKind, SliEvent},
+    Event,
+    ImmediateBinaryOperation, // Add the import for RetEvent
 };
 
 #[derive(Debug, Default)]
@@ -15,8 +21,34 @@ pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-type StateChannelInput = (u16, u16, u16); // PC, FP, Timestamp
-pub(crate) type StateChannel = Channel<StateChannelInput>;
+type PromChannel = Channel<(u16, u32, u16, u32)>;
+type VromChannel = Channel<u32>;
+type StateChannel = Channel<(u16, u16, u16)>; // PC, FP, Timestamp
+
+pub struct InterpreterChannels {
+    state_channel: StateChannel,
+}
+
+impl Default for InterpreterChannels {
+    fn default() -> Self {
+        InterpreterChannels {
+            state_channel: StateChannel::default(),
+        }
+    }
+}
+
+type VromTable32 = HashMap<u32, u32>;
+pub struct InterpreterTables {
+    vrom_table_32: VromTable32,
+}
+
+impl Default for InterpreterTables {
+    fn default() -> Self {
+        InterpreterTables {
+            vrom_table_32: VromTable32::default(),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u32)]
@@ -110,7 +142,7 @@ impl Interpreter {
             vrom,
         }
     }
-    
+
     pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.0.len()
     }
@@ -159,13 +191,13 @@ impl Interpreter {
         let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
         trace.xori.push(new_xori_event);
     }
-    
+
     fn generate_ret(&mut self, trace: &mut ZCrayTrace) {
         let new_ret_event = RetEvent::generate_event(self);
         trace.ret.push(new_ret_event);
     }
 
-    fn generate_slli(&mut self, trace: &mut ZCrayTrace,) {
+    fn generate_slli(&mut self, trace: &mut ZCrayTrace) {
         // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
         // new_shift_event.apply_event(self);
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
@@ -250,6 +282,16 @@ impl ZCrayTrace {
     }
 
     fn validate(&self) {
+        let mut channels = InterpreterChannels::default();
+        let mut tables = InterpreterTables::default();
+
+        self.bnz
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.xori
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
         unimplemented!()
     }
 }
