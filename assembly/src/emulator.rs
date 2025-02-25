@@ -166,7 +166,7 @@ impl Interpreter {
     }
 
     pub(crate) fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let [opcode, src1, src2, dst] = &self.prom[self.pc as usize - 1];
+        let [opcode, dst, src1, src2] = &self.prom[self.pc as usize - 1];
         let opcode = Opcode::try_from(*opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
             Opcode::Bnz => {
@@ -345,8 +345,8 @@ mod tests {
     fn test_sli_ret() {
         // let prom = vec![[0; 4], [0x1b, 3, 2, 5], [0x1c, 5, 4, 7], [0; 4]];
         let instructions = vec![
-            [Opcode::Slli as u32, 2, 5, 3],
-            [Opcode::Srli as u32, 4, 7, 5],
+            [Opcode::Slli as u32, 3, 2, 5],
+            [Opcode::Srli as u32, 5, 4, 7],
             [Opcode::Ret as u32, 0, 0, 0],
         ];
         let prom = ProgramRom(instructions);
