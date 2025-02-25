@@ -7,7 +7,7 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::XoriEvent, branch::BnzEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event, ImmediateBinaryOperationEvent // Add the import for RetEvent
+    b32::XoriEvent, branch::BnzEvent, call::TailIEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event, ImmediateBinaryOperation // Add the import for RetEvent
 };
 
 #[derive(Debug, Default)]
@@ -27,10 +27,11 @@ pub enum Opcode {
     Srli = 0x03,
     Slli = 0x04,
     Ret = 0x05,
+    Taili = 0x06,
 }
 
 #[derive(Debug, Default)]
-pub struct Interpreter {
+pub(crate) struct Interpreter {
     pub(crate) pc: u16,
     pub(crate) fp: u16,
     pub(crate) timestamp: u16,
@@ -56,7 +57,7 @@ impl IndexMut<usize> for ValueRom {
 }
 
 #[derive(Debug, Default)]
-struct ProgramRom(Vec<Instruction>);
+pub struct ProgramRom(Vec<Instruction>);
 
 impl Index<usize> for ProgramRom {
     type Output = Instruction;
@@ -72,23 +73,27 @@ impl IndexMut<usize> for ProgramRom {
     }
 }
 
-impl ProgramRom {
-    pub fn len(&self) -> usize {
+impl ValueRom {
+    pub(crate) fn len(&self) -> usize {
         self.0.len()
+    }
+
+    pub(crate) fn extend(&mut self, slice: &[u32]) {
+        self.0.extend(slice);
     }
 }
 
 type Instruction = [u32; 4];
 
 #[derive(Debug)]
-enum InterpreterError {
+pub(crate) enum InterpreterError {
     InvalidOpcode,
 }
 
 impl Interpreter {
-    pub fn new(prom: ProgramRom) -> Self {
+    pub(crate) fn new(prom: ProgramRom) -> Self {
         Self {
-            pc: 0,
+            pc: 1,
             fp: 0,
             timestamp: 0,
             prom,
@@ -96,7 +101,7 @@ impl Interpreter {
         }
     }
 
-    pub fn new_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Self {
+    pub(crate) fn new_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Self {
         Self {
             pc: 1,
             fp: 0,
@@ -105,49 +110,13 @@ impl Interpreter {
             vrom,
         }
     }
-
-    pub(crate) fn get_pc(&self) -> u16 {
-        self.pc
-    }
-
-    pub(crate) fn set_pc(&mut self, pc: u16) {
-        self.pc = pc;
-    }
-
-    pub(crate) fn get_fp(&self) -> u16 {
-        self.fp
-    }
-
-    pub(crate) fn set_fp(&mut self, fp: u16) {
-        self.fp = fp;
-    }
-
-    pub(crate) fn get_timestamp(&self) -> u16 {
-        self.timestamp
-    }
-
-    pub(crate) fn set_timestamp(&mut self, timestamp: u16) {
-        self.timestamp = timestamp;
-    }
-
-    pub(crate) fn get_vrom_index(&self, index: usize) -> u32 {
-        self.vrom[index]
-    }
-
-    pub(crate) fn get_vrom_size(&self) -> usize {
+    
+    pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.0.len()
     }
 
-    pub(crate) fn extend_size(&mut self, slice: &[u32]) {
+    pub(crate) fn extend_vrom(&mut self, slice: &[u32]) {
         self.vrom.0.extend(slice);
-    }
-
-    pub(crate) fn get_prom_index(&self, index: usize) -> &Instruction {
-        &self.prom[index]
-    }
-
-    pub(crate) fn set_vrom_index(&mut self, index: usize, val: u32) {
-        self.vrom[index] = val;
     }
 
     pub(crate) fn is_halted(&self) -> bool {
@@ -173,6 +142,7 @@ impl Interpreter {
             Opcode::Slli => self.generate_slli(trace),
             Opcode::Srli => self.generate_srli(trace),
             Opcode::Ret => self.generate_ret(trace),
+            Opcode::Taili => self.generate_taili(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -207,10 +177,16 @@ impl Interpreter {
         let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
     }
+
+    fn generate_taili(&mut self, trace: &mut ZCrayTrace) {
+        let [_, target, next_fp, _] = self.prom[self.pc as usize - 1];
+        let new_taili_event = TailIEvent::generate_event(self, target as u16, next_fp as u16);
+        trace.taili.push(new_taili_event);
+    }
 }
 
 impl<T: Hash + Eq> Channel<T> {
-    pub fn push(&mut self, val: T) {
+    pub(crate) fn push(&mut self, val: T) {
         match self.net_multiplicities.get_mut(&val) {
             Some(multiplicity) => {
                 *multiplicity += 1;
@@ -226,7 +202,7 @@ impl<T: Hash + Eq> Channel<T> {
         }
     }
 
-    pub fn pull(&mut self, val: T) {
+    pub(crate) fn pull(&mut self, val: T) {
         match self.net_multiplicities.get_mut(&val) {
             Some(multiplicity) => {
                 *multiplicity -= 1;
@@ -242,17 +218,18 @@ impl<T: Hash + Eq> Channel<T> {
         }
     }
 
-    pub fn is_balanced(&self) -> bool {
+    pub(crate) fn is_balanced(&self) -> bool {
         self.net_multiplicities.is_empty()
     }
 }
 
 #[derive(Debug, Default)]
-pub struct ZCrayTrace {
+pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xori: Vec<XoriEvent>,
     shift: Vec<SliEvent>,
     ret: Vec<RetEvent>,
+    taili: Vec<TailIEvent>,
 }
 
 impl ZCrayTrace {

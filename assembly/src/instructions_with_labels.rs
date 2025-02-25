@@ -6,7 +6,7 @@ use crate::instruction_args::{Immediate, Slot, SlotWithOffset};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added
-/// 
+///
 /// Ideally we want another pass that removes labels, and replaces label references with
 /// the absolute program counter/instruction index we would jump to.
 #[derive(Debug)]
@@ -52,6 +52,31 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    AddI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
+    AndI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
+    MulI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
+    SrlI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
+    SllI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
     Ret,
     // Add more instructions as needed
 }
@@ -71,6 +96,11 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
             InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
             InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
+            InstructionsWithLabels::AddI { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
+            InstructionsWithLabels::AndI { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),
+            InstructionsWithLabels::MulI { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),
+            InstructionsWithLabels::SrlI { dst, src1, imm } => write!(f, "SRLI {dst} {src1} {imm}"),
+            InstructionsWithLabels::SllI { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
             InstructionsWithLabels::Ret => write!(f, "RET"),
         }
     }
@@ -169,6 +199,46 @@ pub fn parse_instruction(line: &str, line_number: usize) -> Result<InstructionsW
                 dst: FromStr::from_str(&dst)?,
                 src1: FromStr::from_str(&src1)?,
                 src2: FromStr::from_str(&src2)?,
+            })
+        }
+        "ADDI" => {
+            let [dst, src1, imm] = get_args(instruction, args, line_number)?;
+            Ok(InstructionsWithLabels::AddI {
+                dst: FromStr::from_str(&dst)?,
+                src1: FromStr::from_str(&src1)?,
+                imm: FromStr::from_str(&imm)?,
+            })
+        }
+        "ANDI" => {
+            let [dst, src1, imm] = get_args(instruction, args, line_number)?;
+            Ok(InstructionsWithLabels::AndI {
+                dst: FromStr::from_str(&dst)?,
+                src1: FromStr::from_str(&src1)?,
+                imm: FromStr::from_str(&imm)?,
+            })
+        }
+        "MULI" => {
+            let [dst, src1, imm] = get_args(instruction, args, line_number)?;
+            Ok(InstructionsWithLabels::MulI {
+                dst: FromStr::from_str(&dst)?,
+                src1: FromStr::from_str(&src1)?,
+                imm: FromStr::from_str(&imm)?,
+            })
+        }
+        "SRLI" => {
+            let [dst, src1, imm] = get_args(instruction, args, line_number)?;
+            Ok(InstructionsWithLabels::SrlI {
+                dst: FromStr::from_str(&dst)?,
+                src1: FromStr::from_str(&src1)?,
+                imm: FromStr::from_str(&imm)?,
+            })
+        }
+        "SLLI" => {
+            let [dst, src1, imm] = get_args(instruction, args, line_number)?;
+            Ok(InstructionsWithLabels::SllI {
+                dst: FromStr::from_str(&dst)?,
+                src1: FromStr::from_str(&src1)?,
+                imm: FromStr::from_str(&imm)?,
             })
         }
         "RET" => Ok(InstructionsWithLabels::Ret),
