@@ -6,8 +6,8 @@ use std::{
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::events::{
-    b32::XoriEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event // Add the import for RetEvent
+use crate::event::{
+    b32::XoriEvent, branch::BnzEvent, ret::RetEvent, sli::{ShiftKind, SliEvent}, Event, ImmediateBinaryOperationEvent // Add the import for RetEvent
 };
 
 #[derive(Debug, Default)]
@@ -179,21 +179,9 @@ impl Interpreter {
     }
 
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) {
-        let [_, src1, src2, _] = self.prom[self.pc as usize - 1];
-        let cond = self.vrom[self.fp as usize + src1 as usize];
-        if cond != 0 {
-            self.pc = src2 as u16;
-        } else {
-            self.pc += 1;
-        }
-        trace.bnz.push(BnzEvent {
-            timestamp: self.timestamp,
-            pc: self.pc,
-            fp: self.fp,
-            cond: src1 as u16,
-            con_val: cond,
-            target: src2,
-        });
+        let [_, cond, target, _] = self.prom[self.pc as usize - 1];
+        let new_bnz_event = BnzEvent::generate_event(self, cond as u16, target as u16);
+        trace.bnz.push(new_bnz_event);
     }
 
     fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
@@ -256,22 +244,6 @@ impl<T: Hash + Eq> Channel<T> {
 
     pub fn is_balanced(&self) -> bool {
         self.net_multiplicities.is_empty()
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-struct BnzEvent {
-    timestamp: u16,
-    pc: u16,
-    fp: u16,
-    cond: u16,
-    con_val: u32,
-    target: u32,
-}
-
-impl BnzEvent {
-    fn fire(&self, prom_chan: &mut Channel<u32>, vrom_chan: &mut Channel<u32>) {
-        unimplemented!();
     }
 }
 

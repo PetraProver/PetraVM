@@ -1,7 +1,7 @@
 mod emulator;
 mod instruction_args;
 mod instructions_with_labels;
-mod events;
+mod event;
 
 use instructions_with_labels::{parse_instructions, InstructionsWithLabels};
 
