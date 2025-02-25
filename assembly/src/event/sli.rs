@@ -1,6 +1,6 @@
 use crate::{
-    emulator::{Interpreter, StateChannel},
-    utils::Event,
+    emulator::{Channel, Interpreter, StateChannel},
+    event::Event,
 };
 
 #[derive(Debug, Clone)]
@@ -54,9 +54,9 @@ impl SliEvent {
         src: u32,
         imm: u32,
         kind: ShiftKind,
-    ) -> Self {
-        let vrom_len = interpreter.vrom.len();
-        assert!((src as usize) < vrom_len);
+    ) -> SliEvent {
+        println!("src = {}, vrom_size = {}", src, interpreter.vrom_size());
+        assert!((src as usize) < interpreter.vrom_size());
         let src_val = interpreter.vrom[src as usize];
         let new_val = if imm == 0 || imm >= 32 {
             0
@@ -66,18 +66,16 @@ impl SliEvent {
                 ShiftKind::Right => src_val >> imm,
             }
         };
-        if dst as usize > vrom_len - 1 {
-            interpreter
-                .vrom
-                .extend(&vec![0; dst as usize - vrom_len + 1]);
+        if dst as usize > interpreter.vrom_size() - 1 {
+            interpreter.extend_vrom(&vec![0; dst as usize - interpreter.vrom_size() + 1]);
         }
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.vrom[dst as usize] = new_val;
+        interpreter.vrom[dst as usize] =  new_val;
         interpreter.pc = pc + 1;
         interpreter.timestamp = timestamp + 1;
 
-        Self::new(
+        SliEvent::new(
             pc,
             interpreter.fp,
             timestamp,

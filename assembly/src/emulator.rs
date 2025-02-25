@@ -6,11 +6,16 @@ use std::{
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::{
+use crate::event::{
+    b32::XoriEvent,
+    branch::BnzEvent,
+    call::TailIEvent,
     call::TailIEvent,
     integer_ops::{AddIEvent, MulIEvent},
+    ret::RetEvent,
     sli::{ShiftKind, SliEvent},
-    utils::RetEvent,
+    Event,
+    ImmediateBinaryOperation, // Add the import for RetEvent
 };
 
 #[derive(Debug, Default)]
@@ -116,63 +121,56 @@ impl Interpreter {
         }
     }
 
-    pub(crate) fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
+    pub(crate) fn vrom_size(&self) -> usize {
+        self.vrom.0.len()
+    }
+
+    pub(crate) fn extend_vrom(&mut self, slice: &[u32]) {
+        self.vrom.0.extend(slice);
+    }
+
+    pub(crate) fn is_halted(&self) -> bool {
+        self.pc == 0
+    }
+
+    pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
         let mut trace = ZCrayTrace::default();
         while let Some(_) = self.step(&mut trace)? {
-            if self.pc == 0 {
+            if self.is_halted() {
                 return Ok(trace);
             }
         }
         Ok(trace)
     }
 
-    pub(crate) fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        let [opcode, dst, src1, src2] = &self.prom[self.pc as usize - 1];
-        let opcode = Opcode::try_from(*opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
+    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
+        let [opcode, ..] = self.prom[self.pc as usize - 1];
+        let opcode = Opcode::try_from(opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
-            Opcode::Bnz => {
-                let cond = self.vrom[self.fp as usize + *src1 as usize];
-                if cond != 0 {
-                    self.pc = *src2 as u16;
-                } else {
-                    self.pc += 1;
-                }
-                trace.bnz.push(BnzEvent {
-                    timestamp: self.timestamp,
-                    pc: self.pc,
-                    fp: self.fp,
-                    cond: *src1 as u16,
-                    con_val: cond,
-                    target: *src2,
-                });
-            }
-            Opcode::Xori => {
-                let src1_val = self.vrom[self.fp as usize + *src1 as usize];
-                let imm = *src2;
-                let dst_val = src1_val ^ imm;
-                self.vrom[self.fp as usize + *dst as usize] = dst_val;
-                self.pc += 1;
-                trace.xori.push(XoriEvent {
-                    timestamp: self.timestamp,
-                    pc: self.pc,
-                    fp: self.fp,
-                    dst: *dst as u16,
-                    dst_val,
-                    src1: *src1 as u16,
-                    src1_val,
-                    target: imm,
-                    imm,
-                });
-            }
-            Opcode::Slli => self.generate_slli(trace, *dst, *src1, *src2),
-            Opcode::Srli => self.generate_srli(trace, *dst, *src1, *src2),
+            Opcode::Bnz => self.generate_bnz(trace),
+            Opcode::Xori => self.generate_xori(trace),
+            Opcode::Slli => self.generate_slli(trace),
+            Opcode::Srli => self.generate_srli(trace),
             Opcode::Taili => self.generate_taili(trace, *dst as u16, *src1 as u16),
             Opcode::Addi => self.generate_addi(trace, *dst, *src1, *src2),
             Opcode::Muli => self.generate_muli(trace, *dst, *src1, *src2),
             Opcode::Ret => self.generate_ret(trace),
+            Opcode::Taili => self.generate_taili(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
+    }
+
+    fn generate_bnz(&mut self, trace: &mut ZCrayTrace) {
+        let [_, cond, target, _] = self.prom[self.pc as usize - 1];
+        let new_bnz_event = BnzEvent::generate_event(self, cond as u16, target as u16);
+        trace.bnz.push(new_bnz_event);
+    }
+
+    fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
+        trace.xori.push(new_xori_event);
     }
 
     fn generate_ret(&mut self, trace: &mut ZCrayTrace) {
@@ -180,15 +178,23 @@ impl Interpreter {
         trace.ret.push(new_ret_event);
     }
 
-    fn generate_slli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+    fn generate_slli(&mut self, trace: &mut ZCrayTrace) {
         // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
         // new_shift_event.apply_event(self);
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Left);
         trace.shift.push(new_shift_event);
     }
-    fn generate_srli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+    fn generate_srli(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
+    }
+
+    fn generate_taili(&mut self, trace: &mut ZCrayTrace) {
+        let [_, target, next_fp, _] = self.prom[self.pc as usize - 1];
+        let new_taili_event = TailIEvent::generate_event(self, target as u16, next_fp as u16);
+        trace.taili.push(new_taili_event);
     }
     fn generate_taili(&mut self, trace: &mut ZCrayTrace, target: u16, next_fp: u16) {
         let new_taili_event = TailIEvent::generate_event(self, target, next_fp);
@@ -242,41 +248,6 @@ impl<T: Hash + Eq> Channel<T> {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-struct BnzEvent {
-    timestamp: u16,
-    pc: u16,
-    fp: u16,
-    cond: u16,
-    con_val: u32,
-    target: u32,
-}
-
-impl BnzEvent {
-    fn fire(&self, prom_chan: &mut Channel<u32>, vrom_chan: &mut Channel<u32>) {
-        unimplemented!();
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-struct XoriEvent {
-    timestamp: u16,
-    pc: u16,
-    fp: u16,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    target: u32,
-    imm: u32,
-}
-
-impl XoriEvent {
-    fn fire(&self, prom_chan: &mut StateChannel) {
-        prom_chan.push((self.pc, self.fp, self.timestamp));
-    }
-}
-
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
@@ -286,6 +257,7 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MulIEvent>,
     taili: Vec<TailIEvent>,
     ret: Vec<RetEvent>,
+    taili: Vec<TailIEvent>,
 }
 
 impl ZCrayTrace {

@@ -1,6 +1,6 @@
 use crate::{
     emulator::{Interpreter, StateChannel},
-    utils::Event,
+    event::Event,
 };
 
 // Struture of an event for TAILI.

@@ -1,10 +1,7 @@
-mod call;
 mod emulator;
+mod event;
 mod instruction_args;
 mod instructions_with_labels;
-mod integer_ops;
-mod sli;
-mod utils;
 
 use instructions_with_labels::{parse_instructions, InstructionsWithLabels};
 
