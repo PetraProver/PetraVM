@@ -177,7 +177,6 @@ impl Interpreter {
             Opcode::Xori => self.generate_xori(trace),
             Opcode::Slli => self.generate_slli(trace),
             Opcode::Srli => self.generate_srli(trace),
-            Opcode::Taili => self.generate_taili(trace),
             Opcode::Addi => self.generate_addi(trace),
             Opcode::Muli => self.generate_muli(trace),
             Opcode::Ret => self.generate_ret(trace),
@@ -331,7 +330,8 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let trace = ZCrayTrace::generate(ProgramRom(vec![[0, 0, 0, 0]])).expect("Ocuh!");
+        let trace =
+            ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u32, 0, 0, 0]])).expect("Ouch!");
         trace.validate();
     }
 

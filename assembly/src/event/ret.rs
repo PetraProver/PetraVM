@@ -23,6 +23,12 @@ impl RetEvent {
     }
 
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
+        if interpreter.fp as usize + 1 > interpreter.vrom_size() {
+            interpreter.vrom.extend(&vec![
+                0u32;
+                interpreter.fp as usize - interpreter.vrom_size() + 2
+            ]);
+        }
         interpreter.pc = interpreter.vrom[interpreter.fp as usize] as u16;
         interpreter.fp = interpreter.vrom[interpreter.fp as usize + 1] as u16;
         interpreter.timestamp = interpreter.timestamp + 1;
