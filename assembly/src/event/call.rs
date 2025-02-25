@@ -3,9 +3,9 @@ use crate::{
     event::Event,
 };
 
-// Struture of an event for one of the shifts.
+// Struture of an event for TAILI.
 #[derive(Debug, Clone)]
-pub(crate) struct TailIEvent {
+pub(crate) struct TailiEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
@@ -16,7 +16,7 @@ pub(crate) struct TailIEvent {
     old_fp_val: u16,
 }
 
-impl TailIEvent {
+impl TailiEvent {
     pub fn new(
         pc: u16,
         fp: u16,
@@ -64,7 +64,7 @@ impl TailIEvent {
     }
 }
 
-impl Event for TailIEvent {
+impl Event for TailiEvent {
     fn fire(&self, state_channel: &mut StateChannel) {
         state_channel.pull((self.pc, self.fp, self.timestamp));
         state_channel.push((self.target, self.next_fp_val, self.timestamp + 1));

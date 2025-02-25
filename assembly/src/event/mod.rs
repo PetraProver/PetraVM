@@ -3,6 +3,7 @@ pub(crate) mod branch;
 pub(crate) mod ret;
 pub(crate) mod sli;
 pub(crate) mod call;
+pub(crate) mod integer_ops;
 
 use crate::emulator::StateChannel;
 
