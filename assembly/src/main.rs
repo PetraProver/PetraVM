@@ -2,6 +2,7 @@ mod call;
 mod emulator;
 mod instruction_args;
 mod instructions_with_labels;
+mod integer_ops;
 mod sli;
 mod utils;
 

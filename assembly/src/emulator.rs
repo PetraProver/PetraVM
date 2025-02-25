@@ -7,6 +7,8 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{
+    call::TailIEvent,
+    integer_ops::{AddIEvent, MulIEvent},
     sli::{ShiftKind, SliEvent},
     utils::RetEvent,
 };
@@ -27,7 +29,10 @@ pub enum Opcode {
     Xori = 0x02,
     Srli = 0x03,
     Slli = 0x04,
-    Ret = 0x05,
+    Addi = 0x05,
+    Muli = 0x06,
+    Ret = 0x07,
+    Taili = 0x08,
 }
 
 #[derive(Debug, Default)]
@@ -111,50 +116,6 @@ impl Interpreter {
         }
     }
 
-    // pub(crate) fn get_pc(&self) -> u16 {
-    //     self.pc
-    // }
-
-    // pub(crate) fn set_pc(&mut self, pc: u16) {
-    //     self.pc = pc;
-    // }
-
-    // pub(crate) fn get_fp(&self) -> u16 {
-    //     self.fp
-    // }
-
-    // pub(crate) fn set_fp(&mut self, fp: u16) {
-    //     self.fp = fp;
-    // }
-
-    // pub(crate) fn get_timestamp(&self) -> u16 {
-    //     self.timestamp
-    // }
-
-    // pub(crate) fn set_timestamp(&mut self, timestamp: u16) {
-    //     self.timestamp = timestamp;
-    // }
-
-    // pub(crate) fn get_vrom_index(&self, index: usize) -> u32 {
-    //     self.vrom[index]
-    // }
-
-    // pub(crate) fn get_vrom_size(&self) -> usize {
-    //     self.vrom.0.len()
-    // }
-
-    // pub(crate) fn extend_size(&mut self, slice: &[u32]) {
-    //     self.vrom.0.extend(slice);
-    // }
-
-    // pub(crate) fn get_prom_index(&self, index: usize) -> &Instruction {
-    //     &self.prom[index]
-    // }
-
-    // pub(crate) fn set_vrom_index(&mut self, index: usize, val: u32) {
-    //     self.vrom[index] = val;
-    // }
-
     pub(crate) fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
         let mut trace = ZCrayTrace::default();
         while let Some(_) = self.step(&mut trace)? {
@@ -205,6 +166,9 @@ impl Interpreter {
             }
             Opcode::Slli => self.generate_slli(trace, *dst, *src1, *src2),
             Opcode::Srli => self.generate_srli(trace, *dst, *src1, *src2),
+            Opcode::Taili => self.generate_taili(trace, *dst as u16, *src1 as u16),
+            Opcode::Addi => self.generate_addi(trace, *dst, *src1, *src2),
+            Opcode::Muli => self.generate_muli(trace, *dst, *src1, *src2),
             Opcode::Ret => self.generate_ret(trace),
         }
         self.timestamp += 1;
@@ -225,6 +189,18 @@ impl Interpreter {
     fn generate_srli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
         let new_shift_event = SliEvent::generate_event(self, dst, src, imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
+    }
+    fn generate_taili(&mut self, trace: &mut ZCrayTrace, target: u16, next_fp: u16) {
+        let new_taili_event = TailIEvent::generate_event(self, target, next_fp);
+        trace.taili.push(new_taili_event);
+    }
+    fn generate_addi(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+        let new_addi_event = AddIEvent::generate_event(self, dst, src, imm);
+        trace.addi.push(new_addi_event);
+    }
+    fn generate_muli(&mut self, trace: &mut ZCrayTrace, dst: u32, src: u32, imm: u32) {
+        let new_muli_event = MulIEvent::generate_event(self, dst, src, imm);
+        trace.muli.push(new_muli_event);
     }
 }
 
@@ -306,6 +282,9 @@ pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xori: Vec<XoriEvent>,
     shift: Vec<SliEvent>,
+    addi: Vec<AddIEvent>,
+    muli: Vec<MulIEvent>,
+    taili: Vec<TailIEvent>,
     ret: Vec<RetEvent>,
 }
 

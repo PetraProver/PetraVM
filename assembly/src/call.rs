@@ -3,7 +3,7 @@ use crate::{
     utils::Event,
 };
 
-// Struture of an event for one of the shifts.
+// Struture of an event for TAILI.
 #[derive(Debug, Clone)]
 pub(crate) struct TailIEvent {
     pc: u16,
