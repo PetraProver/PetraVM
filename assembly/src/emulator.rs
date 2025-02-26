@@ -234,7 +234,7 @@ impl Interpreter {
         let new_muli_event = MuliEvent::generate_event(self, dst, src, imm);
         trace.muli.push(new_muli_event);
     }
-    
+
     fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_addi_event = AddiEvent::generate_event(self, dst, src, imm);
@@ -290,13 +290,15 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
+    vrom: ValueRom,
 }
 
 impl ZCrayTrace {
     fn generate(prom: ProgramRom) -> Result<Self, InterpreterError> {
         let mut interpreter = Interpreter::new(prom);
 
-        let trace = interpreter.run()?;
+        let mut trace = interpreter.run()?;
+        trace.vrom = interpreter.vrom;
 
         Ok(trace)
     }
@@ -304,14 +306,24 @@ impl ZCrayTrace {
     fn generate_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Result<Self, InterpreterError> {
         let mut interpreter = Interpreter::new_with_vrom(prom, vrom);
 
-        let trace = interpreter.run()?;
+        let mut trace = interpreter.run()?;
+        trace.vrom = interpreter.vrom;
 
         Ok(trace)
     }
 
     fn validate(&self) {
         let mut channels = InterpreterChannels::default();
-        let mut tables = InterpreterTables::default();
+
+        let vrom_table_32 = self
+            .vrom
+            .0
+            .iter()
+            .enumerate()
+            .map(|(i, &elem)| (i as u32, elem))
+            .collect();
+
+        let tables = InterpreterTables { vrom_table_32 };
 
         self.bnz
             .iter()
@@ -320,7 +332,32 @@ impl ZCrayTrace {
         self.xori
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
-        unimplemented!()
+
+        self.andi
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.shift
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.addi
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.muli
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.taili
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.ret
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        assert!(channels.state_channel.is_balanced());
     }
 }
 
