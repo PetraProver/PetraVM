@@ -10,7 +10,7 @@ use crate::event::{
     b32::{AndiEvent, XoriEvent},
     branch::BnzEvent,
     call::TailiEvent,
-    integer_ops::{AddiEvent, MuliEvent},
+    integer_ops::{Add32Event, Add64Event, AddiEvent, MuliEvent},
     ret::RetEvent,
     sli::{ShiftKind, SliEvent},
     Event,
@@ -232,12 +232,37 @@ impl Interpreter {
     fn generate_muli(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_muli_event = MuliEvent::generate_event(self, dst, src, imm);
+        let aux = new_muli_event.aux;
+        let sum = new_muli_event.sum;
+        let interm_sum = new_muli_event.interm_sum;
+
+        // This is to check sum[0] = aux[0] + aux[1]
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            aux[0] as u64,
+            aux[1] as u64,
+        ));
+        for i in 1..3 {
+            trace.add64.push(Add64Event::generate_event(
+                self,
+                aux[2 * i] as u64,
+                aux[2 * i + 1] as u64,
+            ));
+            trace
+                .add64
+                .push(Add64Event::generate_event(self, sum[i - 1], interm_sum[i]));
+        }
         trace.muli.push(new_muli_event);
     }
 
     fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_addi_event = AddiEvent::generate_event(self, dst, src, imm);
+        trace.add32.push(Add32Event::generate_event(
+            self,
+            new_addi_event.src_val,
+            imm,
+        ));
         trace.addi.push(new_addi_event);
     }
 }
@@ -287,6 +312,8 @@ pub(crate) struct ZCrayTrace {
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
     addi: Vec<AddiEvent>,
+    add32: Vec<Add32Event>,
+    add64: Vec<Add64Event>,
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
@@ -382,8 +409,23 @@ mod tests {
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
-        let traces = ZCrayTrace::generate_with_vrom(prom, vrom);
-        println!("final trace {:?}", traces);
+        let traces =
+            ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
+        let shifts = vec![
+            SliEvent::new(1, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
+            SliEvent::new(2, 0, 1, 5, 0, 4, 3, 7, ShiftKind::Right),
+        ];
+
+        let ret = RetEvent {
+            pc: 3,
+            fp: 0,
+            timestamp: 2,
+            fp_0_val: 0,
+            fp_1_val: 0,
+        };
+
+        assert_eq!(traces.shift, shifts);
+        assert_eq!(traces.ret, vec![ret]);
     }
 
     #[test]

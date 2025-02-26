@@ -49,7 +49,6 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         );
         interpreter.vrom[interpreter.fp as usize + dst as usize] = dst_val;
         interpreter.pc += 1;
-        interpreter.timestamp += 1;
         event
     }
 }

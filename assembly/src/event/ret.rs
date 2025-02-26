@@ -2,13 +2,13 @@ use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
 use super::Event;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RetEvent {
-    pc: u16,
-    fp: u16,
-    timestamp: u16,
-    fp_0_val: u16,
-    fp_1_val: u16,
+    pub(crate) pc: u16,
+    pub(crate) fp: u16,
+    pub(crate) timestamp: u16,
+    pub(crate) fp_0_val: u16,
+    pub(crate) fp_1_val: u16,
 }
 
 impl RetEvent {
@@ -29,10 +29,11 @@ impl RetEvent {
                 interpreter.fp as usize - interpreter.vrom_size() + 2
             ]);
         }
+        let ret_event = RetEvent::new(&interpreter);
         interpreter.pc = interpreter.vrom[interpreter.fp as usize] as u16;
         interpreter.fp = interpreter.vrom[interpreter.fp as usize + 1] as u16;
-        interpreter.timestamp = interpreter.timestamp + 1;
-        RetEvent::new(&interpreter)
+
+        ret_event
     }
 }
 

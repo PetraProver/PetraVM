@@ -3,14 +3,14 @@ use crate::{
     event::Event,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ShiftKind {
     Left,
     Right,
 }
 
 // Struture of an event for one of the shifts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SliEvent {
     pc: u16,
     fp: u16,
@@ -73,7 +73,6 @@ impl SliEvent {
         let timestamp = interpreter.timestamp;
         interpreter.vrom[dst as usize] = new_val;
         interpreter.pc = pc + 1;
-        interpreter.timestamp = timestamp + 1;
 
         SliEvent::new(
             pc,
