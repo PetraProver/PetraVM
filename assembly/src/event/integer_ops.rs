@@ -45,10 +45,9 @@ impl AddiEvent {
     pub fn generate_event(interpreter: &mut Interpreter, dst: u32, src: u32, imm: u32) -> Self {
         let fp = interpreter.fp;
         let src_val = interpreter.vrom[src as usize + 1];
-        let dst_val = src_val + imm;
+        let (dst_val, carry) = src_val.overflowing_add(imm);
 
-        // TODO: generate cout correctly.
-        let cout = 0;
+        let cout = (dst_val ^ src_val ^ imm) >> 1 + (carry as u32) << 31;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
