@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,

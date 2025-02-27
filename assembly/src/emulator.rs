@@ -53,7 +53,7 @@ impl Default for InterpreterTables {
 }
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
-#[repr(u32)]
+#[repr(u16)]
 pub enum Opcode {
     #[default]
     Bnz = 0x01,
@@ -97,6 +97,12 @@ impl IndexMut<usize> for ValueRom {
 #[derive(Debug, Default)]
 pub struct ProgramRom(Vec<Instruction>);
 
+impl ProgramRom {
+    pub fn new(prom: Vec<Instruction>) -> Self {
+        Self(prom)
+    }
+}
+
 impl Index<usize> for ProgramRom {
     type Output = Instruction;
 
@@ -112,6 +118,10 @@ impl IndexMut<usize> for ProgramRom {
 }
 
 impl ValueRom {
+    pub fn new(vrom: Vec<u32>) -> Self {
+        Self(vrom)
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
@@ -137,7 +147,7 @@ impl ValueRom {
     }
 }
 
-type Instruction = [u32; 4];
+pub(crate) type Instruction = [u16; 4];
 
 #[derive(Debug)]
 pub(crate) enum InterpreterError {
@@ -276,7 +286,7 @@ impl Interpreter {
         trace.add32.push(Add32Event::generate_event(
             self,
             new_addi_event.src_val,
-            imm,
+            imm as u32,
         ));
         trace.addi.push(new_addi_event);
     }
@@ -342,7 +352,7 @@ pub(crate) struct ZCrayTrace {
     vrom: ValueRom,
 }
 
-struct BoundaryValues {
+pub(crate) struct BoundaryValues {
     final_pc: u16,
     final_fp: u16,
     timestamp: u16,
@@ -364,7 +374,7 @@ impl ZCrayTrace {
         Ok((trace, boundary_values))
     }
 
-    fn generate_with_vrom(
+    pub(crate) fn generate_with_vrom(
         prom: ProgramRom,
         vrom: ValueRom,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
@@ -443,6 +453,22 @@ impl ZCrayTrace {
     }
 }
 
+pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
+    let mut cur_value = initial_val;
+    let mut evens = vec![];
+    let mut odds = vec![];
+    while cur_value != 1 {
+        if cur_value % 2 == 0 {
+            evens.push(cur_value);
+            cur_value /= 2;
+        } else {
+            odds.push(cur_value);
+            cur_value = 3 * cur_value + 1;
+        }
+    }
+    (evens, odds)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -450,7 +476,7 @@ mod tests {
     #[test]
     fn test_zcray() {
         let (trace, boundary_values) =
-            ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u32, 0, 0, 0]])).expect("Ouch!");
+            ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u16, 0, 0, 0]])).expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -458,9 +484,9 @@ mod tests {
     fn test_sli_ret() {
         // let prom = vec![[0; 4], [0x1b, 3, 2, 5], [0x1c, 5, 4, 7], [0; 4]];
         let instructions = vec![
-            [Opcode::Slli as u32, 3, 2, 5],
-            [Opcode::Srli as u32, 5, 4, 7],
-            [Opcode::Ret as u32, 0, 0, 0],
+            [Opcode::Slli as u16, 3, 2, 5],
+            [Opcode::Srli.into(), 5, 4, 7],
+            [Opcode::Ret.into(), 0, 0, 0],
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
@@ -529,25 +555,25 @@ mod tests {
         let next_fp = 9;
         let instructions = vec![
             // collatz:
-            [Opcode::Xori as u32, 4, 2, 1],           //  1: XORI 4 2 1
-            [Opcode::Bnz as u32, 4, case_recurse, 0], //  2: BNZ 4 case_recurse
+            [Opcode::Xori as u16, 4, 2, 1],           //  1: XORI 4 2 1
+            [Opcode::Bnz.into(), 4, case_recurse, 0], //  2: BNZ 4 case_recurse
             // case_return:
-            [Opcode::Xori as u32, 3, 2, 0], //  3: XORI 3 2 0
-            [Opcode::Ret as u32, 0, 0, 0],  //  4: RET
+            [Opcode::Xori.into(), 3, 2, 0], //  3: XORI 3 2 0
+            [Opcode::Ret.into(), 0, 0, 0],  //  4: RET
             // case_recurse:
-            [Opcode::Andi as u32, 5, 2, 1],       //  5: ANDI 5 2 1
-            [Opcode::Bnz as u32, 5, case_odd, 0], //  6: BNZ 5 case_odd 0 0
+            [Opcode::Andi.into(), 5, 2, 1],       //  5: ANDI 5 2 1
+            [Opcode::Bnz.into(), 5, case_odd, 0], //  6: BNZ 5 case_odd 0 0
             // case_even:
-            [Opcode::Srli as u32, 7, 2, 1],        //  7: SRLI 7 2 1
-            [Opcode::MVVW as u32, 8, 2, 7],        //  8: MVV.W @8[2], @7
-            [Opcode::MVVW as u32, 8, 3, 3],        //  9: MVV.W @8[3], @3
-            [Opcode::Taili as u32, collatz, 8, 0], // 10: TAILI collatz 8 0
+            [Opcode::Srli.into(), 7, 2, 1],        //  7: SRLI 7 2 1
+            [Opcode::MVVW.into(), 8, 2, 7],        //  8: MVV.W @8[2], @7
+            [Opcode::MVVW.into(), 8, 3, 3],        //  9: MVV.W @8[3], @3
+            [Opcode::Taili.into(), collatz, 8, 0], // 10: TAILI collatz 8 0
             // case_odd:
-            [Opcode::Muli as u32, 6, 2, 3],        //  11: MULI 6 2 3
-            [Opcode::Addi as u32, 7, 6, 1],        //  12: ADDI 7 6 1
-            [Opcode::MVVW as u32, 8, 2, 7],        //  13: MVV.W @8[2], @7
-            [Opcode::MVVW as u32, 8, 3, 3],        //  14: MVV.W @8[3], @3
-            [Opcode::Taili as u32, collatz, 8, 0], //  15: TAILI collatz 8 0
+            [Opcode::Muli.into(), 6, 2, 3],        //  11: MULI 6 2 3
+            [Opcode::Addi.into(), 7, 6, 1],        //  12: ADDI 7 6 1
+            [Opcode::MVVW.into(), 8, 2, 7],        //  13: MVV.W @8[2], @7
+            [Opcode::MVVW.into(), 8, 3, 3],        //  14: MVV.W @8[3], @3
+            [Opcode::Taili.into(), collatz, 8, 0], //  15: TAILI collatz 8 0
         ];
         let initial_val = 3999;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
@@ -570,21 +596,5 @@ mod tests {
         for i in 0..expected_odds.len() {
             assert!(traces.muli[i].src_val == expected_odds[i]);
         }
-    }
-
-    fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
-        let mut cur_value = initial_val;
-        let mut evens = vec![];
-        let mut odds = vec![];
-        while cur_value != 1 {
-            if cur_value % 2 == 0 {
-                evens.push(cur_value);
-                cur_value /= 2;
-            } else {
-                odds.push(cur_value);
-                cur_value = 3 * cur_value + 1;
-            }
-        }
-        (evens, odds)
     }
 }

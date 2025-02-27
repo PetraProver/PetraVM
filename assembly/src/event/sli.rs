@@ -15,11 +15,11 @@ pub struct SliEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
-    dst: u32,
+    dst: u16,
     dst_val: u32,
-    src: u32,
+    src: u16,
     pub(crate) src_val: u32,
-    shift: u32,
+    shift: u16,
     kind: ShiftKind,
 }
 
@@ -28,11 +28,11 @@ impl SliEvent {
         pc: u16,
         fp: u16,
         timestamp: u16,
-        dst: u32,
+        dst: u16,
         dst_val: u32,
-        src: u32,
+        src: u16,
         src_val: u32,
-        shift: u32,
+        shift: u16,
         kind: ShiftKind,
     ) -> Self {
         Self {
@@ -50,9 +50,9 @@ impl SliEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
-        dst: u32,
-        src: u32,
-        imm: u32,
+        dst: u16,
+        src: u16,
+        imm: u16,
         kind: ShiftKind,
     ) -> SliEvent {
         let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);

@@ -27,17 +27,17 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         dst_val: u32,
         src: u16,
         src_val: u32,
-        imm: u32,
+        imm: u16,
     ) -> Self;
 
     fn generate_event(
         interpreter: &mut crate::emulator::Interpreter,
         dst: u16,
         src: u16,
-        imm: u32,
+        imm: u16,
     ) -> Self {
         let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
-        let dst_val = Self::operation(src_val, imm);
+        let dst_val = Self::operation(src_val, imm as u32);
         let event = Self::new(
             interpreter.timestamp,
             interpreter.pc,
