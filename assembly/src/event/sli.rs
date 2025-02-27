@@ -18,7 +18,7 @@ pub struct SliEvent {
     dst: u32,
     dst_val: u32,
     src: u32,
-    src_val: u32,
+    pub(crate) src_val: u32,
     shift: u32,
     kind: ShiftKind,
 }

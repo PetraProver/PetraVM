@@ -173,7 +173,7 @@ pub(crate) struct MuliEvent {
     dst: u32,
     dst_val: u32,
     src: u32,
-    src_val: u32,
+    pub(crate) src_val: u32,
     imm: u32,
     // Auxiliary commitments
     pub(crate) aux: [u32; 8],

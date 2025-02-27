@@ -549,15 +549,42 @@ mod tests {
             [Opcode::MVVW as u32, 8, 3, 3],        //  14: MVV.W @8[3], @3
             [Opcode::Taili as u32, collatz, 8, 0], //  15: TAILI collatz 8 0
         ];
-        let initial_val = 5;
+        let initial_val = 3999;
+        let (expected_evens, expected_odds) = collatz_orbits(initial_val);
+        let nb_frames = expected_evens.len() + expected_odds.len();
         let prom = ProgramRom(instructions);
         // return PC = 0, return FP = 0, n = 3999
         let mut vrom = ValueRom(vec![0, 0, initial_val]);
-        for i in 0..50 {
+        for i in 0..nb_frames {
             vrom.set(i * next_fp + next_fp_offset, ((i + 1) * next_fp) as u32);
         }
 
         let (traces, _) =
             ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
+
+        assert!(traces.shift.len() == expected_evens.len()); // There are 4 even cases.
+        for i in 0..expected_evens.len() {
+            assert!(traces.shift[i].src_val == expected_evens[i]);
+        }
+        assert!(traces.muli.len() == expected_odds.len()); // There is 1 odd case.
+        for i in 0..expected_odds.len() {
+            assert!(traces.muli[i].src_val == expected_odds[i]);
+        }
+    }
+
+    fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
+        let mut cur_value = initial_val;
+        let mut evens = vec![];
+        let mut odds = vec![];
+        while cur_value != 1 {
+            if cur_value % 2 == 0 {
+                evens.push(cur_value);
+                cur_value /= 2;
+            } else {
+                odds.push(cur_value);
+                cur_value = 3 * cur_value + 1;
+            }
+        }
+        (evens, odds)
     }
 }
