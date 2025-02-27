@@ -97,11 +97,11 @@ pub(crate) struct AddiEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
-    dst: u32,
+    dst: u16,
     dst_val: u32,
-    src: u32,
+    src: u16,
     pub(crate) src_val: u32,
-    imm: u32,
+    imm: u16,
 }
 
 impl AddiEvent {
@@ -109,11 +109,11 @@ impl AddiEvent {
         pc: u16,
         fp: u16,
         timestamp: u16,
-        dst: u32,
+        dst: u16,
         dst_val: u32,
-        src: u32,
+        src: u16,
         src_val: u32,
-        imm: u32,
+        imm: u16,
     ) -> Self {
         Self {
             pc,
@@ -127,11 +127,11 @@ impl AddiEvent {
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter, dst: u32, src: u32, imm: u32) -> Self {
+    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, src: u16, imm: u16) -> Self {
         let fp = interpreter.fp;
         let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src_val + imm;
+        let dst_val = src_val + imm as u32;
         interpreter
             .vrom
             .set(interpreter.fp as usize + dst as usize, dst_val);
@@ -170,11 +170,11 @@ pub(crate) struct MuliEvent {
     pc: u16,
     fp: u16,
     timestamp: u16,
-    dst: u32,
+    dst: u16,
     dst_val: u32,
-    src: u32,
+    src: u16,
     pub(crate) src_val: u32,
-    imm: u32,
+    imm: u16,
     // Auxiliary commitments
     pub(crate) aux: [u32; 8],
     // Intermediary sum, such that interm_sum[i] = aux[2*i] + aux[2*i+1], for i > 0.
@@ -190,11 +190,11 @@ impl MuliEvent {
         pc: u16,
         fp: u16,
         timestamp: u16,
-        dst: u32,
+        dst: u16,
         dst_val: u32,
-        src: u32,
+        src: u16,
         src_val: u32,
-        imm: u32,
+        imm: u16,
         aux: [u32; 8],
         interm_sum: [u64; 3],
         sum: [u64; 3],
@@ -214,11 +214,11 @@ impl MuliEvent {
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter, dst: u32, src: u32, imm: u32) -> Self {
+    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, src: u16, imm: u16) -> Self {
         let fp = interpreter.fp;
         let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
 
-        let dst_val = src_val * imm;
+        let dst_val = src_val * imm as u32;
 
         interpreter
             .vrom
@@ -230,12 +230,7 @@ impl MuliEvent {
             (src_val >> 16) as u8,
             (src_val >> 24) as u8,
         ];
-        let ys = [
-            imm as u8,
-            (imm >> 8) as u8,
-            (imm >> 16) as u8,
-            (imm >> 24) as u8,
-        ];
+        let ys = [imm as u8, (imm >> 8) as u8, 0, 0];
 
         let mut aux = [0; 8];
         for i in 0..4 {

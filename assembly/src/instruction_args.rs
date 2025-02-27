@@ -24,6 +24,12 @@ impl std::str::FromStr for Slot {
     }
 }
 
+impl Slot {
+    pub(crate) fn get_val(&self) -> u16 {
+        self.0
+    }
+}
+
 impl std::fmt::Display for SlotWithOffset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}[{}]", self.0, self.1)
@@ -43,6 +49,16 @@ impl std::str::FromStr for SlotWithOffset {
     }
 }
 
+impl SlotWithOffset {
+    pub(crate) fn get_slot_val(&self) -> u16 {
+        self.0
+    }
+
+    pub(crate) fn get_offset_val(&self) -> u16 {
+        self.1
+    }
+}
+
 impl std::fmt::Display for Immediate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "#{}G", self.0)
@@ -56,6 +72,12 @@ impl std::str::FromStr for Immediate {
         i16::from_str(s)
             .map(Self)
             .map_err(|_| BadArgumentError::Immediate(s.to_string()))
+    }
+}
+
+impl Immediate {
+    pub(crate) fn get_val(&self) -> u16 {
+        self.0 as u16
     }
 }
 

@@ -1,6 +1,4 @@
-use core::time;
-
-use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
+use crate::emulator::{InterpreterChannels, InterpreterTables};
 
 use super::{BinaryOperation, Event, ImmediateBinaryOperation};
 
@@ -13,11 +11,11 @@ pub(crate) struct XoriEvent {
     dst_val: u32,
     src: u16,
     src_val: u32,
-    imm: u32,
+    imm: u16,
 }
 
 impl Event for XoriEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
             .push((self.pc, self.fp, self.timestamp));
@@ -33,7 +31,7 @@ impl ImmediateBinaryOperation for XoriEvent {
         dst_val: u32,
         src: u16,
         src_val: u32,
-        imm: u32,
+        imm: u16,
     ) -> Self {
         Self {
             timestamp,
@@ -63,7 +61,7 @@ pub(crate) struct AndiEvent {
     dst_val: u32,
     src: u16,
     src_val: u32,
-    imm: u32,
+    imm: u16,
 }
 
 impl Event for AndiEvent {
@@ -81,7 +79,7 @@ impl ImmediateBinaryOperation for AndiEvent {
         dst_val: u32,
         src: u16,
         src_val: u32,
-        imm: u32,
+        imm: u16,
     ) -> Self {
         Self {
             timestamp,

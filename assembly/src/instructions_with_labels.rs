@@ -1,8 +1,11 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use thiserror::Error;
 
-use crate::instruction_args::{Immediate, Slot, SlotWithOffset};
+use crate::{
+    emulator::{Instruction, Opcode},
+    instruction_args::{Immediate, Slot, SlotWithOffset},
+};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added
@@ -79,6 +82,117 @@ pub enum InstructionsWithLabels {
     },
     Ret,
     // Add more instructions as needed
+}
+
+pub fn get_prom_inst_from_inst_with_label(
+    prom: &mut Vec<Instruction>,
+    labels: &HashMap<String, u16>,
+    instruction: &InstructionsWithLabels,
+) -> Result<(), String> {
+    match instruction {
+        InstructionsWithLabels::Label(s) => {
+            if labels.get(s).is_none() {
+                return Err(format!("Label {} not found in the HashMap of labels.", s));
+            }
+        }
+        InstructionsWithLabels::AddI { dst, src1, imm } => prom.push([
+            Opcode::Addi.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        InstructionsWithLabels::AndI { dst, src1, imm } => prom.push([
+            Opcode::Andi.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        // To change
+        InstructionsWithLabels::B32Muli { dst, src1, imm } => prom.push([
+            Opcode::Muli.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        InstructionsWithLabels::Bnz { label, src } => {
+            if let Some(target) = labels.get(label) {
+                prom.push([Opcode::Bnz.into(), src.get_val(), *target, 0]);
+            } else {
+                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
+            }
+        }
+        InstructionsWithLabels::MulI { dst, src1, imm } => prom.push([
+            Opcode::Muli.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        InstructionsWithLabels::MvvW { dst, src } => prom.push([
+            Opcode::MVVW.into(),
+            dst.get_slot_val(),
+            dst.get_offset_val(),
+            src.get_val(),
+        ]),
+        InstructionsWithLabels::SllI { dst, src1, imm } => prom.push([
+            Opcode::Slli.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        InstructionsWithLabels::SrlI { dst, src1, imm } => prom.push([
+            Opcode::Srli.into(),
+            dst.get_val(),
+            src1.get_val(),
+            imm.get_val(),
+        ]),
+        InstructionsWithLabels::Ret => prom.push([Opcode::Ret as u16, 0, 0, 0]),
+        InstructionsWithLabels::Taili { label, arg } => {
+            if let Some(target) = labels.get(label) {
+                prom.push([Opcode::Taili.into(), *target, arg.get_val(), 0]);
+            } else {
+                return Err(format!(
+                    "Label in Taili instruction, {}, nonexistent.",
+                    label
+                ));
+            }
+        }
+        InstructionsWithLabels::XorI { dst, src, imm } => prom.push([
+            Opcode::Xori.into(),
+            dst.get_val(),
+            src.get_val(),
+            imm.get_val(),
+        ]),
+        _ => unimplemented!(),
+    }
+    Ok(())
+}
+
+fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<HashMap<String, u16>, String> {
+    let mut labels = HashMap::new();
+    let mut pc = 1;
+    for instruction in instructions {
+        match instruction {
+            InstructionsWithLabels::Label(s) => {
+                if let Some(_) = labels.insert(s.clone(), pc) {
+                    return Err(format!("Label {} already exists.", s));
+                }
+                // We do not increment the PC if we found a label.
+            }
+            _ => pc += 1,
+        }
+    }
+    Ok(labels)
+}
+
+pub(crate) fn get_full_prom(
+    instructions: &[InstructionsWithLabels],
+) -> Result<Vec<Instruction>, String> {
+    let labels = get_labels(instructions)?;
+    let mut prom = vec![];
+    for instruction in instructions {
+        get_prom_inst_from_inst_with_label(&mut prom, &labels, instruction)?;
+    }
+    Ok(prom)
 }
 
 impl std::fmt::Display for InstructionsWithLabels {
