@@ -20,7 +20,9 @@ impl Event for BnzEvent {
 
 impl BnzEvent {
     pub fn generate_event(interpreter: &mut Interpreter, cond: u16, target: u16) -> BnzEvent {
-        let cond_val = interpreter.vrom[interpreter.fp as usize + cond as usize];
+        let cond_val = interpreter
+            .vrom
+            .get(interpreter.fp as usize + cond as usize);
         let event = BnzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
@@ -29,7 +31,7 @@ impl BnzEvent {
             con_val: cond_val,
             target,
         };
-        if cond != 0 {
+        if cond_val != 0 {
             interpreter.pc = target as u16;
         } else {
             interpreter.pc += 1;

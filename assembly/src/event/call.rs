@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
@@ -41,15 +43,16 @@ impl TailiEvent {
 
     pub fn generate_event(interpreter: &mut Interpreter, target: u16, next_fp: u16) -> Self {
         let fp = interpreter.fp;
-        let return_addr = interpreter.vrom[fp as usize];
-        let old_fp_val = interpreter.vrom[fp as usize + 1];
-        let next_fp_val = interpreter.vrom[(fp + next_fp) as usize + 1] as u16;
+        let return_addr = interpreter.vrom.get(fp as usize);
+        let old_fp_val = interpreter.vrom.get(fp as usize + 1);
+        let next_fp_val = interpreter.vrom.get((fp + next_fp) as usize) as u16;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.fp = next_fp_val as u16;
         interpreter.pc = target;
-        interpreter.vrom[next_fp_val as usize] = return_addr;
-        interpreter.vrom[next_fp_val as usize + 1] = old_fp_val;
+
+        interpreter.vrom.set(next_fp_val as usize, return_addr);
+        interpreter.vrom.set(next_fp_val as usize + 1, old_fp_val);
 
         Self {
             pc,

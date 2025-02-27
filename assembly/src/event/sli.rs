@@ -55,9 +55,7 @@ impl SliEvent {
         imm: u32,
         kind: ShiftKind,
     ) -> SliEvent {
-        println!("src = {}, vrom_size = {}", src, interpreter.vrom_size());
-        assert!((src as usize) < interpreter.vrom_size());
-        let src_val = interpreter.vrom[src as usize];
+        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
         let new_val = if imm == 0 || imm >= 32 {
             0
         } else {
@@ -66,13 +64,13 @@ impl SliEvent {
                 ShiftKind::Right => src_val >> imm,
             }
         };
-        if dst as usize > interpreter.vrom_size() - 1 {
-            interpreter.extend_vrom(&vec![0; dst as usize - interpreter.vrom_size() + 1]);
-        }
+
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.vrom[dst as usize] = new_val;
-        interpreter.pc = pc + 1;
+        interpreter
+            .vrom
+            .set(interpreter.fp as usize + dst as usize, new_val);
+        interpreter.pc += 1;
 
         SliEvent::new(
             pc,

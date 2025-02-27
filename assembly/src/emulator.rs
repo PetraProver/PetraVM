@@ -11,6 +11,7 @@ use crate::event::{
     branch::BnzEvent,
     call::TailiEvent,
     integer_ops::{Add32Event, Add64Event, AddiEvent, MuliEvent},
+    mv::MVVWEvent,
     ret::RetEvent,
     sli::{ShiftKind, SliEvent},
     Event,
@@ -64,6 +65,7 @@ pub enum Opcode {
     Muli = 0x07,
     Ret = 0x08,
     Taili = 0x09,
+    MVVW = 0x0a,
 }
 
 #[derive(Debug, Default)]
@@ -117,6 +119,22 @@ impl ValueRom {
     pub(crate) fn extend(&mut self, slice: &[u32]) {
         self.0.extend(slice);
     }
+
+    pub(crate) fn set(&mut self, index: usize, value: u32) {
+        if index >= self.len() {
+            self.extend(&vec![0; index + 1 - self.len()]);
+        }
+
+        self[index] = value;
+    }
+    pub(crate) fn get(&self, index: usize) -> u32 {
+        assert!(
+            index < self.len(),
+            "Value read in the VROM was never written before."
+        );
+
+        self[index]
+    }
 }
 
 type Instruction = [u32; 4];
@@ -151,10 +169,6 @@ impl Interpreter {
         self.vrom.0.len()
     }
 
-    pub(crate) fn extend_vrom(&mut self, slice: &[u32]) {
-        self.vrom.0.extend(slice);
-    }
-
     pub(crate) fn is_halted(&self) -> bool {
         self.pc == 0
     }
@@ -182,6 +196,7 @@ impl Interpreter {
             Opcode::Ret => self.generate_ret(trace),
             Opcode::Taili => self.generate_taili(trace),
             Opcode::Andi => self.generate_andi(trace),
+            Opcode::MVVW => self.generate_mvv(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -265,6 +280,12 @@ impl Interpreter {
         ));
         trace.addi.push(new_addi_event);
     }
+
+    fn generate_mvv(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, offset, src] = self.prom[self.pc as usize - 1];
+        let new_mvvw_event = MVVWEvent::generate_event(self, dst as u16, offset as u16, src as u16);
+        trace.mvvw.push(new_mvvw_event);
+    }
 }
 
 impl<T: Hash + Eq> Channel<T> {
@@ -317,29 +338,50 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
+    mvvw: Vec<MVVWEvent>,
     vrom: ValueRom,
 }
 
+struct BoundaryValues {
+    final_pc: u16,
+    final_fp: u16,
+    timestamp: u16,
+}
+
 impl ZCrayTrace {
-    fn generate(prom: ProgramRom) -> Result<Self, InterpreterError> {
+    fn generate(prom: ProgramRom) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(prom);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
 
-        Ok(trace)
+        let boundary_values = BoundaryValues {
+            final_pc: interpreter.pc,
+            final_fp: interpreter.fp,
+            timestamp: interpreter.timestamp,
+        };
+
+        Ok((trace, boundary_values))
     }
 
-    fn generate_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Result<Self, InterpreterError> {
+    fn generate_with_vrom(
+        prom: ProgramRom,
+        vrom: ValueRom,
+    ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new_with_vrom(prom, vrom);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
 
-        Ok(trace)
+        let boundary_values = BoundaryValues {
+            final_pc: interpreter.pc,
+            final_fp: interpreter.fp,
+            timestamp: interpreter.timestamp,
+        };
+        Ok((trace, boundary_values))
     }
 
-    fn validate(&self) {
+    fn validate(&self, boundary_values: BoundaryValues) {
         let mut channels = InterpreterChannels::default();
 
         let vrom_table_32 = self
@@ -351,6 +393,15 @@ impl ZCrayTrace {
             .collect();
 
         let tables = InterpreterTables { vrom_table_32 };
+
+        // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
+        channels.state_channel.push((1, 0, 0));
+        // Final boundary pull.
+        channels.state_channel.pull((
+            boundary_values.final_pc,
+            boundary_values.final_fp,
+            boundary_values.timestamp,
+        ));
 
         self.bnz
             .iter()
@@ -384,6 +435,10 @@ impl ZCrayTrace {
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
 
+        self.mvvw
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
         assert!(channels.state_channel.is_balanced());
     }
 }
@@ -394,9 +449,9 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let trace =
+        let (trace, boundary_values) =
             ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u32, 0, 0, 0]])).expect("Ouch!");
-        trace.validate();
+        trace.validate(boundary_values);
     }
 
     #[test]
@@ -409,7 +464,7 @@ mod tests {
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
-        let traces =
+        let (traces, _) =
             ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
         let shifts = vec![
             SliEvent::new(1, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
@@ -430,8 +485,8 @@ mod tests {
 
     #[test]
     fn test_compiled_collatz() {
-        //collatz:
-        // ;; Frame:
+        // collatz:
+        //  ;; Frame:
         // 	;; Slot @0: Return PC
         // 	;; Slot @1: Return FP
         // 	;; Slot @2: Arg: n
@@ -439,59 +494,70 @@ mod tests {
         // 	;; Slot @4: Local: n == 1
         // 	;; Slot @5: Local: n % 2
         // 	;; Slot @6: Local: 3*n
-        // 	;; Slot @7: ND Local: Next FP
-        // 	;; Slot @8: Local: n >> 2 or 3*n + 1
+        //  ;; Slot @7: Local: n >> 2 or 3*n + 1
+        // 	;; Slot @8: ND Local: Next FP
 
         // 	;; Branch to recursion label if value in slot 2 is not 1
-        // 	XORI @5, @2, #1
-        // 	BNZ case_recurse, @5 ;; branch if n == 1
-        // 	XORI @3 @2 #0
+        // 	XORI @4, @2, #1G
+        // 	BNZ case_recurse, @4 ;; branch if n == 1
+        // 	XORI @3, @2, #0G
         // 	RET
-        // ;;
 
         // case_recurse:
-        // 	ANDI @6, #1 ;; n % 2 is & 0x00..01
-        // BNZ case_odd, @6  ;; branch if n % 2 == 0u32
+        // 	ANDI @5, @2, #1 ;; n % 2 is & 0x00..01
+        //  BNZ case_odd, @5 ;; branch if n % 2 == 0u32
 
         // 	;; case even
-        // ;; n >> 1
-        // 	SRLI @8[2], @2, #1
-        // TAILI collatz, @8
+        //  ;; n >> 1
+        // 	SRLI @7, @2, #1
+        //  MVV.W @8[2], @7
+        //  MVV.W @8[3], @3
+        //  TAILI collatz, @8
 
         // case_odd:
-        // 	MULI @7, @2, #3u32
-        // 	ADDI @9, @7, #1u32
+        // 	MULI @6, @2, #3
+        // 	ADDI @7, @6, #1
+        //  MVV.W @8[2], @7
+        //  MVV.W @8[3], @3
         // 	TAILI collatz, @8
 
-        //     }
-
         // labels
-        let collatz = 0;
-        let case_recurse = 4;
-        let case_odd = 8;
+        let collatz = 1;
+        let case_recurse = 5;
+        let case_odd = 11;
+        let next_fp_offset = 8;
+        let next_fp = 9;
         let instructions = vec![
             // collatz:
-            [Opcode::Xori as u32, 4, 2, 1],           //  0: XORI 4 2 1
-            [Opcode::Bnz as u32, 4, case_recurse, 0], //  1: BNZ 4 case_recurse
+            [Opcode::Xori as u32, 4, 2, 1],           //  1: XORI 4 2 1
+            [Opcode::Bnz as u32, 4, case_recurse, 0], //  2: BNZ 4 case_recurse
             // case_return:
-            [Opcode::Xori as u32, 3, 2, 0], //  2: XORI 3 2 0
-            [Opcode::Ret as u32, 0, 0, 0],  //  3: RET
+            [Opcode::Xori as u32, 3, 2, 0], //  3: XORI 3 2 0
+            [Opcode::Ret as u32, 0, 0, 0],  //  4: RET
             // case_recurse:
-            [Opcode::Andi as u32, 6, 0, 1],       //  4: ANDI 6 0 1
-            [Opcode::Bnz as u32, 6, case_odd, 0], //  5: BNZ 6 case_odd 0 0
+            [Opcode::Andi as u32, 5, 2, 1],       //  5: ANDI 5 2 1
+            [Opcode::Bnz as u32, 5, case_odd, 0], //  6: BNZ 5 case_odd 0 0
             // case_even:
-            [Opcode::Srli as u32, 8, 2, 1],        //  6: SRLI 8 2 1
-            [Opcode::Taili as u32, collatz, 8, 0], // 7: TAILI collatz 8 0
+            [Opcode::Srli as u32, 7, 2, 1],        //  7: SRLI 7 2 1
+            [Opcode::MVVW as u32, 8, 2, 7],        //  8: MVV.W @8[2], @7
+            [Opcode::MVVW as u32, 8, 3, 3],        //  9: MVV.W @8[3], @3
+            [Opcode::Taili as u32, collatz, 8, 0], // 10: TAILI collatz 8 0
             // case_odd:
-            [Opcode::Muli as u32, 7, 2, 3],        //  8: MULI 7 2 3
-            [Opcode::Addi as u32, 9, 7, 1],        //  9: ADDI 9 7 1
-            [Opcode::Taili as u32, collatz, 8, 0], //  10: TAILI collatz 8 0
+            [Opcode::Muli as u32, 6, 2, 3],        //  11: MULI 6 2 3
+            [Opcode::Addi as u32, 7, 6, 1],        //  12: ADDI 7 6 1
+            [Opcode::MVVW as u32, 8, 2, 7],        //  13: MVV.W @8[2], @7
+            [Opcode::MVVW as u32, 8, 3, 3],        //  14: MVV.W @8[3], @3
+            [Opcode::Taili as u32, collatz, 8, 0], //  15: TAILI collatz 8 0
         ];
-        let initial_val = 3999;
+        let initial_val = 5;
         let prom = ProgramRom(instructions);
         // return PC = 0, return FP = 0, n = 3999
-        let vrom = ValueRom(vec![0, 0, initial_val]);
-        let traces = ZCrayTrace::generate_with_vrom(prom, vrom);
-        println!("final trace {:?}", traces);
+        let mut vrom = ValueRom(vec![0, 0, initial_val]);
+        for i in 0..50 {
+            vrom.set(i * next_fp + next_fp_offset, ((i + 1) * next_fp) as u32);
+        }
+
+        let (traces, _) =
+            ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
     }
 }

@@ -4,6 +4,7 @@ pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod integer_ops;
+pub(crate) mod mv;
 pub(crate) mod ret;
 pub(crate) mod sli;
 
@@ -35,7 +36,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         src: u16,
         imm: u32,
     ) -> Self {
-        let src_val = interpreter.vrom[interpreter.fp as usize + src as usize];
+        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
         let dst_val = Self::operation(src_val, imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -47,7 +48,9 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
             src_val,
             imm,
         );
-        interpreter.vrom[interpreter.fp as usize + dst as usize] = dst_val;
+        interpreter
+            .vrom
+            .set(interpreter.fp as usize + dst as usize, dst_val);
         interpreter.pc += 1;
         event
     }

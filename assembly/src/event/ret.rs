@@ -17,8 +17,8 @@ impl RetEvent {
             pc: interpreter.pc,
             fp: interpreter.fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom[interpreter.fp as usize] as u16,
-            fp_1_val: interpreter.vrom[interpreter.fp as usize + 1] as u16,
+            fp_0_val: interpreter.vrom.get(interpreter.fp as usize) as u16,
+            fp_1_val: interpreter.vrom.get(interpreter.fp as usize + 1) as u16,
         }
     }
 
@@ -30,8 +30,8 @@ impl RetEvent {
             ]);
         }
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.pc = interpreter.vrom[interpreter.fp as usize] as u16;
-        interpreter.fp = interpreter.vrom[interpreter.fp as usize + 1] as u16;
+        interpreter.pc = interpreter.vrom.get(interpreter.fp as usize) as u16;
+        interpreter.fp = interpreter.vrom.get(interpreter.fp as usize + 1) as u16;
 
         ret_event
     }

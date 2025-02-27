@@ -30,7 +30,6 @@ impl Add64Event {
         let cout = (output ^ input1 ^ input2) >> 1 + (carry as u64) << 63;
 
         let timestamp = interpreter.timestamp;
-        interpreter.pc += 1;
 
         Self {
             timestamp,
@@ -75,7 +74,6 @@ impl Add32Event {
         let cout = (output ^ input1 ^ input2) >> 1 + (carry as u32) << 31;
 
         let timestamp = interpreter.timestamp;
-        interpreter.pc += 1;
 
         Self {
             timestamp,
@@ -131,9 +129,12 @@ impl AddiEvent {
 
     pub fn generate_event(interpreter: &mut Interpreter, dst: u32, src: u32, imm: u32) -> Self {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom[src as usize + 1];
+        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm;
+        interpreter
+            .vrom
+            .set(interpreter.fp as usize + dst as usize, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -215,8 +216,13 @@ impl MuliEvent {
 
     pub fn generate_event(interpreter: &mut Interpreter, dst: u32, src: u32, imm: u32) -> Self {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom[src as usize + 1];
+        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
+
         let dst_val = src_val * imm;
+
+        interpreter
+            .vrom
+            .set(interpreter.fp as usize + dst as usize, dst_val);
 
         let xs = [
             src_val as u8,
@@ -250,7 +256,6 @@ impl MuliEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.pc += 1;
-
         Self {
             pc,
             fp,
