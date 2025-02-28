@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{cmp::max, collections::HashMap, str::FromStr};
 
 use thiserror::Error;
 
@@ -167,6 +167,69 @@ pub fn get_prom_inst_from_inst_with_label(
     Ok(())
 }
 
+type Labels = HashMap<String, u16>;
+type LabelsFrameSizes = HashMap<u16, u16>;
+
+pub fn get_frame_size_for_label(
+    prom: &[Instruction],
+    label_pc: u16,
+    labels_fps: &mut LabelsFrameSizes,
+) -> u16 {
+    if let Some(frame_size) = labels_fps.get(&label_pc) {
+        return *frame_size;
+    }
+
+    let mut cur_pc = label_pc;
+    let mut instruction = prom[cur_pc as usize];
+    let mut cur_offset = 0;
+    let mut opcode =
+        Opcode::try_from(instruction[0]).expect("PROM should be correct at this point");
+    while opcode != Opcode::Taili && opcode != Opcode::Ret {
+        match opcode {
+            Opcode::Bnz => {
+                let [_, src, target, _] = instruction;
+                let sub_offset = get_frame_size_for_label(prom, target, labels_fps);
+                let max_accessed_addr = max(sub_offset, src);
+                cur_offset = max(cur_offset, max_accessed_addr);
+            }
+            Opcode::Addi
+            | Opcode::Andi
+            | Opcode::Muli
+            | Opcode::Slli
+            | Opcode::Srli
+            | Opcode::Xori => {
+                let [_, dst, src, _] = instruction;
+                let max_accessed_addr = max(dst, src);
+                cur_offset = max(max_accessed_addr, cur_offset);
+            }
+            Opcode::MVVW => {
+                let [_, dst, _, src] = instruction;
+                let max_accessed_addr = max(dst, src);
+                cur_offset = max(max_accessed_addr, cur_offset);
+            }
+            _ => {} // incaccessible: either Ret or Taili
+        }
+
+        cur_pc += 1;
+        instruction = prom[cur_pc as usize];
+        opcode = Opcode::try_from(instruction[0]).expect("PROM should be correct at this point");
+    }
+
+    // We know that there was no key `label_pc` before, since it was the first thing we checked in this method.
+    labels_fps.insert(label_pc, cur_offset);
+
+    cur_offset
+}
+
+pub fn get_frame_sizes_all_labels(prom: &[Instruction], labels: Labels) -> LabelsFrameSizes {
+    let mut labels_frame_sizes = HashMap::new();
+
+    for (_, pc) in labels {
+        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes);
+    }
+    labels_frame_sizes
+}
+
 fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<HashMap<String, u16>, String> {
     let mut labels = HashMap::new();
     let mut pc = 1;
@@ -184,15 +247,15 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<HashMap<String,
     Ok(labels)
 }
 
-pub(crate) fn get_full_prom(
+pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
-) -> Result<Vec<Instruction>, String> {
+) -> Result<(Vec<Instruction>, Labels), String> {
     let labels = get_labels(instructions)?;
     let mut prom = vec![];
     for instruction in instructions {
         get_prom_inst_from_inst_with_label(&mut prom, &labels, instruction)?;
     }
-    Ok(prom)
+    Ok((prom, labels))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {

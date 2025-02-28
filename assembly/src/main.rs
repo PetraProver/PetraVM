@@ -4,13 +4,19 @@ mod instruction_args;
 mod instructions_with_labels;
 
 use emulator::Opcode;
-use instructions_with_labels::{get_full_prom, parse_instructions};
+use instructions_with_labels::{
+    get_frame_sizes_all_labels, get_full_prom_and_labels, parse_instructions,
+};
 
 fn main() {
     let instructions = parse_instructions(include_str!("../../examples/collatz.asm")).unwrap();
 
-    let prom = get_full_prom(&instructions).expect("Instructions were not formatted properly.");
+    let (prom, labels) =
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
     let prom = prom;
+
+    let frame_sizes = get_frame_sizes_all_labels(&prom, labels);
+    println!("frame sizes for collatz {:?}", frame_sizes);
 
     let collatz = 1;
     let case_recurse = 5;
