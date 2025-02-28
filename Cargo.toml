@@ -7,3 +7,5 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
+binius_field = {git = "https://github.com/IrreducibleOSS/binius.git", branch = "main"}
+binius_utils = {git = "https://github.com/IrreducibleOSS/binius.git", branch = "main"}

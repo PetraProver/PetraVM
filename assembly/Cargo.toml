@@ -6,4 +6,5 @@ edition.workspace = true
 [dependencies]
 thiserror = "2.0.11"
 num_enum = "=0.5.3"
-
+binius_field.workspace = true
+binius_utils.workspace = true

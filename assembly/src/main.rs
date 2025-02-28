@@ -23,25 +23,25 @@ fn main() {
     let case_odd = 11;
     let expected_prom = vec![
         // collatz:
-        [Opcode::Xori as u16, 4, 2, 1],           //  1: XORI 4 2 1
-        [Opcode::Bnz.into(), 4, case_recurse, 0], //  2: BNZ 4 case_recurse
+        [Opcode::Xori as u16, 5, 2, 1],           //  1: XORI 5 2 1
+        [Opcode::Bnz.into(), 5, case_recurse, 0], //  2: BNZ 5 case_recurse
         // case_return:
         [Opcode::Xori.into(), 3, 2, 0], //  3: XORI 3 2 0
         [Opcode::Ret.into(), 0, 0, 0],  //  4: RET
         // case_recurse:
-        [Opcode::Andi.into(), 5, 2, 1],       //  5: ANDI 5 2 1
-        [Opcode::Bnz.into(), 5, case_odd, 0], //  6: BNZ 5 case_odd 0 0
+        [Opcode::Andi.into(), 6, 2, 1],       //  5: ANDI 6 2 1
+        [Opcode::Bnz.into(), 6, case_odd, 0], //  6: BNZ 6 case_odd 0 0
         // case_even:
-        [Opcode::Srli.into(), 7, 2, 1],        //  7: SRLI 7 2 1
-        [Opcode::MVVW.into(), 8, 2, 7],        //  8: MVV.W @8[2], @7
-        [Opcode::MVVW.into(), 8, 3, 3],        //  9: MVV.W @8[3], @3
-        [Opcode::Taili.into(), collatz, 8, 0], // 10: TAILI collatz 8 0
+        [Opcode::Srli.into(), 8, 2, 1],        //  7: SRLI 8 2 1
+        [Opcode::MVVW.into(), 4, 2, 8],        //  8: MVV.W @4[2], @8
+        [Opcode::MVVW.into(), 4, 3, 3],        //  9: MVV.W @4[3], @3
+        [Opcode::Taili.into(), collatz, 4, 0], // 10: TAILI collatz 4 0
         // case_odd:
-        [Opcode::Muli.into(), 6, 2, 3],        //  11: MULI 6 2 3
-        [Opcode::Addi.into(), 7, 6, 1],        //  12: ADDI 7 6 1
-        [Opcode::MVVW.into(), 8, 2, 7],        //  13: MVV.W @8[2], @7
-        [Opcode::MVVW.into(), 8, 3, 3],        //  14: MVV.W @8[3], @3
-        [Opcode::Taili.into(), collatz, 8, 0], //  15: TAILI collatz 8 0
+        [Opcode::Muli.into(), 7, 2, 3],        //  11: MULI 7 2 3
+        [Opcode::Addi.into(), 8, 7, 1],        //  12: ADDI 8 7 1
+        [Opcode::MVVW.into(), 4, 2, 8],        //  13: MVV.W @4[2], @7
+        [Opcode::MVVW.into(), 4, 3, 3],        //  14: MVV.W @4[3], @3
+        [Opcode::Taili.into(), collatz, 4, 0], //  15: TAILI collatz 4 0
     ];
 
     assert!(prom == expected_prom);

@@ -74,3 +74,57 @@ impl Event for MVVWEvent {
             .push((self.pc + 1, self.fp, self.timestamp + 1));
     }
 }
+
+// Struture of an event for MVV.W.
+#[derive(Debug, Clone)]
+pub(crate) struct LDIEvent {
+    pc: u16,
+    fp: u16,
+    timestamp: u16,
+    dst: u16,
+    dst_addr: u16,
+    imm: u16,
+}
+
+impl LDIEvent {
+    pub fn new(pc: u16, fp: u16, timestamp: u16, dst: u16, dst_addr: u16, imm: u16) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_addr,
+            imm,
+        }
+    }
+
+    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, imm: u16) -> Self {
+        let fp = interpreter.fp;
+        let dst_addr = interpreter.vrom.get(fp as usize + dst as usize) as u16;
+        let pc = interpreter.pc;
+        let timestamp = interpreter.timestamp;
+
+        interpreter.vrom.set(dst_addr as usize, imm as u32);
+        interpreter.pc += 1;
+
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_addr,
+            imm,
+        }
+    }
+}
+
+impl Event for LDIEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc + 1, self.fp, self.timestamp + 1));
+    }
+}
