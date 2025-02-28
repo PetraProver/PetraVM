@@ -166,6 +166,89 @@ impl Event for AddiEvent {
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
+pub(crate) struct AddEvent {
+    pc: u16,
+    fp: u16,
+    timestamp: u16,
+    dst: u16,
+    dst_val: u32,
+    src1: u16,
+    pub(crate) src1_val: u32,
+    src2: u16,
+    pub(crate) src2_val: u32,
+}
+
+impl AddEvent {
+    pub fn new(
+        pc: u16,
+        fp: u16,
+        timestamp: u16,
+        dst: u16,
+        dst_val: u32,
+        src1: u16,
+        src1_val: u32,
+        src2: u16,
+        src2_val: u32,
+    ) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_val,
+            src1,
+            src1_val,
+            src2,
+            src2_val,
+        }
+    }
+
+    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, src1: u16, src2: u16) -> Self {
+        let fp = interpreter.fp;
+        let src1_val = interpreter
+            .vrom
+            .get(interpreter.fp as usize + src1 as usize);
+
+        let src2_val = interpreter
+            .vrom
+            .get(interpreter.fp as usize + src2 as usize);
+        // The following addition is checked thanks to the ADD32 table.
+        let dst_val = src1_val + src1_val as u32;
+        interpreter
+            .vrom
+            .set(interpreter.fp as usize + dst as usize, dst_val);
+
+        let pc = interpreter.pc;
+        let timestamp = interpreter.timestamp;
+        interpreter.pc += 1;
+
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_val,
+            src1,
+            src1_val,
+            src2,
+            src2_val,
+        }
+    }
+}
+
+impl Event for AddEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc + 1, self.fp, self.timestamp + 1));
+    }
+}
+
+// Struture of an event for ADDI.
+#[derive(Debug, Clone)]
 pub(crate) struct MuliEvent {
     pc: u16,
     fp: u16,

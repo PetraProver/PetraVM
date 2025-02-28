@@ -7,10 +7,10 @@ use std::{
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
-    b32::{AndiEvent, XoriEvent},
+    b32::{AndiEvent, B32MuliEvent, XoriEvent},
     branch::BnzEvent,
     call::TailiEvent,
-    integer_ops::{Add32Event, Add64Event, AddiEvent, MuliEvent},
+    integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
     mv::MVVWEvent,
     ret::RetEvent,
     sli::{ShiftKind, SliEvent},
@@ -62,10 +62,12 @@ pub enum Opcode {
     Srli = 0x04,
     Slli = 0x05,
     Addi = 0x06,
-    Muli = 0x07,
-    Ret = 0x08,
-    Taili = 0x09,
-    MVVW = 0x0a,
+    Add = 0x07,
+    Muli = 0x08,
+    B32Muli = 0x09,
+    Ret = 0x0a,
+    Taili = 0x0b,
+    MVVW = 0x0c,
 }
 
 #[derive(Debug, Default)]
@@ -207,6 +209,8 @@ impl Interpreter {
             Opcode::Taili => self.generate_taili(trace),
             Opcode::Andi => self.generate_andi(trace),
             Opcode::MVVW => self.generate_mvv(trace),
+            Opcode::B32Muli => self.generate_b32_muli(trace),
+            Opcode::Add => self.generate_add(trace),
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -214,13 +218,13 @@ impl Interpreter {
 
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) {
         let [_, cond, target, _] = self.prom[self.pc as usize - 1];
-        let new_bnz_event = BnzEvent::generate_event(self, cond as u16, target as u16);
+        let new_bnz_event = BnzEvent::generate_event(self, cond, target);
         trace.bnz.push(new_bnz_event);
     }
 
     fn generate_xori(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_xori_event = XoriEvent::generate_event(self, dst as u16, src as u16, imm);
+        let new_xori_event = XoriEvent::generate_event(self, dst, src, imm);
         trace.xori.push(new_xori_event);
     }
 
@@ -244,13 +248,13 @@ impl Interpreter {
 
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) {
         let [_, target, next_fp, _] = self.prom[self.pc as usize - 1];
-        let new_taili_event = TailiEvent::generate_event(self, target as u16, next_fp as u16);
+        let new_taili_event = TailiEvent::generate_event(self, target, next_fp);
         trace.taili.push(new_taili_event);
     }
 
     fn generate_andi(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_andi_event = AndiEvent::generate_event(self, dst as u16, src as u16, imm);
+        let new_andi_event = AndiEvent::generate_event(self, dst, src, imm);
         trace.andi.push(new_andi_event);
     }
 
@@ -279,7 +283,21 @@ impl Interpreter {
         }
         trace.muli.push(new_muli_event);
     }
-
+    fn generate_b32_muli(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_b32muli_event = B32MuliEvent::generate_event(self, dst, src, imm);
+        trace.b32_muli.push(new_b32muli_event);
+    }
+    fn generate_add(&mut self, trace: &mut ZCrayTrace) {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
+        let new_add_event = AddEvent::generate_event(self, dst, src, imm);
+        trace.add32.push(Add32Event::generate_event(
+            self,
+            new_add_event.src1_val,
+            new_add_event.src2_val,
+        ));
+        trace.add.push(new_add_event);
+    }
     fn generate_addi(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
         let new_addi_event = AddiEvent::generate_event(self, dst, src, imm);
@@ -349,6 +367,8 @@ pub(crate) struct ZCrayTrace {
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
     mvvw: Vec<MVVWEvent>,
+    b32_muli: Vec<B32MuliEvent>,
+    add: Vec<AddEvent>,
     vrom: ValueRom,
 }
 
@@ -517,63 +537,63 @@ mod tests {
         // 	;; Slot @1: Return FP
         // 	;; Slot @2: Arg: n
         //  ;; Slot @3: Return value
-        // 	;; Slot @4: Local: n == 1
-        // 	;; Slot @5: Local: n % 2
-        // 	;; Slot @6: Local: 3*n
-        //  ;; Slot @7: Local: n >> 2 or 3*n + 1
-        // 	;; Slot @8: ND Local: Next FP
+        // 	;; Slot @4: ND Local: Next FP
+        // 	;; Slot @5: Local: n == 1
+        // 	;; Slot @6: Local: n % 2
+        // 	;; Slot @7: Local: 3*n
+        //  ;; Slot @8: Local: n >> 2 or 3*n + 1
 
         // 	;; Branch to recursion label if value in slot 2 is not 1
-        // 	XORI @4, @2, #1G
-        // 	BNZ case_recurse, @4 ;; branch if n == 1
+        // 	XORI @5, @2, #1G
+        // 	BNZ case_recurse, @5 ;; branch if n == 1
         // 	XORI @3, @2, #0G
         // 	RET
 
         // case_recurse:
-        // 	ANDI @5, @2, #1 ;; n % 2 is & 0x00..01
-        //  BNZ case_odd, @5 ;; branch if n % 2 == 0u32
+        // 	ANDI @6, @2, #1 ;; n % 2 is & 0x00..01
+        //  BNZ case_odd, @6 ;; branch if n % 2 == 0u32
 
         // 	;; case even
         //  ;; n >> 1
-        // 	SRLI @7, @2, #1
-        //  MVV.W @8[2], @7
-        //  MVV.W @8[3], @3
-        //  TAILI collatz, @8
+        // 	SRLI @8, @2, #1
+        //  MVV.W @4[2], @8
+        //  MVV.W @4[3], @3
+        //  TAILI collatz, @4
 
         // case_odd:
-        // 	MULI @6, @2, #3
-        // 	ADDI @7, @6, #1
-        //  MVV.W @8[2], @7
-        //  MVV.W @8[3], @3
-        // 	TAILI collatz, @8
+        // 	MULI @7, @2, #3
+        // 	ADDI @8, @6, #1
+        //  MVV.W @4[2], @8
+        //  MVV.W @4[3], @3
+        // 	TAILI collatz, @4
 
         // labels
         let collatz = 1;
         let case_recurse = 5;
         let case_odd = 11;
-        let next_fp_offset = 8;
+        let next_fp_offset = 4;
         let next_fp = 9;
         let instructions = vec![
             // collatz:
-            [Opcode::Xori as u16, 4, 2, 1],           //  1: XORI 4 2 1
-            [Opcode::Bnz.into(), 4, case_recurse, 0], //  2: BNZ 4 case_recurse
+            [Opcode::Xori as u16, 5, 2, 1],           //  1: XORI 5 2 1
+            [Opcode::Bnz.into(), 5, case_recurse, 0], //  2: BNZ 5 case_recurse
             // case_return:
             [Opcode::Xori.into(), 3, 2, 0], //  3: XORI 3 2 0
             [Opcode::Ret.into(), 0, 0, 0],  //  4: RET
             // case_recurse:
-            [Opcode::Andi.into(), 5, 2, 1],       //  5: ANDI 5 2 1
-            [Opcode::Bnz.into(), 5, case_odd, 0], //  6: BNZ 5 case_odd 0 0
+            [Opcode::Andi.into(), 6, 2, 1],       //  5: ANDI 6 2 1
+            [Opcode::Bnz.into(), 6, case_odd, 0], //  6: BNZ 6 case_odd 0 0
             // case_even:
-            [Opcode::Srli.into(), 7, 2, 1],        //  7: SRLI 7 2 1
-            [Opcode::MVVW.into(), 8, 2, 7],        //  8: MVV.W @8[2], @7
-            [Opcode::MVVW.into(), 8, 3, 3],        //  9: MVV.W @8[3], @3
-            [Opcode::Taili.into(), collatz, 8, 0], // 10: TAILI collatz 8 0
+            [Opcode::Srli.into(), 8, 2, 1],        //  7: SRLI 8 2 1
+            [Opcode::MVVW.into(), 4, 2, 8],        //  8: MVV.W @4[2], @8
+            [Opcode::MVVW.into(), 4, 3, 3],        //  9: MVV.W @4[3], @3
+            [Opcode::Taili.into(), collatz, 4, 0], // 10: TAILI collatz 4 0
             // case_odd:
-            [Opcode::Muli.into(), 6, 2, 3],        //  11: MULI 6 2 3
-            [Opcode::Addi.into(), 7, 6, 1],        //  12: ADDI 7 6 1
-            [Opcode::MVVW.into(), 8, 2, 7],        //  13: MVV.W @8[2], @7
-            [Opcode::MVVW.into(), 8, 3, 3],        //  14: MVV.W @8[3], @3
-            [Opcode::Taili.into(), collatz, 8, 0], //  15: TAILI collatz 8 0
+            [Opcode::Muli.into(), 7, 2, 3],        //  11: MULI 7 2 3
+            [Opcode::Addi.into(), 8, 7, 1],        //  12: ADDI 8 7 1
+            [Opcode::MVVW.into(), 4, 2, 8],        //  13: MVV.W @4[2], @7
+            [Opcode::MVVW.into(), 4, 3, 3],        //  14: MVV.W @4[3], @3
+            [Opcode::Taili.into(), collatz, 4, 0], //  15: TAILI collatz 4 0
         ];
         let initial_val = 3999;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
