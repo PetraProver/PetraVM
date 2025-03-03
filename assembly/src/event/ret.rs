@@ -1,37 +1,42 @@
+use binius_field::{BinaryField32b, Field};
+
 use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
 use super::Event;
 
 #[derive(Debug, PartialEq)]
 pub struct RetEvent {
-    pub(crate) pc: u16,
-    pub(crate) fp: u16,
-    pub(crate) timestamp: u16,
-    pub(crate) fp_0_val: u16,
-    pub(crate) fp_1_val: u16,
+    pub(crate) pc: u32,
+    pub(crate) fp: u32,
+    pub(crate) timestamp: u32,
+    pub(crate) fp_0_val: u32,
+    pub(crate) fp_1_val: u32,
 }
 
 impl RetEvent {
     pub fn new(interpreter: &Interpreter) -> Self {
+        let fp = interpreter.fp;
+        let fp_field = BinaryField32b::new(fp);
         Self {
             pc: interpreter.pc,
-            fp: interpreter.fp,
+            fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom.get(interpreter.fp as usize) as u16,
-            fp_1_val: interpreter.vrom.get(interpreter.fp as usize + 1) as u16,
+            fp_0_val: interpreter.vrom.get(fp_field),
+            fp_1_val: interpreter.vrom.get(fp_field + BinaryField32b::ONE),
         }
     }
 
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
-        if interpreter.fp as usize + 1 > interpreter.vrom_size() {
-            interpreter.vrom.extend(&vec![
-                0u32;
-                interpreter.fp as usize - interpreter.vrom_size() + 2
-            ]);
+        let fp = interpreter.fp;
+        let fp_field = BinaryField32b::new(fp);
+        if fp as usize + 1 > interpreter.vrom_size() {
+            interpreter
+                .vrom
+                .extend(&vec![0u32; fp as usize - interpreter.vrom_size() + 2]);
         }
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.pc = interpreter.vrom.get(interpreter.fp as usize) as u16;
-        interpreter.fp = interpreter.vrom.get(interpreter.fp as usize + 1) as u16;
+        interpreter.pc = interpreter.vrom.get(fp_field);
+        interpreter.fp = interpreter.vrom.get(fp_field + BinaryField32b::ONE);
 
         ret_event
     }

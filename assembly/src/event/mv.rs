@@ -1,4 +1,4 @@
-use std::cmp::max;
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
@@ -8,11 +8,11 @@ use crate::{
 // Struture of an event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
-    pc: u16,
-    fp: u16,
-    timestamp: u16,
+    pc: u32,
+    fp: u32,
+    timestamp: u32,
     dst: u16,
-    dst_addr: u16,
+    dst_addr: u32,
     src: u16,
     src_val: u32,
     offset: u16,
@@ -20,11 +20,11 @@ pub(crate) struct MVVWEvent {
 
 impl MVVWEvent {
     pub fn new(
-        pc: u16,
-        fp: u16,
-        timestamp: u16,
+        pc: u32,
+        fp: u32,
+        timestamp: u32,
         dst: u16,
-        dst_addr: u16,
+        dst_addr: u32,
         src: u16,
         src_val: u32,
         offset: u16,
@@ -41,25 +41,33 @@ impl MVVWEvent {
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, offset: u16, src: u16) -> Self {
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        dst: BinaryField16b,
+        offset: BinaryField16b,
+        src: BinaryField16b,
+    ) -> Self {
         let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get(fp as usize + dst as usize) as u16;
-        let src_val = interpreter.vrom.get((fp + src) as usize);
+        let fp_field = BinaryField32b::new(fp);
+        let dst_addr = interpreter.vrom.get(fp_field + dst);
+        let src_val = interpreter.vrom.get(fp_field + src);
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.vrom.set((dst_addr + offset) as usize, src_val);
+        interpreter
+            .vrom
+            .set(BinaryField32b::new(dst_addr) + offset, src_val);
         interpreter.pc += 1;
 
         Self {
             pc,
             fp,
             timestamp,
-            dst,
+            dst: dst.val(),
             dst_addr,
-            src,
+            src: src.val(),
             src_val,
-            offset,
+            offset: offset.val(),
         }
     }
 }
@@ -78,16 +86,16 @@ impl Event for MVVWEvent {
 // Struture of an event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct LDIEvent {
-    pc: u16,
-    fp: u16,
-    timestamp: u16,
+    pc: u32,
+    fp: u32,
+    timestamp: u32,
     dst: u16,
-    dst_addr: u16,
+    dst_addr: u32,
     imm: u16,
 }
 
 impl LDIEvent {
-    pub fn new(pc: u16, fp: u16, timestamp: u16, dst: u16, dst_addr: u16, imm: u16) -> Self {
+    pub fn new(pc: u32, fp: u32, timestamp: u32, dst: u16, dst_addr: u32, imm: u16) -> Self {
         Self {
             pc,
             fp,
@@ -98,22 +106,28 @@ impl LDIEvent {
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter, dst: u16, imm: u16) -> Self {
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        dst: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Self {
         let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get(fp as usize + dst as usize) as u16;
+        let fp_field = BinaryField32b::new(fp);
+        let dst_addr = interpreter.vrom.get(fp_field + dst);
+        let dst_addr_field = BinaryField32b::new(dst_addr);
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.vrom.set(dst_addr as usize, imm as u32);
+        interpreter.vrom.set(dst_addr_field, imm.val() as u32);
         interpreter.pc += 1;
 
         Self {
             pc,
             fp,
             timestamp,
-            dst,
+            dst: dst.val(),
             dst_addr,
-            imm,
+            imm: imm.val(),
         }
     }
 }

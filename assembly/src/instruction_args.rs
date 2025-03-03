@@ -1,10 +1,11 @@
+use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Slot(u16);
+pub struct Slot(u32);
 
 #[derive(Debug, Clone, Copy)]
-pub struct SlotWithOffset(u16, u16);
+pub struct SlotWithOffset(u32, u16);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Immediate(i16);
@@ -18,15 +19,23 @@ impl std::fmt::Display for Slot {
 impl std::str::FromStr for Slot {
     type Err = BadArgumentError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        u16::from_str(s.trim_start_matches('@'))
+        u32::from_str(s.trim_start_matches('@'))
             .map(Self)
             .map_err(|_| BadArgumentError::Slot(s.to_string()))
     }
 }
 
 impl Slot {
-    pub(crate) fn get_val(&self) -> u16 {
-        self.0
+    pub(crate) fn get_16bfield_val(&self) -> BinaryField16b {
+        BinaryField16b::new(self.0 as u16)
+    }
+
+    pub(crate) fn get_high_16bfield_val(&self) -> BinaryField16b {
+        BinaryField16b::new((self.0 >> 16) as u16)
+    }
+
+    pub(crate) fn get_32bfield_val(&self) -> BinaryField32b {
+        BinaryField32b::new(self.0)
     }
 }
 
@@ -50,12 +59,16 @@ impl std::str::FromStr for SlotWithOffset {
 }
 
 impl SlotWithOffset {
-    pub(crate) fn get_slot_val(&self) -> u16 {
-        self.0
+    pub(crate) fn get_slot_16bfield_val(&self) -> BinaryField16b {
+        BinaryField16b::new(self.0 as u16)
     }
 
-    pub(crate) fn get_offset_val(&self) -> u16 {
-        self.1
+    pub(crate) fn get_slot_32bfield_val(&self) -> BinaryField32b {
+        BinaryField32b::new(self.0)
+    }
+
+    pub(crate) fn get_offset_field_val(&self) -> BinaryField16b {
+        BinaryField16b::new(self.1)
     }
 }
 
@@ -76,8 +89,8 @@ impl std::str::FromStr for Immediate {
 }
 
 impl Immediate {
-    pub(crate) fn get_val(&self) -> u16 {
-        self.0 as u16
+    pub(crate) fn get_field_val(&self) -> BinaryField16b {
+        BinaryField16b::new(self.0 as u16)
     }
 }
 

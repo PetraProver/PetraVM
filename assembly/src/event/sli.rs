@@ -1,5 +1,7 @@
+use binius_field::{BinaryField16b, BinaryField32b, Field};
+
 use crate::{
-    emulator::{Channel, Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
 };
 
@@ -12,9 +14,9 @@ pub enum ShiftKind {
 // Struture of an event for one of the shifts.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliEvent {
-    pc: u16,
-    fp: u16,
-    timestamp: u16,
+    pc: u32,
+    fp: u32,
+    timestamp: u32,
     dst: u16,
     dst_val: u32,
     src: u16,
@@ -25,9 +27,9 @@ pub struct SliEvent {
 
 impl SliEvent {
     pub fn new(
-        pc: u16,
-        fp: u16,
-        timestamp: u16,
+        pc: u32,
+        fp: u32,
+        timestamp: u32,
         dst: u16,
         dst_val: u32,
         src: u16,
@@ -50,37 +52,36 @@ impl SliEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
-        dst: u16,
-        src: u16,
-        imm: u16,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
         kind: ShiftKind,
     ) -> SliEvent {
-        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
-        let new_val = if imm == 0 || imm >= 32 {
+        let field_fp = BinaryField32b::new(interpreter.fp);
+        let src_val = interpreter.vrom.get(field_fp + src);
+        let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
             0
         } else {
             match kind {
-                ShiftKind::Left => src_val << imm,
-                ShiftKind::Right => src_val >> imm,
+                ShiftKind::Left => src_val << imm.val(),
+                ShiftKind::Right => src_val >> imm.val(),
             }
         };
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter
-            .vrom
-            .set(interpreter.fp as usize + dst as usize, new_val);
+        interpreter.vrom.set(field_fp + dst, new_val);
         interpreter.pc += 1;
 
         SliEvent::new(
             pc,
             interpreter.fp,
             timestamp,
-            dst,
+            dst.val(),
             new_val,
-            src,
+            src.val(),
             src_val,
-            imm,
+            imm.val(),
             kind,
         )
     }

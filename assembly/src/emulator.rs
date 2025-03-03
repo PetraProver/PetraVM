@@ -4,6 +4,9 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use binius_field::{
+    BinaryField16b, BinaryField32b, ExtensionField, PackedBinaryField16x2b, PackedExtension,
+};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::event::{
@@ -23,9 +26,9 @@ pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
-type PromChannel = Channel<(u16, u32, u16, u32)>;
+type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
 type VromChannel = Channel<u32>;
-type StateChannel = Channel<(u16, u16, u16)>; // PC, FP, Timestamp
+type StateChannel = Channel<(u32, u32, u32)>; // PC, FP, Timestamp
 
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
@@ -70,11 +73,17 @@ pub enum Opcode {
     MVVW = 0x0c,
 }
 
+impl Opcode {
+    pub fn get_field_elt(&self) -> BinaryField16b {
+        BinaryField16b::new(*self as u16)
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {
-    pub(crate) pc: u16,
-    pub(crate) fp: u16,
-    pub(crate) timestamp: u16,
+    pub(crate) pc: u32,
+    pub(crate) fp: u32,
+    pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
     pub(crate) vrom: ValueRom,
 }
@@ -132,24 +141,26 @@ impl ValueRom {
         self.0.extend(slice);
     }
 
-    pub(crate) fn set(&mut self, index: usize, value: u32) {
-        if index >= self.len() {
-            self.extend(&vec![0; index + 1 - self.len()]);
+    pub(crate) fn set(&mut self, index: BinaryField32b, value: u32) {
+        let index_val = index.val() as usize;
+        if index.val() as usize >= self.len() {
+            self.extend(&vec![0; index_val + 1 - self.len()]);
         }
 
-        self[index] = value;
+        self[index_val] = value;
     }
-    pub(crate) fn get(&self, index: usize) -> u32 {
+    pub(crate) fn get(&self, index: BinaryField32b) -> u32 {
+        let index_val = BinaryField32b::val(index) as usize;
         assert!(
-            index < self.len(),
+            index_val < self.len(),
             "Value read in the VROM was never written before."
         );
 
-        self[index]
+        self[index_val]
     }
 }
 
-pub(crate) type Instruction = [u16; 4];
+pub(crate) type Instruction = [BinaryField16b; 4];
 
 #[derive(Debug)]
 pub(crate) enum InterpreterError {
@@ -197,7 +208,8 @@ impl Interpreter {
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, ..] = self.prom[self.pc as usize - 1];
-        let opcode = Opcode::try_from(opcode).map_err(|_| InterpreterError::InvalidOpcode)?;
+        let opcode = Opcode::try_from(BinaryField16b::val(opcode))
+            .map_err(|_| InterpreterError::InvalidOpcode)?;
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace),
             Opcode::Xori => self.generate_xori(trace),
@@ -217,7 +229,17 @@ impl Interpreter {
     }
 
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) {
-        let [_, cond, target, _] = self.prom[self.pc as usize - 1];
+        let [_, cond, target_high, target_low] = self.prom[self.pc as usize - 1];
+        let target = BinaryField32b::from_bases(&vec![target_high, target_low]).expect("Hello");
+        let target_first: BinaryField16b = target.get_base(0);
+        let target_second: BinaryField16b = target.get_base(1);
+        println!(
+            "target first {:?}, target second {:?}, target_high {:?} target low {:?}",
+            target_first.val(),
+            target_second.val(),
+            target_high,
+            target_low
+        );
         let new_bnz_event = BnzEvent::generate_event(self, cond, target);
         trace.bnz.push(new_bnz_event);
     }
@@ -247,7 +269,8 @@ impl Interpreter {
     }
 
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) {
-        let [_, target, next_fp, _] = self.prom[self.pc as usize - 1];
+        let [_, target_high, target_low, next_fp] = self.prom[self.pc as usize - 1];
+        let target = BinaryField32b::from_bases(&vec![target_high, target_low]).expect("Hello");
         let new_taili_event = TailiEvent::generate_event(self, target, next_fp);
         trace.taili.push(new_taili_event);
     }
@@ -289,12 +312,12 @@ impl Interpreter {
         trace.b32_muli.push(new_b32muli_event);
     }
     fn generate_add(&mut self, trace: &mut ZCrayTrace) {
-        let [_, dst, src, imm] = self.prom[self.pc as usize - 1];
-        let new_add_event = AddEvent::generate_event(self, dst, src, imm);
+        let [_, dst, src1, src2] = self.prom[self.pc as usize - 1];
+        let new_add_event = AddEvent::generate_event(self, dst, src1, src2);
         trace.add32.push(Add32Event::generate_event(
             self,
-            new_add_event.src1_val,
-            new_add_event.src2_val,
+            BinaryField32b::new(new_add_event.src1_val),
+            BinaryField32b::new(new_add_event.src2_val),
         ));
         trace.add.push(new_add_event);
     }
@@ -303,15 +326,15 @@ impl Interpreter {
         let new_addi_event = AddiEvent::generate_event(self, dst, src, imm);
         trace.add32.push(Add32Event::generate_event(
             self,
-            new_addi_event.src_val,
-            imm as u32,
+            BinaryField32b::new(new_addi_event.src_val),
+            imm.into(),
         ));
         trace.addi.push(new_addi_event);
     }
 
     fn generate_mvv(&mut self, trace: &mut ZCrayTrace) {
         let [_, dst, offset, src] = self.prom[self.pc as usize - 1];
-        let new_mvvw_event = MVVWEvent::generate_event(self, dst as u16, offset as u16, src as u16);
+        let new_mvvw_event = MVVWEvent::generate_event(self, dst, offset, src);
         trace.mvvw.push(new_mvvw_event);
     }
 }
@@ -373,9 +396,9 @@ pub(crate) struct ZCrayTrace {
 }
 
 pub(crate) struct BoundaryValues {
-    final_pc: u16,
-    final_fp: u16,
-    timestamp: u16,
+    final_pc: u32,
+    final_fp: u32,
+    timestamp: u32,
 }
 
 impl ZCrayTrace {
@@ -491,22 +514,38 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 
 #[cfg(test)]
 mod tests {
+    use binius_field::{Field, PackedField};
+
     use super::*;
 
     #[test]
     fn test_zcray() {
-        let (trace, boundary_values) =
-            ZCrayTrace::generate(ProgramRom(vec![[Opcode::Ret as u16, 0, 0, 0]])).expect("Ouch!");
+        let zero = BinaryField16b::zero();
+        let (trace, boundary_values) = ZCrayTrace::generate(ProgramRom(vec![[
+            Opcode::Ret.get_field_elt(),
+            zero,
+            zero,
+            zero,
+        ]]))
+        .expect("Ouch!");
         trace.validate(boundary_values);
     }
 
     #[test]
     fn test_sli_ret() {
-        // let prom = vec![[0; 4], [0x1b, 3, 2, 5], [0x1c, 5, 4, 7], [0; 4]];
+        let zero = BinaryField16b::zero();
+        let shift1_dst = BinaryField16b::new(3);
+        let shift1_src = BinaryField16b::new(2);
+        let shift1 = BinaryField16b::new(5);
+
+        let shift2_dst = BinaryField16b::new(5);
+        let shift2_src = BinaryField16b::new(4);
+        let shift2 = BinaryField16b::new(7);
+
         let instructions = vec![
-            [Opcode::Slli as u16, 3, 2, 5],
-            [Opcode::Srli.into(), 5, 4, 7],
-            [Opcode::Ret.into(), 0, 0, 0],
+            [Opcode::Slli.get_field_elt(), shift1_dst, shift1_src, shift1],
+            [Opcode::Srli.get_field_elt(), shift2_dst, shift1_src, shift2],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
         let prom = ProgramRom(instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
@@ -527,6 +566,10 @@ mod tests {
 
         assert_eq!(traces.shift, shifts);
         assert_eq!(traces.ret, vec![ret]);
+    }
+
+    pub(crate) fn get_binary_slot(i: u16) -> BinaryField16b {
+        BinaryField16b::new(i)
     }
 
     #[test]
@@ -567,33 +610,104 @@ mod tests {
         //  MVV.W @4[3], @3
         // 	TAILI collatz, @4
 
+        let zero = BinaryField16b::zero();
         // labels
-        let collatz = 1;
-        let case_recurse = 5;
-        let case_odd = 11;
+        let collatz = BinaryField16b::ONE;
+        let case_recurse = BinaryField16b::new(5);
+        let case_odd = BinaryField16b::new(11);
         let next_fp_offset = 4;
         let next_fp = 9;
         let instructions = vec![
             // collatz:
-            [Opcode::Xori as u16, 5, 2, 1],           //  1: XORI 5 2 1
-            [Opcode::Bnz.into(), 5, case_recurse, 0], //  2: BNZ 5 case_recurse
+            [
+                Opcode::Xori.get_field_elt(),
+                get_binary_slot(5),
+                get_binary_slot(2),
+                get_binary_slot(1),
+            ], //  1: XORI 5 2 1
+            [
+                Opcode::Bnz.get_field_elt(),
+                get_binary_slot(5),
+                case_recurse,
+                zero,
+            ], //  2: BNZ 5 case_recurse
             // case_return:
-            [Opcode::Xori.into(), 3, 2, 0], //  3: XORI 3 2 0
-            [Opcode::Ret.into(), 0, 0, 0],  //  4: RET
+            [
+                Opcode::Xori.get_field_elt(),
+                get_binary_slot(3),
+                get_binary_slot(2),
+                zero,
+            ], //  3: XORI 3 2 zero
+            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  4: RET
             // case_recurse:
-            [Opcode::Andi.into(), 6, 2, 1],       //  5: ANDI 6 2 1
-            [Opcode::Bnz.into(), 6, case_odd, 0], //  6: BNZ 6 case_odd 0 0
+            [
+                Opcode::Andi.get_field_elt(),
+                get_binary_slot(6),
+                get_binary_slot(2),
+                get_binary_slot(1),
+            ], //  5: ANDI 6 2 1
+            [
+                Opcode::Bnz.get_field_elt(),
+                get_binary_slot(6),
+                case_odd,
+                zero,
+            ], //  6: BNZ 6 case_odd 0 0
             // case_even:
-            [Opcode::Srli.into(), 8, 2, 1],        //  7: SRLI 8 2 1
-            [Opcode::MVVW.into(), 4, 2, 8],        //  8: MVV.W @4[2], @8
-            [Opcode::MVVW.into(), 4, 3, 3],        //  9: MVV.W @4[3], @3
-            [Opcode::Taili.into(), collatz, 4, 0], // 10: TAILI collatz 4 0
+            [
+                Opcode::Srli.get_field_elt(),
+                get_binary_slot(8),
+                get_binary_slot(2),
+                get_binary_slot(1),
+            ], //  7: SRLI 8 2 1
+            [
+                Opcode::MVVW.get_field_elt(),
+                get_binary_slot(4),
+                get_binary_slot(2),
+                get_binary_slot(8),
+            ], //  8: MVV.W @4[2], @8
+            [
+                Opcode::MVVW.get_field_elt(),
+                get_binary_slot(4),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], //  9: MVV.W @4[3], @3
+            [
+                Opcode::Taili.get_field_elt(),
+                collatz,
+                get_binary_slot(4),
+                zero,
+            ], // 10: TAILI collatz 4 0
             // case_odd:
-            [Opcode::Muli.into(), 7, 2, 3],        //  11: MULI 7 2 3
-            [Opcode::Addi.into(), 8, 7, 1],        //  12: ADDI 8 7 1
-            [Opcode::MVVW.into(), 4, 2, 8],        //  13: MVV.W @4[2], @7
-            [Opcode::MVVW.into(), 4, 3, 3],        //  14: MVV.W @4[3], @3
-            [Opcode::Taili.into(), collatz, 4, 0], //  15: TAILI collatz 4 0
+            [
+                Opcode::Muli.get_field_elt(),
+                get_binary_slot(7),
+                get_binary_slot(2),
+                get_binary_slot(3),
+            ], //  11: MULI 7 2 3
+            [
+                Opcode::Addi.get_field_elt(),
+                get_binary_slot(8),
+                get_binary_slot(7),
+                get_binary_slot(1),
+            ], //  12: ADDI 8 7 1
+            [
+                Opcode::MVVW.get_field_elt(),
+                get_binary_slot(4),
+                get_binary_slot(2),
+                get_binary_slot(8),
+            ], //  13: MVV.W @4[2], @7
+            [
+                Opcode::MVVW.get_field_elt(),
+                get_binary_slot(4),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], //  14: MVV.W @4[3], @3
+            [
+                Opcode::Taili.get_field_elt(),
+                collatz,
+                get_binary_slot(4),
+                zero,
+            ], //  15: TAILI collatz 4 0
         ];
         let initial_val = 3999;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
@@ -602,7 +716,10 @@ mod tests {
         // return PC = 0, return FP = 0, n = 3999
         let mut vrom = ValueRom(vec![0, 0, initial_val]);
         for i in 0..nb_frames {
-            vrom.set(i * next_fp + next_fp_offset, ((i + 1) * next_fp) as u32);
+            vrom.set(
+                BinaryField32b::new((i * next_fp + next_fp_offset) as u32),
+                ((i + 1) * next_fp) as u32,
+            );
         }
 
         let (traces, _) =
