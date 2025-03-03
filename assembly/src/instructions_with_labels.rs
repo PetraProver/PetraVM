@@ -1,5 +1,6 @@
 use std::{cmp::max, collections::HashMap, str::FromStr};
 
+use binius_field::{BinaryField16b, PackedField};
 use thiserror::Error;
 
 use crate::{
@@ -86,7 +87,7 @@ pub enum InstructionsWithLabels {
 
 pub fn get_prom_inst_from_inst_with_label(
     prom: &mut Vec<Instruction>,
-    labels: &HashMap<String, u16>,
+    labels: &Labels,
     instruction: &InstructionsWithLabels,
 ) -> Result<(), String> {
     match instruction {
@@ -96,59 +97,78 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::AddI { dst, src1, imm } => prom.push([
-            Opcode::Addi.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Addi.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         InstructionsWithLabels::AndI { dst, src1, imm } => prom.push([
-            Opcode::Andi.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Andi.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         // To change
         InstructionsWithLabels::B32Muli { dst, src1, imm } => prom.push([
-            Opcode::Muli.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Muli.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         InstructionsWithLabels::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
-                prom.push([Opcode::Bnz.into(), src.get_val(), *target, 0]);
+                let target_high = BinaryField16b::new((target >> 16) as u16);
+                let target_low = BinaryField16b::new(*target as u16);
+                prom.push([
+                    Opcode::Bnz.get_field_elt(),
+                    src.get_16bfield_val(),
+                    target_high,
+                    target_low,
+                ]);
             } else {
                 return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
             }
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => prom.push([
-            Opcode::Muli.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Muli.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         InstructionsWithLabels::MvvW { dst, src } => prom.push([
-            Opcode::MVVW.into(),
-            dst.get_slot_val(),
-            dst.get_offset_val(),
-            src.get_val(),
+            Opcode::MVVW.get_field_elt(),
+            dst.get_slot_16bfield_val(),
+            dst.get_offset_field_val(),
+            src.get_16bfield_val(),
         ]),
         InstructionsWithLabels::SllI { dst, src1, imm } => prom.push([
-            Opcode::Slli.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Slli.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         InstructionsWithLabels::SrlI { dst, src1, imm } => prom.push([
-            Opcode::Srli.into(),
-            dst.get_val(),
-            src1.get_val(),
-            imm.get_val(),
+            Opcode::Srli.get_field_elt(),
+            dst.get_16bfield_val(),
+            src1.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
-        InstructionsWithLabels::Ret => prom.push([Opcode::Ret as u16, 0, 0, 0]),
+        InstructionsWithLabels::Ret => prom.push([
+            Opcode::Ret.get_field_elt(),
+            BinaryField16b::zero(),
+            BinaryField16b::zero(),
+            BinaryField16b::zero(),
+        ]),
         InstructionsWithLabels::Taili { label, arg } => {
             if let Some(target) = labels.get(label) {
-                prom.push([Opcode::Taili.into(), *target, arg.get_val(), 0]);
+                let target_high = BinaryField16b::new((target >> 16) as u16);
+                let target_low = BinaryField16b::new(*target as u16);
+                prom.push([
+                    Opcode::Taili.get_field_elt(),
+                    target_high,
+                    target_low,
+                    arg.get_16bfield_val(),
+                ]);
             } else {
                 return Err(format!(
                     "Label in Taili instruction, {}, nonexistent.",
@@ -157,22 +177,22 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::XorI { dst, src, imm } => prom.push([
-            Opcode::Xori.into(),
-            dst.get_val(),
-            src.get_val(),
-            imm.get_val(),
+            Opcode::Xori.get_field_elt(),
+            dst.get_16bfield_val(),
+            src.get_16bfield_val(),
+            imm.get_field_val(),
         ]),
         _ => unimplemented!(),
     }
     Ok(())
 }
 
-type Labels = HashMap<String, u16>;
-type LabelsFrameSizes = HashMap<u16, u16>;
+type Labels = HashMap<String, u32>;
+type LabelsFrameSizes = HashMap<u32, u16>;
 
 pub fn get_frame_size_for_label(
     prom: &[Instruction],
-    label_pc: u16,
+    label_pc: u32,
     labels_fps: &mut LabelsFrameSizes,
 ) -> u16 {
     if let Some(frame_size) = labels_fps.get(&label_pc) {
@@ -183,13 +203,20 @@ pub fn get_frame_size_for_label(
     let mut instruction = prom[cur_pc as usize];
     let mut cur_offset = 0;
     let mut opcode =
-        Opcode::try_from(instruction[0]).expect("PROM should be correct at this point");
+        Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
     while opcode != Opcode::Taili && opcode != Opcode::Ret {
         match opcode {
             Opcode::Bnz => {
-                let [_, src, target, _] = instruction;
+                let [_, src, target_high, target_low] = instruction;
+                println!(
+                    "target high {:?} low {:?}",
+                    target_high.val(),
+                    target_low.val() as u32
+                );
+                let target = ((target_high.val() as u32) << 16) + target_low.val() as u32;
+                println!("target {:?}", target);
                 let sub_offset = get_frame_size_for_label(prom, target, labels_fps);
-                let max_accessed_addr = max(sub_offset, src);
+                let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);
             }
             Opcode::Addi
@@ -200,19 +227,20 @@ pub fn get_frame_size_for_label(
             | Opcode::Xori => {
                 let [_, dst, src, _] = instruction;
                 let max_accessed_addr = max(dst, src);
-                cur_offset = max(max_accessed_addr, cur_offset);
+                cur_offset = max(max_accessed_addr.val(), cur_offset);
             }
             Opcode::MVVW => {
                 let [_, dst, _, src] = instruction;
                 let max_accessed_addr = max(dst, src);
-                cur_offset = max(max_accessed_addr, cur_offset);
+                cur_offset = max(max_accessed_addr.val(), cur_offset);
             }
-            _ => {} // incaccessible: either Ret or Taili
+            _ => panic!(), // incaccessible: either Ret or Taili
         }
 
         cur_pc += 1;
         instruction = prom[cur_pc as usize];
-        opcode = Opcode::try_from(instruction[0]).expect("PROM should be correct at this point");
+        opcode =
+            Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
     }
 
     // We know that there was no key `label_pc` before, since it was the first thing we checked in this method.
@@ -230,7 +258,7 @@ pub fn get_frame_sizes_all_labels(prom: &[Instruction], labels: Labels) -> Label
     labels_frame_sizes
 }
 
-fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<HashMap<String, u16>, String> {
+fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<Labels, String> {
     let mut labels = HashMap::new();
     let mut pc = 1;
     for instruction in instructions {

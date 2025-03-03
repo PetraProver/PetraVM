@@ -3,10 +3,15 @@ mod event;
 mod instruction_args;
 mod instructions_with_labels;
 
+use binius_field::{BinaryField16b, Field};
 use emulator::Opcode;
 use instructions_with_labels::{
     get_frame_sizes_all_labels, get_full_prom_and_labels, parse_instructions,
 };
+
+pub(crate) fn get_binary_slot(i: u16) -> BinaryField16b {
+    BinaryField16b::new(i)
+}
 
 fn main() {
     let instructions = parse_instructions(include_str!("../../examples/collatz.asm")).unwrap();
@@ -15,33 +20,104 @@ fn main() {
         get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
     let prom = prom;
 
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels);
-    println!("frame sizes for collatz {:?}", frame_sizes);
+    let frame_sizes: std::collections::HashMap<u32, u16> =
+        get_frame_sizes_all_labels(&prom, labels);
 
-    let collatz = 1;
-    let case_recurse = 5;
-    let case_odd = 11;
+    let zero = BinaryField16b::ONE;
+    let collatz = BinaryField16b::ONE;
+    let case_recurse = BinaryField16b::new(5);
+    let case_odd = BinaryField16b::new(11);
     let expected_prom = vec![
         // collatz:
-        [Opcode::Xori as u16, 5, 2, 1],           //  1: XORI 5 2 1
-        [Opcode::Bnz.into(), 5, case_recurse, 0], //  2: BNZ 5 case_recurse
+        [
+            Opcode::Xori.get_field_elt(),
+            get_binary_slot(5),
+            get_binary_slot(2),
+            get_binary_slot(1),
+        ], //  1: XORI 5 2 1
+        [
+            Opcode::Bnz.get_field_elt(),
+            get_binary_slot(5),
+            zero,
+            case_recurse,
+        ], //  2: BNZ 5 case_recurse
         // case_return:
-        [Opcode::Xori.into(), 3, 2, 0], //  3: XORI 3 2 0
-        [Opcode::Ret.into(), 0, 0, 0],  //  4: RET
+        [
+            Opcode::Xori.get_field_elt(),
+            get_binary_slot(3),
+            get_binary_slot(2),
+            zero,
+        ], //  3: XORI 3 2 zero
+        [Opcode::Ret.get_field_elt(), zero, zero, zero], //  4: RET
         // case_recurse:
-        [Opcode::Andi.into(), 6, 2, 1],       //  5: ANDI 6 2 1
-        [Opcode::Bnz.into(), 6, case_odd, 0], //  6: BNZ 6 case_odd 0 0
+        [
+            Opcode::Andi.get_field_elt(),
+            get_binary_slot(6),
+            get_binary_slot(2),
+            get_binary_slot(1),
+        ], //  5: ANDI 6 2 1
+        [
+            Opcode::Bnz.get_field_elt(),
+            get_binary_slot(6),
+            zero,
+            case_odd,
+        ], //  6: BNZ 6 case_odd 0 0
         // case_even:
-        [Opcode::Srli.into(), 8, 2, 1],        //  7: SRLI 8 2 1
-        [Opcode::MVVW.into(), 4, 2, 8],        //  8: MVV.W @4[2], @8
-        [Opcode::MVVW.into(), 4, 3, 3],        //  9: MVV.W @4[3], @3
-        [Opcode::Taili.into(), collatz, 4, 0], // 10: TAILI collatz 4 0
+        [
+            Opcode::Srli.get_field_elt(),
+            get_binary_slot(8),
+            get_binary_slot(2),
+            get_binary_slot(1),
+        ], //  7: SRLI 8 2 1
+        [
+            Opcode::MVVW.get_field_elt(),
+            get_binary_slot(4),
+            get_binary_slot(2),
+            get_binary_slot(8),
+        ], //  8: MVV.W @4[2], @8
+        [
+            Opcode::MVVW.get_field_elt(),
+            get_binary_slot(4),
+            get_binary_slot(3),
+            get_binary_slot(3),
+        ], //  9: MVV.W @4[3], @3
+        [
+            Opcode::Taili.get_field_elt(),
+            zero,
+            collatz,
+            get_binary_slot(4),
+        ], // 10: TAILI collatz 4 0
         // case_odd:
-        [Opcode::Muli.into(), 7, 2, 3],        //  11: MULI 7 2 3
-        [Opcode::Addi.into(), 8, 7, 1],        //  12: ADDI 8 7 1
-        [Opcode::MVVW.into(), 4, 2, 8],        //  13: MVV.W @4[2], @7
-        [Opcode::MVVW.into(), 4, 3, 3],        //  14: MVV.W @4[3], @3
-        [Opcode::Taili.into(), collatz, 4, 0], //  15: TAILI collatz 4 0
+        [
+            Opcode::Muli.get_field_elt(),
+            get_binary_slot(7),
+            get_binary_slot(2),
+            get_binary_slot(3),
+        ], //  11: MULI 7 2 3
+        [
+            Opcode::Addi.get_field_elt(),
+            get_binary_slot(8),
+            get_binary_slot(7),
+            get_binary_slot(1),
+        ], //  12: ADDI 8 7 1
+        [
+            Opcode::MVVW.get_field_elt(),
+            get_binary_slot(4),
+            get_binary_slot(2),
+            get_binary_slot(8),
+        ], //  13: MVV.W @4[2], @7
+        [
+            Opcode::MVVW.get_field_elt(),
+            get_binary_slot(4),
+            get_binary_slot(3),
+            get_binary_slot(3),
+        ], //  14: MVV.W @4[3], @3
+        [
+            Opcode::Taili.get_field_elt(),
+            zero,
+            collatz,
+            get_binary_slot(4),
+        ], //  15: TAILI collatz 4 0
     ];
 
     assert!(prom == expected_prom);

@@ -1,3 +1,5 @@
+use binius_field::{BinaryField16b, BinaryField32b};
+
 use crate::emulator::{InterpreterChannels, InterpreterTables};
 
 pub(crate) mod b32;
@@ -13,16 +15,16 @@ pub trait Event {
 }
 
 pub(crate) trait BinaryOperation: Sized {
-    fn operation(val: u32, imm: u32) -> u32;
+    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b;
 }
 
 // TODO: Add type paraeter for operation over other fields?
 pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
     // TODO: Add some trick to implement new only once
     fn new(
-        timestamp: u16,
-        pc: u16,
-        fp: u16,
+        timestamp: u32,
+        pc: u32,
+        fp: u32,
         dst: u16,
         dst_val: u32,
         src: u16,
@@ -32,25 +34,27 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
 
     fn generate_event(
         interpreter: &mut crate::emulator::Interpreter,
-        dst: u16,
-        src: u16,
-        imm: u16,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
     ) -> Self {
-        let src_val = interpreter.vrom.get(interpreter.fp as usize + src as usize);
-        let dst_val = Self::operation(src_val, imm as u32);
+        let src_val = interpreter
+            .vrom
+            .get(BinaryField32b::new(interpreter.fp) + src);
+        let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
             interpreter.pc,
             interpreter.fp,
-            dst,
-            dst_val,
-            src,
+            dst.val(),
+            dst_val.val(),
+            src.val(),
             src_val,
-            imm,
+            imm.val(),
         );
         interpreter
             .vrom
-            .set(interpreter.fp as usize + dst as usize, dst_val);
+            .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
         interpreter.pc += 1;
         event
     }
