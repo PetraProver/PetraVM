@@ -208,13 +208,7 @@ pub fn get_frame_size_for_label(
         match opcode {
             Opcode::Bnz => {
                 let [_, src, target_high, target_low] = instruction;
-                println!(
-                    "target high {:?} low {:?}",
-                    target_high.val(),
-                    target_low.val() as u32
-                );
                 let target = ((target_high.val() as u32) << 16) + target_low.val() as u32;
-                println!("target {:?}", target);
                 let sub_offset = get_frame_size_for_label(prom, target, labels_fps);
                 let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);

@@ -3,7 +3,7 @@ mod event;
 mod instruction_args;
 mod instructions_with_labels;
 
-use binius_field::{BinaryField16b, Field};
+use binius_field::{BinaryField16b, Field, PackedField};
 use emulator::Opcode;
 use instructions_with_labels::{
     get_frame_sizes_all_labels, get_full_prom_and_labels, parse_instructions,
@@ -23,7 +23,7 @@ fn main() {
     let frame_sizes: std::collections::HashMap<u32, u16> =
         get_frame_sizes_all_labels(&prom, labels);
 
-    let zero = BinaryField16b::ONE;
+    let zero = BinaryField16b::zero();
     let collatz = BinaryField16b::ONE;
     let case_recurse = BinaryField16b::new(5);
     let case_odd = BinaryField16b::new(11);
