@@ -11,9 +11,9 @@ collatz:
     ;; Slot @8: Local: n >> 2 or 3*n + 1
 
 	;; Branch to recursion label if value in slot 2 is not 1
-	XORI @5, @2, #1G
+	XORI @5, @2, #1
 	BNZ case_recurse, @5 ;; branch if n == 1
-	XORI @3, @2, #0G
+	XORI @3, @2, #0
 	RET
 
 case_recurse:
