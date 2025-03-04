@@ -1,6 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
 
-use crate::emulator::{InterpreterChannels, InterpreterTables};
+use crate::{emulator::{InterpreterChannels, InterpreterTables}, impl_event_for_non_jump_event};
 
 use super::{BinaryOperation, Event, ImmediateBinaryOperation};
 
@@ -14,14 +14,6 @@ pub(crate) struct XoriEvent {
     src: u16,
     src_val: u32,
     imm: u16,
-}
-
-impl Event for XoriEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .push((self.pc, self.fp, self.timestamp));
-    }
 }
 
 impl ImmediateBinaryOperation for XoriEvent {
@@ -54,6 +46,8 @@ impl BinaryOperation for XoriEvent {
     }
 }
 
+impl_event_for_non_jump_event!(XoriEvent);
+
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u32,
@@ -64,12 +58,6 @@ pub(crate) struct AndiEvent {
     src: u16,
     src_val: u32,
     imm: u16,
-}
-
-impl Event for AndiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        unimplemented!()
-    }
 }
 
 impl ImmediateBinaryOperation for AndiEvent {
@@ -106,6 +94,8 @@ impl BinaryOperation for AndiEvent {
         BinaryField32b::from_bases(&and_bits).expect("hello")
     }
 }
+
+impl_event_for_non_jump_event!(AndiEvent);
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct B32MuliEvent {

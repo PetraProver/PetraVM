@@ -59,3 +59,23 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         event
     }
 }
+
+#[macro_export]
+macro_rules! impl_event_for_non_jump_event {
+    ($t:ty) => {
+        impl Event for $t {
+            fn fire(
+                &self,
+                channels: &mut InterpreterChannels,
+                _tables: &InterpreterTables,
+            ) {
+                channels
+                    .state_channel
+                    .pull((self.pc, self.fp, self.timestamp));
+                channels
+                    .state_channel
+                    .push((self.pc + 1, self.fp, self.timestamp + 1));
+            }
+        }
+    };
+}
