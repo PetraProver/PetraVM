@@ -149,7 +149,7 @@ pub(crate) enum InterpreterError {
 impl Interpreter {
     pub(crate) fn new(prom: ProgramRom) -> Self {
         Self {
-            pc: G,
+            pc: BinaryField32b::ONE,
             fp: 0,
             timestamp: 0,
             prom,
@@ -159,7 +159,7 @@ impl Interpreter {
 
     pub(crate) fn new_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Self {
         Self {
-            pc: G,
+            pc: BinaryField32b::ONE,
             fp: 0,
             timestamp: 0,
             prom,
@@ -181,7 +181,7 @@ impl Interpreter {
     }
 
     pub(crate) fn is_halted(&self) -> bool {
-        self.pc == BinaryField32b::ONE
+        self.pc == BinaryField32b::ZERO
     }
 
     pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
@@ -464,7 +464,7 @@ impl ZCrayTrace {
         let tables = InterpreterTables { vrom_table_32 };
 
         // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
-        channels.state_channel.push((G, 0, 0));
+        channels.state_channel.push((BinaryField32b::ONE, 0, 0));
         // Final boundary pull.
         channels.state_channel.pull((
             boundary_values.final_pc,
@@ -530,7 +530,7 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 
 pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
     let mut prom = ProgramRom::new();
-    let mut pc = G; // we start at PC = 1G.
+    let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
     for inst in code {
         prom.insert(pc, *inst);
         pc *= G;
@@ -574,12 +574,12 @@ mod tests {
         let (traces, _) =
             ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
         let shifts = vec![
-            SliEvent::new(G, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
-            SliEvent::new(G.square(), 0, 1, 5, 0, 4, 3, 7, ShiftKind::Right),
+            SliEvent::new(BinaryField32b::ONE, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
+            SliEvent::new(G, 0, 1, 5, 0, 4, 3, 7, ShiftKind::Right),
         ];
 
         let ret = RetEvent {
-            pc: G * G.square(), // PC = 3
+            pc: G.square(), // PC = 3
             fp: 0,
             timestamp: 2,
             fp_0_val: 0,
