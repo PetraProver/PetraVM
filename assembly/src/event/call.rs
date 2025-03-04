@@ -8,7 +8,7 @@ use crate::{
 // Struture of an event for TAILI.
 #[derive(Debug, Clone)]
 pub(crate) struct TailiEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     target: u32,
@@ -20,7 +20,7 @@ pub(crate) struct TailiEvent {
 
 impl TailiEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         target: u32,
@@ -53,7 +53,7 @@ impl TailiEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.fp = next_fp_val;
-        interpreter.pc = target.val();
+        interpreter.set_pc(target).expect("PC should be correct");
 
         interpreter
             .vrom
@@ -80,8 +80,10 @@ impl Event for TailiEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.target, self.next_fp_val, self.timestamp + 1));
+        channels.state_channel.push((
+            BinaryField32b::new(self.target),
+            self.next_fp_val,
+            self.timestamp + 1,
+        ));
     }
 }

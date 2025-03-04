@@ -1,14 +1,14 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
 };
 
 // Struture of an event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -20,7 +20,7 @@ pub(crate) struct MVVWEvent {
 
 impl MVVWEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
@@ -57,7 +57,7 @@ impl MVVWEvent {
         interpreter
             .vrom
             .set(BinaryField32b::new(dst_addr) + offset, src_val);
-        interpreter.pc += 1;
+        interpreter.incr_pc();
 
         Self {
             pc,
@@ -79,14 +79,14 @@ impl Event for MVVWEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }
 
 // Struture of an event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct LDIEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -95,7 +95,14 @@ pub(crate) struct LDIEvent {
 }
 
 impl LDIEvent {
-    pub fn new(pc: u32, fp: u32, timestamp: u32, dst: u16, dst_addr: u32, imm: u16) -> Self {
+    pub fn new(
+        pc: BinaryField32b,
+        fp: u32,
+        timestamp: u32,
+        dst: u16,
+        dst_addr: u32,
+        imm: u16,
+    ) -> Self {
         Self {
             pc,
             fp,
@@ -119,7 +126,7 @@ impl LDIEvent {
         let timestamp = interpreter.timestamp;
 
         interpreter.vrom.set(dst_addr_field, imm.val() as u32);
-        interpreter.pc += 1;
+        interpreter.incr_pc();
 
         Self {
             pc,
@@ -139,6 +146,6 @@ impl Event for LDIEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }

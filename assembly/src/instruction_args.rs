@@ -1,4 +1,4 @@
-use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField, BinaryField16b, BinaryField32b, Field, PackedField};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]
@@ -8,7 +8,7 @@ pub struct Slot(u32);
 pub struct SlotWithOffset(u32, u16);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Immediate(i16);
+pub struct Immediate(u16);
 
 impl std::fmt::Display for Slot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -81,10 +81,21 @@ impl std::fmt::Display for Immediate {
 impl std::str::FromStr for Immediate {
     type Err = BadArgumentError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let is_field = s.chars().last().unwrap() == 'G';
         let s = s.trim_start_matches('#').trim_end_matches("G");
-        i16::from_str(s)
-            .map(Self)
-            .map_err(|_| BadArgumentError::Immediate(s.to_string()))
+        let int_val = i16::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))?;
+        if is_field {
+            let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.abs() as u64);
+            if int_val < 0 {
+                Ok(Immediate(
+                    v.invert().expect("We already ensured v is not 0.").val() as u16,
+                ))
+            } else {
+                Ok(Immediate(v.val() as u16))
+            }
+        } else {
+            Ok(Immediate(int_val as u16))
+        }
     }
 }
 

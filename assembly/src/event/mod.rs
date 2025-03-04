@@ -23,7 +23,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
     // TODO: Add some trick to implement new only once
     fn new(
         timestamp: u32,
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         dst: u16,
         dst_val: u32,
@@ -55,7 +55,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         interpreter
             .vrom
             .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
-        interpreter.pc += 1;
+        interpreter.incr_pc();
         event
     }
 }

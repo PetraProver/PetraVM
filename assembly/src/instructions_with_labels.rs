@@ -231,7 +231,7 @@ pub fn get_frame_size_for_label(
             _ => panic!(), // incaccessible: either Ret or Taili
         }
 
-        cur_pc += 1;
+        cur_pc = ((cur_pc as u64 + 1) % (1 << 32)) as u32;
         instruction = prom[cur_pc as usize];
         opcode =
             Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
@@ -263,7 +263,7 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<Labels, String>
                 }
                 // We do not increment the PC if we found a label.
             }
-            _ => pc += 1,
+            _ => pc = ((pc as u64 + 1) % (1 << 32)) as u32,
         }
     }
     Ok(labels)

@@ -7,7 +7,7 @@ use super::{BinaryOperation, Event, ImmediateBinaryOperation};
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {
     timestamp: u32,
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     dst: u16,
     dst_val: u32,
@@ -27,7 +27,7 @@ impl Event for XoriEvent {
 impl ImmediateBinaryOperation for XoriEvent {
     fn new(
         timestamp: u32,
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         dst: u16,
         dst_val: u32,
@@ -57,7 +57,7 @@ impl BinaryOperation for XoriEvent {
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u32,
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     dst: u16,
     dst_val: u32,
@@ -75,7 +75,7 @@ impl Event for AndiEvent {
 impl ImmediateBinaryOperation for AndiEvent {
     fn new(
         timestamp: u32,
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         dst: u16,
         dst_val: u32,
@@ -110,7 +110,7 @@ impl BinaryOperation for AndiEvent {
 #[derive(Debug, Default, Clone)]
 pub(crate) struct B32MuliEvent {
     timestamp: u32,
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     dst: u16,
     dst_val: u32,
@@ -130,7 +130,7 @@ impl Event for B32MuliEvent {
 impl ImmediateBinaryOperation for B32MuliEvent {
     fn new(
         timestamp: u32,
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         dst: u16,
         dst_val: u32,
