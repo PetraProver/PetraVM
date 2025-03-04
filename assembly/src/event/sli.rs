@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
 };
 
@@ -14,7 +14,7 @@ pub enum ShiftKind {
 // Struture of an event for one of the shifts.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -27,7 +27,7 @@ pub struct SliEvent {
 
 impl SliEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
@@ -71,7 +71,7 @@ impl SliEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.vrom.set(field_fp + dst, new_val);
-        interpreter.pc += 1;
+        interpreter.incr_pc();
 
         SliEvent::new(
             pc,
@@ -94,6 +94,6 @@ impl Event for SliEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }

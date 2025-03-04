@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 
 use crate::emulator::{InterpreterChannels, InterpreterTables};
 
@@ -23,7 +23,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
     // TODO: Add some trick to implement new only once
     fn new(
         timestamp: u32,
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         dst: u16,
         dst_val: u32,
@@ -55,7 +55,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         interpreter
             .vrom
             .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
-        interpreter.pc += 1;
+        interpreter.incr_pc();
         event
     }
 }
@@ -64,17 +64,15 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
 macro_rules! impl_event_for_non_jump_event {
     ($t:ty) => {
         impl Event for $t {
-            fn fire(
-                &self,
-                channels: &mut InterpreterChannels,
-                _tables: &InterpreterTables,
-            ) {
+            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 channels
                     .state_channel
                     .pull((self.pc, self.fp, self.timestamp));
-                channels
-                    .state_channel
-                    .push((self.pc + 1, self.fp, self.timestamp + 1));
+                channels.state_channel.push((
+                    self.pc * crate::emulator::G,
+                    self.fp,
+                    self.timestamp + 1,
+                ));
             }
         }
     };

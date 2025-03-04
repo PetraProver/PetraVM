@@ -1,7 +1,7 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
 };
 
@@ -102,7 +102,7 @@ impl Event for Add32Event {
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
 pub(crate) struct AddiEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -114,7 +114,7 @@ pub(crate) struct AddiEvent {
 
 impl AddiEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
@@ -150,7 +150,7 @@ impl AddiEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.pc += 1;
+        interpreter.incr_pc();
 
         Self {
             pc,
@@ -170,16 +170,18 @@ impl Event for AddiEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+        channels.state_channel.push((
+            self.pc * BinaryField32b::MULTIPLICATIVE_GENERATOR,
+            self.fp,
+            self.timestamp + 1,
+        ));
     }
 }
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
 pub(crate) struct AddEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -192,7 +194,7 @@ pub(crate) struct AddEvent {
 
 impl AddEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
@@ -232,7 +234,7 @@ impl AddEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.pc += 1;
+        interpreter.incr_pc();
 
         Self {
             pc,
@@ -255,14 +257,14 @@ impl Event for AddEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
 pub(crate) struct MuliEvent {
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
@@ -282,7 +284,7 @@ pub(crate) struct MuliEvent {
 
 impl MuliEvent {
     pub fn new(
-        pc: u32,
+        pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
@@ -349,7 +351,7 @@ impl MuliEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.pc += 1;
+        interpreter.incr_pc();
         Self {
             pc,
             fp: fp.val(),
@@ -373,6 +375,6 @@ impl Event for MuliEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc + 1, self.fp, self.timestamp + 1));
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }

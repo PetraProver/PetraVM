@@ -20,8 +20,8 @@ fn main() {
         get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
     let prom = prom;
 
-    let frame_sizes: std::collections::HashMap<u32, u16> =
-        get_frame_sizes_all_labels(&prom, labels);
+    let frame_sizes = get_frame_sizes_all_labels(&prom, labels);
+    println!("frame sizes {:?}", frame_sizes);
 
     let zero = BinaryField16b::zero();
     let collatz = BinaryField16b::ONE;
