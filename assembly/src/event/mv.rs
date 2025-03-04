@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
-    event::Event,
+    event::Event, fire_non_jump_event,
 };
 
 // Struture of an event for MVV.W.
@@ -73,13 +73,8 @@ impl MVVWEvent {
 }
 
 impl Event for MVVWEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        fire_non_jump_event!(self, channels);
     }
 }
 
@@ -140,12 +135,7 @@ impl LDIEvent {
 }
 
 impl Event for LDIEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        fire_non_jump_event!(self, channels);
     }
 }

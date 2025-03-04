@@ -1,6 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
+use crate::{emulator::{Interpreter, InterpreterChannels, InterpreterTables}, fire_non_jump_event};
 
 use super::Event;
 
@@ -11,12 +11,18 @@ pub(crate) struct BnzEvent {
     fp: u32,
     cond: u16,
     con_val: u32,
-    target: u32,
+    target: BinaryField32b,
 }
 
 impl Event for BnzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        unimplemented!();
+        assert_ne!(self.cond, 0);
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.target, self.fp, self.timestamp + 1));
     }
 }
 
@@ -34,13 +40,48 @@ impl BnzEvent {
             fp: interpreter.fp,
             cond: cond.val(),
             con_val: cond_val,
-            target: target.val(),
+            target,
         };
-        if cond_val != 0 {
-            interpreter.set_pc(target).expect("PC should be correct.");
-        } else {
-            interpreter.incr_pc();
-        }
+        interpreter.pc = target;
+        event
+    }
+}
+
+// TODO: Maybe this could be jus NoopEvent?
+#[derive(Debug, Default, Clone)]
+pub(crate) struct BzEvent {
+    timestamp: u32,
+    pc: BinaryField32b,
+    fp: u32,
+    cond: u16,
+    con_val: u32,
+    target: BinaryField32b,
+}
+
+impl Event for BzEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_eq!(self.cond, 0);
+        fire_non_jump_event!(self, channels);
+    }
+}
+
+impl BzEvent {
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        cond: BinaryField16b,
+        target: BinaryField32b,
+    ) -> BzEvent {
+        let fp_field = BinaryField32b::new(interpreter.fp);
+        let cond_val = interpreter.vrom.get(fp_field + cond);
+        let event = BzEvent {
+            timestamp: interpreter.timestamp,
+            pc: interpreter.pc,
+            fp: interpreter.fp,
+            cond: cond.val(),
+            con_val: cond_val,
+            target,
+        };
+        interpreter.incr_pc();
         event
     }
 }

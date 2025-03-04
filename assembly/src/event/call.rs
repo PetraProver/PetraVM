@@ -53,7 +53,7 @@ impl TailiEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.fp = next_fp_val;
-        interpreter.set_pc(target).expect("PC should be correct");
+        interpreter.pc = target;
 
         interpreter
             .vrom
