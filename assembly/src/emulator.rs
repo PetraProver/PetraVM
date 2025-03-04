@@ -7,16 +7,19 @@ use std::{
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::event::{
-    b32::{AndiEvent, B32MuliEvent, XoriEvent},
-    branch::BnzEvent,
-    call::TailiEvent,
-    integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-    mv::MVVWEvent,
-    ret::RetEvent,
-    sli::{ShiftKind, SliEvent},
-    Event,
-    ImmediateBinaryOperation, // Add the import for RetEvent
+use crate::{
+    event::{
+        b32::{AndiEvent, B32MuliEvent, XoriEvent},
+        branch::BnzEvent,
+        call::TailiEvent,
+        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        mv::MVVWEvent,
+        ret::RetEvent,
+        sli::{ShiftKind, SliEvent},
+        Event,
+        ImmediateBinaryOperation, // Add the import for RetEvent
+    },
+    instructions_with_labels::LabelsFrameSizes,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -85,6 +88,8 @@ pub(crate) struct Interpreter {
     pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
     pub(crate) vrom: ValueRom,
+    latest_fp: u32,
+    frames: LabelsFrameSizes,
 }
 
 #[derive(Debug, Default)]
@@ -144,26 +149,35 @@ pub(crate) type Instruction = [BinaryField16b; 4];
 pub(crate) enum InterpreterError {
     InvalidOpcode,
     BadPc,
+    InvalidInput,
 }
 
 impl Interpreter {
-    pub(crate) fn new(prom: ProgramRom) -> Self {
+    pub(crate) fn new(prom: ProgramRom, frames: LabelsFrameSizes) -> Self {
         Self {
             pc: BinaryField32b::ONE,
             fp: 0,
             timestamp: 0,
             prom,
             vrom: ValueRom::default(),
+            latest_fp: 0,
+            frames,
         }
     }
 
-    pub(crate) fn new_with_vrom(prom: ProgramRom, vrom: ValueRom) -> Self {
+    pub(crate) fn new_with_vrom(
+        prom: ProgramRom,
+        vrom: ValueRom,
+        frames: LabelsFrameSizes,
+    ) -> Self {
         Self {
             pc: BinaryField32b::ONE,
             fp: 0,
             timestamp: 0,
             prom,
             vrom,
+            latest_fp: 0,
+            frames,
         }
     }
 
@@ -181,6 +195,7 @@ impl Interpreter {
 
     pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
         let mut trace = ZCrayTrace::default();
+        self.allocate_new_frame(self.pc)?;
         while let Some(_) = self.step(&mut trace)? {
             if self.is_halted() {
                 return Ok(trace);
@@ -211,18 +226,10 @@ impl Interpreter {
     }
 
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
-        let [_, cond, target_high, target_low] =
+        let [_, cond, target_low, target_high] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&vec![*target_high, *target_low]).expect("Hello");
-        let target_first: BinaryField16b = target.get_base(0);
-        let target_second: BinaryField16b = target.get_base(1);
-        println!(
-            "target first {:?}, target second {:?}, target_high {:?} target low {:?}",
-            target_first.val(),
-            target_second.val(),
-            target_high,
-            target_low
-        );
+        let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
         let new_bnz_event = BnzEvent::generate_event(self, *cond, target);
         trace.bnz.push(new_bnz_event);
 
@@ -262,10 +269,12 @@ impl Interpreter {
     }
 
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
-        let [_, target_high, target_low, next_fp] =
+        let [_, target_low, target_high, next_fp] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&vec![*target_high, *target_low]).expect("Hello");
+        let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
+        self.allocate_new_frame(target)?;
         trace.taili.push(new_taili_event);
 
         Ok(())
@@ -348,6 +357,32 @@ impl Interpreter {
 
         Ok(())
     }
+
+    fn allocate_new_frame(&mut self, target: BinaryField32b) -> Result<(), InterpreterError> {
+        // TODO: for now, we assume that all values are u32. Needs to change when we support multiple gramularities.
+        // We need the +1 because the frame size we read corresponds to the largest offset accessed within the frame.
+        let (frame_size, opt_nb_args) = self
+            .frames
+            .get(&target)
+            .ok_or(InterpreterError::InvalidInput)?;
+        let frame_size = (frame_size + 1).next_power_of_two();
+
+        let nb_args = BinaryField32b::new(
+            opt_nb_args.expect("The number of arguments list provided is incomplete.") as u32 + 2,
+        );
+        let alignment = (frame_size - self.latest_fp as u16 % frame_size) % frame_size;
+
+        let next_fp = self.latest_fp + alignment as u32 + frame_size as u32;
+
+        self.vrom.set(
+            BinaryField32b::new(self.latest_fp as u32) + nb_args,
+            next_fp,
+        );
+
+        self.latest_fp = next_fp;
+
+        Ok(())
+    }
 }
 
 impl<T: Hash + Eq> Channel<T> {
@@ -413,8 +448,11 @@ pub(crate) struct BoundaryValues {
 }
 
 impl ZCrayTrace {
-    fn generate(prom: ProgramRom) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(prom);
+    fn generate(
+        prom: ProgramRom,
+        frames: LabelsFrameSizes,
+    ) -> Result<(Self, BoundaryValues), InterpreterError> {
+        let mut interpreter = Interpreter::new(prom, frames);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
@@ -431,8 +469,9 @@ impl ZCrayTrace {
     pub(crate) fn generate_with_vrom(
         prom: ProgramRom,
         vrom: ValueRom,
+        frames: LabelsFrameSizes,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new_with_vrom(prom, vrom);
+        let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
@@ -544,7 +583,9 @@ mod tests {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code);
-        let (trace, boundary_values) = ZCrayTrace::generate(prom).expect("Ouch!");
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, (2, Some(0)));
+        let (trace, boundary_values) = ZCrayTrace::generate(prom, frames).expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -564,10 +605,12 @@ mod tests {
             [Opcode::Srli.get_field_elt(), shift2_dst, shift2_src, shift2],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, (2, Some(5)));
         let prom = code_to_prom(&instructions);
         let vrom = ValueRom(vec![0, 0, 2, 0, 3]);
-        let (traces, _) =
-            ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
+            .expect("Trace generation should not fail.");
         let shifts = vec![
             SliEvent::new(BinaryField32b::ONE, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
             SliEvent::new(G, 0, 1, 5, 0, 4, 3, 7, ShiftKind::Right),
@@ -630,10 +673,11 @@ mod tests {
         let zero = BinaryField16b::zero();
         // labels
         let collatz = BinaryField16b::ONE;
-        let case_recurse = BinaryField16b::new(5);
-        let case_odd = BinaryField16b::new(11);
-        let next_fp_offset = 4;
-        let next_fp = 9;
+        let case_recurse = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(4))
+            .collect::<Vec<BinaryField16b>>();
+        let case_odd = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10))
+            .collect::<Vec<BinaryField16b>>();
+
         let instructions = vec![
             // collatz:
             [
@@ -641,106 +685,101 @@ mod tests {
                 get_binary_slot(5),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  1: XORI 5 2 1
+            ], //  0G: XORI 5 2 1
             [
                 Opcode::Bnz.get_field_elt(),
                 get_binary_slot(5),
-                case_recurse,
-                zero,
-            ], //  2: BNZ 5 case_recurse
+                case_recurse[0],
+                case_recurse[1],
+            ], //  1G: BNZ 5 case_recurse
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
                 get_binary_slot(3),
                 get_binary_slot(2),
                 zero,
-            ], //  3: XORI 3 2 zero
-            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  4: RET
+            ], //  2G: XORI 3 2 zero
+            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  3G: RET
             // case_recurse:
             [
                 Opcode::Andi.get_field_elt(),
                 get_binary_slot(6),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  5: ANDI 6 2 1
+            ], // 4G: ANDI 6 2 1
             [
                 Opcode::Bnz.get_field_elt(),
                 get_binary_slot(6),
-                case_odd,
-                zero,
-            ], //  6: BNZ 6 case_odd 0 0
+                case_odd[0],
+                case_odd[1],
+            ], //  5G: BNZ 6 case_odd 0 0
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
                 get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  7: SRLI 8 2 1
+            ], //  6G: SRLI 8 2 1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(8),
-            ], //  8: MVV.W @4[2], @8
+            ], //  7G: MVV.W @4[2], @8
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  9: MVV.W @4[3], @3
+            ], //  8G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
                 collatz,
-                get_binary_slot(4),
                 zero,
-            ], // 10: TAILI collatz 4 0
+                get_binary_slot(4),
+            ], // 9G: TAILI collatz 4 0
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  11: MULI 7 2 3
+            ], //  10G: MULI 7 2 3
             [
                 Opcode::Addi.get_field_elt(),
                 get_binary_slot(8),
                 get_binary_slot(7),
                 get_binary_slot(1),
-            ], //  12: ADDI 8 7 1
+            ], //  11G: ADDI 8 7 1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(8),
-            ], //  13: MVV.W @4[2], @7
+            ], //  12G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  14: MVV.W @4[3], @3
+            ], //  13G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
                 collatz,
-                get_binary_slot(4),
                 zero,
-            ], //  15: TAILI collatz 4 0
+                get_binary_slot(4),
+            ], //  14G: TAILI collatz 4 0
         ];
-        let initial_val = 3999;
+        let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
-        let nb_frames = expected_evens.len() + expected_odds.len();
         let prom = code_to_prom(&instructions);
         // return PC = 0, return FP = 0, n = 3999
-        let mut vrom = ValueRom(vec![0, 0, initial_val]);
-        for i in 0..nb_frames {
-            vrom.set(
-                BinaryField32b::new((i * next_fp + next_fp_offset) as u32),
-                ((i + 1) * next_fp) as u32,
-            );
-        }
+        let vrom = ValueRom(vec![0, 0, initial_val]);
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, (8, Some(2)));
 
-        let (traces, _) =
-            ZCrayTrace::generate_with_vrom(prom, vrom).expect("Trace generation should not fail.");
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
+            .expect("Trace generation should not fail.");
 
         assert!(traces.shift.len() == expected_evens.len()); // There are 4 even cases.
         for i in 0..expected_evens.len() {
@@ -749,6 +788,20 @@ mod tests {
         assert!(traces.muli.len() == expected_odds.len()); // There is 1 odd case.
         for i in 0..expected_odds.len() {
             assert!(traces.muli[i].src_val == expected_odds[i]);
+        }
+
+        let nb_frames = expected_evens.len() + expected_odds.len();
+        let mut cur_val = initial_val;
+
+        for i in 0..nb_frames {
+            assert!(traces.vrom[i * 16 + 4] == ((i + 1) * 16) as u32);
+            assert_eq!(traces.vrom[i * 16 + 2], cur_val);
+
+            if cur_val % 2 == 0 {
+                cur_val /= 2;
+            } else {
+                cur_val = 3 * cur_val + 1;
+            }
         }
     }
 }
