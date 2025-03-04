@@ -39,6 +39,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation<BinaryField16b> {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Self {
+        println!("dst: {:?}, src: {:?}, imm: {:?}", dst, src, imm);
         let src_val = BinaryField32b::new(
             interpreter
                 .vrom

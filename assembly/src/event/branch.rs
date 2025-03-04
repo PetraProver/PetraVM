@@ -1,6 +1,9 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{emulator::{Interpreter, InterpreterChannels, InterpreterTables}, fire_non_jump_event};
+use crate::{
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    fire_non_jump_event,
+};
 
 use super::Event;
 
@@ -34,6 +37,12 @@ impl BnzEvent {
     ) -> BnzEvent {
         let fp_field = BinaryField32b::new(interpreter.fp);
         let cond_val = interpreter.vrom.get(fp_field + cond);
+        println!(
+            "cond: {}, target: {}, cond_val: {:?}",
+            cond.val(),
+            target.val(),
+            cond_val
+        );
         let event = BnzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
@@ -42,7 +51,7 @@ impl BnzEvent {
             con_val: cond_val,
             target,
         };
-        interpreter.pc = target;
+        interpreter.jump_to(target);
         event
     }
 }

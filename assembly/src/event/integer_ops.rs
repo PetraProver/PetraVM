@@ -3,7 +3,10 @@ use std::ops::Add;
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G}, event::Event, fire_non_jump_event, impl_event_for_binary_operation, impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
+    event::Event,
+    fire_non_jump_event, impl_event_for_binary_operation,
+    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
 };
 
 use super::BinaryOperation;
@@ -118,7 +121,6 @@ impl_immediate_binary_operation!(AddiEvent);
 impl_event_for_binary_operation!(AddiEvent);
 
 impl AddiEvent {
-
     pub fn generate_event(
         interpreter: &mut Interpreter,
         dst: BinaryField16b,
@@ -130,6 +132,10 @@ impl AddiEvent {
         let src_val = interpreter.vrom.get(fp_field + src);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
+        println!(
+            "dst: {:?}, src: {:?}, imm: {:?}, src_val: {:?}, dst_val: {:?}",
+            dst, src, imm, src_val, dst_val
+        );
         interpreter.vrom.set(fp_field + dst, dst_val);
 
         let pc = interpreter.pc;
@@ -284,6 +290,10 @@ impl MuliEvent {
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32;
+        println!(
+            "dst: {:?}, src: {:?}, imm: {:?}, src_val: {:?}, dst_val: {:?}",
+            dst, src, imm, src_val, dst_val
+        );
 
         interpreter.vrom.set(fp + dst, dst_val);
 
