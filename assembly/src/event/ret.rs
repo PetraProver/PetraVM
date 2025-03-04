@@ -6,7 +6,7 @@ use super::Event;
 
 #[derive(Debug, PartialEq)]
 pub struct RetEvent {
-    pub(crate) pc: u32,
+    pub(crate) pc: BinaryField32b,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) fp_0_val: u32,
@@ -35,7 +35,9 @@ impl RetEvent {
                 .extend(&vec![0u32; fp as usize - interpreter.vrom_size() + 2]);
         }
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.pc = interpreter.vrom.get(fp_field);
+        interpreter
+            .set_pc(BinaryField32b::new(interpreter.vrom.get(fp_field)))
+            .expect("Return value should be correct");
         interpreter.fp = interpreter.vrom.get(fp_field + BinaryField32b::ONE);
 
         ret_event
@@ -47,8 +49,10 @@ impl Event for RetEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.fp_0_val, self.fp_1_val, self.timestamp + 1));
+        channels.state_channel.push((
+            BinaryField32b::new(self.fp_0_val),
+            self.fp_1_val,
+            self.timestamp + 1,
+        ));
     }
 }

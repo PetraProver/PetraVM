@@ -7,7 +7,7 @@ use super::Event;
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BnzEvent {
     timestamp: u32,
-    pc: u32,
+    pc: BinaryField32b,
     fp: u32,
     cond: u16,
     con_val: u32,
@@ -37,9 +37,9 @@ impl BnzEvent {
             target: target.val(),
         };
         if cond_val != 0 {
-            interpreter.pc = target.val();
+            interpreter.set_pc(target).expect("PC should be correct.");
         } else {
-            interpreter.pc += 1;
+            interpreter.incr_pc();
         }
         event
     }
