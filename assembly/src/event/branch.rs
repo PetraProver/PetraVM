@@ -37,7 +37,7 @@ impl BnzEvent {
             target: target.val(),
         };
         if cond_val != 0 {
-            interpreter.set_pc(target).expect("PC should be correct.");
+            interpreter.pc = target;
         } else {
             interpreter.incr_pc();
         }
