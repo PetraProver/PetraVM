@@ -171,11 +171,6 @@ impl Interpreter {
         self.pc *= G;
     }
 
-    pub(crate) fn set_pc(&mut self, target: BinaryField32b) -> Result<(), InterpreterError> {
-        self.pc = target;
-        Ok(())
-    }
-
     pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.0.len()
     }

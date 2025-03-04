@@ -35,9 +35,7 @@ impl RetEvent {
                 .extend(&vec![0u32; fp as usize - interpreter.vrom_size() + 2]);
         }
         let ret_event = RetEvent::new(&interpreter);
-        interpreter
-            .set_pc(BinaryField32b::new(interpreter.vrom.get(fp_field)))
-            .expect("Return value should be correct");
+        interpreter.pc = BinaryField32b::new(interpreter.vrom.get(fp_field));
         interpreter.fp = interpreter.vrom.get(fp_field + BinaryField32b::ONE);
 
         ret_event
