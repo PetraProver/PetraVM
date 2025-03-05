@@ -1,4 +1,4 @@
-use binius_field::{BinaryField1b, BinaryField32b, ExtensionField};
+use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
 
 use crate::emulator::{InterpreterChannels, InterpreterTables};
 
@@ -167,7 +167,7 @@ pub(crate) struct B32MuliEvent {
     dst_val: u32,
     src: u16,
     src_val: u32,
-    imm: u16,
+    imm: u32,
 }
 
 impl Event for B32MuliEvent {
@@ -178,7 +178,7 @@ impl Event for B32MuliEvent {
     }
 }
 
-impl ImmediateBinaryOperation for B32MuliEvent {
+impl B32MuliEvent {
     fn new(
         timestamp: u32,
         pc: BinaryField32b,
@@ -187,7 +187,7 @@ impl ImmediateBinaryOperation for B32MuliEvent {
         dst_val: u32,
         src: u16,
         src_val: u32,
-        imm: u16,
+        imm: u32,
     ) -> Self {
         Self {
             timestamp,
@@ -199,6 +199,35 @@ impl ImmediateBinaryOperation for B32MuliEvent {
             src_val,
             imm,
         }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut crate::emulator::Interpreter,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField32b,
+    ) -> Self {
+        let src_val = interpreter
+            .vrom
+            .get(BinaryField32b::new(interpreter.fp) + src);
+        let dst_val = Self::operation(BinaryField32b::new(src_val), imm.into());
+        let event = Self::new(
+            interpreter.timestamp,
+            interpreter.pc,
+            interpreter.fp,
+            dst.val(),
+            dst_val.val(),
+            src.val(),
+            src_val,
+            imm.val(),
+        );
+        interpreter
+            .vrom
+            .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
+        // The instruction is over two rows in the PROM.
+        interpreter.incr_pc();
+        interpreter.incr_pc();
+        event
     }
 }
 

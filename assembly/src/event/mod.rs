@@ -55,6 +55,7 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation {
         interpreter
             .vrom
             .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
+        // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         event
     }
@@ -80,17 +81,13 @@ pub(crate) trait NonImmediateBinaryOperation: BinaryOperation {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Self {
-        println!("getting src1");
         let src1_val = interpreter
             .vrom
             .get(BinaryField32b::new(interpreter.fp) + src1);
-        println!("get src1 val {:?}", src1_val);
         let src2_val = interpreter
             .vrom
             .get(BinaryField32b::new(interpreter.fp) + src2);
-        println!("get src2 val {:?}", src2_val);
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
-        println!("dst_val {:?}", dst_val);
         let event = Self::new(
             interpreter.timestamp,
             interpreter.pc,

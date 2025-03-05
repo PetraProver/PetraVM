@@ -153,7 +153,18 @@ pub fn get_prom_inst_from_inst_with_label(
             ) {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
-            *pc *= G;
+            if let Some(_) = prom.insert(
+                *pc * G,
+                [
+                    Opcode::B32Muli.get_field_elt(),
+                    imm.get_high_field_val(),
+                    BinaryField16b::zero(),
+                    BinaryField16b::zero(),
+                ],
+            ) {
+                return Err(format!("Already encountered PC {:?}", pc));
+            }
+            *pc *= G.square();
         }
         InstructionsWithLabels::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
@@ -365,11 +376,17 @@ pub fn get_frame_size_for_label(
             | Opcode::Muli
             | Opcode::Slli
             | Opcode::Srli
-            | Opcode::Xori
-            | Opcode::B32Muli => {
+            | Opcode::Xori => {
                 let [_, dst, src, _] = instruction;
                 let max_accessed_addr = max(dst, src);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
+            }
+            Opcode::B32Muli => {
+                let [_, dst, src, _] = instruction;
+                let max_accessed_addr = max(dst, src);
+                cur_offset = max(max_accessed_addr.val(), cur_offset);
+                // B32Muli needs two rows.
+                cur_pc *= G;
             }
             Opcode::Add | Opcode::Xor => {
                 let [_, dst, src1, src2] = instruction;

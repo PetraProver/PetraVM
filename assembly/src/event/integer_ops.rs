@@ -229,7 +229,7 @@ impl AddEvent {
 
         let src2_val = interpreter.vrom.get(fp_field + src2);
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src1_val + src1_val as u32;
+        let dst_val = src1_val + src2_val as u32;
         interpreter.vrom.set(fp_field + dst, dst_val);
 
         let pc = interpreter.pc;

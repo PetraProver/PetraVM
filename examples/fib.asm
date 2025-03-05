@@ -5,8 +5,8 @@ fib:
 	;; Slot 3: Return value
 	;; Slot 4: ND Local: Next FP
 
-	MVI.H @4[2], #0G ;; Move 0 into a argument
-	MVI.H @4[3], #1G ;; Move 1 into b argument
+	MVI.H @4[2], #0 ;; Move 0 into a argument
+	MVI.H @4[3], #1 ;; Move 1 into b argument
 	MVV.W @4[4], @2  ;; Move n into n argument
 	MVV.W @4[5], @3  ;; Move return value
 	TAILI fib_helper, @4 ;; Tail call to fib_helper (Slot 4 is the next FP)

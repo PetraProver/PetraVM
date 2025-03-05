@@ -74,9 +74,7 @@ impl std::str::FromStr for Immediate {
         let int_val = i16::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))?;
         if is_field {
             let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.abs() as u64);
-            println!("int val {:?}, abs {:?}", int_val, int_val.abs());
             if int_val < 0 {
-                println!("inverted {:?}", v.invert().unwrap().val());
                 Ok(Immediate(
                     v.invert().expect("We already ensured v is not 0.").val(),
                 ))

@@ -213,7 +213,6 @@ impl Interpreter {
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, ..] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        println!("opcode {:?}", opcode);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace)?,
             Opcode::Xori => self.generate_xori(trace)?,
@@ -291,7 +290,6 @@ impl Interpreter {
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        println!("target {:?}", target);
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
         self.allocate_new_frame(target)?;
         trace.taili.push(new_taili_event);
@@ -336,9 +334,21 @@ impl Interpreter {
     }
 
     fn generate_b32_muli(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
-        let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        println!("mul imm {:?}", imm);
-        let new_b32muli_event = B32MuliEvent::generate_event(self, *dst, *src, *imm);
+        let [_, dst, src, imm_low] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let [second_opcode, imm_high, third, fourth] = self
+            .prom
+            .get(&(self.pc * G))
+            .ok_or(InterpreterError::BadPc)?;
+
+        if second_opcode.val() != Opcode::B32Muli.into()
+            || *third != BinaryField16b::ZERO
+            || *fourth != BinaryField16b::ZERO
+        {
+            return Err(InterpreterError::BadPc);
+        }
+        let imm = BinaryField32b::from_bases(&vec![*imm_low, *imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_b32muli_event = B32MuliEvent::generate_event(self, *dst, *src, imm);
         trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
@@ -410,7 +420,6 @@ impl Interpreter {
             }
         }
         let frame_size = (max_size + 1).next_power_of_two();
-
         let nb_args = BinaryField32b::new(
             opt_nb_args.expect("The number of arguments list provided is incomplete.") as u32 + 2,
         );
@@ -424,10 +433,6 @@ impl Interpreter {
             next_fp,
         );
 
-        println!(
-            "index {:?} nb args {:?} next fp {:?}",
-            self.latest_fp, nb_args, next_fp
-        );
         self.latest_fp = next_fp;
 
         Ok(())
@@ -873,11 +878,9 @@ mod tests {
         for (label, pc) in &labels {
             match label.as_str() {
                 "fib" => {
-                    println!("fib pc {:?}", pc);
                     label_args.insert(*pc, 2);
                 }
                 "fib_helper" => {
-                    println!("fib helper pc {:?}", pc);
                     label_args.insert(*pc, 4);
                 }
                 _ => {}
@@ -885,19 +888,36 @@ mod tests {
         }
 
         let frame_sizes = get_frame_sizes_all_labels(&prom, labels, label_args);
-        println!("frame sizes {:?}", frame_sizes);
-
-        let initial_value = G.pow(4).val();
-        let mut cur = G.pow(4);
-        let g_inv = G.invert().unwrap();
-        println!("g inv {:?}", g_inv.val());
-        for i in 0..4 {
-            cur *= g_inv;
-            println!("idx i: {}, {:?}", i, cur.val());
+        let mut max_frame = 0;
+        for (_, (fs, _)) in &frame_sizes {
+            if *fs as usize > max_frame {
+                max_frame = *fs as usize;
+            }
         }
+        max_frame = (max_frame + 1).next_power_of_two();
+
+        let init_val = 4;
+
+        let initial_value = G.pow(init_val as u64).val();
+
         let vrom = ValueRom::new(vec![0, 0, initial_value]);
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes)
             .expect("Trace generation should not fail.");
-        println!("fib VROM {:?}", traces.vrom);
+        let mut cur_fibs = [0, 1];
+        for i in 0..init_val {
+            let s = cur_fibs[0] + cur_fibs[1];
+            assert_eq!(
+                traces.vrom[(i + 1) * max_frame + 2],
+                cur_fibs[0],
+                "left {} right {}",
+                traces.vrom[(i + 1) * max_frame + 2],
+                cur_fibs[0]
+            );
+            assert_eq!(traces.vrom[(i + 1) * max_frame + 3], cur_fibs[1]);
+            assert_eq!(traces.vrom[(i + 1) * max_frame + 7], s);
+            cur_fibs[0] = cur_fibs[1];
+            cur_fibs[1] = s;
+        }
+        assert_eq!(traces.vrom[(init_val + 1) * max_frame + 5], cur_fibs[0]);
     }
 }
