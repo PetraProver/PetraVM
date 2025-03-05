@@ -5,7 +5,7 @@ use crate::{
     event::Event,
 };
 
-// Struture of an event for ADDI.
+// Struture of an Event for the Add32 gadget.
 #[derive(Debug, Clone)]
 pub(crate) struct Add64Event {
     timestamp: u32,
@@ -49,7 +49,7 @@ impl Event for Add64Event {
     }
 }
 
-// Struture of an event for ADDI.
+// Struture of an Event for the Add32 gadget.
 #[derive(Debug, Clone)]
 pub(crate) struct Add32Event {
     timestamp: u32,
@@ -178,7 +178,7 @@ impl Event for AddiEvent {
     }
 }
 
-// Struture of an event for ADDI.
+// Struture of an event for ADD.
 #[derive(Debug, Clone)]
 pub(crate) struct AddEvent {
     pc: BinaryField32b,

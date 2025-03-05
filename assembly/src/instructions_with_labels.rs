@@ -4,7 +4,7 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use crate::{
-    emulator::{Instruction, Opcode, ProgramRom},
+    emulator::{Opcode, ProgramRom},
     instruction_args::{Immediate, Slot, SlotWithOffset},
     G,
 };
@@ -112,6 +112,20 @@ pub fn get_prom_inst_from_inst_with_label(
             }
             *pc *= G;
         }
+        InstructionsWithLabels::Add { dst, src1, src2 } => {
+            if let Some(_) = prom.insert(
+                *pc,
+                [
+                    Opcode::Add.get_field_elt(),
+                    dst.get_16bfield_val(),
+                    src1.get_16bfield_val(),
+                    src2.get_16bfield_val(),
+                ],
+            ) {
+                return Err(format!("Already encountered PC {:?}", pc));
+            }
+            *pc *= G;
+        }
         InstructionsWithLabels::AndI { dst, src1, imm } => {
             if let Some(_) = prom.insert(
                 *pc,
@@ -131,7 +145,7 @@ pub fn get_prom_inst_from_inst_with_label(
             if let Some(_) = prom.insert(
                 *pc,
                 [
-                    Opcode::Muli.get_field_elt(),
+                    Opcode::B32Muli.get_field_elt(),
                     dst.get_16bfield_val(),
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
@@ -270,12 +284,53 @@ pub fn get_prom_inst_from_inst_with_label(
             }
             *pc *= G;
         }
-        _ => unimplemented!(),
+        InstructionsWithLabels::Xor { dst, src1, src2 } => {
+            if let Some(_) = prom.insert(
+                *pc,
+                [
+                    Opcode::Xor.get_field_elt(),
+                    dst.get_16bfield_val(),
+                    src1.get_16bfield_val(),
+                    src2.get_16bfield_val(),
+                ],
+            ) {
+                return Err(format!("Already encountered PC {:?}", pc));
+            }
+            *pc *= G;
+        }
+        InstructionsWithLabels::MviH { dst, imm } => {
+            if let Some(_) = prom.insert(
+                *pc,
+                [
+                    Opcode::MVIH.get_field_elt(),
+                    dst.get_slot_16bfield_val(),
+                    dst.get_offset_field_val(),
+                    imm.get_field_val(),
+                ],
+            ) {
+                return Err(format!("Already encountered PC {:?}", pc));
+            }
+            *pc *= G;
+        }
+        InstructionsWithLabels::Ldi { dst, imm } => {
+            if let Some(_) = prom.insert(
+                *pc,
+                [
+                    Opcode::LDI.get_field_elt(),
+                    dst.get_16bfield_val(),
+                    imm.get_field_val(),
+                    imm.get_high_field_val(),
+                ],
+            ) {
+                return Err(format!("Already encountered PC {:?}", pc));
+            }
+            *pc *= G;
+        }
     }
     Ok(())
 }
 
-type Labels = HashMap<String, (BinaryField32b)>;
+type Labels = HashMap<String, BinaryField32b>;
 // Gives the number of arguments + return values for each label.
 type LabelsArgs = HashMap<BinaryField32b, u16>;
 // PC, Frame size, number of args + return values.
@@ -310,9 +365,16 @@ pub fn get_frame_size_for_label(
             | Opcode::Muli
             | Opcode::Slli
             | Opcode::Srli
-            | Opcode::Xori => {
+            | Opcode::Xori
+            | Opcode::B32Muli => {
                 let [_, dst, src, _] = instruction;
                 let max_accessed_addr = max(dst, src);
+                cur_offset = max(max_accessed_addr.val(), cur_offset);
+            }
+            Opcode::Add | Opcode::Xor => {
+                let [_, dst, src1, src2] = instruction;
+                let max_accessed_addr = max(dst, src1);
+                let max_accessed_addr = max(max_accessed_addr, src2);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
             }
             Opcode::MVVW => {
@@ -320,7 +382,11 @@ pub fn get_frame_size_for_label(
                 let max_accessed_addr = max(dst, src);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
             }
-            _ => panic!(), // incaccessible: either Ret or Taili
+            Opcode::LDI | Opcode::MVIH => {
+                let [_, dst, _, _] = instruction;
+                cur_offset = max(dst.val(), cur_offset);
+            }
+            Opcode::Ret | Opcode::Taili => panic!("We should not be able to reach this."),
         }
 
         cur_pc *= G;

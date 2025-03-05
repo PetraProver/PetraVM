@@ -9,15 +9,16 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{
     event::{
-        b32::{AndiEvent, B32MuliEvent, XoriEvent},
+        b32::{AndiEvent, B32MuliEvent, XorEvent, XoriEvent},
         branch::BnzEvent,
         call::TailiEvent,
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::MVVWEvent,
+        mv::{LDIEvent, MVIHEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
         Event,
-        ImmediateBinaryOperation, // Add the import for RetEvent
+        ImmediateBinaryOperation,
+        NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     instructions_with_labels::LabelsFrameSizes,
 };
@@ -57,22 +58,27 @@ impl Default for InterpreterTables {
     }
 }
 
+// /!\ TODO: Instructions need to be adapted once we have VROM with multiple possible granularities.
+
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u16)]
 pub enum Opcode {
     #[default]
     Bnz = 0x01,
     Xori = 0x02,
-    Andi = 0x03,
-    Srli = 0x04,
-    Slli = 0x05,
-    Addi = 0x06,
-    Add = 0x07,
-    Muli = 0x08,
-    B32Muli = 0x09,
-    Ret = 0x0a,
-    Taili = 0x0b,
-    MVVW = 0x0c,
+    Xor = 0x03,
+    Andi = 0x04,
+    Srli = 0x05,
+    Slli = 0x06,
+    Addi = 0x07,
+    Add = 0x08,
+    Muli = 0x09,
+    B32Muli = 0x0a,
+    Ret = 0x0b,
+    Taili = 0x0c,
+    MVVW = 0x0d,
+    MVIH = 0x0e,
+    LDI = 0x0f,
 }
 
 impl Opcode {
@@ -207,19 +213,23 @@ impl Interpreter {
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, ..] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        println!("opcode {:?}", opcode);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace)?,
             Opcode::Xori => self.generate_xori(trace)?,
+            Opcode::Xor => self.generate_xor(trace)?,
             Opcode::Slli => self.generate_slli(trace)?,
             Opcode::Srli => self.generate_srli(trace)?,
             Opcode::Addi => self.generate_addi(trace)?,
+            Opcode::Add => self.generate_add(trace)?,
             Opcode::Muli => self.generate_muli(trace)?,
             Opcode::Ret => self.generate_ret(trace)?,
             Opcode::Taili => self.generate_taili(trace)?,
             Opcode::Andi => self.generate_andi(trace)?,
             Opcode::MVVW => self.generate_mvv(trace)?,
+            Opcode::MVIH => self.generate_mvih(trace)?,
+            Opcode::LDI => self.generate_ldi(trace)?,
             Opcode::B32Muli => self.generate_b32_muli(trace)?,
-            Opcode::Add => self.generate_add(trace)?,
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -240,6 +250,14 @@ impl Interpreter {
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_xori_event = XoriEvent::generate_event(self, *dst, *src, *imm);
         trace.xori.push(new_xori_event);
+
+        Ok(())
+    }
+
+    fn generate_xor(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_xor_event = XorEvent::generate_event(self, *dst, *src1, *src2);
+        trace.xor.push(new_xor_event);
 
         Ok(())
     }
@@ -273,6 +291,7 @@ impl Interpreter {
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
+        println!("target {:?}", target);
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
         self.allocate_new_frame(target)?;
         trace.taili.push(new_taili_event);
@@ -318,6 +337,7 @@ impl Interpreter {
 
     fn generate_b32_muli(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        println!("mul imm {:?}", imm);
         let new_b32muli_event = B32MuliEvent::generate_event(self, *dst, *src, *imm);
         trace.b32_muli.push(new_b32muli_event);
 
@@ -358,6 +378,24 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_mvih(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, offset, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_mvih_event = MVIHEvent::generate_event(self, *dst, *offset, *imm);
+        trace.mvih.push(new_mvih_event);
+
+        Ok(())
+    }
+
+    fn generate_ldi(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, imm_low, imm_high] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let imm = BinaryField32b::from_bases(&vec![*imm_low, *imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_ldi_event = LDIEvent::generate_event(self, *dst, imm);
+        trace.ldi.push(new_ldi_event);
+
+        Ok(())
+    }
+
     fn allocate_new_frame(&mut self, target: BinaryField32b) -> Result<(), InterpreterError> {
         // TODO: for now, we assume that all values are u32. Needs to change when we support multiple gramularities.
         // We need the +1 because the frame size we read corresponds to the largest offset accessed within the frame.
@@ -365,12 +403,19 @@ impl Interpreter {
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
-        let frame_size = (frame_size + 1).next_power_of_two();
+        let mut max_size = *frame_size;
+        for (_, (fs, _)) in &self.frames {
+            if *fs > max_size {
+                max_size = *fs;
+            }
+        }
+        let frame_size = (max_size + 1).next_power_of_two();
 
         let nb_args = BinaryField32b::new(
             opt_nb_args.expect("The number of arguments list provided is incomplete.") as u32 + 2,
         );
         let alignment = (frame_size - self.latest_fp as u16 % frame_size) % frame_size;
+        assert!(alignment == 0);
 
         let next_fp = self.latest_fp + alignment as u32 + frame_size as u32;
 
@@ -379,6 +424,10 @@ impl Interpreter {
             next_fp,
         );
 
+        println!(
+            "index {:?} nb args {:?} next fp {:?}",
+            self.latest_fp, nb_args, next_fp
+        );
         self.latest_fp = next_fp;
 
         Ok(())
@@ -426,6 +475,7 @@ impl<T: Hash + Eq> Channel<T> {
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
+    xor: Vec<XorEvent>,
     xori: Vec<XoriEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
@@ -436,6 +486,8 @@ pub(crate) struct ZCrayTrace {
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
     mvvw: Vec<MVVWEvent>,
+    mvih: Vec<MVIHEvent>,
+    ldi: Vec<LDIEvent>,
     b32_muli: Vec<B32MuliEvent>,
     add: Vec<AddEvent>,
     vrom: ValueRom,
@@ -575,6 +627,11 @@ pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
 #[cfg(test)]
 mod tests {
     use binius_field::{Field, PackedField};
+
+    use crate::{
+        get_full_prom_and_labels,
+        instructions_with_labels::{get_frame_sizes_all_labels, parse_instructions},
+    };
 
     use super::*;
 
@@ -803,5 +860,44 @@ mod tests {
                 cur_val = 3 * cur_val + 1;
             }
         }
+    }
+
+    #[test]
+    fn test_fibonacci() {
+        let instructions = parse_instructions(include_str!("../../examples/fib.asm")).unwrap();
+
+        let (prom, labels) = get_full_prom_and_labels(&instructions)
+            .expect("Instructions were not formatted properly.");
+
+        let mut label_args = HashMap::new();
+        for (label, pc) in &labels {
+            match label.as_str() {
+                "fib" => {
+                    println!("fib pc {:?}", pc);
+                    label_args.insert(*pc, 2);
+                }
+                "fib_helper" => {
+                    println!("fib helper pc {:?}", pc);
+                    label_args.insert(*pc, 4);
+                }
+                _ => {}
+            }
+        }
+
+        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, label_args);
+        println!("frame sizes {:?}", frame_sizes);
+
+        let initial_value = G.pow(4).val();
+        let mut cur = G.pow(4);
+        let g_inv = G.invert().unwrap();
+        println!("g inv {:?}", g_inv.val());
+        for i in 0..4 {
+            cur *= g_inv;
+            println!("idx i: {}, {:?}", i, cur.val());
+        }
+        let vrom = ValueRom::new(vec![0, 0, initial_value]);
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes)
+            .expect("Trace generation should not fail.");
+        println!("fib VROM {:?}", traces.vrom);
     }
 }
