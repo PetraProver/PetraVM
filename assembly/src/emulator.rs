@@ -211,9 +211,6 @@ impl Interpreter {
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, ..] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        #[cfg(test)]{
-            println!("Opcode: {:?}, pc: {:?}", opcode, self.pc);
-        }
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace)?,
             Opcode::Xori => self.generate_xori(trace)?,
@@ -240,7 +237,7 @@ impl Interpreter {
         let cond_val = self.vrom.get(BinaryField32b::new(self.fp) + cond);
         if cond_val != 0 {
             let new_bnz_event = BnzEvent::generate_event(self, cond, target);
-        trace.bnz.push(new_bnz_event);
+            trace.bnz.push(new_bnz_event);
         } else {
             let new_bz_event = BzEvent::generate_event(self, cond, target);
             trace.bz.push(new_bz_event);
@@ -523,6 +520,10 @@ impl ZCrayTrace {
         self.bnz
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
+        
+        self.bz
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
 
         self.xori
             .iter()
@@ -565,7 +566,6 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
     let mut evens = vec![];
     let mut odds = vec![];
     while cur_value != 1 {
-        println!("{}", cur_value);
         if cur_value % 2 == 0 {
             evens.push(cur_value);
             cur_value /= 2;
@@ -787,16 +787,16 @@ mod tests {
         ];
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
-        println!("Expected evens: {:?}", expected_evens);
-        println!("Expected odds: {:?}", expected_odds);
         let prom = code_to_prom(&instructions);
         // return PC = 0, return FP = 0, n = 3999
         let vrom = ValueRom(vec![0, 0, initial_val]);
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, (8, Some(2)));
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
+        let (traces, boundary_values) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
             .expect("Trace generation should not fail.");
+
+        traces.validate(boundary_values);
 
         assert!(traces.shift.len() == expected_evens.len()); // There are 4 even cases.
         for i in 0..expected_evens.len() {

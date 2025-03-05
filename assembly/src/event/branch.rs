@@ -37,12 +37,6 @@ impl BnzEvent {
     ) -> BnzEvent {
         let fp_field = BinaryField32b::new(interpreter.fp);
         let cond_val = interpreter.vrom.get(fp_field + cond);
-        println!(
-            "cond: {}, target: {}, cond_val: {:?}",
-            cond.val(),
-            target.val(),
-            cond_val
-        );
         let event = BnzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
@@ -63,13 +57,13 @@ pub(crate) struct BzEvent {
     pc: BinaryField32b,
     fp: u32,
     cond: u16,
-    con_val: u32,
+    cond_val: u32,
     target: BinaryField32b,
 }
 
 impl Event for BzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.cond, 0);
+        assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);
     }
 }
@@ -87,7 +81,7 @@ impl BzEvent {
             pc: interpreter.pc,
             fp: interpreter.fp,
             cond: cond.val(),
-            con_val: cond_val,
+            cond_val,
             target,
         };
         interpreter.incr_pc();

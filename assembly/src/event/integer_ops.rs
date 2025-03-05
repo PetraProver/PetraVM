@@ -112,7 +112,7 @@ pub(crate) struct AddiEvent {
 
 impl BinaryOperation<BinaryField16b> for AddiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        val + imm
+        BinaryField32b::new(val.val() + imm.val() as u32)
     }
 }
 
@@ -132,10 +132,6 @@ impl AddiEvent {
         let src_val = interpreter.vrom.get(fp_field + src);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        println!(
-            "dst: {:?}, src: {:?}, imm: {:?}, src_val: {:?}, dst_val: {:?}",
-            dst, src, imm, src_val, dst_val
-        );
         interpreter.vrom.set(fp_field + dst, dst_val);
 
         let pc = interpreter.pc;
@@ -290,10 +286,6 @@ impl MuliEvent {
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32;
-        println!(
-            "dst: {:?}, src: {:?}, imm: {:?}, src_val: {:?}, dst_val: {:?}",
-            dst, src, imm, src_val, dst_val
-        );
 
         interpreter.vrom.set(fp + dst, dst_val);
 

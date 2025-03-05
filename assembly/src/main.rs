@@ -31,7 +31,6 @@ fn main() {
     let mut labels_args = HashMap::new();
     labels_args.insert(collatz.into(), 3);
     let frame_sizes = get_frame_sizes_all_labels(&prom, labels, labels_args);
-    println!("frame sizes {:?}", frame_sizes);
 
     let expected_prom = vec![
         // collatz:
