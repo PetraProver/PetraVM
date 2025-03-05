@@ -84,7 +84,6 @@ impl Opcode {
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {
     pub(crate) pc: BinaryField32b,
-    pub(crate) pc_dlog: u32,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
@@ -157,7 +156,6 @@ impl Interpreter {
     pub(crate) fn new(prom: ProgramRom, frames: LabelsFrameSizes) -> Self {
         Self {
             pc: BinaryField32b::ONE,
-            pc_dlog: 0,
             fp: 0,
             timestamp: 0,
             prom,
@@ -174,7 +172,6 @@ impl Interpreter {
     ) -> Self {
         Self {
             pc: BinaryField32b::ONE,
-            pc_dlog: 0,
             fp: 0,
             timestamp: 0,
             prom,
@@ -186,11 +183,14 @@ impl Interpreter {
 
     pub(crate) fn incr_pc(&mut self) {
         self.pc *= G;
-        self.pc_dlog += 1;
     }
 
     pub(crate) fn jump_to(&mut self, target: BinaryField32b) {
         self.pc = target;
+    }
+
+    pub(crate) fn vrom_size(&self) -> usize {
+        self.vrom.0.len()
     }
 
     pub(crate) fn is_halted(&self) -> bool {
