@@ -295,25 +295,7 @@ impl MuliEvent {
 
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
-        let xs = [
-            src_val as u8,
-            (src_val >> 8) as u8,
-            (src_val >> 16) as u8,
-            (src_val >> 24) as u8,
-        ];
-        let ys = [imm_val as u8, (imm_val >> 8) as u8];
-
-        let mut aux = [0; 4];
-        for i in 0..2 {
-            aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
-            aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;
-        }
-
-        // We call the ADD64 gadget to check these additions.
-        let sum0 = aux[0] as u64 + ((aux[1] as u64) << 8);
-        let sum1 = aux[2] as u64 + ((aux[3] as u64) << 8);
-
-        assert_eq!((sum0 + (sum1 << 8)) as u32, dst_val);
+        let (aux, sum0, sum1) = schoolbook_multiplcation_intermediate_sums(src_val, imm_val, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -332,6 +314,31 @@ impl MuliEvent {
             sum1,
         }
     }
+}
+
+
+/// This function computes the intermediate sums of the schoolbook multiplication algorithm.
+fn schoolbook_multiplcation_intermediate_sums(src_val: u32, imm_val: u16, dst_val: u32) -> ([u32; 4], u64, u64) {
+    let xs = src_val.to_le_bytes();
+    let ys = imm_val.to_le_bytes();
+
+    let mut aux = [0; 4];
+    /// Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
+    /// containing the summands that wont't overlap
+    for i in 0..2 {
+        aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
+        aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;
+    }
+
+    // We call the ADD64 gadget to check these additions.
+    // sum0 = ys[0]*xs[0] + 2^8*ys[0]*xs[1] + 2^16*ys[0]*xs[2] + 2^24*ys[0]*xs[3]
+    let sum0 = aux[0] as u64 + ((aux[1] as u64) << 8);
+    // sum1 = ys[1]*xs[0] + 2^8*ys[1]*xs[1] + 2^16*ys[1]*xs[2] + 2^24*ys[1]*xs[3]
+    let sum1 = aux[2] as u64 + ((aux[3] as u64) << 8);
+
+    // sum = ys[0]*xs[0] + 2^8*(ys[0]*xs[1] + ys[1]*xs[0]) + 2^16*(ys[0]*xs[2] + ys[1]*xs[1]) + 2^24*(ys[0]*xs[3] + ys[1]*xs[2]) + 2^32*ys[1]*xs[3].
+    assert_eq!((sum0 + (sum1 << 8)) as u32, dst_val);
+    (aux, sum0, sum1)
 }
 
 impl Event for MuliEvent {
