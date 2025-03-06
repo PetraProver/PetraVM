@@ -1,8 +1,10 @@
 use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
 
 use crate::{
+    emulator::{InterpreterChannels, InterpreterTables},
     fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
     impl_event_for_binary_operation, impl_immediate_binary_operation,
+    impl_left_right_output_for_imm_bin_op,
 };
 
 use super::{BinaryOperation, Event};
@@ -64,12 +66,7 @@ impl BinaryOperation for XorEvent {
 
 impl BinaryOperation for AndiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        let imm_32b = BinaryField32b::from(imm);
-        let and_bits = <BinaryField32b as ExtensionField<BinaryField1b>>::iter_bases(&val)
-            .zip(<BinaryField32b as ExtensionField<BinaryField1b>>::iter_bases(&imm_32b))
-            .map(|(b1, b2)| b1 * b2)
-            .collect::<Vec<_>>();
-        BinaryField32b::from_bases(&and_bits).expect("hello")
+        BinaryField32b::new(val.val() & imm.val() as u32)
     }
 }
 
