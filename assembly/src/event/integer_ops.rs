@@ -296,7 +296,7 @@ impl MuliEvent {
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let (aux, sum0, sum1) =
-            schoolbook_multiplcation_intermediate_sums(src_val, imm_val, dst_val);
+            schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
