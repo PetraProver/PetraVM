@@ -54,7 +54,7 @@ impl TailiEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.fp = next_fp_val;
-        interpreter.pc = target;
+        interpreter.jump_to(target);
 
         interpreter.vrom.set_u32(next_fp_val, return_addr);
         interpreter.vrom.set_u32(next_fp_val + 1, old_fp_val);

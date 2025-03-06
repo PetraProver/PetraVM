@@ -29,7 +29,7 @@ impl RetEvent {
         let fp = interpreter.fp;
 
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.pc = BinaryField32b::new(interpreter.vrom.get_u32(fp));
+        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get_u32(fp)));
         interpreter.fp = interpreter.vrom.get_u32(fp + 4);
 
         ret_event
