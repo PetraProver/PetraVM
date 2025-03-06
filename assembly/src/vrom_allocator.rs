@@ -50,11 +50,8 @@ impl VromAllocator {
                     }
                     let allocated_addr = addr;
                     let external_leftover = block_size - p;
-                    // Record leftover external slack if large enough.
-                    if external_leftover >= MIN_FRAME_SIZE {
-                        self.add_slack(allocated_addr + p, external_leftover);
-                    }
-                    // Record internal slack.
+                    // Record leftover external slack.
+                    self.add_slack(allocated_addr + p, external_leftover);
                     self.record_internal_slack(allocated_addr, requested_size, p);
                     return allocated_addr;
                 }
@@ -65,13 +62,10 @@ impl VromAllocator {
         let old_pos = self.pos;
         let aligned_pos = align_to(self.pos, p);
         let gap = aligned_pos - old_pos;
-        // Record alignment gap as external slack if large enough.
-        if gap >= MIN_FRAME_SIZE {
-            self.add_slack(old_pos, gap);
-        }
+        // Record alignment gap as external slack.
+        self.add_slack(old_pos, gap);
         let allocated_addr = aligned_pos;
         self.pos = aligned_pos + p;
-        // Record internal slack.
         self.record_internal_slack(allocated_addr, requested_size, p);
         allocated_addr
     }
@@ -85,9 +79,7 @@ impl VromAllocator {
     ) {
         if padded_size > requested_size {
             let internal_slack = padded_size - requested_size;
-            if internal_slack >= MIN_FRAME_SIZE {
-                self.add_slack(allocated_addr + requested_size, internal_slack);
-            }
+            self.add_slack(allocated_addr + requested_size, internal_slack);
         }
     }
 
@@ -109,7 +101,6 @@ impl VromAllocator {
 }
 
 /// Aligns `pos` to the next multiple of `alignment` (which must be a power-of-two).
-#[inline]
 fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
@@ -132,15 +123,11 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
         let alignment_constraint = if current_addr == 0 {
             remaining
         } else {
-            current_addr & ((!current_addr).wrapping_add(1))
+            1 << current_addr.trailing_zeros()
         };
         // Largest power-of-two not exceeding the remaining size.
         let largest_possible = 1 << (31 - remaining.leading_zeros());
-        let mut block_size = if alignment_constraint < largest_possible {
-            alignment_constraint
-        } else {
-            largest_possible
-        };
+        let mut block_size = alignment_constraint.min(largest_possible);
         // Ensure block_size does not exceed remaining.
         while block_size > remaining {
             block_size /= 2;
