@@ -169,7 +169,6 @@ impl BinaryOperation for AddEvent {
     }
 }
 
-// impl_left_right_output_for_bin_op!(AddEvent);
 // Note: The addition is checked thanks to the ADD32 table.
 impl_binary_operation!(AddEvent);
 

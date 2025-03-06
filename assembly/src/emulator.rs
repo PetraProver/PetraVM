@@ -378,7 +378,7 @@ impl Interpreter {
         {
             return Err(InterpreterError::BadPc);
         }
-        let imm = BinaryField32b::from_bases(&vec![*imm_low, *imm_high])
+        let imm = BinaryField32b::from_bases(&[*imm_low, *imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_b32muli_event = B32MuliEvent::generate_event(self, *dst, *src, imm);
         trace.b32_muli.push(new_b32muli_event);
@@ -430,7 +430,7 @@ impl Interpreter {
 
     fn generate_ldi(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, imm_low, imm_high] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let imm = BinaryField32b::from_bases(&vec![*imm_low, *imm_high])
+        let imm = BinaryField32b::from_bases(&[*imm_low, *imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_ldi_event = LDIEvent::generate_event(self, *dst, imm);
         trace.ldi.push(new_ldi_event);
@@ -448,7 +448,7 @@ impl Interpreter {
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
         let mut max_size = *frame_size;
-        for (_, (fs, _)) in &self.frames {
+        for (fs, _) in self.frames.values() {
             if *fs > max_size {
                 max_size = *fs;
             }
@@ -969,7 +969,7 @@ mod tests {
 
         let frame_sizes = get_frame_sizes_all_labels(&prom, labels, label_args);
         let mut max_frame = 0;
-        for (_, (fs, _)) in &frame_sizes {
+        for (fs, _) in frame_sizes.values() {
             if *fs as u32 > max_frame {
                 max_frame = *fs as u32;
             }
@@ -989,40 +989,29 @@ mod tests {
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
-        let elt_size = 4 as u32; // Each value is 32 bits.
+        let elt_size = 4_u32; // Each value is 32 bits.
         let mut cur_fibs = [0, 1];
         for i in 0..init_val {
             let s = cur_fibs[0] + cur_fibs[1];
             assert_eq!(
-                traces
-                    .vrom
-                    .get_u32(((i + 1) * max_frame + 2 * elt_size) as u32),
+                traces.vrom.get_u32((i + 1) * max_frame + 2 * elt_size),
                 cur_fibs[0],
                 "left {} right {}",
-                traces
-                    .vrom
-                    .get_u32(((i + 1) * max_frame + 2 * elt_size) as u32),
+                traces.vrom.get_u32((i + 1) * max_frame + 2 * elt_size),
                 cur_fibs[0]
             );
             assert_eq!(
-                traces
-                    .vrom
-                    .get_u32(((i + 1) * max_frame + 3 * elt_size) as u32),
+                traces.vrom.get_u32((i + 1) * max_frame + 3 * elt_size),
                 cur_fibs[1]
             );
-            assert_eq!(
-                traces
-                    .vrom
-                    .get_u32(((i + 1) * max_frame + 7 * elt_size) as u32),
-                s
-            );
+            assert_eq!(traces.vrom.get_u32((i + 1) * max_frame + 7 * elt_size), s);
             cur_fibs[0] = cur_fibs[1];
             cur_fibs[1] = s;
         }
         assert_eq!(
             traces
                 .vrom
-                .get_u32(((init_val + 1) * max_frame + 5 * elt_size) as u32),
+                .get_u32((init_val + 1) * max_frame + 5 * elt_size),
             cur_fibs[0]
         );
     }

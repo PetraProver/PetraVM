@@ -179,9 +179,7 @@ impl LDIEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter
-            .vrom
-            .set_u32(fp ^ dst.val() as u32, imm.val() as u32);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, imm.val());
         interpreter.incr_pc();
 
         Self {

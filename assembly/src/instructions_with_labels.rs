@@ -352,29 +352,35 @@ pub fn get_prom_inst_from_inst_with_label(
             *pc *= G;
         }
         InstructionsWithLabels::MviH { dst, imm } => {
-            if let Some(_) = prom.insert(
-                *pc,
-                [
-                    Opcode::MVIH.get_field_elt(),
-                    dst.get_slot_16bfield_val(),
-                    dst.get_offset_field_val(),
-                    imm.get_field_val(),
-                ],
-            ) {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::MVIH.get_field_elt(),
+                        dst.get_slot_16bfield_val(),
+                        dst.get_offset_field_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::Ldi { dst, imm } => {
-            if let Some(_) = prom.insert(
-                *pc,
-                [
-                    Opcode::LDI.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    imm.get_field_val(),
-                    imm.get_high_field_val(),
-                ],
-            ) {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::LDI.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        imm.get_field_val(),
+                        imm.get_high_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;

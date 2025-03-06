@@ -91,7 +91,7 @@ impl B32MuliEvent {
         imm: BinaryField32b,
     ) -> Self {
         let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
-        let dst_val = Self::operation(BinaryField32b::new(src_val), imm.into());
+        let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
             interpreter.pc,

@@ -83,6 +83,7 @@ pub(crate) trait NonImmediateBinaryOperation:
     BinaryOperation<Left = BinaryField32b, Right = BinaryField32b, Output = BinaryField32b>
 {
     // TODO: Add some trick to implement new only once
+    #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,
         pc: BinaryField32b,
@@ -156,7 +157,8 @@ macro_rules! impl_immediate_binary_operation {
 #[macro_export]
 macro_rules! impl_32b_immediate_binary_operation {
     ($t:ty) => {
-        crate::impl_left_right_output_for_b32imm_bin_op!($t);
+        $crate::impl_left_right_output_for_b32imm_bin_op!($t);
+        #[allow(clippy::too_many_arguments)]
         impl $t {
             fn new(
                 timestamp: u32,
@@ -186,8 +188,8 @@ macro_rules! impl_32b_immediate_binary_operation {
 #[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
-        crate::impl_left_right_output_for_bin_op!($t);
-        impl crate::event::NonImmediateBinaryOperation for $t {
+        $crate::impl_left_right_output_for_bin_op!($t);
+        impl $crate::event::NonImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
                 pc: BinaryField32b,
@@ -244,20 +246,20 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
 #[macro_export]
 macro_rules! impl_left_right_output_for_b32imm_bin_op {
     ($t:ty) => {
-        impl crate::event::LeftOp for $t {
+        impl $crate::event::LeftOp for $t {
             type Left = BinaryField32b;
             fn left(&self) -> BinaryField32b {
                 BinaryField32b::new(self.src_val)
             }
         }
-        impl crate::event::RigthOp for $t {
+        impl $crate::event::RigthOp for $t {
             type Right = BinaryField32b;
 
             fn right(&self) -> BinaryField32b {
                 BinaryField32b::new(self.imm)
             }
         }
-        impl crate::event::OutputOp for $t {
+        impl $crate::event::OutputOp for $t {
             type Output = BinaryField32b;
 
             fn output(&self) -> BinaryField32b {
