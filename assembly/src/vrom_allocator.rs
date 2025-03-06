@@ -197,7 +197,7 @@ mod tests {
     fn test_alloc_no_slack() {
         let mut allocator = VromAllocator::new();
         // Two allocations that fit exactly without producing an alignment gap.
-        let addr1 = allocator.alloc(9);  // p = 16, allocated at 0; pos becomes 16.
+        let addr1 = allocator.alloc(9); // p = 16, allocated at 0; pos becomes 16.
         assert_eq!(addr1, 0);
         let addr2 = allocator.alloc(10); // p = 16, allocated at 16; pos becomes 32.
         assert_eq!(addr2, 16);
