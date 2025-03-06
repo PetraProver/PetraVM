@@ -124,7 +124,7 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
                 BinaryField16b::new(self.imm)
             }
         }
-        impl crate::event::OutputOp for $t {
+        impl $crate::event::OutputOp for $t {
             type Output = BinaryField32b;
 
             fn output(&self) -> BinaryField32b {
@@ -150,7 +150,7 @@ macro_rules! impl_left_right_output_for_bin_op {
                 BinaryField32b::new(self.src2_val)
             }
         }
-        impl crate::event::OutputOp for $t {
+        impl $crate::event::OutputOp for $t {
             type Output = BinaryField32b;
 
             fn output(&self) -> BinaryField32b {
@@ -167,9 +167,9 @@ macro_rules! impl_event_for_binary_operation {
             fn fire(
                 &self,
                 channels: &mut $crate::emulator::InterpreterChannels,
-                _tables: &crate::emulator::InterpreterTables,
+                _tables: &$crate::emulator::InterpreterTables,
             ) {
-                use crate::event::{LeftOp, OutputOp, RigthOp};
+                use $crate::event::{LeftOp, OutputOp, RigthOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 fire_non_jump_event!(self, channels);
             }
