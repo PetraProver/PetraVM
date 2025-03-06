@@ -302,25 +302,25 @@ impl Interpreter {
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_muli_event = MuliEvent::generate_event(self, *dst, *src, *imm);
         let aux = new_muli_event.aux;
-        let sum = new_muli_event.sum;
-        let interm_sum = new_muli_event.interm_sum;
+        let sum0 = new_muli_event.sum0;
+        let sum1 = new_muli_event.sum1;
 
-        // This is to check sum[0] = aux[0] + aux[1]
+        // This is to check sum0 = aux[0] + aux[1] << 8.
         trace.add64.push(Add64Event::generate_event(
             self,
             aux[0] as u64,
-            aux[1] as u64,
+            (aux[1] as u64) << 8,
         ));
-        for i in 1..3 {
-            trace.add64.push(Add64Event::generate_event(
-                self,
-                aux[2 * i] as u64,
-                aux[2 * i + 1] as u64,
-            ));
-            trace
-                .add64
-                .push(Add64Event::generate_event(self, sum[i - 1], interm_sum[i]));
-        }
+        // This is to check sum1 = aux[2] + aux[3] << 8.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            aux[2] as u64,
+            (aux[3] as u64) << 8,
+        ));
+        // This is to check that dst_val = sum0 + sum1 << 8.
+        trace
+            .add64
+            .push(Add64Event::generate_event(self, sum0, sum1 << 8));
         trace.muli.push(new_muli_event);
 
         Ok(())

@@ -6,7 +6,8 @@ use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
     fire_non_jump_event, impl_event_for_binary_operation,
-    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, impl_left_right_output_for_bin_op,
+    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+    impl_left_right_output_for_bin_op,
 };
 
 use super::BinaryOperation;
@@ -111,11 +112,9 @@ pub(crate) struct AddiEvent {
 }
 
 impl BinaryOperation for AddiEvent {
-    
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         BinaryField32b::new(val.val() + imm.val() as u32)
     }
-
 }
 
 impl_immediate_binary_operation!(AddiEvent);
@@ -226,7 +225,6 @@ impl AddEvent {
 }
 
 impl BinaryOperation for AddEvent {
-    
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
         BinaryField32b::new(val1.val() + val2.val())
     }
@@ -248,13 +246,12 @@ pub(crate) struct MuliEvent {
     pub(crate) src_val: u32,
     imm: u16,
     // Auxiliary commitments
-    pub(crate) aux: [u32; 8],
-    // Intermediary sum, such that interm_sum[i] = aux[2*i] + aux[2*i+1], for i > 0.
-    // Note: we don't need the initial value because it is equal to sum[0].
-    pub(crate) interm_sum: [u64; 3],
-    // Sums such that: sum[i] = sum[i-1] + interm_sum[i].
-    // Note: we don't need the fourth sum value because it is equal to DST_VAL.
-    pub(crate) sum: [u64; 3],
+    pub(crate) aux: [u32; 4],
+    // Stores aux[0] + aux[1] << 8.
+    pub(crate) sum0: u64,
+    // Stores aux[2] + aux[3] << 8.
+    // Note: we don't need the third  sum value (equal to sum0 + sum1 <<8) because it is equal to DST_VAL.
+    pub(crate) sum1: u64,
 }
 
 impl MuliEvent {
@@ -267,9 +264,9 @@ impl MuliEvent {
         src: u16,
         src_val: u32,
         imm: u16,
-        aux: [u32; 8],
-        interm_sum: [u64; 3],
-        sum: [u64; 3],
+        aux: [u32; 4],
+        sum0: u64,
+        sum1: u64,
     ) -> Self {
         Self {
             pc,
@@ -281,8 +278,8 @@ impl MuliEvent {
             src_val,
             imm,
             aux,
-            interm_sum,
-            sum,
+            sum0,
+            sum1,
         }
     }
 
@@ -306,23 +303,19 @@ impl MuliEvent {
             (src_val >> 16) as u8,
             (src_val >> 24) as u8,
         ];
-        let ys = [imm_val as u8, (imm_val >> 8) as u8, 0, 0];
+        let ys = [imm_val as u8, (imm_val >> 8) as u8];
 
-        let mut aux = [0; 8];
-        for i in 0..4 {
+        let mut aux = [0; 4];
+        for i in 0..2 {
             aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
             aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;
         }
 
         // We call the ADD64 gadget to check these additions.
-        let mut interm_sum = [0; 3];
-        let mut sum = [0; 3];
-        sum[0] = aux[0] as u64 + aux[1] as u64;
-        for i in 1..3 {
-            interm_sum[i - 1] = aux[2 * i] as u64 + aux[2 * i + 1] as u64;
-            sum[i] = sum[i - 1] + interm_sum[i - 1];
-        }
-        interm_sum[2] = aux[6] as u64 + aux[7] as u64;
+        let sum0 = aux[0] as u64 + ((aux[1] as u64) << 8);
+        let sum1 = aux[2] as u64 + ((aux[3] as u64) << 8);
+
+        assert_eq!((sum0 + (sum1 << 8)) as u32, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -337,8 +330,8 @@ impl MuliEvent {
             src_val,
             imm: imm_val,
             aux,
-            interm_sum,
-            sum,
+            sum0,
+            sum1,
         }
     }
 }
