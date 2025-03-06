@@ -6,8 +6,7 @@ const MIN_FRAME_SIZE: u32 = 8;
 /// VromAllocator allocates VROM addresses for objects, ensuring that:
 /// - The object's size is padded to the next power-of-two (with a minimum of MIN_FRAME_SIZE),
 /// - Available slack regions are reused when possible,
-/// - The allocation pointer is aligned (recording any alignment gap as external slack),
-/// - And any unused portion within a padded block (internal slack) is recorded.
+/// - The allocation pointer is aligned (least significant log₂(padded size) bits are cleared).
 pub struct VromAllocator {
     /// The next free allocation pointer.
     pos: u32,
@@ -30,10 +29,10 @@ impl VromAllocator {
     /// 1. Compute `p`, the padded size (power-of-two ≥ MIN_FRAME_SIZE).
     /// 2. Attempt to reuse a slack block of size ≥ `p`.
     /// 3. If found, split off any leftover external slack.
-    /// 4. Otherwise, align the allocation pointer (recording any gap as external slack)
+    /// 4. Otherwise, align the allocation pointer (by clearing the least significant log₂(padded size) bits)
     ///    and allocate a fresh block.
     /// 5. In either case, record any internal slack between (allocated_addr + requested_size)
-    ///    and (allocated_addr + p) if it is at least MIN_FRAME_SIZE.
+    ///    and (allocated_addr + p).
     pub fn alloc(&mut self, requested_size: u32) -> u32 {
         // p: padded size (power-of-two, at least MIN_FRAME_SIZE).
         let p = requested_size.next_power_of_two().max(MIN_FRAME_SIZE);
@@ -55,13 +54,8 @@ impl VromAllocator {
                     if external_leftover >= MIN_FRAME_SIZE {
                         self.add_slack(allocated_addr + p, external_leftover);
                     }
-                    // Record internal slack (unused portion within the padded block).
-                    if p > requested_size {
-                        let internal_slack = p - requested_size;
-                        if internal_slack >= MIN_FRAME_SIZE {
-                            self.add_slack(allocated_addr + requested_size, internal_slack);
-                        }
-                    }
+                    // Record internal slack.
+                    self.record_internal_slack(allocated_addr, requested_size, p);
                     return allocated_addr;
                 }
             }
@@ -77,14 +71,24 @@ impl VromAllocator {
         }
         let allocated_addr = aligned_pos;
         self.pos = aligned_pos + p;
-        // Record internal slack if p > requested_size.
-        if p > requested_size {
-            let internal_slack = p - requested_size;
+        // Record internal slack.
+        self.record_internal_slack(allocated_addr, requested_size, p);
+        allocated_addr
+    }
+
+    /// Helper to record internal slack (unused portion within the padded block).
+    fn record_internal_slack(
+        &mut self,
+        allocated_addr: u32,
+        requested_size: u32,
+        padded_size: u32,
+    ) {
+        if padded_size > requested_size {
+            let internal_slack = padded_size - requested_size;
             if internal_slack >= MIN_FRAME_SIZE {
                 self.add_slack(allocated_addr + requested_size, internal_slack);
             }
         }
-        allocated_addr
     }
 
     /// Records a free (slack) region starting at `addr` with length `size`
@@ -141,7 +145,7 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
         while block_size > remaining {
             block_size /= 2;
         }
-        // Skip blocks smaller than MIN_FRAME_SIZE.
+        // Skip blocks that are smaller than MIN_FRAME_SIZE.
         if block_size < MIN_FRAME_SIZE {
             current_addr += block_size;
             remaining -= block_size;
