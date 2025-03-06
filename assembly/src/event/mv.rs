@@ -22,7 +22,7 @@ pub(crate) struct MVVWEvent {
 // TODO: this is a 4-byte move instruction. So it needs to be updated once we have multi-granularity.
 impl MVVWEvent {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
@@ -95,7 +95,7 @@ pub(crate) struct MVIHEvent {
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm zero-extended.
 // So it needs to be updated once we have multi-granularity.
 impl MVIHEvent {
-    pub fn new(
+    pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,

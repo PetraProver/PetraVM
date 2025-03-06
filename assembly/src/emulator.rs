@@ -67,7 +67,7 @@ pub enum Opcode {
 }
 
 impl Opcode {
-    pub fn get_field_elt(&self) -> BinaryField16b {
+    pub const fn get_field_elt(&self) -> BinaryField16b {
         BinaryField16b::new(*self as u16)
     }
 }
@@ -103,7 +103,7 @@ pub(crate) struct ValueRom(HashMap<u32, u8>);
 pub type ProgramRom = HashMap<BinaryField32b, Instruction>;
 
 impl ValueRom {
-    pub fn new(vrom: HashMap<u32, u8>) -> Self {
+    pub const fn  new(vrom: HashMap<u32, u8>) -> Self {
         Self(vrom)
     }
 
@@ -185,7 +185,7 @@ pub(crate) enum InterpreterError {
 }
 
 impl Interpreter {
-    pub(crate) fn new(prom: ProgramRom, frames: LabelsFrameSizes) -> Self {
+    pub(crate)   fn new(prom: ProgramRom, frames: LabelsFrameSizes) -> Self {
         Self {
             pc: BinaryField32b::ONE,
             fp: 0,
@@ -197,7 +197,7 @@ impl Interpreter {
         }
     }
 
-    pub(crate) fn new_with_vrom(
+    pub(crate) const  fn new_with_vrom(
         prom: ProgramRom,
         vrom: ValueRom,
         frames: LabelsFrameSizes,

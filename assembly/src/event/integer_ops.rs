@@ -20,7 +20,7 @@ pub(crate) struct Add64Event {
 }
 
 impl Add64Event {
-    pub fn new(timestamp: u32, output: u64, input1: u64, input2: u64, cout: u64) -> Self {
+    pub const fn new(timestamp: u32, output: u64, input1: u64, input2: u64, cout: u64) -> Self {
         Self {
             timestamp,
             output,
@@ -60,7 +60,7 @@ pub(crate) struct Add32Event {
 }
 
 impl Add32Event {
-    pub fn new(timestamp: u32, output: u32, input1: u32, input2: u32, cout: u32) -> Self {
+    pub const fn new(timestamp: u32, output: u32, input1: u32, input2: u32, cout: u32) -> Self {
         Self {
             timestamp,
             output,
@@ -170,7 +170,6 @@ impl BinaryOperation for AddEvent {
 
 // Note: The addition is checked thanks to the ADD32 table.
 impl_binary_operation!(AddEvent);
-
 impl_event_for_binary_operation!(AddEvent);
 
 /// Event for ADDI.
@@ -196,7 +195,7 @@ pub(crate) struct MuliEvent {
 
 impl MuliEvent {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,

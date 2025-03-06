@@ -19,7 +19,7 @@ pub struct VromAllocator {
 
 impl VromAllocator {
     /// Creates a new VromAllocator.
-    pub fn new() -> Self {
+    pub const  fn new() -> Self {
         Self {
             pos: 0,
             slack: BTreeMap::new(),
@@ -105,7 +105,7 @@ impl VromAllocator {
 /// Aligns `pos` to the next multiple of `alignment` (which must be a
 /// power-of-two).
 #[inline(always)]
-fn align_to(pos: u32, alignment: u32) -> u32 {
+const fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
 
