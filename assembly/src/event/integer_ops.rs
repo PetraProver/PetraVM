@@ -1,9 +1,15 @@
+use std::ops::Add;
+
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
+    fire_non_jump_event, impl_event_for_binary_operation,
+    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
 };
+
+use super::BinaryOperation;
 
 // Struture of an Event for the Add32 gadget.
 #[derive(Debug, Clone)]
@@ -43,11 +49,7 @@ impl Add64Event {
     }
 }
 
-impl Event for Add64Event {
-    fn fire(&self, _channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        // No interaction with the state channel.
-    }
-}
+impl_event_no_interaction_with_state_channel!(Add64Event);
 
 // Struture of an Event for the Add32 gadget.
 #[derive(Debug, Clone)]
@@ -93,11 +95,7 @@ impl Add32Event {
     }
 }
 
-impl Event for Add32Event {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        // No interaction with the state channel.
-    }
-}
+impl_event_no_interaction_with_state_channel!(Add32Event);
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
@@ -112,29 +110,17 @@ pub(crate) struct AddiEvent {
     imm: u16,
 }
 
-impl AddiEvent {
-    pub fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u32,
-        src: u16,
-        src_val: u32,
-        imm: u16,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src,
-            src_val,
-            imm,
-        }
+impl BinaryOperation<BinaryField16b> for AddiEvent {
+    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
+        BinaryField32b::new(val.val() + imm.val() as u32)
     }
+}
 
+impl_immediate_binary_operation!(AddiEvent);
+
+impl_event_for_binary_operation!(AddiEvent);
+
+impl AddiEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
         dst: BinaryField16b,
@@ -162,19 +148,6 @@ impl AddiEvent {
             src_val,
             imm: imm.val(),
         }
-    }
-}
-
-impl Event for AddiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels.state_channel.push((
-            self.pc * BinaryField32b::MULTIPLICATIVE_GENERATOR,
-            self.fp,
-            self.timestamp + 1,
-        ));
     }
 }
 
@@ -250,16 +223,7 @@ impl AddEvent {
     }
 }
 
-impl Event for AddEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
-    }
-}
+impl_event_no_interaction_with_state_channel!(AddEvent);
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
@@ -369,12 +333,8 @@ impl MuliEvent {
 }
 
 impl Event for MuliEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_eq!(self.dst_val, self.src_val * self.imm as u32);
+        fire_non_jump_event!(self, channels);
     }
 }

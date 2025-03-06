@@ -29,13 +29,13 @@ impl RetEvent {
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
         let fp = interpreter.fp;
         let fp_field = BinaryField32b::new(fp);
-        if fp as usize + 1 > interpreter.vrom_size() {
+        if fp as usize + 1 > interpreter.vrom.len() {
             interpreter
                 .vrom
-                .extend(&vec![0u32; fp as usize - interpreter.vrom_size() + 2]);
+                .extend(&vec![0u32; fp as usize - interpreter.vrom.len() + 2]);
         }
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.pc = BinaryField32b::new(interpreter.vrom.get(fp_field));
+        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get(fp_field)));
         interpreter.fp = interpreter.vrom.get(fp_field + BinaryField32b::ONE);
 
         ret_event

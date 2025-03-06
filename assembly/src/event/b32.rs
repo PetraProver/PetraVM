@@ -1,8 +1,11 @@
 use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
 
-use crate::emulator::{InterpreterChannels, InterpreterTables};
+use crate::{
+    emulator::{InterpreterChannels, InterpreterTables},
+    fire_non_jump_event, impl_event_for_binary_operation, impl_immediate_binary_operation,
+};
 
-use super::{BinaryOperation, Event, ImmediateBinaryOperation, NonImmediateBinaryOperation};
+use super::{BinaryOperation, Event, NonImmediateBinaryOperation};
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {
@@ -16,42 +19,26 @@ pub(crate) struct XoriEvent {
     imm: u16,
 }
 
-impl Event for XoriEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .push((self.pc, self.fp, self.timestamp));
-    }
-}
+impl_immediate_binary_operation!(XoriEvent);
 
-impl ImmediateBinaryOperation for XoriEvent {
-    fn new(
-        timestamp: u32,
-        pc: BinaryField32b,
-        fp: u32,
-        dst: u16,
-        dst_val: u32,
-        src: u16,
-        src_val: u32,
-        imm: u16,
-    ) -> Self {
-        Self {
-            timestamp,
-            pc,
-            fp,
-            dst,
-            dst_val,
-            src,
-            src_val,
-            imm,
-        }
-    }
-}
-
-impl BinaryOperation for XoriEvent {
-    fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
+impl BinaryOperation<BinaryField16b> for XoriEvent {
+    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         val + imm
     }
+}
+
+impl_event_for_binary_operation!(XoriEvent);
+
+#[derive(Debug, Default, Clone)]
+pub(crate) struct AndiEvent {
+    timestamp: u32,
+    pc: BinaryField32b,
+    fp: u32,
+    dst: u16,
+    dst_val: u32,
+    src: u16,
+    src_val: u32,
+    imm: u16,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -101,54 +88,16 @@ impl NonImmediateBinaryOperation for XorEvent {
     }
 }
 
-impl BinaryOperation for XorEvent {
+impl BinaryOperation<BinaryField32b> for XorEvent {
     fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
         val + imm
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct AndiEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
+impl_immediate_binary_operation!(AndiEvent);
 
-impl Event for AndiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {}
-}
-
-impl ImmediateBinaryOperation for AndiEvent {
-    fn new(
-        timestamp: u32,
-        pc: BinaryField32b,
-        fp: u32,
-        dst: u16,
-        dst_val: u32,
-        src: u16,
-        src_val: u32,
-        imm: u16,
-    ) -> Self {
-        Self {
-            timestamp,
-            pc,
-            fp,
-            dst,
-            dst_val,
-            src,
-            src_val,
-            imm,
-        }
-    }
-}
-
-impl BinaryOperation for AndiEvent {
-    fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
+impl BinaryOperation<BinaryField16b> for AndiEvent {
+    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         let imm_32b = BinaryField32b::from(imm);
         let and_bits = <BinaryField32b as ExtensionField<BinaryField1b>>::iter_bases(&val)
             .zip(<BinaryField32b as ExtensionField<BinaryField1b>>::iter_bases(&imm_32b))
@@ -157,6 +106,8 @@ impl BinaryOperation for AndiEvent {
         BinaryField32b::from_bases(&and_bits).expect("hello")
     }
 }
+
+impl_event_for_binary_operation!(AndiEvent);
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct B32MuliEvent {
@@ -231,7 +182,7 @@ impl B32MuliEvent {
     }
 }
 
-impl BinaryOperation for B32MuliEvent {
+impl BinaryOperation<BinaryField32b> for B32MuliEvent {
     fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
         val * imm
     }

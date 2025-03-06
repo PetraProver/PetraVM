@@ -10,7 +10,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use crate::{
     event::{
         b32::{AndiEvent, B32MuliEvent, XorEvent, XoriEvent},
-        branch::BnzEvent,
+        branch::{BnzEvent, BzEvent},
         call::TailiEvent,
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVIHEvent, MVVWEvent},
@@ -191,6 +191,10 @@ impl Interpreter {
         self.pc *= G;
     }
 
+    pub(crate) fn jump_to(&mut self, target: BinaryField32b) {
+        self.pc = target;
+    }
+
     pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.0.len()
     }
@@ -235,12 +239,18 @@ impl Interpreter {
     }
 
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
-        let [_, cond, target_low, target_high] =
+        let &[_, cond, target_low, target_high] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
+        let target = BinaryField32b::from_bases(&vec![target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_bnz_event = BnzEvent::generate_event(self, *cond, target);
-        trace.bnz.push(new_bnz_event);
+        let cond_val = self.vrom.get(BinaryField32b::new(self.fp) + cond);
+        if cond_val != 0 {
+            let new_bnz_event = BnzEvent::generate_event(self, cond, target);
+            trace.bnz.push(new_bnz_event);
+        } else {
+            let new_bz_event = BzEvent::generate_event(self, cond, target);
+            trace.bz.push(new_bz_event);
+        }
 
         Ok(())
     }
@@ -481,6 +491,7 @@ impl<T: Hash + Eq> Channel<T> {
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xor: Vec<XorEvent>,
+    bz: Vec<BzEvent>,
     xori: Vec<XoriEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
@@ -564,6 +575,10 @@ impl ZCrayTrace {
         ));
 
         self.bnz
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.bz
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
 
@@ -840,8 +855,10 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, (8, Some(2)));
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
+        let (traces, boundary_values) = ZCrayTrace::generate_with_vrom(prom, vrom, frames)
             .expect("Trace generation should not fail.");
+
+        traces.validate(boundary_values);
 
         assert!(traces.shift.len() == expected_evens.len()); // There are 4 even cases.
         for i in 0..expected_evens.len() {
