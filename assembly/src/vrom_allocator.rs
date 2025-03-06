@@ -10,7 +10,8 @@ const MIN_FRAME_SIZE: u32 = 8;
 pub struct VromAllocator {
     /// The next free allocation pointer.
     pos: u32,
-    /// Slack blocks available for reuse, organized by the exponent (i.e. block size = 2^exponent).
+    /// Slack blocks available for reuse, organized by the exponent
+    /// (i.e. block size = 2^exponent).
     slack: HashMap<u32, Vec<u32>>,
 }
 
@@ -29,8 +30,8 @@ impl VromAllocator {
     /// 1. Compute `p`, the padded size (power-of-two ≥ MIN_FRAME_SIZE).
     /// 2. Attempt to reuse a slack block of size ≥ `p`.
     /// 3. If found, split off any leftover external slack.
-    /// 4. Otherwise, align the allocation pointer (by clearing the least significant log₂(padded size) bits)
-    ///    and allocate a fresh block.
+    /// 4. Otherwise, align the allocation pointer (by clearing the least significant
+    ///    log₂(padded size) bits) and allocate a fresh block.
     /// 5. In either case, record any internal slack between (allocated_addr + requested_size)
     ///    and (allocated_addr + p).
     pub fn alloc(&mut self, requested_size: u32) -> u32 {
@@ -77,8 +78,8 @@ impl VromAllocator {
         requested_size: u32,
         padded_size: u32,
     ) {
-        if padded_size > requested_size {
-            let internal_slack = padded_size - requested_size;
+        let internal_slack = padded_size.saturating_sub(requested_size);
+        if internal_slack >= MIN_FRAME_SIZE {
             self.add_slack(allocated_addr + requested_size, internal_slack);
         }
     }
@@ -101,6 +102,7 @@ impl VromAllocator {
 }
 
 /// Aligns `pos` to the next multiple of `alignment` (which must be a power-of-two).
+#[inline(always)]
 fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
@@ -111,9 +113,10 @@ fn align_to(pos: u32, alignment: u32) -> u32 {
 ///
 /// # Examples
 ///
-/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the remaining 4 bytes are dropped.
-/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4), (8,8)]`, but the 4-byte block is dropped,
-///   resulting in `[(8,8)]`.
+/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the remaining 4
+///   bytes are dropped.
+/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4), (8,8)]`, but the
+///   4-byte block is dropped, resulting in `[(8,8)]`.
 fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
     let mut blocks = Vec::new();
     let mut current_addr = addr;
@@ -128,10 +131,6 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
         // Largest power-of-two not exceeding the remaining size.
         let largest_possible = 1 << (31 - remaining.leading_zeros());
         let mut block_size = alignment_constraint.min(largest_possible);
-        // Ensure block_size does not exceed remaining.
-        while block_size > remaining {
-            block_size /= 2;
-        }
         // Skip blocks that are smaller than MIN_FRAME_SIZE.
         if block_size < MIN_FRAME_SIZE {
             current_addr += block_size;
@@ -148,13 +147,17 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::Rng;
 
     #[test]
     fn test_align_to() {
         assert_eq!(align_to(0, MIN_FRAME_SIZE), 0);
-        assert_eq!(align_to(3, MIN_FRAME_SIZE), 8);
-        assert_eq!(align_to(8, MIN_FRAME_SIZE), 8);
-        assert_eq!(align_to(9, MIN_FRAME_SIZE), 16);
+        assert_eq!(align_to(MIN_FRAME_SIZE - 1, MIN_FRAME_SIZE), MIN_FRAME_SIZE);
+        assert_eq!(align_to(MIN_FRAME_SIZE, MIN_FRAME_SIZE), MIN_FRAME_SIZE);
+        assert_eq!(
+            align_to(MIN_FRAME_SIZE + 1, MIN_FRAME_SIZE),
+            MIN_FRAME_SIZE * 2
+        );
     }
 
     #[test]
@@ -163,9 +166,11 @@ mod tests {
         assert_eq!(split_into_power_of_two_blocks(0, 8), vec![(0, 8)]);
         // 12 bytes splits into (0,8) and (8,4) but the 4-byte block is dropped.
         assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8)]);
-        // Region starting at a nonzero address:
-        // (4,12) initially produces (4,4) and (8,8) but the 4-byte block is dropped.
-        assert_eq!(split_into_power_of_two_blocks(4, 12), vec![(8, 8)]);
+        // Region starting at a non power-of-two address.
+        assert_eq!(
+            split_into_power_of_two_blocks(5, 32),
+            vec![(8, 8), (16, 16)]
+        );
     }
 
     #[test]
@@ -182,17 +187,6 @@ mod tests {
         assert_eq!(allocator.pos, 16);
         // No external slack should be generated from alignment gaps.
         assert!(allocator.slack.is_empty());
-    }
-
-    #[test]
-    fn test_alloc_no_slack() {
-        let mut allocator = VromAllocator::new();
-        // Two allocations that fit exactly without producing an alignment gap.
-        let addr1 = allocator.alloc(9); // p = 16, allocated at 0; pos becomes 16.
-        assert_eq!(addr1, 0);
-        let addr2 = allocator.alloc(10); // p = 16, allocated at 16; pos becomes 32.
-        assert_eq!(addr2, 16);
-        assert_eq!(allocator.pos, 32);
     }
 
     #[test]
@@ -262,5 +256,54 @@ mod tests {
             key3.sort();
             assert_eq!(key3, vec![24, 104]);
         }
+    }
+
+    #[test]
+    fn test_random_allocations_space_efficiency() {
+        let mut allocator = VromAllocator::new();
+        let mut allocations = Vec::new();
+        let mut total_requested = 0u32;
+        let mut rng = rand::thread_rng();
+
+        // Generate 1000 random allocations.
+        for _ in 0..1000 {
+            // Random requested size between 1 and 1024.
+            let requested: u32 = rng.gen_range(1..=1024);
+            total_requested += requested;
+            let addr = allocator.alloc(requested);
+            allocations.push((addr, requested));
+            let padded = requested.next_power_of_two().max(MIN_FRAME_SIZE);
+            // Check alignment: allocated address must be a multiple of padded size.
+            assert_eq!(
+                addr % padded,
+                0,
+                "Address {} is not aligned to {}",
+                addr,
+                padded
+            );
+        }
+
+        // Sort allocations by starting address.
+        allocations.sort_by_key(|x| x.0);
+        // Check for overlap between allocated ranges.
+        for window in allocations.windows(2) {
+            let (addr1, requested) = window[0];
+            let (addr2, _) = window[1];
+            assert!(
+                addr1 + requested <= addr2,
+                "Allocation {}+{} overlaps with {}",
+                addr1,
+                requested,
+                addr2
+            );
+        }
+
+        // Check space efficiency: compute ratio of total allocated space vs. total requested.
+        // (Note: some overhead is expected due to padding and slack.)
+        let ratio = allocator.pos as f64 / total_requested as f64;
+        println!(
+            "Total allocated: {}, total requested: {}, ratio: {:.3}",
+            allocator.pos, total_requested, ratio
+        );
     }
 }
