@@ -1,16 +1,22 @@
 use std::collections::HashMap;
 
-/// A VROM allocator that allocates addresses using power‐of‐two padded sizes,
-/// reusing slack regions when possible.
+// TODO: use a more accurate number for MIN_FRAME_SIZE
+const MIN_FRAME_SIZE: u32 = 8;
+
+/// VromAllocator allocates VROM addresses for objects, ensuring that:
+/// - The object's size is padded to the next power-of-two (with a minimum of MIN_FRAME_SIZE),
+/// - Available slack regions are reused when possible,
+/// - The allocation pointer is aligned, and any alignment gap is recorded as slack,
+/// - And any internal slack between (addr + requested_size) and (addr + padded size) is recorded.
 pub struct VromAllocator {
     /// The next free allocation pointer.
     pos: u32,
-    /// Maps a slack block’s exponent (so that size = 2^exponent) to one or more free VROM addresses.
+    /// Slack blocks available for reuse, organized by the exponent (i.e. block size = 2^exponent).
     slack: HashMap<u32, Vec<u32>>,
 }
 
 impl VromAllocator {
-    /// Create a new allocator.
+    /// Creates a new VromAllocator.
     pub fn new() -> Self {
         Self {
             pos: 0,
@@ -18,89 +24,111 @@ impl VromAllocator {
         }
     }
 
-    /// Allocate a VROM address for an object with the given requested size.
+    /// Allocates a VROM address for an object with the given `requested_size`.
     ///
-    /// The object's size is padded to the next power‐of‐two.
+    /// The allocation process:
+    /// 1. Compute `p`, the padded size (power-of-two ≥ MIN_FRAME_SIZE).
+    /// 2. Attempt to reuse a slack block of size ≥ `p`.
+    /// 3. If found, split off any leftover external slack.
+    /// 4. Otherwise, align the allocation pointer (recording any gap as external slack),
+    ///    and allocate a fresh block.
+    /// 5. In either case, record any internal slack between (allocated_addr + requested_size)
+    ///    and (allocated_addr + p) if it is at least MIN_FRAME_SIZE.
     pub fn alloc(&mut self, requested_size: u32) -> u32 {
-        // p: the object's padded size (always a power-of-two).
-        let p = requested_size.next_power_of_two();
-        // k is the exponent such that p == 2^k.
+        // p: the padded size (a power-of-two, at least MIN_FRAME_SIZE).
+        let p = requested_size.next_power_of_two().max(MIN_FRAME_SIZE);
+        // k: exponent such that p == 2^k.
         let k = p.trailing_zeros();
-        
-        // Search slack table for an available block whose size is at least p.
-        // We iterate for exponents from k up to 31 (u32 addresses).
-        for exp in k..=31 {
-            // Remove the entire slack bucket for this exponent, if any,
-            // to avoid holding a mutable reference while calling other methods.
+
+        // Attempt to find a slack block with size >= p.
+        for exp in k..=(u32::BITS - 1) {
             if let Some(mut blocks) = self.slack.remove(&exp) {
                 if let Some(addr) = blocks.pop() {
                     let block_size = 1 << exp;
-                    // If there are remaining blocks in the bucket, reinsert them.
+                    // Reinsert remaining blocks for this exponent.
                     if !blocks.is_empty() {
                         self.slack.insert(exp, blocks);
                     }
                     let allocated_addr = addr;
-                    let leftover = block_size - p;
-                    if leftover > 0 {
-                        // Now that we no longer hold a mutable borrow on self.slack,
-                        // we can safely record the leftover slack.
-                        self.add_slack(allocated_addr + p, leftover);
+                    let external_leftover = block_size - p;
+                    // Record leftover external slack if large enough.
+                    if external_leftover >= MIN_FRAME_SIZE {
+                        self.add_slack(allocated_addr + p, external_leftover);
+                    }
+                    // Record internal slack: the unused portion of the padded block.
+                    if p > requested_size {
+                        let internal_slack = p - requested_size;
+                        if internal_slack >= MIN_FRAME_SIZE {
+                            self.add_slack(allocated_addr + requested_size, internal_slack);
+                        }
                     }
                     return allocated_addr;
                 }
             }
         }
 
-        // No suitable slack block was found.
-        // Align the current position to a multiple of p.
+        // No suitable slack block found: perform a fresh allocation.
         let old_pos = self.pos;
         let aligned_pos = align_to(self.pos, p);
-        // If alignment produced a gap, record that gap as slack.
-        if aligned_pos > old_pos {
-            let gap = aligned_pos - old_pos;
+        let gap = aligned_pos - old_pos;
+        // Record the alignment gap as external slack if it is large enough.
+        if gap >= MIN_FRAME_SIZE {
             self.add_slack(old_pos, gap);
         }
         let allocated_addr = aligned_pos;
-        // Update the current position.
         self.pos = aligned_pos + p;
+        // Record internal slack if p > requested_size.
+        if p > requested_size {
+            let internal_slack = p - requested_size;
+            if internal_slack >= MIN_FRAME_SIZE {
+                self.add_slack(allocated_addr + requested_size, internal_slack);
+            }
+        }
         allocated_addr
     }
 
-    /// Record a free (slack) region starting at `addr` with length `size`
-    /// by splitting it into power‐of‐two blocks and updating the slack table.
+    /// Records a free (slack) region starting at `addr` with length `size`
+    /// by splitting it into power-of-two blocks.
+    ///
+    /// Only blocks with size ≥ MIN_FRAME_SIZE are retained.
     fn add_slack(&mut self, addr: u32, size: u32) {
+        if size < MIN_FRAME_SIZE {
+            return;
+        }
         for (block_addr, block_size) in split_into_power_of_two_blocks(addr, size) {
-            let exp = block_size.trailing_zeros();
-            self.slack.entry(exp).or_default().push(block_addr);
+            self.slack.entry(block_size.trailing_zeros()).or_default().push(block_addr);
         }
     }
 }
 
-/// Align `pos` to the next multiple of `alignment` (which must be a power‐of‐two).
+/// Aligns `pos` to the next multiple of `alignment` (which must be a power-of-two).
+#[inline]
 fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
 
-/// Split an interval [addr, addr + size) into power‐of‐two blocks (with proper alignment).
+/// Splits the interval [addr, addr + size) into power-of-two blocks with proper alignment.
 ///
-/// For example:
-/// - split_into_power_of_two_blocks(0, 12) yields [(0, 8), (8, 4)].
-/// - split_into_power_of_two_blocks(4, 12) yields [(4, 4), (8, 8)].
+/// Blocks smaller than MIN_FRAME_SIZE are dropped.
+///
+/// # Examples
+///
+/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the remaining 4 bytes are dropped.
+/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4), (8,8)]`, but the 4-byte block is dropped,
+///   resulting in `[(8,8)]`.
 fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
     let mut blocks = Vec::new();
     let mut current_addr = addr;
     let mut remaining = size;
     while remaining > 0 {
-        // Determine the largest block allowed by the current address's alignment.
+        // Maximum block size allowed by the current address's alignment.
         let alignment_constraint = if current_addr == 0 {
             remaining
         } else {
-            // Extract the least significant set bit (i.e. current_addr & (-current_addr))
             current_addr & ((!current_addr).wrapping_add(1))
         };
         // Largest power-of-two not exceeding `remaining`.
         let largest_possible = 1 << (31 - remaining.leading_zeros());
-        // Choose the block size as the smaller of the alignment constraint and largest_possible.
         let mut block_size = if alignment_constraint < largest_possible {
             alignment_constraint
         } else {
@@ -109,6 +137,12 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
         // Ensure block_size does not exceed remaining.
         while block_size > remaining {
             block_size /= 2;
+        }
+        // Skip blocks that are smaller than MIN_FRAME_SIZE.
+        if block_size < MIN_FRAME_SIZE {
+            current_addr += block_size;
+            remaining -= block_size;
+            continue;
         }
         blocks.push((current_addr, block_size));
         current_addr += block_size;
@@ -123,69 +157,113 @@ mod tests {
 
     #[test]
     fn test_align_to() {
-        assert_eq!(align_to(0, 8), 0);
-        assert_eq!(align_to(3, 8), 8);
-        assert_eq!(align_to(8, 8), 8);
-        assert_eq!(align_to(9, 8), 16);
+        assert_eq!(align_to(0, MIN_FRAME_SIZE), 0);
+        assert_eq!(align_to(3, MIN_FRAME_SIZE), 8);
+        assert_eq!(align_to(8, MIN_FRAME_SIZE), 8);
+        assert_eq!(align_to(9, MIN_FRAME_SIZE), 16);
     }
 
     #[test]
     fn test_split_into_power_of_two_blocks() {
-        // When the region is already a power-of-two.
+        // Region exactly a power-of-two.
         assert_eq!(split_into_power_of_two_blocks(0, 8), vec![(0, 8)]);
-        // Region not a power-of-two.
-        assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8), (8, 4)]);
-        // Region with nonzero start.
-        assert_eq!(split_into_power_of_two_blocks(4, 12), vec![(4, 4), (8, 8)]);
+        // 12 bytes splits into (0,8) and (8,4) but the 4-byte block is dropped.
+        assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8)]);
+        // Region starting at a nonzero address:
+        // (4,12) initially produces (4,4) and (8,8) but the 4-byte block is dropped.
+        assert_eq!(split_into_power_of_two_blocks(4, 12), vec![(8, 8)]);
+    }
+
+    #[test]
+    fn test_alloc_minimal_frame_size() {
+        let mut allocator = VromAllocator::new();
+        // A request smaller than MIN_FRAME_SIZE is bumped to MIN_FRAME_SIZE.
+        let addr1 = allocator.alloc(1); // next_power_of_two(1)=1, but max(1,8)=8.
+        assert_eq!(addr1, 0);
+        assert_eq!(allocator.pos, 8);
+        // A subsequent request bumps to 8.
+        let addr2 = allocator.alloc(4);
+        // Allocation occurs at pos = 8.
+        assert_eq!(addr2, 8);
+        assert_eq!(allocator.pos, 16);
+        // No external slack should have been generated from alignment gaps.
+        assert!(allocator.slack.is_empty());
     }
 
     #[test]
     fn test_alloc_no_slack() {
         let mut allocator = VromAllocator::new();
-        // First allocation: request size 3 → padded to 4.
-        let addr1 = allocator.alloc(3);
+        // Two allocations that fit exactly without producing an alignment gap.
+        let addr1 = allocator.alloc(9);  // p = 16, allocated at 0; pos becomes 16.
         assert_eq!(addr1, 0);
-        assert_eq!(allocator.pos, 4);
-        // Second allocation: request size 5 → padded to 8.
-        // Since current pos is 4, aligning to 8 gives 8 and creates a gap [4,8) of size 4.
-        let addr2 = allocator.alloc(5);
-        assert_eq!(addr2, 8);
-        assert_eq!(allocator.pos, 16);
-        // The gap [4,8) should be recorded as a slack block of size 4 (key = 2, because 4 == 2^2).
-        let slack = allocator.slack.get(&2);
-        assert!(slack.is_some());
-        assert_eq!(slack.unwrap()[0], 4);
+        let addr2 = allocator.alloc(10); // p = 16, allocated at 16; pos becomes 32.
+        assert_eq!(addr2, 16);
+        // pos should be updated correctly.
+        assert_eq!(allocator.pos, 32);
     }
 
     #[test]
-    fn test_alloc_with_slack() {
+    fn test_alloc_with_slack_various() {
         let mut allocator = VromAllocator::new();
-        // Create slack first.
-        let addr1 = allocator.alloc(3); // p = 4, allocated at 0.
+        // Step 1: alloc(17)
+        // p = 32, allocated at 0, pos becomes 32.
+        // Internal slack from (0+17, 0+32) is added.
+        let addr1 = allocator.alloc(17);
         assert_eq!(addr1, 0);
-        let addr2 = allocator.alloc(5); // p = 8, allocated at 8, gap [4,8) added.
-        assert_eq!(addr2, 8);
-        // Now, a third allocation: request size 2 → p = 2.
-        // Should find slack in B. The slack block [4,8) of size 4 (key = 2) is used.
-        let addr3 = allocator.alloc(2);
-        assert_eq!(addr3, 4);
-        // The leftover from the slack block is (4 - 2 = 2) bytes.
-        // This leftover should be recorded in B as a block of size 2 (key = 1).
-        let slack_entry = allocator.slack.get(&1);
-        assert!(slack_entry.is_some());
-        assert_eq!(slack_entry.unwrap()[0], 6); // leftover slack at address 6.
-    }
+        assert_eq!(allocator.pos, 32);
+        // Internal slack from alloc(17) splits (17,15) to yield a block (24,8) (key 3).
+        assert_eq!(allocator.slack.get(&3), Some(&vec![24]));
 
-    #[test]
-    fn test_alloc_multiple() {
-        let mut allocator = VromAllocator::new();
-        let a1 = allocator.alloc(1);  // p = 1, allocated at 0, pos becomes 1.
-        let a2 = allocator.alloc(2);  // p = 2, alignment from pos=1 yields addr=2 and creates gap [1,2) of size 1.
-        let a3 = allocator.alloc(3);  // p = 4, allocated at pos=4, pos becomes 8.
-        let a4 = allocator.alloc(1);  // p = 1, should reuse slack: gap [1,2) should be used.
-        assert_eq!(a1, 0);
-        assert_eq!(a2, 2);
-        assert_eq!(a3, 4);
-        assert_eq!(a4, 1);
+        // Step 2: alloc(33)
+        // p = 64, pos=32 is aligned to 64, gap = 32 is recorded as external slack.
+        // Allocation occurs at 64, pos becomes 128.
+        // Internal slack from (64+33, 64+64) is recorded.
+        let addr2 = allocator.alloc(33);
+        assert_eq!(addr2, 64);
+        assert_eq!(allocator.pos, 128);
+        // External slack from alignment: (32,32) yields a block (32,32) under key 5.
+        assert_eq!(allocator.slack.get(&5), Some(&vec![32]));
+        // Internal slack from alloc(33) splits (97,31) to yield blocks (104,8) [key 3] and (112,16) [key 4].
+        {
+            let key3 = allocator.slack.get(&3).unwrap();
+            // key 3 should now contain both 24 (from step 1) and 104 (from step 2).
+            assert!(key3.contains(&24));
+            assert!(key3.contains(&104));
+        }
+        assert_eq!(allocator.slack.get(&4), Some(&vec![112]));
+
+        // Step 3: alloc(16)
+        // p = 16, slack lookup (starting at key 4) finds block (112,16).
+        // Allocation reuses that slack block, so addr becomes 112.
+        let addr3 = allocator.alloc(16);
+        assert_eq!(addr3, 112);
+        assert_eq!(allocator.pos, 128);
+        // Key 4 should now be removed.
+        assert!(allocator.slack.get(&4).is_none());
+        // Keys 3 and 5 remain.
+        {
+            let key3 = allocator.slack.get(&3).unwrap();
+            assert!(key3.contains(&24) || key3.contains(&104));
+        }
+        assert_eq!(allocator.slack.get(&5), Some(&vec![32]));
+
+        // Step 4: alloc(8)
+        // p = 8, slack lookup (key 3) returns one block.
+        // pop() removes the last element from the vector under key 3.
+        let addr4 = allocator.alloc(8);
+        // Depending on the vector order, this should be 104.
+        assert_eq!(addr4, 104);
+        assert_eq!(allocator.pos, 128);
+        // Now key 3 should have the remaining element [24].
+        assert_eq!(allocator.slack.get(&3), Some(&vec![24]));
+
+        // Step 5: alloc(8)
+        // p = 8, slack lookup (key 3) returns block at address 24.
+        let addr5 = allocator.alloc(8);
+        assert_eq!(addr5, 24);
+        assert_eq!(allocator.pos, 128);
+        // Now key 3 is empty and removed, leaving only key 5.
+        assert_eq!(allocator.slack.len(), 1);
+        assert_eq!(allocator.slack.get(&5), Some(&vec![32]));
     }
 }
