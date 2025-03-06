@@ -1,12 +1,12 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
+use super::Event;
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     fire_non_jump_event,
 };
 
-use super::Event;
-
+/// Event for BNZ.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BnzEvent {
     timestamp: u32,

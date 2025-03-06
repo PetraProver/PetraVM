@@ -1,8 +1,7 @@
 use binius_field::BinaryField32b;
 
-use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
-
 use super::Event;
+use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
 #[derive(Debug, PartialEq)]
 pub struct RetEvent {

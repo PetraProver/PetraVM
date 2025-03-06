@@ -1,3 +1,8 @@
+//! Defines execution events for the zCray VM.
+//!
+//! Each event represents an instruction executed by the VM, such as arithmetic
+//! operations, branching, or function calls.
+
 use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
@@ -12,6 +17,7 @@ pub(crate) mod mv;
 pub(crate) mod ret;
 pub(crate) mod sli;
 
+/// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }

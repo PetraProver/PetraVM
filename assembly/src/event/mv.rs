@@ -6,7 +6,7 @@ use crate::{
     fire_non_jump_event,
 };
 
-// Struture of an event for MVV.W.
+/// Event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
     pc: BinaryField32b,
@@ -80,7 +80,7 @@ impl Event for MVVWEvent {
     }
 }
 
-// Struture of an event for MVV.W.
+/// Event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct MVIHEvent {
     pc: BinaryField32b,

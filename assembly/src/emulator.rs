@@ -1,3 +1,7 @@
+//! The core zkVM emulator, that executes instructions parsed from the immutable
+//! Instruction Memory (PROM). It processes events and updates the machine state
+//! accordingly.
+
 use std::{array::from_fn, collections::HashMap, hash::Hash};
 
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
@@ -209,18 +213,22 @@ impl Interpreter {
         }
     }
 
+    #[inline(always)]
     pub(crate) fn incr_pc(&mut self) {
         self.pc *= G;
     }
 
+    #[inline(always)]
     pub(crate) fn jump_to(&mut self, target: BinaryField32b) {
         self.pc = target;
     }
 
+    #[inline(always)]
     pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.0.len()
     }
 
+    #[inline(always)]
     pub(crate) fn is_halted(&self) -> bool {
         self.pc == BinaryField32b::ZERO
     }
@@ -301,8 +309,8 @@ impl Interpreter {
     }
 
     fn generate_slli(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
-        // let new_shift_event = SliEventStruct::new(&self, dst, src, imm, ShiftKind::Left);
-        // new_shift_event.apply_event(self);
+        // let new_shift_event = SliEventStruct::new(&self, dst, src, imm,
+        // ShiftKind::Left); new_shift_event.apply_event(self);
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_shift_event = SliEvent::generate_event(self, *dst, *src, *imm, ShiftKind::Left);
         trace.shift.push(new_shift_event);
@@ -440,8 +448,9 @@ impl Interpreter {
 
     // TODO: This is only a temporary method.
     fn allocate_new_frame(&mut self, target: BinaryField32b) -> Result<(), InterpreterError> {
-        // We need the +16 because the frame size we read corresponds to the largest offset accessed within the frame,
-        // and the largest possible object is a BF128.
+        // We need the +16 because the frame size we read corresponds to the largest
+        // offset accessed within the frame, and the largest possible object is
+        // a BF128.
         // TODO: Figure out the exact size of the last object.
         let (frame_size, opt_args_size) = self
             .frames

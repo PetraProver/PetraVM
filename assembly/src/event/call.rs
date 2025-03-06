@@ -5,7 +5,7 @@ use crate::{
     event::Event,
 };
 
-// Struture of an event for TAILI.
+/// Event for TAILI.
 #[derive(Debug, Clone)]
 pub(crate) struct TailiEvent {
     pc: BinaryField32b,

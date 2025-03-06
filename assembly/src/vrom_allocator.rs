@@ -4,9 +4,11 @@ use std::collections::BTreeMap;
 const MIN_FRAME_SIZE: u32 = 8;
 
 /// VromAllocator allocates VROM addresses for objects, ensuring that:
-/// - The object's size is padded to the next power-of-two (with a minimum of MIN_FRAME_SIZE),
+/// - The object's size is padded to the next power-of-two (with a minimum of
+///   MIN_FRAME_SIZE),
 /// - Available slack regions are reused when possible,
-/// - The allocation pointer is aligned (least significant log₂(padded size) bits are cleared).
+/// - The allocation pointer is aligned (least significant log₂(padded size)
+///   bits are cleared).
 pub struct VromAllocator {
     /// The next free allocation pointer.
     pos: u32,
@@ -30,10 +32,10 @@ impl VromAllocator {
     /// 1. Compute `p`, the padded size (power-of-two ≥ MIN_FRAME_SIZE).
     /// 2. Attempt to reuse a slack block of size ≥ `p`.
     /// 3. If found, split off any leftover external slack.
-    /// 4. Otherwise, align the allocation pointer (by clearing the least significant
-    ///    log₂(padded size) bits) and allocate a fresh block.
-    /// 5. In either case, record any internal slack between (allocated_addr + requested_size)
-    ///    and (allocated_addr + p).
+    /// 4. Otherwise, align the allocation pointer (by clearing the least
+    ///    significant log₂(padded size) bits) and allocate a fresh block.
+    /// 5. In either case, record any internal slack between (allocated_addr +
+    ///    requested_size) and (allocated_addr + p).
     pub fn alloc(&mut self, requested_size: u32) -> u32 {
         // p: padded size (power-of-two, at least MIN_FRAME_SIZE).
         let p = requested_size.next_power_of_two().max(MIN_FRAME_SIZE);
@@ -69,7 +71,8 @@ impl VromAllocator {
         allocated_addr
     }
 
-    /// Helper to record internal slack (unused portion within the padded block).
+    /// Helper to record internal slack (unused portion within the padded
+    /// block).
     fn record_internal_slack(
         &mut self,
         allocated_addr: u32,
@@ -99,22 +102,24 @@ impl VromAllocator {
     }
 }
 
-/// Aligns `pos` to the next multiple of `alignment` (which must be a power-of-two).
+/// Aligns `pos` to the next multiple of `alignment` (which must be a
+/// power-of-two).
 #[inline(always)]
 fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
 
-/// Splits the interval [addr, addr + size) into power-of-two blocks with proper alignment.
+/// Splits the interval [addr, addr + size) into power-of-two blocks with proper
+/// alignment.
 ///
 /// Blocks smaller than MIN_FRAME_SIZE are dropped.
 ///
 /// # Examples
 ///
-/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the remaining 4
-///   bytes are dropped.
-/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4), (8,8)]`, but the
-///   4-byte block is dropped, resulting in `[(8,8)]`.
+/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the
+///   remaining 4 bytes are dropped.
+/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
+///   (8,8)]`, but the 4-byte block is dropped, resulting in `[(8,8)]`.
 fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
     let mut blocks = Vec::new();
     let mut current_addr = addr;
@@ -144,8 +149,9 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rand::Rng;
+
+    use super::*;
 
     #[test]
     fn test_align_to() {
@@ -197,14 +203,14 @@ mod tests {
         let addr1 = allocator.alloc(17);
         assert_eq!(addr1, 0);
         assert_eq!(allocator.pos, 32);
-        // Expected internal slack: split_into_power_of_two_blocks(17,15) yields [(24,8)].
-        // Thus, key 3 (2^3 = 8) should hold [24].
+        // Expected internal slack: split_into_power_of_two_blocks(17,15) yields
+        // [(24,8)]. Thus, key 3 (2^3 = 8) should hold [24].
         assert_eq!(allocator.slack.get(&3), Some(&vec![24]));
 
         // --- Step 2: alloc(33) ---
         // p = 64, current pos=32 is aligned to 64 producing a gap of 32.
-        // External slack from gap: split_into_power_of_two_blocks(32,32) yields [(32,32)] → key 5.
-        // Allocation occurs at 64, pos becomes 128.
+        // External slack from gap: split_into_power_of_two_blocks(32,32) yields
+        // [(32,32)] → key 5. Allocation occurs at 64, pos becomes 128.
         // Internal slack from (64+33, 64+64) = (97,31) splits into [(104,8), (112,16)]
         // → key 3 gets 104 and key 4 gets 112.
         let addr2 = allocator.alloc(33);
@@ -212,7 +218,8 @@ mod tests {
         assert_eq!(allocator.pos, 128);
         // Check external slack: key 5 should be [32].
         assert_eq!(allocator.slack.get(&5), Some(&vec![32]));
-        // Check internal slack: key 3 now should contain [24,104] (order sorted for comparison)
+        // Check internal slack: key 3 now should contain [24,104] (order sorted for
+        // comparison)
         if let Some(mut key3) = allocator.slack.get(&3).cloned() {
             key3.sort();
             assert_eq!(key3, vec![24, 104]);
@@ -224,7 +231,8 @@ mod tests {
 
         // --- Step 3: alloc(16) ---
         // p = 16, slack lookup from key 4 finds block [112].
-        // Allocation reuses that block; no external or internal slack is recorded (16-16=0).
+        // Allocation reuses that block; no external or internal slack is recorded
+        // (16-16=0).
         let addr3 = allocator.alloc(16);
         assert_eq!(addr3, 112);
         assert_eq!(allocator.pos, 128);
@@ -296,8 +304,9 @@ mod tests {
             );
         }
 
-        // Check space efficiency: compute ratio of total allocated space vs. total requested.
-        // (Note: some overhead is expected due to padding and slack.)
+        // Check space efficiency: compute ratio of total allocated space vs. total
+        // requested. (Note: some overhead is expected due to padding and
+        // slack.)
         let ratio = allocator.pos as f64 / total_requested as f64;
         println!(
             "Total allocated: {}, total requested: {}, ratio: {:.3}",
