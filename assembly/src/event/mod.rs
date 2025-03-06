@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::emulator::{InterpreterChannels, InterpreterTables};
@@ -13,13 +15,31 @@ pub(crate) mod sli;
 pub trait Event {
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
+pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
+    fn operation(left: Self::Left, right: Self::Right) -> Self::Output;
+}
 
-pub(crate) trait BinaryOperation<T: From<BinaryField16b>>: Sized {
-    fn operation(left: BinaryField32b, right: T) -> BinaryField32b;
+pub(crate) trait LeftOp {
+    type Left;
+
+    fn left(&self) -> Self::Left;
+}
+
+pub(crate) trait RigthOp {
+    type Right;
+
+    fn right(&self) -> Self::Right;
+}
+
+pub(crate) trait OutputOp {
+    type Output: PartialEq + Debug;
+    fn output(&self) -> Self::Output;
 }
 
 // TODO: Add type paraeter for operation over other fields?
-pub(crate) trait ImmediateBinaryOperation: BinaryOperation<BinaryField16b> {
+pub(crate) trait ImmediateBinaryOperation:
+    BinaryOperation<Left = BinaryField32b, Right = BinaryField16b, Output = BinaryField32b>
+{
     // TODO: Add some trick to implement new only once
     fn new(
         timestamp: u32,
@@ -57,13 +77,14 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation<BinaryField16b> {
         interpreter
             .vrom
             .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
-        // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         event
     }
 }
 
-pub(crate) trait NonImmediateBinaryOperation: BinaryOperation<BinaryField32b> {
+pub(crate) trait NonImmediateBinaryOperation:
+    BinaryOperation<Left = BinaryField32b, Right = BinaryField32b, Output = BinaryField32b>
+{
     // TODO: Add some trick to implement new only once
     fn new(
         timestamp: u32,
@@ -104,7 +125,6 @@ pub(crate) trait NonImmediateBinaryOperation: BinaryOperation<BinaryField32b> {
         interpreter
             .vrom
             .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
-        // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         event
     }
@@ -113,6 +133,7 @@ pub(crate) trait NonImmediateBinaryOperation: BinaryOperation<BinaryField32b> {
 #[macro_export]
 macro_rules! impl_immediate_binary_operation {
     ($t:ty) => {
+        crate::impl_left_right_output_for_imm_bin_op!($t);
         impl crate::event::ImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
@@ -140,8 +161,39 @@ macro_rules! impl_immediate_binary_operation {
 }
 
 #[macro_export]
-macro_rules! impl_non_immediate_binary_operation {
+macro_rules! impl_32b_immediate_binary_operation {
     ($t:ty) => {
+        crate::impl_left_right_output_for_b32imm_bin_op!($t);
+        impl $t {
+            fn new(
+                timestamp: u32,
+                pc: BinaryField32b,
+                fp: u32,
+                dst: u16,
+                dst_val: u32,
+                src: u16,
+                src_val: u32,
+                imm: u32,
+            ) -> Self {
+                Self {
+                    timestamp,
+                    pc,
+                    fp,
+                    dst,
+                    dst_val,
+                    src,
+                    src_val,
+                    imm,
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_binary_operation {
+    ($t:ty) => {
+        crate::impl_left_right_output_for_bin_op!($t);
         impl crate::event::NonImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
@@ -171,37 +223,94 @@ macro_rules! impl_non_immediate_binary_operation {
 }
 
 #[macro_export]
-macro_rules! impl_event_for_binary_operation {
+macro_rules! impl_left_right_output_for_imm_bin_op {
     ($t:ty) => {
-        impl Event for $t {
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-                assert_eq!(
-                    self.dst_val,
-                    Self::operation(
-                        BinaryField32b::new(self.src_val),
-                        BinaryField16b::new(self.imm)
-                    )
-                    .val()
-                );
-                fire_non_jump_event!(self, channels);
+        impl crate::event::LeftOp for $t {
+            type Left = BinaryField32b;
+            fn left(&self) -> BinaryField32b {
+                BinaryField32b::new(self.src_val)
+            }
+        }
+        impl crate::event::RigthOp for $t {
+            type Right = BinaryField16b;
+
+            fn right(&self) -> BinaryField16b {
+                BinaryField16b::new(self.imm)
+            }
+        }
+        impl crate::event::OutputOp for $t {
+            type Output = BinaryField32b;
+
+            fn output(&self) -> BinaryField32b {
+                BinaryField32b::new(self.dst_val)
             }
         }
     };
 }
 
 #[macro_export]
-macro_rules! impl_event_for_binary_operation_32b {
+macro_rules! impl_left_right_output_for_b32imm_bin_op {
     ($t:ty) => {
-        impl Event for $t {
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-                assert_eq!(
-                    self.dst_val,
-                    Self::operation(
-                        BinaryField32b::new(self.src1_val),
-                        BinaryField32b::new(self.src2_val)
-                    )
-                    .val()
-                );
+        impl crate::event::LeftOp for $t {
+            type Left = BinaryField32b;
+            fn left(&self) -> BinaryField32b {
+                BinaryField32b::new(self.src_val)
+            }
+        }
+        impl crate::event::RigthOp for $t {
+            type Right = BinaryField32b;
+
+            fn right(&self) -> BinaryField32b {
+                BinaryField32b::new(self.imm)
+            }
+        }
+        impl crate::event::OutputOp for $t {
+            type Output = BinaryField32b;
+
+            fn output(&self) -> BinaryField32b {
+                BinaryField32b::new(self.dst_val)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_left_right_output_for_bin_op {
+    ($t:ty) => {
+        impl crate::event::LeftOp for $t {
+            type Left = BinaryField32b;
+            fn left(&self) -> BinaryField32b {
+                BinaryField32b::new(self.src1_val)
+            }
+        }
+        impl crate::event::RigthOp for $t {
+            type Right = BinaryField32b;
+
+            fn right(&self) -> BinaryField32b {
+                BinaryField32b::new(self.src2_val)
+            }
+        }
+        impl crate::event::OutputOp for $t {
+            type Output = BinaryField32b;
+
+            fn output(&self) -> BinaryField32b {
+                BinaryField32b::new(self.dst_val)
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_event_for_binary_operation {
+    ($ty:ty) => {
+        impl crate::event::Event for $ty {
+            fn fire(
+                &self,
+                channels: &mut crate::emulator::InterpreterChannels,
+                _tables: &crate::emulator::InterpreterTables,
+            ) {
+                use crate::event::{LeftOp, OutputOp, RigthOp};
+                assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 fire_non_jump_event!(self, channels);
             }
         }

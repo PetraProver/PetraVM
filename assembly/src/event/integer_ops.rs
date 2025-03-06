@@ -5,8 +5,9 @@ use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
-    fire_non_jump_event, impl_event_for_binary_operation, impl_event_for_binary_operation_32b,
+    fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+    impl_left_right_output_for_bin_op,
 };
 
 use super::BinaryOperation;
@@ -110,13 +111,14 @@ pub(crate) struct AddiEvent {
     imm: u16,
 }
 
-impl BinaryOperation<BinaryField16b> for AddiEvent {
+impl BinaryOperation for AddiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         BinaryField32b::new(val.val() + imm.val() as u32)
     }
 }
 
 impl_immediate_binary_operation!(AddiEvent);
+
 impl_event_for_binary_operation!(AddiEvent);
 
 impl AddiEvent {
@@ -164,71 +166,75 @@ pub(crate) struct AddEvent {
     pub(crate) src2_val: u32,
 }
 
-impl AddEvent {
-    pub fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u32,
-        src1: u16,
-        src1_val: u32,
-        src2: u16,
-        src2_val: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src1,
-            src1_val,
-            src2,
-            src2_val,
-        }
-    }
+// impl AddEvent {
+//     pub fn new(
+//         pc: BinaryField32b,
+//         fp: u32,
+//         timestamp: u32,
+//         dst: u16,
+//         dst_val: u32,
+//         src1: u16,
+//         src1_val: u32,
+//         src2: u16,
+//         src2_val: u32,
+//     ) -> Self {
+//         Self {
+//             pc,
+//             fp,
+//             timestamp,
+//             dst,
+//             dst_val,
+//             src1,
+//             src1_val,
+//             src2,
+//             src2_val,
+//         }
+//     }
 
-    pub fn generate_event(
-        interpreter: &mut Interpreter,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Self {
-        let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let src1_val = interpreter.vrom.get(fp_field + src1);
+//     pub fn generate_event(
+//         interpreter: &mut Interpreter,
+//         dst: BinaryField16b,
+//         src1: BinaryField16b,
+//         src2: BinaryField16b,
+//     ) -> Self {
+//         let fp = interpreter.fp;
+//         let fp_field = BinaryField32b::new(fp);
+//         let src1_val = interpreter.vrom.get(fp_field + src1);
 
-        let src2_val = interpreter.vrom.get(fp_field + src2);
-        // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src1_val + src2_val as u32;
-        interpreter.vrom.set(fp_field + dst, dst_val);
+//         let src2_val = interpreter.vrom.get(fp_field + src2);
+//         // The following addition is checked thanks to the ADD32 table.
+//         let dst_val = src1_val + src2_val as u32;
+//         interpreter.vrom.set(fp_field + dst, dst_val);
 
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
-        interpreter.incr_pc();
+//         let pc = interpreter.pc;
+//         let timestamp = interpreter.timestamp;
+//         interpreter.incr_pc();
 
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-        }
-    }
-}
+//         Self {
+//             pc,
+//             fp,
+//             timestamp,
+//             dst: dst.val(),
+//             dst_val,
+//             src1: src1.val(),
+//             src1_val,
+//             src2: src2.val(),
+//             src2_val,
+//         }
+//     }
+// }
 
-impl BinaryOperation<BinaryField32b> for AddEvent {
+impl BinaryOperation for AddEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val() + val2.val() as u32)
+        BinaryField32b::new(val1.val() + val2.val())
     }
 }
 
-impl_event_for_binary_operation_32b!(AddEvent);
+// impl_left_right_output_for_bin_op!(AddEvent);
+// Note: The addition is checked thanks to the ADD32 table.
+impl_binary_operation!(AddEvent);
+
+impl_event_for_binary_operation!(AddEvent);
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]

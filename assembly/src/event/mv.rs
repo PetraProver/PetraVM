@@ -2,7 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
-    event::Event, fire_non_jump_event,
+    event::Event,
+    fire_non_jump_event,
 };
 
 // Struture of an event for MVV.W.
