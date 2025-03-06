@@ -164,6 +164,7 @@ pub(crate) struct AddEvent {
 }
 
 impl AddEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -251,6 +252,7 @@ pub(crate) struct MuliEvent {
 }
 
 impl MuliEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -325,8 +327,8 @@ fn schoolbook_multiplication_intermediate_sums(
     let ys = imm_val.to_le_bytes();
 
     let mut aux = [0; 4];
-    /// Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
-    /// containing the summands that wont't overlap
+    // Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
+    // containing the summands that wont't overlap
     for i in 0..2 {
         aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
         aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;

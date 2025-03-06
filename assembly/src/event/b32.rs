@@ -4,7 +4,7 @@ use crate::{
     fire_non_jump_event, impl_event_for_binary_operation, impl_immediate_binary_operation,
 };
 
-use super::{BinaryOperation, ImmediateBinaryOperation};
+use super::BinaryOperation;
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {

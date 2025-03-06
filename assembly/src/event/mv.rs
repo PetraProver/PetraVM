@@ -20,6 +20,7 @@ pub(crate) struct MVVWEvent {
 }
 
 impl MVVWEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,

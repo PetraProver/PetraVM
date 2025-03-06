@@ -26,6 +26,7 @@ pub struct SliEvent {
 }
 
 impl SliEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -89,7 +90,7 @@ impl SliEvent {
 }
 
 impl Event for SliEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));

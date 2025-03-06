@@ -41,6 +41,7 @@ pub(crate) trait ImmediateBinaryOperation:
     BinaryOperation<Left = BinaryField32b, Right = BinaryField16b, Output = BinaryField32b>
 {
     // TODO: Add some trick to implement new only once
+    #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,
         pc: BinaryField32b,
