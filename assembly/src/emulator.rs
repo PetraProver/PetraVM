@@ -41,6 +41,7 @@ pub struct InterpreterTables {
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u16)]
+#[allow(clippy::upper_case_acronyms)]
 pub enum Opcode {
     #[default]
     Bnz = 0x01,
@@ -832,12 +833,12 @@ mod tests {
         traces.validate(boundary_values);
 
         assert!(traces.shift.len() == expected_evens.len()); // There are 4 even cases.
-        for i in 0..expected_evens.len() {
-            assert!(traces.shift[i].src_val == expected_evens[i]);
+        for (i, &even) in expected_evens.iter().enumerate() {
+            assert!(traces.shift[i].src_val == even);
         }
         assert!(traces.muli.len() == expected_odds.len()); // There is 1 odd case.
-        for i in 0..expected_odds.len() {
-            assert!(traces.muli[i].src_val == expected_odds[i]);
+        for (i, &odd) in expected_odds.iter().enumerate() {
+            assert!(traces.muli[i].src_val == odd);
         }
 
         let nb_frames = expected_evens.len() + expected_odds.len();
