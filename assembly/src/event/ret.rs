@@ -16,27 +16,21 @@ pub struct RetEvent {
 impl RetEvent {
     pub fn new(interpreter: &Interpreter) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
         Self {
             pc: interpreter.pc,
             fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom.get(fp_field),
-            fp_1_val: interpreter.vrom.get(fp_field + BinaryField32b::ONE),
+            fp_0_val: interpreter.vrom.get_u32(fp),
+            fp_1_val: interpreter.vrom.get_u32(fp + 4),
         }
     }
 
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        if fp as usize + 1 > interpreter.vrom.len() {
-            interpreter
-                .vrom
-                .extend(&vec![0u32; fp as usize - interpreter.vrom.len() + 2]);
-        }
+
         let ret_event = RetEvent::new(&interpreter);
-        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get(fp_field)));
-        interpreter.fp = interpreter.vrom.get(fp_field + BinaryField32b::ONE);
+        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get_u32(fp)));
+        interpreter.fp = interpreter.vrom.get_u32(fp + 4);
 
         ret_event
     }

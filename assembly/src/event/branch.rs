@@ -35,8 +35,7 @@ impl BnzEvent {
         cond: BinaryField16b,
         target: BinaryField32b,
     ) -> BnzEvent {
-        let fp_field = BinaryField32b::new(interpreter.fp);
-        let cond_val = interpreter.vrom.get(fp_field + cond);
+        let cond_val = interpreter.vrom.get_u32(interpreter.fp ^ cond.val() as u32);
         let event = BnzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
@@ -74,12 +73,12 @@ impl BzEvent {
         cond: BinaryField16b,
         target: BinaryField32b,
     ) -> BzEvent {
-        let fp_field = BinaryField32b::new(interpreter.fp);
-        let cond_val = interpreter.vrom.get(fp_field + cond);
+        let fp = interpreter.fp;
+        let cond_val = interpreter.vrom.get_u32(fp ^ cond.val() as u32);
         let event = BzEvent {
             timestamp: interpreter.timestamp,
             pc: interpreter.pc,
-            fp: interpreter.fp,
+            fp,
             cond: cond.val(),
             cond_val,
             target,

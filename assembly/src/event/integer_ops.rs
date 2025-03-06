@@ -129,11 +129,10 @@ impl AddiEvent {
         imm: BinaryField16b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let src_val = interpreter.vrom.get(fp_field + src);
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        interpreter.vrom.set(fp_field + dst, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -198,13 +197,12 @@ impl AddEvent {
         src2: BinaryField16b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let src1_val = interpreter.vrom.get(fp_field + src1);
+        let src1_val = interpreter.vrom.get_u32(fp ^ src1.val() as u32);
 
-        let src2_val = interpreter.vrom.get(fp_field + src2);
+        let src2_val = interpreter.vrom.get_u32(fp ^ src2.val() as u32);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src1_val + src1_val as u32;
-        interpreter.vrom.set(fp_field + dst, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -289,13 +287,13 @@ impl MuliEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Self {
-        let fp = BinaryField32b::new(interpreter.fp);
-        let src_val = interpreter.vrom.get(fp + src);
+        let fp = interpreter.fp;
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32;
 
-        interpreter.vrom.set(fp + dst, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let xs = [
             src_val as u8,
@@ -322,7 +320,7 @@ impl MuliEvent {
         interpreter.incr_pc();
         Self {
             pc,
-            fp: fp.val(),
+            fp: fp,
             timestamp,
             dst: dst.val(),
             dst_val,

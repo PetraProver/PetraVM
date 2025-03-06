@@ -17,9 +17,7 @@ pub trait Event {
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
 pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
-    
     fn operation(left: Self::Left, right: Self::Right) -> Self::Output;
-
 }
 
 pub(crate) trait LeftOp {
@@ -39,9 +37,10 @@ pub(crate) trait OutputOp {
     fn output(&self) -> Self::Output;
 }
 
-
 // TODO: Add type paraeter for operation over other fields?
-pub(crate) trait ImmediateBinaryOperation: BinaryOperation<Left = BinaryField32b, Right = BinaryField16b, Output = BinaryField32b> {
+pub(crate) trait ImmediateBinaryOperation:
+    BinaryOperation<Left = BinaryField32b, Right = BinaryField16b, Output = BinaryField32b>
+{
     // TODO: Add some trick to implement new only once
     fn new(
         timestamp: u32,
@@ -60,12 +59,8 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation<Left = BinaryField32b
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Self {
-        let src_val = BinaryField32b::new(
-            interpreter
-                .vrom
-                .get(BinaryField32b::new(interpreter.fp) + src),
-        );
-        let dst_val = Self::operation(src_val, imm.into());
+        let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
+        let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
             interpreter.pc,
@@ -73,12 +68,12 @@ pub(crate) trait ImmediateBinaryOperation: BinaryOperation<Left = BinaryField32b
             dst.val(),
             dst_val.clone().val(),
             src.val(),
-            src_val.val(),
+            src_val,
             imm.into(),
         );
         interpreter
             .vrom
-            .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.into());
+            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
         interpreter.incr_pc();
         event
     }
@@ -170,15 +165,13 @@ macro_rules! impl_left_right_output_for_bin_op {
 macro_rules! impl_event_for_binary_operation {
     ($ty:ty) => {
         impl crate::event::Event for $ty {
-            fn fire(&self, channels: &mut crate::emulator::InterpreterChannels, _tables: &crate::emulator::InterpreterTables) {
-                use crate::event::{OutputOp, LeftOp, RigthOp};
-                assert_eq!(
-                    self.output(),
-                    Self::operation(
-                        self.left(),
-                        self.right()
-                    )
-                );
+            fn fire(
+                &self,
+                channels: &mut crate::emulator::InterpreterChannels,
+                _tables: &crate::emulator::InterpreterTables,
+            ) {
+                use crate::event::{LeftOp, OutputOp, RigthOp};
+                assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 fire_non_jump_event!(self, channels);
             }
         }
