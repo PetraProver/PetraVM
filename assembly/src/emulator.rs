@@ -368,6 +368,7 @@ impl Interpreter {
         Ok(())
     }
 
+    // TODO: This is only a temporary method.
     fn allocate_new_frame(&mut self, target: BinaryField32b) -> Result<(), InterpreterError> {
         // TODO: for now, we assume that all values are u32. Needs to change when we support multiple gramularities.
         // We need the +1 because the frame size we read corresponds to the largest offset accessed within the frame.
@@ -520,7 +521,7 @@ impl ZCrayTrace {
         self.bnz
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
-        
+
         self.bz
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
