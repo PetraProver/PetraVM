@@ -140,6 +140,37 @@ macro_rules! impl_immediate_binary_operation {
 }
 
 #[macro_export]
+macro_rules! impl_non_immediate_binary_operation {
+    ($t:ty) => {
+        impl crate::event::NonImmediateBinaryOperation for $t {
+            fn new(
+                timestamp: u32,
+                pc: BinaryField32b,
+                fp: u32,
+                dst: u16,
+                dst_val: u32,
+                src1: u16,
+                src1_val: u32,
+                src2: u16,
+                src2_val: u32,
+            ) -> Self {
+                Self {
+                    timestamp,
+                    pc,
+                    fp,
+                    dst,
+                    dst_val,
+                    src1,
+                    src1_val,
+                    src2,
+                    src2_val,
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! impl_event_for_binary_operation {
     ($t:ty) => {
         impl Event for $t {
@@ -149,6 +180,25 @@ macro_rules! impl_event_for_binary_operation {
                     Self::operation(
                         BinaryField32b::new(self.src_val),
                         BinaryField16b::new(self.imm)
+                    )
+                    .val()
+                );
+                fire_non_jump_event!(self, channels);
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_event_for_binary_operation_32b {
+    ($t:ty) => {
+        impl Event for $t {
+            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+                assert_eq!(
+                    self.dst_val,
+                    Self::operation(
+                        BinaryField32b::new(self.src1_val),
+                        BinaryField32b::new(self.src2_val)
                     )
                     .val()
                 );

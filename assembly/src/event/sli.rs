@@ -103,7 +103,17 @@ impl ImmediateBinaryOperation for SliEvent {
         src_val: u32,
         imm: u16,
     ) -> Self {
-        Self::new(pc, fp, timestamp, dst, dst_val.into(), src, src_val, imm.into(), ShiftKind::Left)
+        Self::new(
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_val.into(),
+            src,
+            src_val,
+            imm.into(),
+            ShiftKind::Left,
+        )
     }
 }
 

@@ -5,7 +5,7 @@ use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
-    fire_non_jump_event, impl_event_for_binary_operation,
+    fire_non_jump_event, impl_event_for_binary_operation, impl_event_for_binary_operation_32b,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
 };
 
@@ -117,7 +117,6 @@ impl BinaryOperation<BinaryField16b> for AddiEvent {
 }
 
 impl_immediate_binary_operation!(AddiEvent);
-
 impl_event_for_binary_operation!(AddiEvent);
 
 impl AddiEvent {
@@ -223,7 +222,13 @@ impl AddEvent {
     }
 }
 
-impl_event_no_interaction_with_state_channel!(AddEvent);
+impl BinaryOperation<BinaryField32b> for AddEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        BinaryField32b::new(val1.val() + val2.val() as u32)
+    }
+}
+
+impl_event_for_binary_operation_32b!(AddEvent);
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]
