@@ -1,9 +1,8 @@
-use std::ops::Add;
 
-use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
     fire_non_jump_event, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
@@ -36,7 +35,7 @@ impl Add64Event {
     pub fn generate_event(interpreter: &mut Interpreter, input1: u64, input2: u64) -> Self {
         let (output, carry) = input1.overflowing_add(input2);
 
-        let cout = (output ^ input1 ^ input2) >> 1 + (carry as u64) << 63;
+        let cout = (output ^ input1 ^ input2) >> (1 + (carry as u64)) << 63;
 
         let timestamp = interpreter.timestamp;
 
@@ -82,7 +81,7 @@ impl Add32Event {
         let inp2 = input2.val();
         let (output, carry) = inp1.overflowing_add(inp2);
 
-        let cout = (output ^ inp1 ^ inp2) >> 1 + (carry as u32) << 31;
+        let cout = (output ^ inp1 ^ inp2) >> (1 + (carry as u32)) << 31;
 
         let timestamp = interpreter.timestamp;
 
@@ -201,7 +200,7 @@ impl AddEvent {
 
         let src2_val = interpreter.vrom.get_u32(fp ^ src2.val() as u32);
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src1_val + src1_val as u32;
+        let dst_val = src1_val + src1_val;
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let pc = interpreter.pc;
@@ -303,7 +302,7 @@ impl MuliEvent {
         interpreter.incr_pc();
         Self {
             pc,
-            fp: fp,
+            fp,
             timestamp,
             dst: dst.val(),
             dst_val,

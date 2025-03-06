@@ -136,7 +136,7 @@ fn main() {
     );
 
     for (key, val) in prom.iter() {
-        let expected_val = expected_prom.get(&key).expect("Extra value in prom");
+        let expected_val = expected_prom.get(key).expect("Extra value in prom");
         assert_eq!(
             *val, *expected_val,
             "Value for key {:?} in PROM is {:?} but is {:?} in expected PROM",

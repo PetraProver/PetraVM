@@ -4,7 +4,7 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use crate::{
-    emulator::{Instruction, Opcode, ProgramRom},
+    emulator::{Opcode, ProgramRom},
     instruction_args::{Immediate, Slot, SlotWithOffset},
     G,
 };
@@ -99,7 +99,7 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::AddI { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Addi.get_field_elt(),
@@ -107,13 +107,13 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::AndI { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Andi.get_field_elt(),
@@ -121,14 +121,14 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         // To change
         InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Muli.get_field_elt(),
@@ -136,7 +136,7 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -146,7 +146,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
 
-                if let Some(_) = prom.insert(
+                if prom.insert(
                     *pc,
                     [
                         Opcode::Bnz.get_field_elt(),
@@ -154,7 +154,7 @@ pub fn get_prom_inst_from_inst_with_label(
                         targets_16b[0],
                         targets_16b[1],
                     ],
-                ) {
+                ).is_some() {
                     return Err(format!("Already encountered PC {:?}", pc));
                 }
             } else {
@@ -163,7 +163,7 @@ pub fn get_prom_inst_from_inst_with_label(
             *pc *= G;
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Muli.get_field_elt(),
@@ -171,13 +171,13 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::MvvW { dst, src } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::MVVW.get_field_elt(),
@@ -185,13 +185,13 @@ pub fn get_prom_inst_from_inst_with_label(
                     dst.get_offset_field_val(),
                     src.get_16bfield_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::SllI { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Slli.get_field_elt(),
@@ -199,13 +199,13 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::SrlI { dst, src1, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Srli.get_field_elt(),
@@ -213,13 +213,13 @@ pub fn get_prom_inst_from_inst_with_label(
                     src1.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::Ret => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Ret.get_field_elt(),
@@ -227,7 +227,7 @@ pub fn get_prom_inst_from_inst_with_label(
                     BinaryField16b::zero(),
                     BinaryField16b::zero(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -237,7 +237,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
 
-                if let Some(_) = prom.insert(
+                if prom.insert(
                     *pc,
                     [
                         Opcode::Taili.get_field_elt(),
@@ -245,7 +245,7 @@ pub fn get_prom_inst_from_inst_with_label(
                         targets_16b[1],
                         arg.get_16bfield_val(),
                     ],
-                ) {
+                ).is_some() {
                     return Err(format!("Already encountered PC {:?}", pc));
                 }
             } else {
@@ -257,7 +257,7 @@ pub fn get_prom_inst_from_inst_with_label(
             *pc *= G;
         }
         InstructionsWithLabels::XorI { dst, src, imm } => {
-            if let Some(_) = prom.insert(
+            if prom.insert(
                 *pc,
                 [
                     Opcode::Xori.get_field_elt(),
@@ -265,7 +265,7 @@ pub fn get_prom_inst_from_inst_with_label(
                     src.get_16bfield_val(),
                     imm.get_field_val(),
                 ],
-            ) {
+            ).is_some() {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -275,7 +275,7 @@ pub fn get_prom_inst_from_inst_with_label(
     Ok(())
 }
 
-type Labels = HashMap<String, (BinaryField32b)>;
+type Labels = HashMap<String, BinaryField32b>;
 // Gives the number of arguments + return values for each label.
 type LabelsArgs = HashMap<BinaryField32b, u16>;
 // PC, Frame size, number of args + return values.
@@ -332,7 +332,7 @@ pub fn get_frame_size_for_label(
     // We know that there was no key `label_pc` before, since it was the first thing we checked in this method.
     labels_fps.insert(
         label_pc,
-        (cur_offset, labels_args.get(&label_pc).map(|v| *v)),
+        (cur_offset, labels_args.get(&label_pc).copied()),
     );
 
     cur_offset
@@ -357,7 +357,7 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<Labels, String>
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s) => {
-                if let Some(_) = labels.insert(s.clone(), pc) {
+                if labels.insert(s.clone(), pc).is_some() {
                     return Err(format!("Label {} already exists.", s));
                 }
                 // We do not increment the PC if we found a label.

@@ -1,12 +1,10 @@
-use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{InterpreterChannels, InterpreterTables},
     fire_non_jump_event, impl_event_for_binary_operation, impl_immediate_binary_operation,
-    impl_left_right_output_for_imm_bin_op,
 };
 
-use super::{BinaryOperation, Event, ImmediateBinaryOperation};
+use super::{BinaryOperation, ImmediateBinaryOperation};
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {

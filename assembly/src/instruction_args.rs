@@ -81,11 +81,11 @@ impl std::fmt::Display for Immediate {
 impl std::str::FromStr for Immediate {
     type Err = BadArgumentError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let is_field = s.chars().last().unwrap() == 'G';
+        let is_field = s.ends_with('G');
         let s = s.trim_start_matches('#').trim_end_matches("G");
         let int_val = i16::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))?;
         if is_field {
-            let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.abs() as u64);
+            let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.unsigned_abs() as u64);
             if int_val < 0 {
                 Ok(Immediate(
                     v.invert().expect("We already ensured v is not 0.").val() as u16,
@@ -101,7 +101,7 @@ impl std::str::FromStr for Immediate {
 
 impl Immediate {
     pub(crate) fn get_field_val(&self) -> BinaryField16b {
-        BinaryField16b::new(self.0 as u16)
+        BinaryField16b::new(self.0)
     }
 }
 

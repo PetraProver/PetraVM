@@ -2,8 +2,6 @@ use std::{
     array::from_fn,
     collections::HashMap,
     hash::Hash,
-    iter::Enumerate,
-    ops::{Index, IndexMut},
 };
 
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
@@ -34,30 +32,18 @@ type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall
 type VromChannel = Channel<u32>;
 type StateChannel = Channel<(BinaryField32b, u32, u32)>; // PC, FP, Timestamp
 
+#[derive(Default)]
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
 }
 
-impl Default for InterpreterChannels {
-    fn default() -> Self {
-        InterpreterChannels {
-            state_channel: StateChannel::default(),
-        }
-    }
-}
 
 type VromTable32 = HashMap<u32, u32>;
+#[derive(Default)]
 pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
-impl Default for InterpreterTables {
-    fn default() -> Self {
-        InterpreterTables {
-            vrom_table_32: VromTable32::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u16)]
@@ -242,7 +228,7 @@ impl Interpreter {
     pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
         let mut trace = ZCrayTrace::default();
         self.allocate_new_frame(self.pc)?;
-        while let Some(_) = self.step(&mut trace)? {
+        while (self.step(&mut trace)?).is_some() {
             if self.is_halted() {
                 return Ok(trace);
             }
@@ -279,7 +265,7 @@ impl Interpreter {
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let &[_, cond, target_low, target_high] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&vec![target_low, target_high])
+        let target = BinaryField32b::from_bases(&[target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32);
         if cond_val != 0 {
@@ -328,7 +314,7 @@ impl Interpreter {
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, target_low, target_high, next_fp] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&vec![*target_low, *target_high])
+        let target = BinaryField32b::from_bases(&[*target_low, *target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
         self.allocate_new_frame(target)?;
