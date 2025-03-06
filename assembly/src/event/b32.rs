@@ -1,6 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
 
-use crate::{emulator::{InterpreterChannels, InterpreterTables}, fire_non_jump_event, impl_event_for_binary_operation, impl_immediate_binary_operation};
+use crate::{emulator::{InterpreterChannels, InterpreterTables}, fire_non_jump_event, impl_event_for_binary_operation, impl_immediate_binary_operation, impl_left_right_output_for_imm_bin_op};
 
 use super::{BinaryOperation, Event, ImmediateBinaryOperation};
 
@@ -16,13 +16,14 @@ pub(crate) struct XoriEvent {
     imm: u16,
 }
 
-impl_immediate_binary_operation!(XoriEvent);
+impl BinaryOperation for XoriEvent {
 
-impl BinaryOperation<BinaryField16b> for XoriEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         val + imm
     }
 }
+
+impl_immediate_binary_operation!(XoriEvent);
 
 impl_event_for_binary_operation!(XoriEvent);
 
@@ -38,9 +39,8 @@ pub(crate) struct AndiEvent {
     imm: u16,
 }
 
-impl_immediate_binary_operation!(AndiEvent);
+impl BinaryOperation for AndiEvent {
 
-impl BinaryOperation<BinaryField16b> for AndiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         let imm_32b = BinaryField32b::from(imm);
         let and_bits = <BinaryField32b as ExtensionField<BinaryField1b>>::iter_bases(&val)
@@ -50,6 +50,8 @@ impl BinaryOperation<BinaryField16b> for AndiEvent {
         BinaryField32b::from_bases(&and_bits).expect("hello")
     }
 }
+
+impl_immediate_binary_operation!(AndiEvent);
 
 impl_event_for_binary_operation!(AndiEvent);
 
@@ -67,7 +69,8 @@ pub(crate) struct B32MuliEvent {
 
 impl_immediate_binary_operation!(B32MuliEvent);
 
-impl BinaryOperation<BinaryField16b> for B32MuliEvent {
+impl BinaryOperation for B32MuliEvent {
+    
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         val * imm
     }

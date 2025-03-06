@@ -6,7 +6,7 @@ use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
     fire_non_jump_event, impl_event_for_binary_operation,
-    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, impl_left_right_output_for_bin_op,
 };
 
 use super::BinaryOperation;
@@ -110,10 +110,12 @@ pub(crate) struct AddiEvent {
     imm: u16,
 }
 
-impl BinaryOperation<BinaryField16b> for AddiEvent {
+impl BinaryOperation for AddiEvent {
+    
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         BinaryField32b::new(val.val() + imm.val() as u32)
     }
+
 }
 
 impl_immediate_binary_operation!(AddiEvent);
@@ -223,7 +225,16 @@ impl AddEvent {
     }
 }
 
-impl_event_no_interaction_with_state_channel!(AddEvent);
+impl BinaryOperation for AddEvent {
+    
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        BinaryField32b::new(val1.val() + val2.val())
+    }
+}
+
+impl_left_right_output_for_bin_op!(AddEvent);
+
+impl_event_for_binary_operation!(AddEvent);
 
 // Struture of an event for ADDI.
 #[derive(Debug, Clone)]

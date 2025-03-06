@@ -1,14 +1,9 @@
-use std::fmt::Binary;
-
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
     event::Event,
-    fire_non_jump_event,
 };
-
-use super::{BinaryOperation, ImmediateBinaryOperation};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ShiftKind {
@@ -92,36 +87,13 @@ impl SliEvent {
     }
 }
 
-impl ImmediateBinaryOperation for SliEvent {
-    fn new(
-        timestamp: u32,
-        pc: BinaryField32b,
-        fp: u32,
-        dst: u16,
-        dst_val: u32,
-        src: u16,
-        src_val: u32,
-        imm: u16,
-    ) -> Self {
-        Self::new(pc, fp, timestamp, dst, dst_val.into(), src, src_val, imm.into(), ShiftKind::Left)
-    }
-}
-
-impl BinaryOperation<BinaryField16b> for SliEvent {
-    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new(val.val() << imm.val())
-    }
-}
-
 impl Event for SliEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(
-            self.dst_val,
-            match self.kind {
-                ShiftKind::Left => self.src_val << self.shift,
-                ShiftKind::Right => self.src_val >> self.shift,
-            }
-        );
-        fire_non_jump_event!(self, channels);
+    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }
