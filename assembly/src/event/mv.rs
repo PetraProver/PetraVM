@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
     fire_non_jump_event,
 };
@@ -21,6 +21,7 @@ pub(crate) struct MVVWEvent {
 
 // TODO: this is a 4-byte move instruction. So it needs to be updated once we have multi-granularity.
 impl MVVWEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -144,12 +145,7 @@ impl MVIHEvent {
 
 impl Event for MVIHEvent {
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+        fire_non_jump_event!(self, channels);
     }
 }
 

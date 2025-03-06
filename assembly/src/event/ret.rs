@@ -1,4 +1,4 @@
-use binius_field::{BinaryField32b, Field};
+use binius_field::BinaryField32b;
 
 use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
@@ -28,7 +28,7 @@ impl RetEvent {
     pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
         let fp = interpreter.fp;
 
-        let ret_event = RetEvent::new(&interpreter);
+        let ret_event = RetEvent::new(interpreter);
         interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get_u32(fp)));
         interpreter.fp = interpreter.vrom.get_u32(fp + 4);
 
@@ -37,7 +37,7 @@ impl RetEvent {
 }
 
 impl Event for RetEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));

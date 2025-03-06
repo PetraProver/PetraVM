@@ -1,9 +1,7 @@
-use std::ops::Add;
-
-use binius_field::{BinaryField, BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
@@ -36,7 +34,7 @@ impl Add64Event {
     pub fn generate_event(interpreter: &mut Interpreter, input1: u64, input2: u64) -> Self {
         let (output, carry) = input1.overflowing_add(input2);
 
-        let cout = (output ^ input1 ^ input2) >> 1 + (carry as u64) << 63;
+        let cout = (output ^ input1 ^ input2) >> (1 + (carry as u64)) << 63;
 
         let timestamp = interpreter.timestamp;
 
@@ -82,7 +80,7 @@ impl Add32Event {
         let inp2 = input2.val();
         let (output, carry) = inp1.overflowing_add(inp2);
 
-        let cout = (output ^ inp1 ^ inp2) >> 1 + (carry as u32) << 31;
+        let cout = (output ^ inp1 ^ inp2) >> (1 + (carry as u32)) << 31;
 
         let timestamp = interpreter.timestamp;
 
@@ -189,16 +187,16 @@ pub(crate) struct MuliEvent {
     pub(crate) src_val: u32,
     imm: u16,
     // Auxiliary commitments
-    pub(crate) aux: [u32; 8],
-    // Intermediary sum, such that interm_sum[i] = aux[2*i] + aux[2*i+1], for i > 0.
-    // Note: we don't need the initial value because it is equal to sum[0].
-    pub(crate) interm_sum: [u64; 3],
-    // Sums such that: sum[i] = sum[i-1] + interm_sum[i].
-    // Note: we don't need the fourth sum value because it is equal to DST_VAL.
-    pub(crate) sum: [u64; 3],
+    pub(crate) aux: [u32; 4],
+    // Stores aux[0] + aux[1] << 8.
+    pub(crate) sum0: u64,
+    // Stores aux[2] + aux[3] << 8.
+    // Note: we don't need the third  sum value (equal to sum0 + sum1 <<8) because it is equal to DST_VAL.
+    pub(crate) sum1: u64,
 }
 
 impl MuliEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -208,9 +206,9 @@ impl MuliEvent {
         src: u16,
         src_val: u32,
         imm: u16,
-        aux: [u32; 8],
-        interm_sum: [u64; 3],
-        sum: [u64; 3],
+        aux: [u32; 4],
+        sum0: u64,
+        sum1: u64,
     ) -> Self {
         Self {
             pc,
@@ -222,8 +220,8 @@ impl MuliEvent {
             src_val,
             imm,
             aux,
-            interm_sum,
-            sum,
+            sum0,
+            sum1,
         }
     }
 
@@ -241,36 +239,15 @@ impl MuliEvent {
 
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
-        let xs = [
-            src_val as u8,
-            (src_val >> 8) as u8,
-            (src_val >> 16) as u8,
-            (src_val >> 24) as u8,
-        ];
-        let ys = [imm_val as u8, (imm_val >> 8) as u8, 0, 0];
-
-        let mut aux = [0; 8];
-        for i in 0..4 {
-            aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
-            aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;
-        }
-
-        // We call the ADD64 gadget to check these additions.
-        let mut interm_sum = [0; 3];
-        let mut sum = [0; 3];
-        sum[0] = aux[0] as u64 + aux[1] as u64;
-        for i in 1..3 {
-            interm_sum[i - 1] = aux[2 * i] as u64 + aux[2 * i + 1] as u64;
-            sum[i] = sum[i - 1] + interm_sum[i - 1];
-        }
-        interm_sum[2] = aux[6] as u64 + aux[7] as u64;
+        let (aux, sum0, sum1) =
+            schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
         Self {
             pc,
-            fp: fp,
+            fp,
             timestamp,
             dst: dst.val(),
             dst_val,
@@ -278,10 +255,38 @@ impl MuliEvent {
             src_val,
             imm: imm_val,
             aux,
-            interm_sum,
-            sum,
+            sum0,
+            sum1,
         }
     }
+}
+
+/// This function computes the intermediate sums of the schoolbook multiplication algorithm.
+fn schoolbook_multiplication_intermediate_sums(
+    src_val: u32,
+    imm_val: u16,
+    dst_val: u32,
+) -> ([u32; 4], u64, u64) {
+    let xs = src_val.to_le_bytes();
+    let ys = imm_val.to_le_bytes();
+
+    let mut aux = [0; 4];
+    // Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
+    // containing the summands that wont't overlap
+    for i in 0..2 {
+        aux[2 * i] = ys[i] as u32 * xs[0] as u32 + (1 << 16) * ys[i] as u32 * xs[2] as u32;
+        aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + (1 << 16) * ys[i] as u32 * xs[3] as u32;
+    }
+
+    // We call the ADD64 gadget to check these additions.
+    // sum0 = ys[0]*xs[0] + 2^8*ys[0]*xs[1] + 2^16*ys[0]*xs[2] + 2^24*ys[0]*xs[3]
+    let sum0 = aux[0] as u64 + ((aux[1] as u64) << 8);
+    // sum1 = ys[1]*xs[0] + 2^8*ys[1]*xs[1] + 2^16*ys[1]*xs[2] + 2^24*ys[1]*xs[3]
+    let sum1 = aux[2] as u64 + ((aux[3] as u64) << 8);
+
+    // sum = ys[0]*xs[0] + 2^8*(ys[0]*xs[1] + ys[1]*xs[0]) + 2^16*(ys[0]*xs[2] + ys[1]*xs[1]) + 2^24*(ys[0]*xs[3] + ys[1]*xs[2]) + 2^32*ys[1]*xs[3].
+    assert_eq!((sum0 + (sum1 << 8)) as u32, dst_val);
+    (aux, sum0, sum1)
 }
 
 impl Event for MuliEvent {

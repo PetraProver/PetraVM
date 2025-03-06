@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b, PackedField};
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
@@ -134,7 +134,7 @@ impl Event for B32MuliEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc * G.square(), self.fp, self.timestamp + 1));
+            .push((self.pc * G * G, self.fp, self.timestamp + 1));
     }
 }
 

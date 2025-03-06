@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b, Field};
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
@@ -19,6 +19,7 @@ pub(crate) struct TailiEvent {
 }
 
 impl TailiEvent {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -73,7 +74,7 @@ impl TailiEvent {
 }
 
 impl Event for TailiEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
