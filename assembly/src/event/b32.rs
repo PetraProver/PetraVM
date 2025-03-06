@@ -1,10 +1,8 @@
-use binius_field::{BinaryField16b, BinaryField1b, BinaryField32b, ExtensionField};
+use binius_field::{BinaryField16b, BinaryField32b, PackedField};
 
 use crate::{
-    emulator::{InterpreterChannels, InterpreterTables},
     fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
-    impl_event_for_binary_operation, impl_immediate_binary_operation,
-    impl_left_right_output_for_imm_bin_op,
+    impl_event_for_binary_operation, impl_immediate_binary_operation, G,
 };
 
 use super::{BinaryOperation, Event};
@@ -92,9 +90,7 @@ impl B32MuliEvent {
         src: BinaryField16b,
         imm: BinaryField32b,
     ) -> Self {
-        let src_val = interpreter
-            .vrom
-            .get(BinaryField32b::new(interpreter.fp) + src);
+        let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm.into());
         let event = Self::new(
             interpreter.timestamp,
@@ -108,7 +104,7 @@ impl B32MuliEvent {
         );
         interpreter
             .vrom
-            .set(BinaryField32b::new(interpreter.fp) + dst, dst_val.val());
+            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
         // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         interpreter.incr_pc();
@@ -122,5 +118,24 @@ impl BinaryOperation for B32MuliEvent {
     }
 }
 
+impl Event for B32MuliEvent {
+    fn fire(
+        &self,
+        channels: &mut crate::emulator::InterpreterChannels,
+        tables: &crate::emulator::InterpreterTables,
+    ) {
+        assert_eq!(
+            self.dst_val,
+            Self::operation(BinaryField32b::new(self.src_val), self.imm.into()).into()
+        );
+
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc * G.square(), self.fp, self.timestamp + 1));
+    }
+}
+
 impl_32b_immediate_binary_operation!(B32MuliEvent);
-impl_event_for_binary_operation!(B32MuliEvent);

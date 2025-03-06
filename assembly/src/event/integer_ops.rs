@@ -129,11 +129,10 @@ impl AddiEvent {
         imm: BinaryField16b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let src_val = interpreter.vrom.get(fp_field + src);
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        interpreter.vrom.set(fp_field + dst, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -165,64 +164,6 @@ pub(crate) struct AddEvent {
     src2: u16,
     pub(crate) src2_val: u32,
 }
-
-// impl AddEvent {
-//     pub fn new(
-//         pc: BinaryField32b,
-//         fp: u32,
-//         timestamp: u32,
-//         dst: u16,
-//         dst_val: u32,
-//         src1: u16,
-//         src1_val: u32,
-//         src2: u16,
-//         src2_val: u32,
-//     ) -> Self {
-//         Self {
-//             pc,
-//             fp,
-//             timestamp,
-//             dst,
-//             dst_val,
-//             src1,
-//             src1_val,
-//             src2,
-//             src2_val,
-//         }
-//     }
-
-//     pub fn generate_event(
-//         interpreter: &mut Interpreter,
-//         dst: BinaryField16b,
-//         src1: BinaryField16b,
-//         src2: BinaryField16b,
-//     ) -> Self {
-//         let fp = interpreter.fp;
-//         let fp_field = BinaryField32b::new(fp);
-//         let src1_val = interpreter.vrom.get(fp_field + src1);
-
-//         let src2_val = interpreter.vrom.get(fp_field + src2);
-//         // The following addition is checked thanks to the ADD32 table.
-//         let dst_val = src1_val + src2_val as u32;
-//         interpreter.vrom.set(fp_field + dst, dst_val);
-
-//         let pc = interpreter.pc;
-//         let timestamp = interpreter.timestamp;
-//         interpreter.incr_pc();
-
-//         Self {
-//             pc,
-//             fp,
-//             timestamp,
-//             dst: dst.val(),
-//             dst_val,
-//             src1: src1.val(),
-//             src1_val,
-//             src2: src2.val(),
-//             src2_val,
-//         }
-//     }
-// }
 
 impl BinaryOperation for AddEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
@@ -292,13 +233,13 @@ impl MuliEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Self {
-        let fp = BinaryField32b::new(interpreter.fp);
-        let src_val = interpreter.vrom.get(fp + src);
+        let fp = interpreter.fp;
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32;
 
-        interpreter.vrom.set(fp + dst, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
         let xs = [
             src_val as u8,
@@ -329,7 +270,7 @@ impl MuliEvent {
         interpreter.incr_pc();
         Self {
             pc,
-            fp: fp.val(),
+            fp: fp,
             timestamp,
             dst: dst.val(),
             dst_val,

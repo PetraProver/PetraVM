@@ -50,15 +50,14 @@ impl MVVWEvent {
         src: BinaryField16b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let dst_addr = interpreter.vrom.get(fp_field + dst);
-        let src_val = interpreter.vrom.get(fp_field + src);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set(BinaryField32b::new(dst_addr) + offset, src_val);
+            .set_u32(dst_addr ^ offset.val() as u32, src_val);
         interpreter.incr_pc();
 
         Self {
@@ -122,14 +121,13 @@ impl MVIHEvent {
         imm: BinaryField16b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
-        let dst_addr = interpreter.vrom.get(fp_field + dst);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set(BinaryField32b::new(dst_addr) + offset, imm.val() as u32);
+            .set_u32(dst_addr ^ offset.val() as u32, imm.val() as u32);
         interpreter.incr_pc();
 
         Self {
@@ -182,11 +180,12 @@ impl LDIEvent {
         imm: BinaryField32b,
     ) -> Self {
         let fp = interpreter.fp;
-        let fp_field = BinaryField32b::new(fp);
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.vrom.set(fp_field + dst, imm.val() as u32);
+        interpreter
+            .vrom
+            .set_u32(fp ^ dst.val() as u32, imm.val() as u32);
         interpreter.incr_pc();
 
         Self {
