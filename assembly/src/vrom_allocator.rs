@@ -229,7 +229,7 @@ mod tests {
         assert_eq!(addr3, 112);
         assert_eq!(allocator.pos, 128);
         // Key 4 should now be removed.
-        assert!(allocator.slack.get(&4).is_none());
+        assert!(!allocator.slack.contains_key(&4));
         // Remaining slack: key 3: [24,104] and key 5: [32].
         if let Some(mut key3) = allocator.slack.get(&3).cloned() {
             key3.sort();
