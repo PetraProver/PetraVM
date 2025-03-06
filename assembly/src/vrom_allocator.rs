@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 // TODO: use a more accurate number for MIN_FRAME_SIZE
 const MIN_FRAME_SIZE: u32 = 8;
@@ -12,7 +12,7 @@ pub struct VromAllocator {
     pos: u32,
     /// Slack blocks available for reuse, organized by the exponent
     /// (i.e. block size = 2^exponent).
-    slack: HashMap<u32, Vec<u32>>,
+    slack: BTreeMap<u32, Vec<u32>>,
 }
 
 impl VromAllocator {
@@ -20,7 +20,7 @@ impl VromAllocator {
     pub fn new() -> Self {
         Self {
             pos: 0,
-            slack: HashMap::new(),
+            slack: BTreeMap::new(),
         }
     }
 
@@ -41,21 +41,19 @@ impl VromAllocator {
         let k = p.trailing_zeros();
 
         // Attempt to find a slack block with size ≥ p.
-        for exp in k..=(u32::BITS - 1) {
-            if let Some(mut blocks) = self.slack.remove(&exp) {
-                if let Some(addr) = blocks.pop() {
-                    let block_size = 1 << exp;
-                    // Reinsert remaining blocks (if any) for this exponent.
-                    if !blocks.is_empty() {
-                        self.slack.insert(exp, blocks);
-                    }
-                    let allocated_addr = addr;
-                    let external_leftover = block_size - p;
-                    // Record leftover external slack.
-                    self.add_slack(allocated_addr + p, external_leftover);
-                    self.record_internal_slack(allocated_addr, requested_size, p);
-                    return allocated_addr;
+        if let Some((&exp, blocks)) = self.slack.range_mut(k..).next() {
+            if let Some(addr) = blocks.pop() {
+                let block_size = 1 << exp;
+                // Remove empty vectors to keep the map clean
+                if blocks.is_empty() {
+                    self.slack.remove(&exp);
                 }
+                let allocated_addr = addr;
+                let external_leftover = block_size - p;
+                // Record leftover external slack.
+                self.add_slack(allocated_addr + p, external_leftover);
+                self.record_internal_slack(allocated_addr, requested_size, p);
+                return allocated_addr;
             }
         }
 
