@@ -27,10 +27,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: actions/setup-rust@v3
-        with:
-          rustup: true
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Set up rust cache
         uses: Swatinem/rust-cache@v2
@@ -54,11 +51,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Set up Rust
-        uses: actions/setup-rust@v3
-        with:
-          rustup: true
-          components: rustfmt, clippy
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Set up rust cache
         uses: Swatinem/rust-cache@v2
