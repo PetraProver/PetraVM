@@ -295,7 +295,8 @@ impl MuliEvent {
 
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 
-        let (aux, sum0, sum1) = schoolbook_multiplcation_intermediate_sums(src_val, imm_val, dst_val);
+        let (aux, sum0, sum1) =
+            schoolbook_multiplcation_intermediate_sums(src_val, imm_val, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -316,9 +317,12 @@ impl MuliEvent {
     }
 }
 
-
 /// This function computes the intermediate sums of the schoolbook multiplication algorithm.
-fn schoolbook_multiplication_intermediate_sums(src_val: u32, imm_val: u16, dst_val: u32) -> ([u32; 4], u64, u64) {
+fn schoolbook_multiplication_intermediate_sums(
+    src_val: u32,
+    imm_val: u16,
+    dst_val: u32,
+) -> ([u32; 4], u64, u64) {
     let xs = src_val.to_le_bytes();
     let ys = imm_val.to_le_bytes();
 
