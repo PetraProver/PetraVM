@@ -99,44 +99,53 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::AddI { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Addi.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Addi.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::AndI { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Andi.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Andi.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         // To change
         InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Muli.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Muli.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -146,15 +155,18 @@ pub fn get_prom_inst_from_inst_with_label(
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
 
-                if prom.insert(
-                    *pc,
-                    [
-                        Opcode::Bnz.get_field_elt(),
-                        src.get_16bfield_val(),
-                        targets_16b[0],
-                        targets_16b[1],
-                    ],
-                ).is_some() {
+                if prom
+                    .insert(
+                        *pc,
+                        [
+                            Opcode::Bnz.get_field_elt(),
+                            src.get_16bfield_val(),
+                            targets_16b[0],
+                            targets_16b[1],
+                        ],
+                    )
+                    .is_some()
+                {
                     return Err(format!("Already encountered PC {:?}", pc));
                 }
             } else {
@@ -163,71 +175,86 @@ pub fn get_prom_inst_from_inst_with_label(
             *pc *= G;
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Muli.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Muli.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::MvvW { dst, src } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::MVVW.get_field_elt(),
-                    dst.get_slot_16bfield_val(),
-                    dst.get_offset_field_val(),
-                    src.get_16bfield_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::MVVW.get_field_elt(),
+                        dst.get_slot_16bfield_val(),
+                        dst.get_offset_field_val(),
+                        src.get_16bfield_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::SllI { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Slli.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Slli.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::SrlI { dst, src1, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Srli.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src1.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Srli.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src1.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
         }
         InstructionsWithLabels::Ret => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Ret.get_field_elt(),
-                    BinaryField16b::zero(),
-                    BinaryField16b::zero(),
-                    BinaryField16b::zero(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Ret.get_field_elt(),
+                        BinaryField16b::zero(),
+                        BinaryField16b::zero(),
+                        BinaryField16b::zero(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -237,15 +264,18 @@ pub fn get_prom_inst_from_inst_with_label(
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
 
-                if prom.insert(
-                    *pc,
-                    [
-                        Opcode::Taili.get_field_elt(),
-                        targets_16b[0],
-                        targets_16b[1],
-                        arg.get_16bfield_val(),
-                    ],
-                ).is_some() {
+                if prom
+                    .insert(
+                        *pc,
+                        [
+                            Opcode::Taili.get_field_elt(),
+                            targets_16b[0],
+                            targets_16b[1],
+                            arg.get_16bfield_val(),
+                        ],
+                    )
+                    .is_some()
+                {
                     return Err(format!("Already encountered PC {:?}", pc));
                 }
             } else {
@@ -257,15 +287,18 @@ pub fn get_prom_inst_from_inst_with_label(
             *pc *= G;
         }
         InstructionsWithLabels::XorI { dst, src, imm } => {
-            if prom.insert(
-                *pc,
-                [
-                    Opcode::Xori.get_field_elt(),
-                    dst.get_16bfield_val(),
-                    src.get_16bfield_val(),
-                    imm.get_field_val(),
-                ],
-            ).is_some() {
+            if prom
+                .insert(
+                    *pc,
+                    [
+                        Opcode::Xori.get_field_elt(),
+                        dst.get_16bfield_val(),
+                        src.get_16bfield_val(),
+                        imm.get_field_val(),
+                    ],
+                )
+                .is_some()
+            {
                 return Err(format!("Already encountered PC {:?}", pc));
             }
             *pc *= G;
@@ -330,10 +363,7 @@ pub fn get_frame_size_for_label(
     }
 
     // We know that there was no key `label_pc` before, since it was the first thing we checked in this method.
-    labels_fps.insert(
-        label_pc,
-        (cur_offset, labels_args.get(&label_pc).copied()),
-    );
+    labels_fps.insert(label_pc, (cur_offset, labels_args.get(&label_pc).copied()));
 
     cur_offset
 }

@@ -1,8 +1,4 @@
-use std::{
-    array::from_fn,
-    collections::HashMap,
-    hash::Hash,
-};
+use std::{array::from_fn, collections::HashMap, hash::Hash};
 
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -37,13 +33,11 @@ pub struct InterpreterChannels {
     pub state_channel: StateChannel,
 }
 
-
 type VromTable32 = HashMap<u32, u32>;
 #[derive(Default)]
 pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
-
 
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u16)]

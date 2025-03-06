@@ -1,4 +1,3 @@
-
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
