@@ -20,6 +20,7 @@ pub(crate) struct XoriEvent {
 }
 
 impl BinaryOperation for XoriEvent {
+    #[inline(always)]
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         val + imm
     }
@@ -63,6 +64,7 @@ impl BinaryOperation for XorEvent {
 }
 
 impl BinaryOperation for AndiEvent {
+    #[inline(always)]
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
         BinaryField32b::new(val.val() & imm.val() as u32)
     }
@@ -113,6 +115,7 @@ impl B32MuliEvent {
 }
 
 impl BinaryOperation for B32MuliEvent {
+    #[inline(always)]
     fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
         val * imm
     }
