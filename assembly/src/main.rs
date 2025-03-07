@@ -8,16 +8,15 @@ mod emulator;
 mod event;
 mod instruction_args;
 mod instructions_with_labels;
-mod vrom_allocator;
 mod parser;
+mod vrom_allocator;
 
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, ExtensionField, Field, PackedField};
 use emulator::{code_to_prom, Opcode, ValueRom, ZCrayTrace, G};
-use instructions_with_labels::{
-    get_frame_sizes_all_labels, get_full_prom_and_labels, parse_instructions,
-};
+use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
+use parser::parse_program;
 
 #[inline(always)]
 pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
@@ -25,7 +24,7 @@ pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
 }
 
 fn main() {
-    let instructions = parse_instructions(include_str!("../../examples/collatz.asm")).unwrap();
+    let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
     let (prom, labels) =
         get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
