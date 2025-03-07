@@ -1,8 +1,8 @@
 [workspace]
 members = ["assembly"]
+resolver = "2"
 
 [workspace.package]
-name = "zCrayVM"
 version = "0.1.0"
 edition = "2021"
 
