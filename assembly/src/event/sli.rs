@@ -27,7 +27,7 @@ pub struct SliEvent {
 
 impl SliEvent {
     #[allow(clippy::too_many_arguments)]
-    pub  const fn new(
+    pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,

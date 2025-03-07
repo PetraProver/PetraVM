@@ -19,7 +19,7 @@ pub struct VromAllocator {
 
 impl VromAllocator {
     /// Creates a new VromAllocator.
-    pub const  fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pos: 0,
             slack: BTreeMap::new(),

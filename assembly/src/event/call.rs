@@ -20,7 +20,7 @@ pub(crate) struct TailiEvent {
 
 impl TailiEvent {
     #[allow(clippy::too_many_arguments)]
-    pub  const fn new(
+    pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
