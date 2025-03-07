@@ -51,6 +51,7 @@ mod tests {
             "_start: RET ;; Some comment",
             "_start: \n RET",
             "_start: BNZ case_recurse, @4 ;; branch if n == 1\n",
+            "_start: ;; Some comment\n BNZ case_recurse, @4 ;; branch if n == 1\n",
         ];
         for asm in ok_programs {
             ensure_parser_succeeds(Rule::program, asm);

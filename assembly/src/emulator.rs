@@ -703,10 +703,8 @@ mod tests {
     use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{
-        get_full_prom_and_labels,
-        instructions_with_labels::{get_frame_sizes_all_labels, parse_instructions},
-    };
+    use crate::parser::parse_program;
+    use crate::{get_full_prom_and_labels, instructions_with_labels::get_frame_sizes_all_labels};
 
     #[test]
     fn test_zcray() {
@@ -962,7 +960,7 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let instructions = parse_instructions(include_str!("../../examples/fib.asm")).unwrap();
+        let instructions = parse_program(include_str!("../../examples/fib.asm")).unwrap();
 
         let (prom, labels) = get_full_prom_and_labels(&instructions)
             .expect("Instructions were not formatted properly.");
