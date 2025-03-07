@@ -1,5 +1,8 @@
+// TODO: Remove these once stable enough
 #![allow(unused)]
 #![allow(dead_code)]
+
+// TODO: Add doc
 
 mod emulator;
 mod event;

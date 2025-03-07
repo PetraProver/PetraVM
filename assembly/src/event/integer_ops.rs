@@ -115,7 +115,6 @@ impl BinaryOperation for AddiEvent {
 }
 
 impl_immediate_binary_operation!(AddiEvent);
-
 impl_event_for_binary_operation!(AddiEvent);
 
 impl AddiEvent {

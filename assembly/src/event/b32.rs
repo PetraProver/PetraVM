@@ -7,6 +7,7 @@ use crate::{
 
 use super::{BinaryOperation, Event};
 
+/// Event for XORI.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {
     timestamp: u32,
@@ -29,6 +30,7 @@ impl BinaryOperation for XoriEvent {
 impl_immediate_binary_operation!(XoriEvent);
 impl_event_for_binary_operation!(XoriEvent);
 
+/// Event for ANDI.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u32,
@@ -66,6 +68,7 @@ impl BinaryOperation for XorEvent {
 impl BinaryOperation for AndiEvent {
     #[inline(always)]
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
+        // TODO: can't we simplify it like for Xori?
         BinaryField32b::new(val.val() & imm.val() as u32)
     }
 }

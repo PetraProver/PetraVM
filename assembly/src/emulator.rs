@@ -29,6 +29,8 @@ pub struct Channel<T> {
     net_multiplicities: HashMap<T, isize>,
 }
 
+// TODO: Think on unifying types used for recurring variables (fp, pc, ...)
+
 type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
 type VromChannel = Channel<u32>;
 type StateChannel = Channel<(BinaryField32b, u32, u32)>; // PC, FP, Timestamp
@@ -64,6 +66,7 @@ pub enum Opcode {
     MVVW = 0x0d,
     MVIH = 0x0e,
     LDI = 0x0f,
+    // TODO: Add missing opcodes
 }
 
 impl Opcode {
@@ -71,6 +74,8 @@ impl Opcode {
         BinaryField16b::new(*self as u16)
     }
 }
+
+// TODO: Add some structured execution tracing
 
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {
