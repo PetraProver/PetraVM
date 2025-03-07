@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
+use pest::{iterators::Pair, iterators::Pairs, Parser};
+
 use crate::{
     instruction_args::{Immediate, Slot, SlotWithOffset},
     instructions_with_labels::{Error, InstructionsWithLabels},
 };
-
-use pest::{iterators::Pair, iterators::Pairs, Parser};
 mod tests;
 
 #[derive(pest_derive::Parser)]
