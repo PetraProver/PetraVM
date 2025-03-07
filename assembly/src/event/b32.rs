@@ -1,11 +1,10 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
+use super::{BinaryOperation, Event};
 use crate::{
     fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
     impl_event_for_binary_operation, impl_immediate_binary_operation, G,
 };
-
-use super::{BinaryOperation, Event};
 
 /// Event for XORI.
 #[derive(Debug, Default, Clone)]

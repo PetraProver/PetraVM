@@ -702,12 +702,11 @@ pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
 mod tests {
     use binius_field::{Field, PackedField};
 
+    use super::*;
     use crate::{
         get_full_prom_and_labels,
         instructions_with_labels::{get_frame_sizes_all_labels, parse_instructions},
     };
-
-    use super::*;
 
     #[test]
     fn test_zcray() {
