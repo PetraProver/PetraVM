@@ -24,7 +24,7 @@ fib_helper:
     ;; Slot @36: Local: n == 0G
     ;; Slot @40: Local: 0G constant
 
-	;; Branch to recursion label if value in slot 6 is not equal to G^0
+	;; Branch to recursion label if value in slot 16 is not equal to G^0
 	LDI @40, #0G
 	XOR @36, @16, @40 ;; XOR will put 0 in slot 36 if n == 0G
 	BNZ case_recurse, @36  ;; branch if n != 0G

@@ -10,7 +10,7 @@ collatz:
 	;; Slot @28: Local: 3*n
     ;; Slot @32: Local: n >> 2 or 3*n + 1
 
-	;; Branch to recursion label if value in slot 2 is not 1
+	;; Branch to recursion label if value in slot 8 is not 1
 	XORI @20, @8, #1
 	BNZ case_recurse, @20 ;; branch if n != 1
 	XORI @12, @8, #0
