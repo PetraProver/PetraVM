@@ -18,9 +18,9 @@ fn get_first_inner<'a>(pair: Pair<'a, Rule>, msg: &str) -> Pair<'a, Rule> {
 }
 
 // A line may have a label and an instruction
-fn parse_line<'a>(
+fn parse_line(
     instrs: &mut Vec<InstructionsWithLabels>,
-    pairs: Pairs<'a, Rule>,
+    pairs: Pairs<'_, Rule>,
 ) -> Result<(), Error> {
     for instr_or_label in pairs {
         match instr_or_label.as_rule() {

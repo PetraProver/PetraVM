@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod test_parser {
     use pest::Parser;
 
     use crate::instructions_with_labels::InstructionsWithLabels;
@@ -7,12 +7,12 @@ mod tests {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert_eq!(parser.is_ok(), true);
+        assert!(parser.is_ok());
     }
 
     fn ensure_parser_fails(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert_eq!(parser.is_ok(), false);
+        assert!(parser.is_err());
     }
 
     #[test]
