@@ -9,6 +9,7 @@ mod event;
 mod instruction_args;
 mod instructions_with_labels;
 mod vrom_allocator;
+mod parser;
 
 use std::collections::HashMap;
 

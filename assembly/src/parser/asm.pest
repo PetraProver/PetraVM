@@ -1,0 +1,146 @@
+spaces     = _{ " " | "\t" }
+seperator  = _{ spaces* ~ "," ~ spaces* }
+WHITESPACE = _{ spaces | NEWLINE }
+
+XOR_instr      = { "XOR" }
+B32_ADD_instr  = { "B32_ADD" }
+B32_MUL_instr  = { "B32_MUL" }
+B128_ADD_instr = { "B128_ADD" }
+B128_MUL_instr = { "B128_MUL" }
+ADD_instr      = { "ADD" }
+SUB_instr      = { "SUB" }
+SLT_instr      = { "SLT" }
+SLTU_instr     = { "SLTU" }
+AND_instr      = { "AND" }
+OR_instr       = { "OR" }
+SLL_instr      = { "SLL" }
+SRL_instr      = { "SRL" }
+SRA_instr      = { "SRA" }
+MUL_instr      = { "MUL" }
+MULU_instr     = { "MULU" }
+MULSU_instr    = { "MULSU" }
+XORI_instr     = { "XORI" }
+B32_ADDI_instr = { "B32_ADDI" }
+B32_MULI_instr = { "B32_MULI" }
+ADDI_instr     = { "ADDI" }
+SLTI_instr     = { "SLTI" }
+SLTIU_instr    = { "SLTIU" }
+ANDI_instr     = { "ANDI" }
+ORI_instr      = { "ORI" }
+SLLI_instr     = { "SLLI" }
+SRLI_instr     = { "SRLI" }
+SRAI_instr     = { "SRAI" }
+MULI_instr     = { "MULI" }
+LW_instr       = { "LW" }
+SW_instr       = { "SW" }
+LB_instr       = { "LB" }
+LBU_instr      = { "LBU" }
+LH_instr       = { "LH" }
+LHU_instr      = { "LHU" }
+SB_instr       = { "SB" }
+SH_instr       = { "SH" }
+MVV_B_instr    = { "MVV.B" }
+MVV_W_instr    = { "MVV.W" }
+MVV_L_instr    = { "MVV.L" }
+MVI_H_instr    = { "MVI.H" }
+LDI_W_instr    = { "LDI.W" }
+RET_instr      = { "RET" }
+J_instr        = { "J" }
+CALLI_instr    = { "CALLI" }
+TAILI_instr    = { "TAILI" }
+BNZ_instr      = { "BNZ" }
+CALLV_instr    = { "CALLV" }
+TAILV_instr    = { "TAILV" }
+
+// Note: This does not refer to BinaryFields but instructions that takes in three operands inlcuding destination
+binary_non_imm_instrs = ${
+    XOR_instr
+  | B32_ADD_instr
+  | B32_MUL_instr
+  | B128_ADD_instr
+  | B128_MUL_instr
+  | ADD_instr
+  | SUB_instr
+  | SLT_instr
+  | SLTU_instr
+  | AND_instr
+  | OR_instr
+  | SLL_instr
+  | SRL_instr
+  | SRA_instr
+  | MUL_instr
+  | MULU_instr
+  | MULSU_instr
+}
+binary_imm_instrs     = ${
+    XORI_instr
+  | B32_ADDI_instr
+  | B32_MULI_instr
+  | ADDI_instr
+  | SLTI_instr
+  | SLTIU_instr
+  | ANDI_instr
+  | ORI_instr
+  | SLLI_instr
+  | SRLI_instr
+  | SRAI_instr
+  | MULI_instr
+}
+load_store_instrs     = ${ LW_instr | SW_instr | LB_instr | LBU_instr | LH_instr | LHU_instr | SB_instr | SH_instr }
+mov_non_imm_instrs    = ${ MVV_B_instr | MVV_W_instr | MVV_L_instr }
+mov_imm_instr         = ${ MVI_H_instr }
+load_imm_instr        = ${ LDI_W_instr }
+nullary_instrs        = ${ RET_instr }
+
+// Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offseted
+// J could end up being JUMPI or JUMPV, CALL could end up being CALLI or CALLV, TAIL could end up being TAILI or TAILV
+simple_jump_instr           = ${ J_instr }
+jump_with_op_instrs_imm     = ${ CALLI_instr | TAILI_instr | BNZ_instr }
+jump_with_op_instrs_non_imm = ${ CALLV_instr | TAILV_instr }
+
+label_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHA | "_" | ASCII_DIGIT)* }
+label      = ${ label_name ~ ":" }
+
+COMMENT = _{ ";;" ~ (!NEWLINE ~ ANY)* }
+
+// TODO: Add support for constant expressions like "#{4 + 2 * 4}"
+// Currently, this allows us to specify immediates as integers as well as generator constants ending with "G"
+immediate = @{ "#" ~ "-"? ~ (ASCII_DIGIT)+ ~ ("G")? }
+
+slot_or_offset = @{ ASCII_DIGIT+ }
+slot           = @{ "@" ~ slot_or_offset }
+
+slot_with_offset = @{ slot ~ "[" ~ slot_or_offset ~ "]" }
+
+nullary              = ${ nullary_instrs }
+simple_jump          = ${ simple_jump_instr ~ spaces+ ~ (label_name | slot) }
+jump_with_op_imm     = ${ jump_with_op_instrs_imm ~ spaces+ ~ label_name ~ seperator ~ slot }
+jump_with_op_non_imm = ${ jump_with_op_instrs_non_imm ~ spaces+ ~ slot ~ seperator ~ slot }
+binary_imm           = ${ binary_imm_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ immediate }
+binary_non_imm       = ${ binary_non_imm_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ slot }
+mov_imm              = ${ mov_imm_instr ~ spaces+ ~ slot_with_offset ~ seperator ~ immediate }
+mov_non_imm          = ${ mov_non_imm_instrs ~ spaces+ ~ slot_with_offset ~ seperator ~ slot }
+load_imm             = ${ load_imm_instr ~ spaces+ ~ slot ~ seperator ~ immediate }
+load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ immediate }
+
+instruction = {
+    nullary
+  | simple_jump
+  | jump_with_op_imm
+  | jump_with_op_non_imm
+  | binary_imm
+  | binary_non_imm
+  | mov_imm
+  | mov_non_imm
+  | load_imm
+  | load_store
+}
+
+line = { (((label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }
+
+start_label = { label ~ instruction ~ COMMENT? }
+
+// Program must have atleast one label and an instruction
+program = {
+    SOI ~ start_label ~ line* ~ EOI
+}

@@ -710,4 +710,7 @@ pub enum Error {
 
     #[error("Bad argument: {0}")]
     BadArgument(#[from] crate::instruction_args::BadArgumentError),
+
+    #[error("You must have at least one label and one instruction")]
+    NoStartLabelOrInstructionFound,
 }

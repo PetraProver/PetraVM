@@ -8,6 +8,8 @@ thiserror = "2.0.11"
 num_enum = "=0.5.3"
 binius_field.workspace = true
 binius_utils.workspace = true
+pest = "2.7.15"
+pest_derive = "2.7.15"
 
 [dev-dependencies]
 rand = "0.8"
