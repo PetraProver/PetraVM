@@ -683,6 +683,10 @@ impl ZCrayTrace {
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
 
+        self.b32_mul
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
         self.b32_muli
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
@@ -700,6 +704,10 @@ impl ZCrayTrace {
             .for_each(|event| event.fire(&mut channels, &tables));
 
         self.mvvw
+            .iter()
+            .for_each(|event| event.fire(&mut channels, &tables));
+
+        self.mvvl
             .iter()
             .for_each(|event| event.fire(&mut channels, &tables));
 
