@@ -171,7 +171,7 @@ impl BinaryOperation for AddEvent {
 impl_binary_operation!(AddEvent);
 impl_event_for_binary_operation!(AddEvent);
 
-/// Event for ADDI.
+/// Event for MULI.
 #[derive(Debug, Clone)]
 pub(crate) struct MuliEvent {
     pc: BinaryField32b,

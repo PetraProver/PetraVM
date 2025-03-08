@@ -9,7 +9,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{
     event::{
-        b32::{AndiEvent, B32MuliEvent, XorEvent, XoriEvent},
+        b32::{AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
         call::TailiEvent,
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
@@ -49,6 +49,8 @@ pub struct InterpreterTables {
 #[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
+// TODO: Add missing opcodes
+// TODO: Adjust opcode discriminants. Consider Deref to account for aliases?
 pub enum Opcode {
     #[default]
     Bnz = 0x01,
@@ -66,7 +68,7 @@ pub enum Opcode {
     MVVW = 0x0d,
     MVIH = 0x0e,
     LDI = 0x0f,
-    // TODO: Add missing opcodes
+    B32Mul = 0x10,
 }
 
 impl Opcode {
@@ -267,6 +269,7 @@ impl Interpreter {
             Opcode::MVVW => self.generate_mvv(trace)?,
             Opcode::MVIH => self.generate_mvih(trace)?,
             Opcode::LDI => self.generate_ldi(trace)?,
+            Opcode::B32Mul => self.generate_b32_mul(trace)?,
             Opcode::B32Muli => self.generate_b32_muli(trace)?,
         }
         self.timestamp += 1;
@@ -378,6 +381,14 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_b32_mul(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_b32mul_event = B32MulEvent::generate_event(self, *dst, *src1, *src2);
+        trace.b32_mul.push(new_b32mul_event);
+
+        Ok(())
+    }
+
     fn generate_b32_muli(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src, imm_low] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let [second_opcode, imm_high, third, fourth] = self
@@ -398,6 +409,7 @@ impl Interpreter {
 
         Ok(())
     }
+
     fn generate_add(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_add_event = AddEvent::generate_event(self, *dst, *src1, *src2);
@@ -538,6 +550,7 @@ pub(crate) struct ZCrayTrace {
     mvvw: Vec<MVVWEvent>,
     mvih: Vec<MVIHEvent>,
     ldi: Vec<LDIEvent>,
+    b32_mul: Vec<B32MulEvent>,
     b32_muli: Vec<B32MuliEvent>,
     add: Vec<AddEvent>,
     vrom: ValueRom,

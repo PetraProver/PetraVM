@@ -437,7 +437,7 @@ pub fn get_frame_size_for_label(
                 // B32Muli needs two rows.
                 cur_pc *= G;
             }
-            Opcode::Add | Opcode::Xor => {
+            Opcode::Add | Opcode::Xor | Opcode::B32Mul => {
                 let [_, dst, src1, src2] = instruction;
                 let max_accessed_addr = max(dst, src1);
                 let max_accessed_addr = max(max_accessed_addr, src2);
