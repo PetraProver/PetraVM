@@ -35,7 +35,7 @@ fib_helper:
     RET
 case_recurse:
 	ADD @28, @8, @12
-	B32_MULI @32, @16, #-1G
+	B32_MULI @32, @16, #-1G ;; TODO: B32_MULI is deprecated and will be removed
 
 	MVV.W @24[8], @12 ;; Move b into a argument
 	MVV.W @24[12], @28 ;; Move a + b into b argument
