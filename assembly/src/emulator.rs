@@ -13,7 +13,7 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::TailiEvent,
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::{LDIEvent, MVIHEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
         Event,
@@ -69,6 +69,7 @@ pub enum Opcode {
     MVIH = 0x0e,
     LDI = 0x0f,
     B32Mul = 0x10,
+    MVVL = 0x11,
 }
 
 impl Opcode {
@@ -160,6 +161,14 @@ impl ValueRom {
         }
     }
 
+    pub(crate) fn set_u128(&mut self, index: u32, value: u128) {
+        assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
+        let bytes = value.to_le_bytes();
+        for i in 0..16 {
+            self.set_u8(index + i, bytes[i as usize]);
+        }
+    }
+
     pub(crate) fn get_u8(&self, index: u32) -> u8 {
         match self.0.get(&index) {
             Some(&value) => value,
@@ -179,6 +188,13 @@ impl ValueRom {
         let bytes = from_fn(|i| self.get_u8(index + i as u32));
 
         u32::from_le_bytes(bytes)
+    }
+
+    pub(crate) fn get_u128(&self, index: u32) -> u128 {
+        assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
+        let bytes = from_fn(|i| self.get_u8(index + i as u32));
+
+        u128::from_le_bytes(bytes)
     }
 }
 
@@ -266,8 +282,9 @@ impl Interpreter {
             Opcode::Ret => self.generate_ret(trace)?,
             Opcode::Taili => self.generate_taili(trace)?,
             Opcode::Andi => self.generate_andi(trace)?,
-            Opcode::MVVW => self.generate_mvv(trace)?,
             Opcode::MVIH => self.generate_mvih(trace)?,
+            Opcode::MVVW => self.generate_mvvw(trace)?,
+            Opcode::MVVL => self.generate_mvvl(trace)?,
             Opcode::LDI => self.generate_ldi(trace)?,
             Opcode::B32Mul => self.generate_b32_mul(trace)?,
             Opcode::B32Muli => self.generate_b32_muli(trace)?,
@@ -437,10 +454,18 @@ impl Interpreter {
         Ok(())
     }
 
-    fn generate_mvv(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+    fn generate_mvvw(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, offset, src] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_mvvw_event = MVVWEvent::generate_event(self, *dst, *offset, *src);
         trace.mvvw.push(new_mvvw_event);
+
+        Ok(())
+    }
+
+    fn generate_mvvl(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, offset, src] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_mvvl_event = MVVLEvent::generate_event(self, *dst, *offset, *src);
+        trace.mvvl.push(new_mvvl_event);
 
         Ok(())
     }
@@ -547,8 +572,9 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     ret: Vec<RetEvent>,
-    mvvw: Vec<MVVWEvent>,
     mvih: Vec<MVIHEvent>,
+    mvvw: Vec<MVVWEvent>,
+    mvvl: Vec<MVVLEvent>,
     ldi: Vec<LDIEvent>,
     b32_mul: Vec<B32MulEvent>,
     b32_muli: Vec<B32MuliEvent>,

@@ -443,7 +443,7 @@ pub fn get_frame_size_for_label(
                 let max_accessed_addr = max(max_accessed_addr, src2);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
             }
-            Opcode::MVVW => {
+            Opcode::MVVW | Opcode::MVVL => {
                 let [_, dst, _, src] = instruction;
                 let max_accessed_addr = max(dst, src);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
