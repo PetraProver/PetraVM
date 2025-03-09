@@ -6,6 +6,17 @@ use crate::{
     fire_non_jump_event,
 };
 
+/// Convenience macro to implement the `Event` trait for MV events.
+macro_rules! impl_mv_fire {
+    ($event:ty) => {
+        impl Event for $event {
+            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+                fire_non_jump_event!(self, channels);
+            }
+        }
+    };
+}
+
 /// Event for MVV.W.
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
@@ -75,11 +86,7 @@ impl MVVWEvent {
     }
 }
 
-impl Event for MVVWEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        fire_non_jump_event!(self, channels);
-    }
-}
+impl_mv_fire!(MVVWEvent);
 
 /// Event for MVV.L.
 #[derive(Debug, Clone)]
@@ -148,11 +155,7 @@ impl MVVLEvent {
     }
 }
 
-impl Event for MVVLEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        fire_non_jump_event!(self, channels);
-    }
-}
+impl_mv_fire!(MVVLEvent);
 
 /// Event for MVI.H.
 #[derive(Debug, Clone)]
@@ -217,11 +220,7 @@ impl MVIHEvent {
     }
 }
 
-impl Event for MVIHEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables) {
-        fire_non_jump_event!(self, channels);
-    }
-}
+impl_mv_fire!(MVIHEvent);
 
 // Event for LDI.
 #[derive(Debug, Clone)]
@@ -266,8 +265,4 @@ impl LDIEvent {
     }
 }
 
-impl Event for LDIEvent {
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        fire_non_jump_event!(self, channels);
-    }
-}
+impl_mv_fire!(LDIEvent);

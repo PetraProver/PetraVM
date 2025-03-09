@@ -21,6 +21,7 @@ use crate::{
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     instructions_with_labels::LabelsFrameSizes,
+    opcodes::Opcode,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -44,38 +45,6 @@ type VromTable32 = HashMap<u32, u32>;
 #[derive(Default)]
 pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
-}
-
-#[derive(Debug, Clone, Copy, Default, TryFromPrimitive, IntoPrimitive, PartialEq, Eq)]
-#[repr(u16)]
-#[allow(clippy::upper_case_acronyms)]
-// TODO: Add missing opcodes
-// TODO: Adjust opcode discriminants. Consider Deref to account for aliases?
-pub enum Opcode {
-    #[default]
-    Bnz = 0x01,
-    Xori = 0x02,
-    Xor = 0x03,
-    Andi = 0x04,
-    Srli = 0x05,
-    Slli = 0x06,
-    Addi = 0x07,
-    Add = 0x08,
-    Muli = 0x09,
-    B32Muli = 0x0a,
-    Ret = 0x0b,
-    Taili = 0x0c,
-    MVVW = 0x0d,
-    MVIH = 0x0e,
-    LDI = 0x0f,
-    B32Mul = 0x10,
-    MVVL = 0x11,
-}
-
-impl Opcode {
-    pub const fn get_field_elt(&self) -> BinaryField16b {
-        BinaryField16b::new(*self as u16)
-    }
 }
 
 // TODO: Add some structured execution tracing

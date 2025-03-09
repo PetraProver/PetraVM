@@ -4,8 +4,9 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use crate::{
-    emulator::{Opcode, ProgramRom},
+    emulator::ProgramRom,
     instruction_args::{Immediate, Slot, SlotWithOffset},
+    opcodes::Opcode,
     G,
 };
 

@@ -8,14 +8,16 @@ mod emulator;
 mod event;
 mod instruction_args;
 mod instructions_with_labels;
+mod opcodes;
 mod parser;
 mod vrom_allocator;
 
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, ExtensionField, Field, PackedField};
-use emulator::{code_to_prom, Opcode, ValueRom, ZCrayTrace, G};
+use emulator::{code_to_prom, ValueRom, ZCrayTrace, G};
 use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
+use opcodes::Opcode;
 use parser::parse_program;
 
 #[inline(always)]

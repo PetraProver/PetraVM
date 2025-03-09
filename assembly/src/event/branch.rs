@@ -49,7 +49,7 @@ impl BnzEvent {
     }
 }
 
-// TODO: Maybe this could be jus NoopEvent?
+// TODO: Maybe this could be just a NoopEvent?
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BzEvent {
     timestamp: u32,
