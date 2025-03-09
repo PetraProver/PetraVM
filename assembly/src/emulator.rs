@@ -579,6 +579,7 @@ pub(crate) struct ZCrayTrace {
     b32_mul: Vec<B32MulEvent>,
     b32_muli: Vec<B32MuliEvent>,
     add: Vec<AddEvent>,
+
     vrom: ValueRom,
 }
 
@@ -586,6 +587,16 @@ pub(crate) struct BoundaryValues {
     final_pc: BinaryField32b,
     final_fp: u32,
     timestamp: u32,
+}
+
+/// Convenience macro to `fire` all events logged.
+/// This will execute all the flushes that these events trigger.
+macro_rules! fire_events {
+    ($events:expr, $channels:expr, $tables:expr) => {
+        $events
+            .iter()
+            .for_each(|event| event.fire($channels, $tables));
+    };
 }
 
 impl ZCrayTrace {
@@ -639,81 +650,25 @@ impl ZCrayTrace {
             boundary_values.timestamp,
         ));
 
-        self.bnz
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.bz
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.xor
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.xori
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.andi
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.shift
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.addi
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.add
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.add32
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.add64
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.muli
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.b32_mul
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.b32_muli
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.ldi
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.taili
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.ret
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.mvvw
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.mvvl
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
-
-        self.mvih
-            .iter()
-            .for_each(|event| event.fire(&mut channels, &tables));
+        fire_events!(self.bnz, &mut channels, &tables);
+        fire_events!(self.bz, &mut channels, &tables);
+        fire_events!(self.xor, &mut channels, &tables);
+        fire_events!(self.xori, &mut channels, &tables);
+        fire_events!(self.andi, &mut channels, &tables);
+        fire_events!(self.shift, &mut channels, &tables);
+        fire_events!(self.addi, &mut channels, &tables);
+        fire_events!(self.add, &mut channels, &tables);
+        fire_events!(self.add32, &mut channels, &tables);
+        fire_events!(self.add64, &mut channels, &tables);
+        fire_events!(self.muli, &mut channels, &tables);
+        fire_events!(self.b32_mul, &mut channels, &tables);
+        fire_events!(self.b32_muli, &mut channels, &tables);
+        fire_events!(self.ldi, &mut channels, &tables);
+        fire_events!(self.taili, &mut channels, &tables);
+        fire_events!(self.ret, &mut channels, &tables);
+        fire_events!(self.mvvw, &mut channels, &tables);
+        fire_events!(self.mvvl, &mut channels, &tables);
+        fire_events!(self.mvih, &mut channels, &tables);
 
         assert!(channels.state_channel.is_balanced());
     }

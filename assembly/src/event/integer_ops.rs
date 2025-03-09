@@ -6,7 +6,6 @@ use crate::{
     event::Event,
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
-    impl_left_right_output_for_bin_op,
 };
 
 /// Event for the Add64 gadget.

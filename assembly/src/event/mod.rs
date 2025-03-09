@@ -19,6 +19,8 @@ pub(crate) mod sli;
 
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
+    /// Executes the flushing rules associated to this `Event`, pushing to /
+    /// pulling from their target channels.
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
 pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
@@ -88,7 +90,6 @@ pub(crate) trait ImmediateBinaryOperation:
 pub(crate) trait NonImmediateBinaryOperation:
     BinaryOperation<Left = BinaryField32b, Right = BinaryField32b, Output = BinaryField32b>
 {
-    // TODO: Add some trick to implement new only once
     #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,

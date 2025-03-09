@@ -2,9 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::{BinaryOperation, Event};
 use crate::{
-    event::NonImmediateBinaryOperation, fire_non_jump_event, impl_32b_immediate_binary_operation,
-    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
-    impl_left_right_output_for_bin_op, G,
+    fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
+    impl_event_for_binary_operation, impl_immediate_binary_operation, G,
 };
 
 /// Event for XORI.
@@ -153,7 +152,7 @@ impl Event for B32MuliEvent {
     fn fire(
         &self,
         channels: &mut crate::emulator::InterpreterChannels,
-        tables: &crate::emulator::InterpreterTables,
+        _tables: &crate::emulator::InterpreterTables,
     ) {
         assert_eq!(
             self.dst_val,

@@ -1,4 +1,4 @@
-use std::{cmp::max, collections::HashMap, str::FromStr};
+use std::{cmp::max, collections::HashMap};
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 use thiserror::Error;
