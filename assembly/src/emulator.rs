@@ -2,10 +2,11 @@
 //! Instruction Memory (PROM). It processes events and updates the machine state
 //! accordingly.
 
-use std::{array::from_fn, collections::HashMap, hash::Hash};
+use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
 
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use tracing::{debug, trace};
 
 use crate::{
     event::{
@@ -270,6 +271,7 @@ impl Interpreter {
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
         let [opcode, ..] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace)?,
             Opcode::Xori => self.generate_xori(trace)?,
@@ -520,8 +522,9 @@ impl Interpreter {
     }
 }
 
-impl<T: Hash + Eq> Channel<T> {
+impl<T: Hash + Eq + Debug> Channel<T> {
     pub(crate) fn push(&mut self, val: T) {
+        trace!("PUSH {:?}", val);
         match self.net_multiplicities.get_mut(&val) {
             Some(multiplicity) => {
                 *multiplicity += 1;
@@ -538,6 +541,7 @@ impl<T: Hash + Eq> Channel<T> {
     }
 
     pub(crate) fn pull(&mut self, val: T) {
+        trace!("PULL {:?}", val);
         match self.net_multiplicities.get_mut(&val) {
             Some(multiplicity) => {
                 *multiplicity -= 1;
@@ -552,8 +556,25 @@ impl<T: Hash + Eq> Channel<T> {
             }
         }
     }
+}
 
+impl StateChannel {
     pub(crate) fn is_balanced(&self) -> bool {
+        #[cfg(debug_assertions)]
+        if !self.net_multiplicities.is_empty() {
+            let mut sorted_multiplicities: Vec<_> =
+                self.net_multiplicities.clone().into_iter().collect();
+
+            // Sort by timestamp
+            sorted_multiplicities.sort_by_key(|((_pc, _fp, timestamp), _)| *timestamp);
+
+            // TODO: better debugging?
+            debug!("Unbalanced State Channel:");
+            let _ = sorted_multiplicities
+                .iter()
+                .map(|x| trace!("{:?}", x))
+                .collect::<Vec<_>>();
+        }
         self.net_multiplicities.is_empty()
     }
 }
@@ -748,10 +769,17 @@ pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
 #[cfg(test)]
 mod tests {
     use binius_field::{Field, PackedField};
+    use env_logger::{try_init_from_env, Env, DEFAULT_FILTER_ENV};
+    use tracing_subscriber::EnvFilter;
 
     use super::*;
     use crate::parser::parse_program;
     use crate::{get_full_prom_and_labels, instructions_with_labels::get_frame_sizes_all_labels};
+
+    fn init_logger() {
+        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"));
+        tracing_subscriber::fmt().with_env_filter(filter).init();
+    }
 
     #[test]
     fn test_zcray() {
@@ -860,6 +888,8 @@ mod tests {
         //     MVV.W @16[8], @32
         //     MVV.W @16[12], @12
         //     TAILI collatz, @16
+
+        init_logger();
 
         let zero = BinaryField16b::zero();
         // labels
