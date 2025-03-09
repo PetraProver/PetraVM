@@ -52,8 +52,11 @@ impl TailiEvent {
         let next_fp_val = interpreter
             .vrom
             .get_u32(interpreter.fp ^ next_fp.val() as u32);
+
         let pc = interpreter.pc;
+        let fp = interpreter.fp;
         let timestamp = interpreter.timestamp;
+
         interpreter.fp = next_fp_val;
         interpreter.jump_to(target);
 
@@ -62,7 +65,7 @@ impl TailiEvent {
 
         Self {
             pc,
-            fp: interpreter.fp,
+            fp,
             timestamp,
             target: target.val(),
             next_fp: next_fp.val(),

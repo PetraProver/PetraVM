@@ -824,7 +824,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Fix test, see #6.
     fn test_compiled_collatz() {
         //     collatz:
         //     ;; Frame:
@@ -994,8 +993,14 @@ mod tests {
         let mut cur_val = initial_val;
 
         for i in 0..nb_frames {
-            assert!(traces.vrom.get_u32(i as u32 * 16 + 4) == ((i + 1) * 16) as u32);
-            assert_eq!(traces.vrom.get_u32(i as u32 * 16 + 2), cur_val);
+            assert_eq!(
+                traces.vrom.get_u32((i as u32 * 16 + 4) * 4), // next_fp
+                ((i + 1) * 16 * 4) as u32                     // next_fp_val
+            );
+            assert_eq!(
+                traces.vrom.get_u32((i as u32 * 16 + 2) * 4), // n
+                cur_val                                       // n_val
+            );
 
             if cur_val % 2 == 0 {
                 cur_val /= 2;
