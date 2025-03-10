@@ -164,8 +164,8 @@ impl ValueRom {
         }
 
         let mut bytes = [0; 2];
-        for i in 0..2 {
-            bytes[i] = self.get_u8(index + i as u32)?;
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
         }
 
         Ok(u16::from_le_bytes(bytes))
@@ -176,8 +176,8 @@ impl ValueRom {
             return Err(InterpreterError::VromMisaligned(32, index));
         }
         let mut bytes = [0; 4];
-        for i in 0..4 {
-            bytes[i] = self.get_u8(index + i as u32)?;
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
         }
 
         Ok(u32::from_le_bytes(bytes))
@@ -188,8 +188,8 @@ impl ValueRom {
             return Err(InterpreterError::VromMisaligned(128, index));
         }
         let mut bytes = [0; 16];
-        for i in 0..16 {
-            bytes[i] = self.get_u8(index + i as u32)?;
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
         }
 
         Ok(u128::from_le_bytes(bytes))
