@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
 };
 
@@ -54,12 +54,12 @@ impl TailiEvent {
         interpreter: &mut Interpreter,
         target: BinaryField32b,
         next_fp: BinaryField16b,
-    ) -> Self {
-        let return_addr = interpreter.vrom.get_u32(interpreter.fp);
-        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
+    ) -> Result<Self, InterpreterError> {
+        let return_addr = interpreter.vrom.get_u32(interpreter.fp)?;
+        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4)?;
         let next_fp_val = interpreter
             .vrom
-            .get_u32(interpreter.fp ^ next_fp.val() as u32);
+            .get_u32(interpreter.fp ^ next_fp.val() as u32)?;
 
         let pc = interpreter.pc;
         let fp = interpreter.fp;
@@ -71,7 +71,7 @@ impl TailiEvent {
         interpreter.vrom.set_u32(next_fp_val, return_addr);
         interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -80,7 +80,7 @@ impl TailiEvent {
             next_fp_val,
             return_addr,
             old_fp_val: old_fp_val as u16,
-        }
+        })
     }
 }
 
@@ -146,12 +146,12 @@ impl TailVEvent {
         interpreter: &mut Interpreter,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
-    ) -> Self {
-        let return_addr = interpreter.vrom.get_u32(interpreter.fp);
-        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
+    ) -> Result<Self, InterpreterError> {
+        let return_addr = interpreter.vrom.get_u32(interpreter.fp)?;
+        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4)?;
         let next_fp_val = interpreter
             .vrom
-            .get_u32(interpreter.fp ^ next_fp.val() as u32);
+            .get_u32(interpreter.fp ^ next_fp.val() as u32)?;
 
         let pc = interpreter.pc;
         let fp = interpreter.fp;
@@ -163,7 +163,7 @@ impl TailVEvent {
         interpreter.vrom.set_u32(next_fp_val, return_addr);
         interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -172,7 +172,7 @@ impl TailVEvent {
             next_fp_val,
             return_addr,
             old_fp_val: old_fp_val as u16,
-        }
+        })
     }
 }
 

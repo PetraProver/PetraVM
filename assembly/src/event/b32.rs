@@ -2,8 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::{BinaryOperation, Event};
 use crate::{
-    fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
-    impl_event_for_binary_operation, impl_immediate_binary_operation, G,
+    emulator::InterpreterError, fire_non_jump_event, impl_32b_immediate_binary_operation,
+    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation, G,
 };
 
 /// Event for XORI.
@@ -139,8 +139,10 @@ impl B32MuliEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField32b,
-    ) -> Self {
-        let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
+    ) -> Result<Self, InterpreterError> {
+        let src_val = interpreter
+            .vrom
+            .get_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -158,7 +160,7 @@ impl B32MuliEvent {
         // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         interpreter.incr_pc();
-        event
+        Ok(event)
     }
 }
 

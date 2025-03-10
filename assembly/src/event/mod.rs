@@ -7,7 +7,7 @@ use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::emulator::{InterpreterChannels, InterpreterTables};
+use crate::emulator::{InterpreterChannels, InterpreterError, InterpreterTables};
 
 pub(crate) mod b32;
 pub(crate) mod branch;
@@ -66,8 +66,10 @@ pub(crate) trait ImmediateBinaryOperation:
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-    ) -> Self {
-        let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
+    ) -> Result<Self, InterpreterError> {
+        let src_val = interpreter
+            .vrom
+            .get_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -81,9 +83,9 @@ pub(crate) trait ImmediateBinaryOperation:
         );
         interpreter
             .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
+            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
-        event
+        Ok(event)
     }
 }
 
@@ -108,9 +110,13 @@ pub(crate) trait NonImmediateBinaryOperation:
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-    ) -> Self {
-        let src1_val = interpreter.vrom.get_u32(interpreter.fp ^ src1.val() as u32);
-        let src2_val = interpreter.vrom.get_u32(interpreter.fp ^ src2.val() as u32);
+    ) -> Result<Self, InterpreterError> {
+        let src1_val = interpreter
+            .vrom
+            .get_u32(interpreter.fp ^ src1.val() as u32)?;
+        let src2_val = interpreter
+            .vrom
+            .get_u32(interpreter.fp ^ src2.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             interpreter.timestamp,
@@ -125,9 +131,9 @@ pub(crate) trait NonImmediateBinaryOperation:
         );
         interpreter
             .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
+            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
-        event
+        Ok(event)
     }
 }
 
