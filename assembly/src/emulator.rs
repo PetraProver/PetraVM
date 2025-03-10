@@ -943,7 +943,7 @@ mod tests {
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
-        frames_args_size.insert(BinaryField32b::ONE, (36, Some(8)));
+        frames_args_size.insert(BinaryField32b::ONE, (32, Some(8)));
 
         let (traces, boundary_values) =
             ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size)

@@ -39,7 +39,7 @@ fn main() {
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
     let mut labels_args = HashMap::new();
-    labels_args.insert(collatz.into(), 3);
+    labels_args.insert(collatz.into(), 8);
     let frame_sizes = get_frame_sizes_all_labels(&prom, labels, labels_args);
     println!("frame sizes {:?}", frame_sizes);
 
@@ -155,7 +155,9 @@ fn main() {
     }
 
     let initial_value = 3999;
-    let vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
+    let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
+    // TODO: Do not set the return value manually.
+    vrom.set_u32(12, 1);
     let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes)
         .expect("Trace generation should not fail.");
 }
