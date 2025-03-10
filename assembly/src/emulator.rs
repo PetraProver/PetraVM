@@ -329,7 +329,7 @@ impl Interpreter {
     fn generate_tailv(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, offset, next_fp, _] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let offset_b32 = (*offset).into();
-        let new_tailv_event = TailVEvent::generate_event(self, offset.clone(), *next_fp);
+        let new_tailv_event = TailVEvent::generate_event(self, *offset, *next_fp);
         self.allocate_new_frame(offset_b32)?;
         trace.tailv.push(new_tailv_event);
 
