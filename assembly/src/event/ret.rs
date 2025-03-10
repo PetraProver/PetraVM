@@ -3,6 +3,13 @@ use binius_field::BinaryField32b;
 use super::Event;
 use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
 
+/// Event for RET.
+///
+/// Performs a return from a function call.
+///
+/// Logic:
+///   1. PC = FP[0]
+///   2. FP = FP[1]
 #[derive(Debug, PartialEq)]
 pub struct RetEvent {
     pub(crate) pc: BinaryField32b,

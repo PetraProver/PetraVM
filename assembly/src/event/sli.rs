@@ -11,7 +11,14 @@ pub enum ShiftKind {
     Right,
 }
 
-/// Event for one of the shifts.
+/// Event for SLLI and SRLI.
+///
+/// Performs a left or right shift of a target address by an immediate bit
+/// count.
+///
+/// Logic:
+///   1. SLLI: FP[dst] = FP[src] << imm
+///   1. SRLI: FP[dst] = FP[src] >> imm
 #[derive(Debug, Clone, PartialEq)]
 pub struct SliEvent {
     pc: BinaryField32b,

@@ -412,7 +412,7 @@ pub fn get_frame_size_for_label(
     let mut cur_offset = 0;
     let mut opcode =
         Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
-    while opcode != Opcode::Taili && opcode != Opcode::Ret {
+    while opcode != Opcode::Taili && opcode != Opcode::TailV && opcode != Opcode::Ret {
         match opcode {
             Opcode::Bnz => {
                 let [_, src, target_low, target_high] = instruction;
@@ -453,7 +453,9 @@ pub fn get_frame_size_for_label(
                 let [_, dst, _, _] = instruction;
                 cur_offset = max(dst.val(), cur_offset);
             }
-            Opcode::Ret | Opcode::Taili => panic!("We should not be able to reach this."),
+            Opcode::Ret | Opcode::Taili | Opcode::TailV => {
+                unreachable!("This is explicitely skipped.")
+            }
         }
 
         cur_pc *= G;

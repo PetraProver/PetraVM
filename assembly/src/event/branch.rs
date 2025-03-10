@@ -7,6 +7,12 @@ use crate::{
 };
 
 /// Event for BNZ.
+///
+/// Performs a branching to the target address if the argument is not zero.
+///
+/// Logic:
+///   1. if FP[cond] <> 0, then PC = target
+///   2. if FP[cond] == 0, then increment PC
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BnzEvent {
     timestamp: u32,

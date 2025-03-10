@@ -95,6 +95,11 @@ impl Add32Event {
 impl_event_no_interaction_with_state_channel!(Add32Event);
 
 /// Event for ADDI.
+///
+/// Performs an ADD between a target address and an immediate.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] + imm
 #[derive(Debug, Clone)]
 pub(crate) struct AddiEvent {
     pc: BinaryField32b,
@@ -147,6 +152,11 @@ impl AddiEvent {
 }
 
 /// Event for ADD.
+///
+/// Performs an ADD between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] + FP[src2]
 #[derive(Debug, Clone)]
 pub(crate) struct AddEvent {
     pc: BinaryField32b,
@@ -171,6 +181,8 @@ impl_binary_operation!(AddEvent);
 impl_event_for_binary_operation!(AddEvent);
 
 /// Event for MULI.
+///
+/// Performs a MUL between a signed 32-bit integer and a 16-bit immediate.
 #[derive(Debug, Clone)]
 pub(crate) struct MuliEvent {
     pc: BinaryField32b,
@@ -231,7 +243,7 @@ impl MuliEvent {
         let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
 
         let imm_val = imm.val();
-        let dst_val = src_val * imm_val as u32;
+        let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
         interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
 

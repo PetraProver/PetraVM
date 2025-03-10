@@ -18,6 +18,11 @@ macro_rules! impl_mv_fire {
 }
 
 /// Event for MVV.W.
+///
+/// Performs a MOVE of 4-byte value between VROM addresses.
+///
+/// Logic:
+///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
     pc: BinaryField32b,
@@ -89,6 +94,11 @@ impl MVVWEvent {
 impl_mv_fire!(MVVWEvent);
 
 /// Event for MVV.L.
+///
+/// Performs a MOVE of 16-byte value between VROM addresses.
+///
+/// Logic:
+///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
 pub(crate) struct MVVLEvent {
     pc: BinaryField32b,
@@ -158,6 +168,12 @@ impl MVVLEvent {
 impl_mv_fire!(MVVLEvent);
 
 /// Event for MVI.H.
+///
+/// Performs a MOVE of 2-byte value from a 16-bit immediate into a VROM address,
+/// zero-extending to 32-bits.
+///
+/// Logic:
+///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
 pub(crate) struct MVIHEvent {
     pc: BinaryField32b,

@@ -12,7 +12,7 @@ use crate::{
     event::{
         b32::{AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
-        call::TailiEvent,
+        call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
@@ -78,6 +78,8 @@ pub(crate) struct ValueRom(HashMap<u32, u8>);
 //     }
 // }
 
+/// The Program ROM, or Instruction Memory, is an immutable memory where code is
+/// loaded. It maps every PC to a specific instruction to execute.
 pub type ProgramRom = HashMap<BinaryField32b, Instruction>;
 
 impl ValueRom {
@@ -168,6 +170,8 @@ impl ValueRom {
     }
 }
 
+/// An `Instruction` is composed of an opcode and up to three 16-bit arguments
+/// to be used by this operation.
 pub(crate) type Instruction = [BinaryField16b; 4];
 
 #[derive(Debug)]
@@ -252,6 +256,7 @@ impl Interpreter {
             Opcode::Muli => self.generate_muli(trace)?,
             Opcode::Ret => self.generate_ret(trace)?,
             Opcode::Taili => self.generate_taili(trace)?,
+            Opcode::TailV => self.generate_tailv(trace)?,
             Opcode::Andi => self.generate_andi(trace)?,
             Opcode::MVIH => self.generate_mvih(trace)?,
             Opcode::MVVW => self.generate_mvvw(trace)?,
@@ -317,6 +322,16 @@ impl Interpreter {
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_shift_event = SliEvent::generate_event(self, *dst, *src, *imm, ShiftKind::Right);
         trace.shift.push(new_shift_event);
+
+        Ok(())
+    }
+
+    fn generate_tailv(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, offset, next_fp, _] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let offset_b32 = (*offset).into();
+        let new_tailv_event = TailVEvent::generate_event(self, offset.clone(), *next_fp);
+        self.allocate_new_frame(offset_b32)?;
+        trace.tailv.push(new_tailv_event);
 
         Ok(())
     }
@@ -561,6 +576,7 @@ pub(crate) struct ZCrayTrace {
     add64: Vec<Add64Event>,
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
+    tailv: Vec<TailVEvent>,
     ret: Vec<RetEvent>,
     mvih: Vec<MVIHEvent>,
     mvvw: Vec<MVVWEvent>,
@@ -655,6 +671,7 @@ impl ZCrayTrace {
         fire_events!(self.b32_muli, &mut channels, &tables);
         fire_events!(self.ldi, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
+        fire_events!(self.tailv, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);
         fire_events!(self.mvvl, &mut channels, &tables);

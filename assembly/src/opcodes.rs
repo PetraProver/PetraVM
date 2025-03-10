@@ -53,7 +53,7 @@ pub enum Opcode {
     // Calli, // TODO,
     // CallV, // TODO,
     Taili = 0x0c,
-    // TailV, // TODO
+    TailV = 0x12,
     Ret = 0x0b,
 
     // Branch instructions

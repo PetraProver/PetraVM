@@ -7,6 +7,11 @@ use crate::{
 };
 
 /// Event for XORI.
+///
+/// Performs a XOR between a target address and an immediate.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] ^ imm
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {
     timestamp: u32,
@@ -42,6 +47,12 @@ pub(crate) struct AndiEvent {
     imm: u16,
 }
 
+/// Event for XOR.
+///
+/// Performs a XOR between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] ^ FP[src2]
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XorEvent {
     timestamp: u32,
@@ -76,6 +87,11 @@ impl_immediate_binary_operation!(AndiEvent);
 impl_event_for_binary_operation!(AndiEvent);
 
 /// Event for B32_MUL.
+///
+/// Performs a 32-bit MUL between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = __b32_mul(FP[src1], FP[src2])
 #[derive(Debug, Default, Clone)]
 pub(crate) struct B32MulEvent {
     timestamp: u32,
@@ -100,6 +116,11 @@ impl_binary_operation!(B32MulEvent);
 impl_event_for_binary_operation!(B32MulEvent);
 
 /// Event for B32_MULI.
+///
+/// Performs a 32-bit MUL between a target address and an immediate.
+///
+/// Logic:
+///   1. FP[dst] = __b32_mul(FP[src], imm)
 #[derive(Debug, Default, Clone)]
 pub(crate) struct B32MuliEvent {
     timestamp: u32,
