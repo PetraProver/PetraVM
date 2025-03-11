@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::BinaryOperation;
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
@@ -127,18 +127,18 @@ impl AddiEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -147,7 +147,7 @@ impl AddiEvent {
             src: src.val(),
             src_val,
             imm: imm.val(),
-        }
+        })
     }
 }
 
@@ -238,14 +238,14 @@ impl MuliEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let (aux, sum0, sum1) =
             schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);
@@ -253,7 +253,7 @@ impl MuliEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -265,7 +265,7 @@ impl MuliEvent {
             aux,
             sum0,
             sum1,
-        }
+        })
     }
 }
 

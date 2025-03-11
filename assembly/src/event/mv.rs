@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
     fire_non_jump_event,
 };
@@ -66,19 +66,19 @@ impl MVVWEvent {
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set_u32(dst_addr ^ offset.val() as u32, src_val);
+            .set_u32(dst_addr ^ offset.val() as u32, src_val)?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -87,7 +87,7 @@ impl MVVWEvent {
             src: src.val(),
             src_val,
             offset: offset.val(),
-        }
+        })
     }
 }
 
@@ -140,19 +140,19 @@ impl MVVLEvent {
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
-        let src_val = interpreter.vrom.get_u128(fp ^ src.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let src_val = interpreter.vrom.get_u128(fp ^ src.val() as u32)?;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set_u128(dst_addr ^ offset.val() as u32, src_val);
+            .set_u128(dst_addr ^ offset.val() as u32, src_val)?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -161,7 +161,7 @@ impl MVVLEvent {
             src: src.val(),
             src_val,
             offset: offset.val(),
-        }
+        })
     }
 }
 
@@ -213,18 +213,18 @@ impl MVIHEvent {
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set_u32(dst_addr ^ offset.val() as u32, imm.val() as u32);
+            .set_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
@@ -232,7 +232,7 @@ impl MVIHEvent {
             dst_addr,
             imm: imm.val(),
             offset: offset.val(),
-        }
+        })
     }
 }
 
@@ -263,21 +263,21 @@ impl LDIEvent {
         interpreter: &mut Interpreter,
         dst: BinaryField16b,
         imm: BinaryField32b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, imm.val());
+        interpreter.vrom.set_u32(fp ^ dst.val() as u32, imm.val())?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc,
             fp,
             timestamp,
             dst: dst.val(),
             imm: imm.val(),
-        }
+        })
     }
 }
 
