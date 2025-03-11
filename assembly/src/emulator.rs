@@ -459,7 +459,6 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        println!("opcode {:?}, instruction {:?}", opcode, instruction);
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace, field_pc)?,
