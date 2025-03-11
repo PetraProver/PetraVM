@@ -64,6 +64,7 @@ impl SliEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
         kind: ShiftKind,
+        field_pc: BinaryField32b,
     ) -> SliEvent {
         let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
         let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
@@ -83,7 +84,7 @@ impl SliEvent {
         interpreter.incr_pc();
 
         SliEvent::new(
-            pc,
+            field_pc,
             interpreter.fp,
             timestamp,
             dst.val(),

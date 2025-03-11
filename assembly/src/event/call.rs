@@ -54,6 +54,7 @@ impl TailiEvent {
         interpreter: &mut Interpreter,
         target: BinaryField32b,
         next_fp: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let return_addr = interpreter.vrom.get_u32(interpreter.fp);
         let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
@@ -72,7 +73,7 @@ impl TailiEvent {
         interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
 
         Self {
-            pc,
+            pc: field_pc,
             fp,
             timestamp,
             target: target.val(),
@@ -146,6 +147,7 @@ impl TailVEvent {
         interpreter: &mut Interpreter,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let return_addr = interpreter.vrom.get_u32(interpreter.fp);
         let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
@@ -164,7 +166,7 @@ impl TailVEvent {
         interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
 
         Self {
-            pc,
+            pc: field_pc,
             fp,
             timestamp,
             offset: offset.val(),

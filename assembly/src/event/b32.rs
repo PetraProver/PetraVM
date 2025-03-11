@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::{BinaryOperation, Event};
 use crate::{
@@ -139,12 +139,14 @@ impl B32MuliEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField32b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
+        debug_assert!(field_pc == G.pow(interpreter.pc as u64 - 1));
         let event = Self::new(
             interpreter.timestamp,
-            interpreter.pc,
+            field_pc,
             interpreter.fp,
             dst.val(),
             dst_val.val(),

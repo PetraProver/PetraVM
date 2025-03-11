@@ -4,7 +4,7 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use crate::{
-    emulator::ProgramRom,
+    emulator::{InterpreterInstruction, ProgramRom},
     instruction_args::{Immediate, Slot, SlotWithOffset},
     opcodes::Opcode,
     G,
@@ -88,11 +88,21 @@ pub enum InstructionsWithLabels {
     // Add more instructions as needed
 }
 
+fn incr_pc(pc: u32) -> u32 {
+    if pc == u32::MAX {
+        // We skip over 0, as it is inaccessible in the multiplicative group.
+        return 1;
+    }
+
+    pc + 1
+}
+
 pub fn get_prom_inst_from_inst_with_label(
     prom: &mut ProgramRom,
     labels: &Labels,
-    pc: &mut BinaryField32b,
+    field_pc: &mut BinaryField32b,
     instruction: &InstructionsWithLabels,
+    is_call_hint: bool,
 ) -> Result<(), String> {
     match instruction {
         InstructionsWithLabels::Label(s) => {
@@ -101,314 +111,294 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::AddI { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Addi.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Addi.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Add { dst, src1, src2 } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Add.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        src2.get_16bfield_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Add.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::AndI { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Andi.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Andi.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         // TODO: To change
         InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::B32Muli.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            if prom
-                .insert(
-                    *pc * G,
-                    [
-                        Opcode::B32Muli.get_field_elt(),
-                        imm.get_high_field_val(),
-                        BinaryField16b::zero(),
-                        BinaryField16b::zero(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G.square();
+            let instruction = [
+                Opcode::B32Muli.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+
+            let instruction = [
+                Opcode::B32Muli.get_field_elt(),
+                imm.get_high_field_val(),
+                BinaryField16b::zero(),
+                BinaryField16b::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let instruction = [
+                    Opcode::Bnz.get_field_elt(),
+                    src.get_16bfield_val(),
+                    targets_16b[0],
+                    targets_16b[1],
+                ];
 
-                if prom
-                    .insert(
-                        *pc,
-                        [
-                            Opcode::Bnz.get_field_elt(),
-                            src.get_16bfield_val(),
-                            targets_16b[0],
-                            targets_16b[1],
-                        ],
-                    )
-                    .is_some()
-                {
-                    return Err(format!("Already encountered PC {:?}", pc));
-                }
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    is_call_hint,
+                ));
             } else {
                 return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
             }
-            *pc *= G;
+            *field_pc *= G;
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Muli.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Muli.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::MvvW { dst, src } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::MVVW.get_field_elt(),
-                        dst.get_slot_16bfield_val(),
-                        dst.get_offset_field_val(),
-                        src.get_16bfield_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::MVVW.get_field_elt(),
+                dst.get_slot_16bfield_val(),
+                dst.get_offset_field_val(),
+                src.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::SllI { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Slli.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Slli.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::SrlI { dst, src1, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Srli.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Srli.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Ret => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Ret.get_field_elt(),
-                        BinaryField16b::zero(),
-                        BinaryField16b::zero(),
-                        BinaryField16b::zero(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Ret.get_field_elt(),
+                BinaryField16b::zero(),
+                BinaryField16b::zero(),
+                BinaryField16b::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Taili { label, arg } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let instruction = [
+                    Opcode::Taili.get_field_elt(),
+                    targets_16b[0],
+                    targets_16b[1],
+                    arg.get_16bfield_val(),
+                ];
 
-                if prom
-                    .insert(
-                        *pc,
-                        [
-                            Opcode::Taili.get_field_elt(),
-                            targets_16b[0],
-                            targets_16b[1],
-                            arg.get_16bfield_val(),
-                        ],
-                    )
-                    .is_some()
-                {
-                    return Err(format!("Already encountered PC {:?}", pc));
-                }
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    is_call_hint,
+                ));
             } else {
                 return Err(format!(
                     "Label in Taili instruction, {}, nonexistent.",
                     label
                 ));
             }
-            *pc *= G;
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::XorI { dst, src, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Xori.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src.get_16bfield_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Xori.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Xor { dst, src1, src2 } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::Xor.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        src1.get_16bfield_val(),
-                        src2.get_16bfield_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::Xor.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::MviH { dst, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::MVIH.get_field_elt(),
-                        dst.get_slot_16bfield_val(),
-                        dst.get_offset_field_val(),
-                        imm.get_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::MVIH.get_field_elt(),
+                dst.get_slot_16bfield_val(),
+                dst.get_offset_field_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Ldi { dst, imm } => {
-            if prom
-                .insert(
-                    *pc,
-                    [
-                        Opcode::LDI.get_field_elt(),
-                        dst.get_16bfield_val(),
-                        imm.get_field_val(),
-                        imm.get_high_field_val(),
-                    ],
-                )
-                .is_some()
-            {
-                return Err(format!("Already encountered PC {:?}", pc));
-            }
-            *pc *= G;
+            let instruction = [
+                Opcode::LDI.get_field_elt(),
+                dst.get_16bfield_val(),
+                imm.get_field_val(),
+                imm.get_high_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
         }
     }
     Ok(())
 }
 
+// Labels hold the labels in the code, with their associated integer and binary
+// field PCs.
 type Labels = HashMap<String, BinaryField32b>;
+
 // Gives the number of arguments + return values for each label.
 type LabelsArgs = HashMap<BinaryField32b, u16>;
-// PC, Frame size, number of args + return values.
+// Binary field PC as the key. Values are: (Frame size, size of args
+// and return values).
 pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, (u16, Option<u16>)>;
+// Gives the field PC associated to an integer PC. Only conatins the PCs that
+// can be called by the PROM.
+pub(crate) type FieldPCToPC = HashMap<BinaryField32b, u32>;
 
 pub fn get_frame_size_for_label(
     prom: &ProgramRom,
-    label_pc: BinaryField32b,
+    label_pc: u32,
     labels_fps: &mut LabelsFrameSizes,
     labels_args: &LabelsArgs,
+    field_pc_to_pc: &FieldPCToPC,
 ) -> u16 {
-    if let Some((frame_size, _)) = labels_fps.get(&label_pc) {
+    let mut cur_pc = label_pc;
+    let mut interp_instruction = &prom[cur_pc as usize - 1];
+    let instruction = interp_instruction.instruction;
+    let field_pc = interp_instruction.field_pc;
+    if let Some((frame_size, _)) = labels_fps.get(&field_pc) {
         return *frame_size;
     }
 
-    let mut cur_pc = label_pc;
-    let mut instruction = prom.get(&cur_pc).unwrap();
     let mut cur_offset = 0;
     let mut opcode =
         Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
@@ -416,8 +406,15 @@ pub fn get_frame_size_for_label(
         match opcode {
             Opcode::Bnz => {
                 let [_, src, target_low, target_high] = instruction;
-                let target = BinaryField32b::from_bases(&[*target_low, *target_high]).unwrap();
-                let sub_offset = get_frame_size_for_label(prom, target, labels_fps, labels_args);
+                let target = BinaryField32b::from_bases(&[target_low, target_high]).unwrap();
+                let int_target = field_pc_to_pc.get(&target).unwrap();
+                let sub_offset = get_frame_size_for_label(
+                    prom,
+                    *int_target,
+                    labels_fps,
+                    labels_args,
+                    field_pc_to_pc,
+                );
                 let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);
             }
@@ -436,7 +433,7 @@ pub fn get_frame_size_for_label(
                 let max_accessed_addr = max(dst, src);
                 cur_offset = max(max_accessed_addr.val(), cur_offset);
                 // B32Muli needs two rows.
-                cur_pc *= G;
+                cur_pc = incr_pc(cur_pc);
             }
             Opcode::Add | Opcode::Xor | Opcode::B32Mul => {
                 let [_, dst, src1, src2] = instruction;
@@ -458,15 +455,16 @@ pub fn get_frame_size_for_label(
             }
         }
 
-        cur_pc *= G;
-        instruction = prom.get(&cur_pc).unwrap();
+        cur_pc = incr_pc(cur_pc);
+        let instruction = prom[cur_pc as usize - 1].instruction;
         opcode =
             Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
     }
 
     // We know that there was no key `label_pc` before, since it was the first thing
     // we checked in this method.
-    labels_fps.insert(label_pc, (cur_offset, labels_args.get(&label_pc).copied()));
+    let field_pc = prom[label_pc as usize - 1].field_pc;
+    labels_fps.insert(field_pc, (cur_offset, labels_args.get(&field_pc).copied()));
 
     cur_offset
 }
@@ -475,42 +473,70 @@ pub fn get_frame_sizes_all_labels(
     prom: &ProgramRom,
     labels: Labels,
     labels_args: LabelsArgs,
+    field_pc_to_pc: &FieldPCToPC,
 ) -> LabelsFrameSizes {
     let mut labels_frame_sizes = HashMap::new();
-
-    for (_, pc) in labels {
-        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes, &labels_args);
+    for (_, field_pc) in labels {
+        let &pc = field_pc_to_pc.get(&field_pc).unwrap();
+        let _ = get_frame_size_for_label(
+            prom,
+            pc,
+            &mut labels_frame_sizes,
+            &labels_args,
+            field_pc_to_pc,
+        );
     }
     labels_frame_sizes
 }
 
-fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<Labels, String> {
+fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, FieldPCToPC), String> {
     let mut labels = HashMap::new();
-    let mut pc = BinaryField32b::ONE;
+    let mut field_pc_to_pc = HashMap::new();
+    let mut field_pc = BinaryField32b::ONE;
+    let mut pc = 1;
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s) => {
-                if labels.insert(s.clone(), pc).is_some() {
+                if labels.insert(s.clone(), field_pc).is_some()
+                    || field_pc_to_pc.insert(field_pc, pc).is_some()
+                {
                     return Err(format!("Label {} already exists.", s));
                 }
                 // We do not increment the PC if we found a label.
             }
-            _ => pc *= G,
+            _ => {
+                field_pc *= G;
+                pc = incr_pc(pc);
+            }
         }
     }
-    Ok(labels)
+    Ok((labels, field_pc_to_pc))
 }
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
-) -> Result<(ProgramRom, Labels), String> {
-    let labels = get_labels(instructions)?;
-    let mut prom = HashMap::new();
-    let mut pc = BinaryField32b::ONE;
-    for instruction in instructions {
-        get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut pc, instruction)?;
+    is_call_procedure_hints: &[bool],
+) -> Result<(ProgramRom, Labels, FieldPCToPC), String> {
+    let (labels, field_pc_to_pc) = get_labels(instructions)?;
+    let mut prom = ProgramRom::new();
+    let mut field_pc = BinaryField32b::ONE;
+    assert_eq!(
+        instructions.len(),
+        is_call_procedure_hints.len(),
+        "The instructions have length {} but the call procedure hints have length {}",
+        instructions.len(),
+        is_call_procedure_hints.len()
+    );
+    for (instruction, &is_call_procedure) in instructions.iter().zip(is_call_procedure_hints) {
+        get_prom_inst_from_inst_with_label(
+            &mut prom,
+            &labels,
+            &mut field_pc,
+            instruction,
+            is_call_procedure,
+        )?;
     }
-    Ok((prom, labels))
+    Ok((prom, labels, field_pc_to_pc))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {

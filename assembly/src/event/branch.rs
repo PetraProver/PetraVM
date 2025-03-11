@@ -29,7 +29,7 @@ impl Event for BnzEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
+        let target_int = channels
             .state_channel
             .push((self.target, self.fp, self.timestamp + 1));
     }
@@ -40,11 +40,15 @@ impl BnzEvent {
         interpreter: &mut Interpreter,
         cond: BinaryField16b,
         target: BinaryField32b,
+        field_pc: BinaryField32b,
     ) -> BnzEvent {
         let cond_val = interpreter.vrom.get_u32(interpreter.fp ^ cond.val() as u32);
+
+        assert!(interpreter.pc != 0);
+
         let event = BnzEvent {
             timestamp: interpreter.timestamp,
-            pc: interpreter.pc,
+            pc: field_pc,
             fp: interpreter.fp,
             cond: cond.val(),
             con_val: cond_val,
@@ -78,12 +82,13 @@ impl BzEvent {
         interpreter: &mut Interpreter,
         cond: BinaryField16b,
         target: BinaryField32b,
+        field_pc: BinaryField32b,
     ) -> BzEvent {
         let fp = interpreter.fp;
         let cond_val = interpreter.vrom.get_u32(fp ^ cond.val() as u32);
         let event = BzEvent {
             timestamp: interpreter.timestamp,
-            pc: interpreter.pc,
+            pc: field_pc,
             fp,
             cond: cond.val(),
             cond_val,

@@ -14,8 +14,8 @@ mod vrom_allocator;
 
 use std::collections::HashMap;
 
-use binius_field::{BinaryField16b, ExtensionField, Field, PackedField};
-use emulator::{code_to_prom, ValueRom, ZCrayTrace, G};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
+use emulator::{Instruction, InterpreterInstruction, ProgramRom, ValueRom, ZCrayTrace, G};
 use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
 use opcodes::Opcode;
 use parser::parse_program;
@@ -25,22 +25,44 @@ pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
     BinaryField16b::new(i)
 }
 
+pub(crate) fn code_to_prom(
+    code: &[Instruction],
+    is_calling_procedure_hints: &[bool],
+) -> ProgramRom {
+    let mut prom = ProgramRom::new();
+    let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
+    for (i, &instruction) in code.iter().enumerate() {
+        let interp_inst =
+            InterpreterInstruction::new(instruction, pc, is_calling_procedure_hints[i]);
+        prom.push(interp_inst);
+        pc *= G;
+    }
+
+    prom
+}
+
 fn main() {
-    let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
-
-    let (prom, labels) =
-        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
-
-    let zero = BinaryField16b::zero();
     let collatz = BinaryField16b::ONE;
     let case_recurse =
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(4)).collect::<Vec<BinaryField16b>>();
     let case_odd =
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
+    let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
+    let mut is_call_procedure_hints = vec![false; instructions.len()];
+    let indices_to_set = vec![7, 8, 9, 12, 13, 14];
+    for idx in indices_to_set {
+        is_call_procedure_hints[idx] = true;
+    }
+    let (prom, labels, field_pc_to_pc) =
+        get_full_prom_and_labels(&instructions, &is_call_procedure_hints)
+            .expect("Instructions were not formatted properly.");
+
+    let zero = BinaryField16b::zero();
+
     let mut labels_args = HashMap::new();
     labels_args.insert(collatz.into(), 8);
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, labels_args);
+    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, labels_args, &field_pc_to_pc);
     println!("frame sizes {:?}", frame_sizes);
 
     let expected_prom = vec![
@@ -136,7 +158,7 @@ fn main() {
         ], //  14G: TAILI collatz 16
     ];
 
-    let expected_prom = code_to_prom(&expected_prom);
+    let expected_prom = code_to_prom(&expected_prom, &is_call_procedure_hints);
 
     assert!(
         prom.len() == expected_prom.len(),
@@ -145,12 +167,12 @@ fn main() {
         expected_prom.len()
     );
 
-    for (key, val) in prom.iter() {
-        let expected_val = expected_prom.get(key).expect("Extra value in prom");
+    for (i, inst) in prom.iter().enumerate() {
+        let expected_inst = &expected_prom[i];
         assert_eq!(
-            *val, *expected_val,
-            "Value for key {:?} in PROM is {:?} but is {:?} in expected PROM",
-            key, val, expected_val
+            *inst, *expected_inst,
+            "Value for index {:?} in PROM is {:?} but is {:?} in expected PROM",
+            i, inst, expected_inst
         );
     }
 
@@ -158,6 +180,6 @@ fn main() {
     let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
     // TODO: Do not set the return value manually.
     vrom.set_u32(12, 1);
-    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes)
+    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, field_pc_to_pc)
         .expect("Trace generation should not fail.");
 }

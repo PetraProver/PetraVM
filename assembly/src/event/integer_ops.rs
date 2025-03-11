@@ -127,6 +127,7 @@ impl AddiEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let fp = interpreter.fp;
         let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
@@ -139,7 +140,7 @@ impl AddiEvent {
         interpreter.incr_pc();
 
         Self {
-            pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -238,6 +239,7 @@ impl MuliEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let fp = interpreter.fp;
         let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
@@ -254,7 +256,7 @@ impl MuliEvent {
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
         Self {
-            pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),

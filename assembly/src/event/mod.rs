@@ -66,12 +66,13 @@ pub(crate) trait ImmediateBinaryOperation:
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
-            interpreter.pc,
+            field_pc,
             interpreter.fp,
             dst.val(),
             dst_val.val(),
@@ -108,13 +109,14 @@ pub(crate) trait NonImmediateBinaryOperation:
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
+        field_pc: BinaryField32b,
     ) -> Self {
         let src1_val = interpreter.vrom.get_u32(interpreter.fp ^ src1.val() as u32);
         let src2_val = interpreter.vrom.get_u32(interpreter.fp ^ src2.val() as u32);
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             interpreter.timestamp,
-            interpreter.pc,
+            field_pc,
             interpreter.fp,
             dst.val(),
             dst_val.val(),
