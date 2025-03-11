@@ -402,7 +402,7 @@ pub fn get_frame_size_for_label(
         match opcode {
             Opcode::Bnz => {
                 let [op, src, target_low, target_high] = instruction;
-                let target = BinaryField32b::from_bases(&[target_low, target_high]).unwrap();
+                let target = BinaryField32b::from_bases([target_low, target_high]).unwrap();
                 let int_target = field_pc_to_pc.get(&target).unwrap_or_else(|| {
                     panic!(
                         "The provided field PC to PC mapping is incomplete. PC {:?} not found.",

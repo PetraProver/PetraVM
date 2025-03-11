@@ -491,7 +491,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, cond, target_low, target_high] = self.prom[self.pc as usize - 1].instruction;
-        let target = BinaryField32b::from_bases(&[target_low, target_high])
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
         let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32);
         if cond_val != 0 {
@@ -585,7 +585,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, target_low, target_high, next_fp] = self.prom[self.pc as usize - 1].instruction;
-        let target = BinaryField32b::from_bases(&[target_low, target_high])
+        let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let next_fp_val = self.allocate_new_frame(target)?;
         let new_taili_event =
@@ -668,7 +668,7 @@ impl Interpreter {
         {
             return Err(InterpreterError::BadPc);
         }
-        let imm = BinaryField32b::from_bases(&[imm_low, imm_high])
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc);
         trace.b32_muli.push(new_b32muli_event);
@@ -764,7 +764,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, imm_low, imm_high] = self.prom[self.pc as usize - 1].instruction;
-        let imm = BinaryField32b::from_bases(&[imm_low, imm_high])
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_ldi_event = LDIEvent::generate_event(self, trace, dst, imm, field_pc);
         trace.ldi.push(new_ldi_event);
