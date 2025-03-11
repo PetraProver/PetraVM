@@ -69,24 +69,18 @@ impl Add32Event {
         }
     }
 
-    pub fn generate_event(
-        interpreter: &mut Interpreter,
-        input1: BinaryField32b,
-        input2: BinaryField32b,
-    ) -> Self {
-        let inp1 = input1.val();
-        let inp2 = input2.val();
-        let (output, carry) = inp1.overflowing_add(inp2);
+    pub fn generate_event(interpreter: &mut Interpreter, input1: u32, input2: u32) -> Self {
+        let (output, carry) = input1.overflowing_add(input2);
 
-        let cout = (output ^ inp1 ^ inp2) >> (1 + (carry as u32)) << 31;
+        let cout = (output ^ input1 ^ input2) >> (1 + (carry as u32)) << 31;
 
         let timestamp = interpreter.timestamp;
 
         Self {
             timestamp,
             output,
-            input1: inp1,
-            input2: inp2,
+            input1,
+            input2,
             cout,
         }
     }

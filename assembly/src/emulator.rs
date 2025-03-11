@@ -567,8 +567,8 @@ impl Interpreter {
         let new_add_event = AddEvent::generate_event(self, dst, src1, src2)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            BinaryField32b::new(new_add_event.src1_val),
-            BinaryField32b::new(new_add_event.src2_val),
+            new_add_event.src1_val,
+            new_add_event.src2_val,
         ));
         trace.add.push(new_add_event);
 
@@ -585,8 +585,8 @@ impl Interpreter {
         let new_addi_event = AddiEvent::generate_event(self, dst, src, imm)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            BinaryField32b::new(new_addi_event.src_val),
-            imm.into(),
+            new_addi_event.src_val,
+            imm.val() as u32,
         ));
         trace.addi.push(new_addi_event);
 
