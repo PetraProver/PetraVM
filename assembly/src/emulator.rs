@@ -4,6 +4,7 @@
 
 use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
 
+use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
@@ -13,7 +14,7 @@ use crate::{
         b32::{AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
-        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        integer_ops::model::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
@@ -28,6 +29,7 @@ use crate::{
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 #[derive(Debug, Default)]
 pub struct Channel<T> {
+    pub(crate) id: ChannelId,
     net_multiplicities: HashMap<T, isize>,
 }
 
@@ -272,7 +274,7 @@ impl Interpreter {
     fn generate_bnz(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let &[_, cond, target_low, target_high] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&[target_low, target_high])
+        let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32);
         if cond_val != 0 {
@@ -339,7 +341,7 @@ impl Interpreter {
     fn generate_taili(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, target_low, target_high, next_fp] =
             self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let target = BinaryField32b::from_bases(&[*target_low, *target_high])
+        let target = BinaryField32b::from_bases([*target_low, *target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
         self.allocate_new_frame(target)?;
@@ -405,7 +407,7 @@ impl Interpreter {
         {
             return Err(InterpreterError::BadPc);
         }
-        let imm = BinaryField32b::from_bases(&[*imm_low, *imm_high])
+        let imm = BinaryField32b::from_bases([*imm_low, *imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_b32muli_event = B32MuliEvent::generate_event(self, *dst, *src, imm);
         trace.b32_muli.push(new_b32muli_event);
@@ -466,7 +468,7 @@ impl Interpreter {
 
     fn generate_ldi(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, imm_low, imm_high] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let imm = BinaryField32b::from_bases(&[*imm_low, *imm_high])
+        let imm = BinaryField32b::from_bases([*imm_low, *imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_ldi_event = LDIEvent::generate_event(self, *dst, imm);
         trace.ldi.push(new_ldi_event);

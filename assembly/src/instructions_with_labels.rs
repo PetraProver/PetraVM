@@ -416,7 +416,7 @@ pub fn get_frame_size_for_label(
         match opcode {
             Opcode::Bnz => {
                 let [_, src, target_low, target_high] = instruction;
-                let target = BinaryField32b::from_bases(&[*target_low, *target_high]).unwrap();
+                let target = BinaryField32b::from_bases([*target_low, *target_high]).unwrap();
                 let sub_offset = get_frame_size_for_label(prom, target, labels_fps, labels_args);
                 let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);
