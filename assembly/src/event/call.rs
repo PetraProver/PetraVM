@@ -3,6 +3,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
+    ZCrayTrace,
 };
 
 /// Event for TAILI.
@@ -52,6 +53,7 @@ impl TailiEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         target: BinaryField32b,
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
@@ -69,8 +71,8 @@ impl TailiEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(target);
 
-        interpreter.vrom.set_u32(next_fp_val, return_addr);
-        interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
+        interpreter.vrom.set_u32(trace, next_fp_val, return_addr);
+        interpreter.vrom.set_u32(trace, next_fp_val + 4, old_fp_val);
 
         Self {
             pc: field_pc,
@@ -145,6 +147,7 @@ impl TailVEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
@@ -162,8 +165,8 @@ impl TailVEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(BinaryField32b::new(interpreter.fp ^ offset.val() as u32));
 
-        interpreter.vrom.set_u32(next_fp_val, return_addr);
-        interpreter.vrom.set_u32(next_fp_val + 4, old_fp_val);
+        interpreter.vrom.set_u32(trace, next_fp_val, return_addr);
+        interpreter.vrom.set_u32(trace, next_fp_val + 4, old_fp_val);
 
         Self {
             pc: field_pc,

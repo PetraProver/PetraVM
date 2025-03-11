@@ -5,7 +5,7 @@ use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
-    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, ZCrayTrace,
 };
 
 /// Event for the Add64 gadget.
@@ -124,6 +124,7 @@ impl_event_for_binary_operation!(AddiEvent);
 impl AddiEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -133,7 +134,9 @@ impl AddiEvent {
         let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
+        interpreter
+            .vrom
+            .set_u32(trace, fp ^ dst.val() as u32, dst_val);
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -236,6 +239,7 @@ impl MuliEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -247,7 +251,9 @@ impl MuliEvent {
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, dst_val);
+        interpreter
+            .vrom
+            .set_u32(trace, fp ^ dst.val() as u32, dst_val);
 
         let (aux, sum0, sum1) =
             schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);

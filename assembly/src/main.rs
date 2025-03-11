@@ -49,13 +49,16 @@ fn main() {
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
     let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
-    let mut is_call_procedure_hints = vec![false; instructions.len()];
-    let indices_to_set = vec![7, 8, 9, 12, 13, 14];
-    for idx in indices_to_set {
-        is_call_procedure_hints[idx] = true;
+
+    // Sets the call procedure hints to true for the returned PROM (where
+    // instructions are given with the labels).
+    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
+    let indices_to_set_with_labels = vec![9, 10, 11, 15, 16, 17];
+    for idx in indices_to_set_with_labels {
+        is_call_procedure_hints_with_labels[idx] = true;
     }
     let (prom, labels, field_pc_to_pc) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints)
+        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
             .expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
@@ -158,6 +161,13 @@ fn main() {
         ], //  14G: TAILI collatz 16
     ];
 
+    // Sets the call procedure hints to true for the expected PROM (where
+    // instructions are given without the labels).
+    let mut is_call_procedure_hints = vec![false; instructions.len()];
+    let indices_to_set = vec![7, 8, 9, 12, 13, 14];
+    for idx in indices_to_set {
+        is_call_procedure_hints[idx] = true;
+    }
     let expected_prom = code_to_prom(&expected_prom, &is_call_procedure_hints);
 
     assert!(
@@ -178,8 +188,7 @@ fn main() {
 
     let initial_value = 3999;
     let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
-    // TODO: Do not set the return value manually.
-    vrom.set_u32(12, 1);
+
     let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, field_pc_to_pc)
         .expect("Trace generation should not fail.");
 }

@@ -3,7 +3,7 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 use super::{BinaryOperation, Event};
 use crate::{
     fire_non_jump_event, impl_32b_immediate_binary_operation, impl_binary_operation,
-    impl_event_for_binary_operation, impl_immediate_binary_operation, G,
+    impl_event_for_binary_operation, impl_immediate_binary_operation, ZCrayTrace, G,
 };
 
 /// Event for XORI.
@@ -136,6 +136,7 @@ pub(crate) struct B32MuliEvent {
 impl B32MuliEvent {
     pub fn generate_event(
         interpreter: &mut crate::emulator::Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField32b,
@@ -156,7 +157,7 @@ impl B32MuliEvent {
         );
         interpreter
             .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
+            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val());
         // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         interpreter.incr_pc();

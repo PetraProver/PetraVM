@@ -4,6 +4,8 @@ use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterTables},
     event::Event,
     fire_non_jump_event,
+    opcodes::Opcode,
+    ZCrayTrace,
 };
 
 /// Convenience macro to implement the `Event` trait for MV events.
@@ -17,6 +19,87 @@ macro_rules! impl_mv_fire {
     };
 }
 
+pub(crate) struct MVEventOutput {
+    parent: u32, // parent addr
+    opcode: Opcode,
+    field_pc: BinaryField32b, // field PC
+    fp: u32,                  // fp
+    timestamp: u32,           // timestamp
+    dst: BinaryField16b,      // dst
+    src: BinaryField16b,      // src
+    offset: BinaryField16b,   // offset
+    src_val: u128,
+}
+
+impl MVEventOutput {
+    pub(crate) fn new(
+        parent: u32, // parent addr
+        opcode: Opcode,
+        field_pc: BinaryField32b, // field PC
+        fp: u32,                  // fp
+        timestamp: u32,           // timestamp
+        dst: BinaryField16b,      // dst
+        src: BinaryField16b,      // src
+        offset: BinaryField16b,   // offset
+        src_val: u128,
+    ) -> Self {
+        Self {
+            parent, // parent addr
+            opcode,
+            field_pc,  // field PC
+            fp,        // fp
+            timestamp, // timestamp
+            dst,       // dst
+            src,       // src
+            offset,    // offset
+            src_val,
+        }
+    }
+
+    pub(crate) fn push_mv_event(&self, trace: &mut ZCrayTrace) {
+        let &MVEventOutput {
+            parent,
+            opcode,
+            field_pc,
+            fp,
+            timestamp,
+            dst,
+            src,
+            offset,
+            src_val,
+        } = self;
+
+        match opcode {
+            Opcode::MVVL => {
+                let new_event = MVVLEvent::new(
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst.val(),
+                    parent,
+                    src.val(),
+                    src_val,
+                    offset.val(),
+                );
+                trace.mvvl.push(new_event);
+            }
+            Opcode::MVVW => {
+                let new_event = MVVWEvent::new(
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst.val(),
+                    parent,
+                    src.val(),
+                    src_val as u32,
+                    offset.val(),
+                );
+                trace.mvvw.push(new_event);
+            }
+            _ => panic!(),
+        }
+    }
+}
 /// Event for MVV.W.
 ///
 /// Performs a MOVE of 4-byte value between VROM addresses.
@@ -63,31 +146,60 @@ impl MVVWEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Self {
+        is_call_procedure: bool,
+    ) -> Option<Self> {
         let fp = interpreter.fp;
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32);
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = interpreter.vrom.get_u32_move(src_addr);
+        if !is_call_procedure {
+            assert!(
+                opt_src_val.is_some(),
+                "Trying to move a nonexistent value from address {:?}",
+                src_addr
+            );
+        }
+
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter
-            .vrom
-            .set_u32(dst_addr ^ offset.val() as u32, src_val);
         interpreter.incr_pc();
 
-        Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_addr,
-            src: src.val(),
-            src_val,
-            offset: offset.val(),
+        if let Some(src_val) = opt_src_val {
+            interpreter
+                .vrom
+                .set_u32(trace, dst_addr ^ offset.val() as u32, src_val);
+
+            Some(Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_addr,
+                src: src.val(),
+                src_val,
+                offset: offset.val(),
+            })
+        } else {
+            interpreter.vrom.insert_to_set(
+                dst_addr,
+                (
+                    src_addr,
+                    Opcode::MVVL,
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                ),
+            );
+            None
         }
     }
 }
@@ -142,27 +254,52 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Self {
-        let fp = interpreter.fp;
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
-        let src_val = interpreter.vrom.get_u128(fp ^ src.val() as u32);
+        is_call_procedure: bool,
+    ) -> Option<Self> {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
+        let fp = interpreter.fp;
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = interpreter.vrom.get_u128_move(src_addr);
+        if !is_call_procedure {
+            assert!(
+                opt_src_val.is_some(),
+                "Trying to move a nonexistent value from address {:?}",
+                src_addr
+            );
+        }
 
-        interpreter
-            .vrom
-            .set_u128(dst_addr ^ offset.val() as u32, src_val);
-        interpreter.incr_pc();
+        if let Some(src_val) = opt_src_val {
+            interpreter
+                .vrom
+                .set_u128(dst_addr ^ offset.val() as u32, src_val);
 
-        Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_addr,
-            src: src.val(),
-            src_val,
-            offset: offset.val(),
+            Some(Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_addr,
+                src: src.val(),
+                src_val,
+                offset: offset.val(),
+            })
+        } else {
+            interpreter.vrom.insert_to_set(
+                dst_addr,
+                (
+                    src_addr,
+                    Opcode::MVVL,
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                ),
+            );
+            None
         }
     }
 }
@@ -212,6 +349,7 @@ impl MVIHEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
@@ -224,7 +362,7 @@ impl MVIHEvent {
 
         interpreter
             .vrom
-            .set_u32(dst_addr ^ offset.val() as u32, imm.val() as u32);
+            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32);
         interpreter.incr_pc();
 
         Self {
@@ -264,6 +402,7 @@ impl LDIEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         imm: BinaryField32b,
         field_pc: BinaryField32b,
@@ -272,7 +411,9 @@ impl LDIEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.vrom.set_u32(fp ^ dst.val() as u32, imm.val());
+        interpreter
+            .vrom
+            .set_u32(trace, fp ^ dst.val() as u32, imm.val());
         interpreter.incr_pc();
 
         Self {

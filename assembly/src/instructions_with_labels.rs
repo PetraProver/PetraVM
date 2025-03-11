@@ -393,7 +393,7 @@ pub fn get_frame_size_for_label(
 ) -> u16 {
     let mut cur_pc = label_pc;
     let mut interp_instruction = &prom[cur_pc as usize - 1];
-    let instruction = interp_instruction.instruction;
+    let mut instruction = interp_instruction.instruction;
     let field_pc = interp_instruction.field_pc;
     if let Some((frame_size, _)) = labels_fps.get(&field_pc) {
         return *frame_size;
@@ -405,9 +405,12 @@ pub fn get_frame_size_for_label(
     while opcode != Opcode::Taili && opcode != Opcode::TailV && opcode != Opcode::Ret {
         match opcode {
             Opcode::Bnz => {
-                let [_, src, target_low, target_high] = instruction;
+                let [op, src, target_low, target_high] = instruction;
                 let target = BinaryField32b::from_bases(&[target_low, target_high]).unwrap();
-                let int_target = field_pc_to_pc.get(&target).unwrap();
+                let int_target = field_pc_to_pc.get(&target).expect(&format!(
+                    "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
+                    target
+                ));
                 let sub_offset = get_frame_size_for_label(
                     prom,
                     *int_target,
@@ -456,7 +459,8 @@ pub fn get_frame_size_for_label(
         }
 
         cur_pc = incr_pc(cur_pc);
-        let instruction = prom[cur_pc as usize - 1].instruction;
+        instruction = prom[cur_pc as usize - 1].instruction;
+
         opcode =
             Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
     }

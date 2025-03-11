@@ -7,7 +7,10 @@ use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::emulator::{InterpreterChannels, InterpreterTables};
+use crate::{
+    emulator::{InterpreterChannels, InterpreterTables},
+    ZCrayTrace,
+};
 
 pub(crate) mod b32;
 pub(crate) mod branch;
@@ -63,6 +66,7 @@ pub(crate) trait ImmediateBinaryOperation:
 
     fn generate_event(
         interpreter: &mut crate::emulator::Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -82,7 +86,7 @@ pub(crate) trait ImmediateBinaryOperation:
         );
         interpreter
             .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
+            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val());
         interpreter.incr_pc();
         event
     }
@@ -106,6 +110,7 @@ pub(crate) trait NonImmediateBinaryOperation:
 
     fn generate_event(
         interpreter: &mut crate::emulator::Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -127,7 +132,7 @@ pub(crate) trait NonImmediateBinaryOperation:
         );
         interpreter
             .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, dst_val.val());
+            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val());
         interpreter.incr_pc();
         event
     }
