@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
+use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use super::BinaryOperation;
 use crate::{
@@ -8,18 +9,18 @@ use crate::{
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
 };
 
-/// Event for the Add64 gadget.
+/// Event for the Add gadgets over the integers.
 #[derive(Debug, Clone)]
-pub(crate) struct Add64Event {
+pub(crate) struct AddGadgetEvent<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
     timestamp: u32,
-    output: u64,
-    input1: u64,
-    input2: u64,
-    cout: u64,
+    output: T,
+    input1: T,
+    input2: T,
+    cout: T,
 }
 
-impl Add64Event {
-    pub const fn new(timestamp: u32, output: u64, input1: u64, input2: u64, cout: u64) -> Self {
+impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadgetEvent<T> {
+    pub const fn new(timestamp: u32, output: T, input1: T, input2: T, cout: T) -> Self {
         Self {
             timestamp,
             output,
@@ -29,10 +30,10 @@ impl Add64Event {
         }
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter, input1: u64, input2: u64) -> Self {
-        let (output, carry) = input1.overflowing_add(input2);
+    pub fn generate_event(interpreter: &mut Interpreter, input1: T, input2: T) -> Self {
+        let (output, carry) = input1.overflowing_add(&input2);
 
-        let cout = (output ^ input1 ^ input2) >> (1 + (carry as u64)) << 63;
+        let cout = (output ^ input1 ^ input2) >> (1 + carry as usize) << (T::BITS - 1);
 
         let timestamp = interpreter.timestamp;
 
@@ -46,47 +47,11 @@ impl Add64Event {
     }
 }
 
-impl_event_no_interaction_with_state_channel!(Add64Event);
-
-/// Event for the Add32 gadget.
-#[derive(Debug, Clone)]
-pub(crate) struct Add32Event {
-    timestamp: u32,
-    output: u32,
-    input1: u32,
-    input2: u32,
-    cout: u32,
-}
-
-impl Add32Event {
-    pub const fn new(timestamp: u32, output: u32, input1: u32, input2: u32, cout: u32) -> Self {
-        Self {
-            timestamp,
-            output,
-            input1,
-            input2,
-            cout,
-        }
-    }
-
-    pub fn generate_event(interpreter: &mut Interpreter, input1: u32, input2: u32) -> Self {
-        let (output, carry) = input1.overflowing_add(input2);
-
-        let cout = (output ^ input1 ^ input2) >> (1 + (carry as u32)) << 31;
-
-        let timestamp = interpreter.timestamp;
-
-        Self {
-            timestamp,
-            output,
-            input1,
-            input2,
-            cout,
-        }
-    }
-}
+pub(crate) type Add32Event = AddGadgetEvent<u32>;
+pub(crate) type Add64Event = AddGadgetEvent<u64>;
 
 impl_event_no_interaction_with_state_channel!(Add32Event);
+impl_event_no_interaction_with_state_channel!(Add64Event);
 
 /// Event for ADDI.
 ///
