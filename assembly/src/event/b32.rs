@@ -39,7 +39,7 @@ impl_event_for_binary_operation!(XorEvent);
 /// Performs a XOR between a target address and an immediate.
 ///
 /// Logic:
-///   1. FP[dst] = FP[src] ^ imm
+///   1. FP[dst] = __b32_xor(FP[src], imm)
 #[derive(Debug, Default, Clone)]
 pub(crate) struct XoriEvent {
     timestamp: u32,
@@ -67,7 +67,7 @@ impl_event_for_binary_operation!(XoriEvent);
 /// Performs an AND between two target addresses.
 ///
 /// Logic:
-///   1. FP[dst] = b32_and(FP[src], FP[src2])
+///   1. FP[dst] = __b32_and(FP[src], FP[src2])
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndEvent {
     timestamp: u32,
@@ -96,7 +96,7 @@ impl_event_for_binary_operation!(AndEvent);
 /// Performs an AND between a target address and an immediate.
 ///
 /// Logic:
-///   1. FP[dst] = b32_and(FP[src], imm)
+///   1. FP[dst] = __b32_and(FP[src], imm)
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u32,
@@ -124,7 +124,7 @@ impl_event_for_binary_operation!(AndiEvent);
 /// Performs an OR between two target addresses.
 ///
 /// Logic:
-///   1. FP[dst] = b32_or(FP[src], FP[src2])
+///   1. FP[dst] = __b32_or(FP[src], FP[src2])
 #[derive(Debug, Default, Clone)]
 pub(crate) struct OrEvent {
     timestamp: u32,
@@ -152,7 +152,7 @@ impl_event_for_binary_operation!(OrEvent);
 /// Performs an OR between a target address and an immediate.
 ///
 /// Logic:
-///   1. FP[dst] = b32_or(FP[src], imm)
+///   1. FP[dst] = __b32_or(FP[src], imm)
 #[derive(Debug, Default, Clone)]
 pub(crate) struct OriEvent {
     timestamp: u32,
