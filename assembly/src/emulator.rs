@@ -7,12 +7,15 @@ use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
 use binius_field::{
     BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField,
 };
+use binius_utils::bail;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
 
 use crate::{
     event::{
-        b32::{AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
+        b32::{
+            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
+        },
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
@@ -149,30 +152,38 @@ impl ValueRom {
         vrom
     }
 
-    pub(crate) fn set_u8(&mut self, index: u32, value: u8) {
+    pub(crate) fn set_u8(&mut self, index: u32, value: u8) -> Result<(), InterpreterError> {
         if let Some(prev_val) = self.vrom.insert(index, value) {
             if prev_val != value {
-                panic!(
-                    "Value at address {index} already set to {prev_val}! (Trying to write {value})"
-                )
+                return Err(InterpreterError::VromRewrite(index));
             }
         }
+        Ok(())
     }
 
-    pub(crate) fn set_u16(&mut self, index: u32, value: u16) {
-        assert!(index % 2 == 0, "Misaligned 16-bit VROM index: {index}");
+    pub(crate) fn set_u16(&mut self, index: u32, value: u16) -> Result<(), InterpreterError> {
+        if index % 2 != 0 {
+            return Err(InterpreterError::VromMisaligned(16, index));
+        }
         let bytes = value.to_le_bytes();
         for i in 0..2 {
-            self.set_u8(index + i, bytes[i as usize]);
+            self.set_u8(index + i, bytes[i as usize])?;
         }
+        Ok(())
     }
 
-    pub(crate) fn set_u32(&mut self, trace: &mut ZCrayTrace, index: u32, value: u32) {
-        assert!(index % 4 == 0, "Misaligned 32-bit VROM index: {index}");
-
+    pub(crate) fn set_u32(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        index: u32,
+        value: u32,
+    ) -> Result<(), InterpreterError> {
+        if index % 4 != 0 {
+            return Err(InterpreterError::VromMisaligned(32, index));
+        }
         let bytes = value.to_le_bytes();
         for i in 0..4 {
-            self.set_u8(index + i, bytes[i as usize]);
+            self.set_u8(index + i, bytes[i as usize])?;
         }
 
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
@@ -192,30 +203,39 @@ impl ValueRom {
             );
             event_out.push_mv_event(trace);
         }
+        Ok(())
     }
 
-    pub(crate) fn set_u128(&mut self, trace: &mut ZCrayTrace, index: u32, value: u128) {
-        assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
+    pub(crate) fn set_u128(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        index: u32,
+        value: u128,
+    ) -> Result<(), InterpreterError> {
+        if index % 16 != 0 {
+            return Err(InterpreterError::VromMisaligned(128, index));
+        }
         let bytes = value.to_le_bytes();
         for i in 0..16 {
-            self.set_u8(index + i, bytes[i as usize]);
+            self.set_u8(index + i, bytes[i as usize])?;
         }
 
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
             self.to_set.remove(&index)
         {
-            self.set_u128(trace, parent, value);
+            self.set_u128(trace, parent, value)?;
             let event_out = MVEventOutput::new(
                 parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
             );
             event_out.push_mv_event(trace);
         }
+        Ok(())
     }
 
-    pub(crate) fn get_u8(&self, index: u32) -> u8 {
+    pub(crate) fn get_u8(&self, index: u32) -> Result<u8, InterpreterError> {
         match self.vrom.get(&index) {
-            Some(&value) => value,
-            None => panic!("Value at address {index} doesn't exist!"),
+            Some(&value) => Ok(value),
+            None => Err(InterpreterError::VromMissingValue(index)),
         }
     }
 
@@ -223,52 +243,78 @@ impl ValueRom {
         self.vrom.get(&index).copied()
     }
 
-    pub(crate) fn get_u16(&self, index: u32) -> u16 {
-        assert!(index % 2 == 0, "Misaligned 16-bit VROM index: {index}");
-        let bytes = from_fn(|i| self.get_u8(index + i as u32));
+    pub(crate) fn get_u16(&self, index: u32) -> Result<u16, InterpreterError> {
+        if index % 2 != 0 {
+            return Err(InterpreterError::VromMisaligned(16, index));
+        }
 
-        u16::from_le_bytes(bytes)
+        let mut bytes = [0; 2];
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
+        }
+
+        Ok(u16::from_le_bytes(bytes))
     }
 
-    pub(crate) fn get_u32(&self, index: u32) -> u32 {
-        assert!(index % 4 == 0, "Misaligned 32-bit VROM index: {index}");
-        let bytes = from_fn(|i| self.get_u8(index + i as u32));
+    pub(crate) fn get_u32(&self, index: u32) -> Result<u32, InterpreterError> {
+        if index % 4 != 0 {
+            return Err(InterpreterError::VromMisaligned(32, index));
+        }
+        let mut bytes = [0; 4];
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
+        }
 
-        u32::from_le_bytes(bytes)
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    pub(crate) fn get_u32_move(&self, index: u32) -> Option<u32> {
-        assert!(index % 4 == 0, "Misaligned 32-bit VROM index: {index}");
+    pub(crate) fn get_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
+        if index % 4 != 0 {
+            return Err(InterpreterError::VromMisaligned(32, index));
+        }
         let opt_bytes = from_fn(|i| self.get_u8_call_procedure(index + i as u32));
         if opt_bytes.iter().any(|v| v.is_none()) {
-            None
+            Ok(None)
         } else {
-            Some(u32::from_le_bytes(opt_bytes.map(|v| v.unwrap())))
+            Ok(Some(u32::from_le_bytes(opt_bytes.map(|v| v.unwrap()))))
         }
     }
 
-    pub(crate) fn get_u128(&self, index: u32) -> u128 {
-        assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
-        let bytes = from_fn(|i| self.get_u8(index + i as u32));
+    pub(crate) fn get_u128(&self, index: u32) -> Result<u128, InterpreterError> {
+        if index % 16 != 0 {
+            return Err(InterpreterError::VromMisaligned(128, index));
+        }
+        let mut bytes = [0; 16];
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = self.get_u8(index + i as u32)?;
+        }
 
-        u128::from_le_bytes(bytes)
+        Ok(u128::from_le_bytes(bytes))
     }
 
-    pub(crate) fn get_u128_move(&self, index: u32) -> Option<u128> {
-        assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
+    pub(crate) fn get_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
+        if index % 16 != 0 {
+            return Err(InterpreterError::VromMisaligned(128, index));
+        }
         let opt_bytes = from_fn(|i| self.get_u8_call_procedure(index + i as u32));
 
         if opt_bytes.iter().any(|v| v.is_none()) {
-            None
+            Ok(None)
         } else {
-            Some(u128::from_le_bytes(opt_bytes.map(|v| v.unwrap())))
+            Ok(Some(u128::from_le_bytes(opt_bytes.map(|v| v.unwrap()))))
         }
     }
 
-    pub(crate) fn insert_to_set(&mut self, dst: u32, to_set_val: ToSetValue) {
-        if let Some(old_value) = self.to_set.insert(dst, to_set_val) {
-            panic!("Tried to move into destination {:?} multiple times", dst);
+    pub(crate) fn insert_to_set(
+        &mut self,
+        dst: u32,
+        to_set_val: ToSetValue,
+    ) -> Result<(), InterpreterError> {
+        if self.to_set.insert(dst, to_set_val).is_some() {
+            return Err(InterpreterError::VromRewrite(dst));
         };
+
+        Ok(())
     }
 }
 
@@ -306,7 +352,14 @@ pub(crate) enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
+    VromRewrite(u32),
+    VromMisaligned(u8, u32),
+    VromMissingValue(u32),
+    Exception(InterpreterException),
 }
+
+#[derive(Debug)]
+pub(crate) enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) fn new(
@@ -369,7 +422,10 @@ impl Interpreter {
     /// possible to generate the move event (because we are dealing with a
     /// return value that has not yet been set), we add the move information to
     /// `self.to_set`, so that it can be generated later on.
-    pub(crate) fn handles_call_moves(&mut self, trace: &mut ZCrayTrace) {
+    pub(crate) fn handles_call_moves(
+        &mut self,
+        trace: &mut ZCrayTrace,
+    ) -> Result<(), InterpreterError> {
         for mv_info in &self.moves_to_set.clone() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
@@ -383,7 +439,7 @@ impl Interpreter {
                         mv_info.offset,
                         mv_info.src,
                         mv_info.field_pc,
-                    );
+                    )?;
                     if let Some(event) = opt_event {
                         trace.mvvw.push(event);
                     }
@@ -399,7 +455,7 @@ impl Interpreter {
                         mv_info.offset,
                         mv_info.src,
                         mv_info.field_pc,
-                    );
+                    )?;
                     if let Some(event) = opt_event {
                         trace.mvvl.push(event);
                     }
@@ -415,12 +471,13 @@ impl Interpreter {
                         mv_info.offset,
                         mv_info.src,
                         mv_info.field_pc,
-                    );
+                    )?;
                     trace.mvih.push(event);
                 }
             }
         }
         self.moves_to_set = vec![];
+        Ok(())
     }
 
     #[inline(always)]
@@ -439,12 +496,22 @@ impl Interpreter {
         let field_pc = self.prom[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
         self.allocate_new_frame(field_pc);
-        while (self.step(&mut trace)?).is_some() {
+        loop {
+            match self.step(&mut trace) {
+                Ok(_) => {}
+                Err(error) => {
+                    match error {
+                        InterpreterError::Exception(exc) => {} //TODO: handle exception
+                        critical_error => {
+                            panic!("{:?}", critical_error);
+                        } //TODO: properly format error
+                    }
+                }
+            }
             if self.is_halted() {
                 return Ok(trace);
             }
         }
-        Ok(trace)
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
@@ -472,7 +539,10 @@ impl Interpreter {
             Opcode::Ret => self.generate_ret(trace, field_pc)?,
             Opcode::Taili => self.generate_taili(trace, field_pc)?,
             Opcode::TailV => self.generate_tailv(trace, field_pc)?,
+            Opcode::And => self.generate_and(trace, field_pc)?,
             Opcode::Andi => self.generate_andi(trace, field_pc)?,
+            Opcode::Or => self.generate_or(trace, field_pc)?,
+            Opcode::Ori => self.generate_ori(trace, field_pc)?,
             Opcode::MVIH => self.generate_mvih(trace, field_pc, is_call_procedure)?,
             Opcode::MVVW => self.generate_mvvw(trace, field_pc, is_call_procedure)?,
             Opcode::MVVL => self.generate_mvvl(trace, field_pc, is_call_procedure)?,
@@ -492,12 +562,12 @@ impl Interpreter {
         let [_, cond, target_low, target_high] = self.prom[self.pc as usize - 1].instruction;
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32);
+        let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(self, cond, target, field_pc);
+            let new_bnz_event = BnzEvent::generate_event(self, cond, target, field_pc)?;
             trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, cond, target, field_pc);
+            let new_bz_event = BzEvent::generate_event(self, cond, target, field_pc)?;
             trace.bz.push(new_bz_event);
         }
 
@@ -510,7 +580,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
-        let new_xori_event = XoriEvent::generate_event(self, trace, dst, src, imm, field_pc);
+        let new_xori_event = XoriEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.xori.push(new_xori_event);
 
         Ok(())
@@ -522,7 +592,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom[self.pc as usize - 1].instruction;
-        let new_xor_event = XorEvent::generate_event(self, trace, dst, src1, src2, field_pc);
+        let new_xor_event = XorEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.xor.push(new_xor_event);
 
         Ok(())
@@ -533,7 +603,7 @@ impl Interpreter {
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate_event(self, field_pc);
+        let new_ret_event = RetEvent::generate_event(self, field_pc)?;
         trace.ret.push(new_ret_event);
 
         Ok(())
@@ -548,7 +618,7 @@ impl Interpreter {
         // ShiftKind::Left); new_shift_event.apply_event(self);
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
         let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Left, field_pc);
+            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Left, field_pc)?;
         trace.shift.push(new_shift_event);
 
         Ok(())
@@ -560,7 +630,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
         let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Right, field_pc);
+            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Right, field_pc)?;
         trace.shift.push(new_shift_event);
 
         Ok(())
@@ -588,8 +658,20 @@ impl Interpreter {
             .map_err(|_| InterpreterError::InvalidInput)?;
         let next_fp_val = self.allocate_new_frame(target)?;
         let new_taili_event =
-            TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc);
+            TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
         trace.taili.push(new_taili_event);
+
+        Ok(())
+    }
+
+    fn generate_and(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+    ) -> Result<(), InterpreterError> {
+        let [_, dst, src1, src2] = self.prom[self.pc as usize - 1].instruction;
+        let new_and_event = AndEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.and.push(new_and_event);
 
         Ok(())
     }
@@ -600,8 +682,32 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
-        let new_andi_event = AndiEvent::generate_event(self, trace, dst, src, imm, field_pc);
+        let new_andi_event = AndiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.andi.push(new_andi_event);
+
+        Ok(())
+    }
+
+    fn generate_or(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+    ) -> Result<(), InterpreterError> {
+        let [_, dst, src1, src2] = self.prom[self.pc as usize - 1].instruction;
+        let new_or_event = OrEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.or.push(new_or_event);
+
+        Ok(())
+    }
+
+    fn generate_ori(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+    ) -> Result<(), InterpreterError> {
+        let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
+        let new_ori_event = OriEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.ori.push(new_ori_event);
 
         Ok(())
     }
@@ -612,7 +718,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
-        let new_muli_event = MuliEvent::generate_event(self, trace, dst, src, imm, field_pc);
+        let new_muli_event = MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         let aux = new_muli_event.aux;
         let sum0 = new_muli_event.sum0;
         let sum1 = new_muli_event.sum1;
@@ -644,7 +750,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom[self.pc as usize - 1].instruction;
-        let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc);
+        let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.b32_mul.push(new_b32mul_event);
 
         Ok(())
@@ -669,7 +775,7 @@ impl Interpreter {
         }
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc);
+        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
@@ -681,7 +787,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom[self.pc as usize - 1].instruction;
-        let new_add_event = AddEvent::generate_event(self, trace, dst, src1, src2, field_pc);
+        let new_add_event = AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
             BinaryField32b::new(new_add_event.src1_val),
@@ -698,7 +804,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom[self.pc as usize - 1].instruction;
-        let new_addi_event = AddiEvent::generate_event(self, trace, dst, src, imm, field_pc);
+        let new_addi_event = AddiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
             BinaryField32b::new(new_addi_event.src_val),
@@ -717,7 +823,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let [_, dst, offset, src] = self.prom[self.pc as usize - 1].instruction;
         let opt_new_mvvw_event =
-            MVVWEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure);
+            MVVWEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure)?;
         if let Some(new_mvvw_event) = opt_new_mvvw_event {
             trace.mvvw.push(new_mvvw_event);
         }
@@ -733,7 +839,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let [_, dst, offset, src] = self.prom[self.pc as usize - 1].instruction;
         let opt_new_mvvl_event =
-            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure);
+            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure)?;
         if let Some(new_mvvl_event) = opt_new_mvvl_event {
             trace.mvvl.push(new_mvvl_event);
         }
@@ -749,7 +855,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let [_, dst, offset, imm] = self.prom[self.pc as usize - 1].instruction;
         let opt_new_mvih_event =
-            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc, is_call_procedure);
+            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc, is_call_procedure)?;
         if let Some(new_mvih_event) = opt_new_mvih_event {
             trace.mvih.push(new_mvih_event);
         }
@@ -765,7 +871,7 @@ impl Interpreter {
         let [_, dst, imm_low, imm_high] = self.prom[self.pc as usize - 1].instruction;
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_ldi_event = LDIEvent::generate_event(self, trace, dst, imm, field_pc);
+        let new_ldi_event = LDIEvent::generate_event(self, trace, dst, imm, field_pc)?;
         trace.ldi.push(new_ldi_event);
 
         Ok(())
@@ -851,7 +957,10 @@ pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
     xor: Vec<XorEvent>,
     bz: Vec<BzEvent>,
+    or: Vec<OrEvent>,
+    ori: Vec<OriEvent>,
     xori: Vec<XoriEvent>,
+    and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
     addi: Vec<AddiEvent>,
@@ -1281,12 +1390,12 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.vrom.get_u32((i as u32 * 16 + 4) * 4), // next_fp
-                ((i + 1) * 16 * 4) as u32                     // next_fp_val
+                traces.vrom.get_u32((i as u32 * 16 + 4) * 4).unwrap(), // next_fp
+                ((i + 1) * 16 * 4) as u32                              // next_fp_val
             );
             assert_eq!(
-                traces.vrom.get_u32((i as u32 * 16 + 2) * 4), // n
-                cur_val                                       // n_val
+                traces.vrom.get_u32((i as u32 * 16 + 2) * 4).unwrap(), // n
+                cur_val                                                // n_val
             );
 
             if cur_val % 2 == 0 {
@@ -1349,24 +1458,40 @@ mod tests {
         for i in 0..init_val {
             let s = cur_fibs[0] + cur_fibs[1];
             assert_eq!(
-                traces.vrom.get_u32((i + 1) * max_frame + 2 * elt_size),
+                traces
+                    .vrom
+                    .get_u32((i + 1) * max_frame + 2 * elt_size)
+                    .unwrap(),
                 cur_fibs[0],
                 "left {} right {}",
-                traces.vrom.get_u32((i + 1) * max_frame + 2 * elt_size),
+                traces
+                    .vrom
+                    .get_u32((i + 1) * max_frame + 2 * elt_size)
+                    .unwrap(),
                 cur_fibs[0]
             );
             assert_eq!(
-                traces.vrom.get_u32((i + 1) * max_frame + 3 * elt_size),
+                traces
+                    .vrom
+                    .get_u32((i + 1) * max_frame + 3 * elt_size)
+                    .unwrap(),
                 cur_fibs[1]
             );
-            assert_eq!(traces.vrom.get_u32((i + 1) * max_frame + 7 * elt_size), s);
+            assert_eq!(
+                traces
+                    .vrom
+                    .get_u32((i + 1) * max_frame + 7 * elt_size)
+                    .unwrap(),
+                s
+            );
             cur_fibs[0] = cur_fibs[1];
             cur_fibs[1] = s;
         }
         assert_eq!(
             traces
                 .vrom
-                .get_u32((init_val + 1) * max_frame + 5 * elt_size),
+                .get_u32((init_val + 1) * max_frame + 5 * elt_size)
+                .unwrap(),
             cur_fibs[0]
         );
     }

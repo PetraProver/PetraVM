@@ -1,7 +1,9 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, MVInfo, MVKind},
+    emulator::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, MVInfo, MVKind,
+    },
     event::Event,
     fire_non_jump_event,
     opcodes::Opcode,
@@ -158,10 +160,10 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Option<Self> {
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+    ) -> Result<Option<Self>, InterpreterError> {
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.vrom.get_u32_move(src_addr);
+        let opt_src_val = interpreter.vrom.get_u32_move(src_addr)?;
 
         interpreter.incr_pc();
 
@@ -171,9 +173,9 @@ impl MVVWEvent {
         if let Some(src_val) = opt_src_val {
             interpreter
                 .vrom
-                .set_u32(trace, dst_addr ^ offset.val() as u32, src_val);
+                .set_u32(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
-            Some(Self {
+            Ok(Some(Self {
                 pc: field_pc,
                 fp,
                 timestamp,
@@ -182,7 +184,7 @@ impl MVVWEvent {
                 src: src.val(),
                 src_val,
                 offset: offset.val(),
-            })
+            }))
         } else {
             interpreter.vrom.insert_to_set(
                 dst_addr,
@@ -197,7 +199,7 @@ impl MVVWEvent {
                     offset,
                 ),
             );
-            None
+            Ok(None)
         }
     }
 
@@ -209,7 +211,7 @@ impl MVVWEvent {
         src: BinaryField16b,
         field_pc: BinaryField32b,
         is_call_procedure: bool,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let fp = interpreter.fp;
         let timestamp = interpreter.timestamp;
         let pc = interpreter.pc;
@@ -227,26 +229,24 @@ impl MVVWEvent {
             // This move needs to be handled later, in the CALL.
             interpreter.moves_to_set.push(new_mv_info);
             interpreter.incr_pc();
-            return None;
+            return Ok(None);
         }
 
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.vrom.get_u32_move(src_addr);
-        assert!(
-            opt_src_val.is_some(),
-            "Trying to move a nonexistent value from address {:?}",
-            src_addr
-        );
+        let opt_src_val = interpreter
+            .vrom
+            .get_u32_move(src_addr)?
+            .ok_or(InterpreterError::VromMissingValue(src_addr));
 
         interpreter.incr_pc();
 
         let src_val = opt_src_val.unwrap();
         interpreter
             .vrom
-            .set_u32(trace, dst_addr ^ offset.val() as u32, src_val);
+            .set_u32(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
-        Some(Self {
+        Ok(Some(Self {
             pc: field_pc,
             fp,
             timestamp,
@@ -255,7 +255,7 @@ impl MVVWEvent {
             src: src.val(),
             src_val,
             offset: offset.val(),
-        })
+        }))
     }
 }
 
@@ -316,10 +316,10 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Option<Self> {
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+    ) -> Result<Option<Self>, InterpreterError> {
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.vrom.get_u128_move(src_addr);
+        let opt_src_val = interpreter.vrom.get_u128_move(src_addr)?;
 
         interpreter.incr_pc();
 
@@ -329,9 +329,9 @@ impl MVVLEvent {
         if let Some(src_val) = opt_src_val {
             interpreter
                 .vrom
-                .set_u128(trace, dst_addr ^ offset.val() as u32, src_val);
+                .set_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
-            Some(Self {
+            Ok(Some(Self {
                 pc: field_pc,
                 fp,
                 timestamp,
@@ -340,7 +340,7 @@ impl MVVLEvent {
                 src: src.val(),
                 src_val,
                 offset: offset.val(),
-            })
+            }))
         } else {
             interpreter.vrom.insert_to_set(
                 dst_addr,
@@ -355,7 +355,7 @@ impl MVVLEvent {
                     offset,
                 ),
             );
-            None
+            Ok(None)
         }
     }
 
@@ -367,7 +367,7 @@ impl MVVLEvent {
         src: BinaryField16b,
         field_pc: BinaryField32b,
         is_call_procedure: bool,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         let fp = interpreter.fp;
@@ -385,25 +385,21 @@ impl MVVLEvent {
             // This move needs to be handled later, in the CALL.
             interpreter.moves_to_set.push(new_mv_info);
             interpreter.incr_pc();
-            return None;
+            return Ok(None);
         }
 
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.vrom.get_u128_move(src_addr);
-        assert!(
-            opt_src_val.is_some(),
-            "Trying to move a nonexistent value from address {:?}",
-            src_addr
-        );
-
-        let src_val = opt_src_val.unwrap();
+        let src_val = interpreter
+            .vrom
+            .get_u128_move(src_addr)?
+            .ok_or(InterpreterError::VromMissingValue(src_addr))?;
 
         interpreter
             .vrom
-            .set_u128(trace, dst_addr ^ offset.val() as u32, src_val);
+            .set_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
-        Some(Self {
+        Ok(Some(Self {
             pc: field_pc,
             fp,
             timestamp,
@@ -412,7 +408,7 @@ impl MVVLEvent {
             src: src.val(),
             src_val,
             offset: offset.val(),
-        })
+        }))
     }
 }
 
@@ -472,18 +468,18 @@ impl MVIHEvent {
         offset: BinaryField16b,
         imm: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
 
         interpreter
             .vrom
-            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32);
+            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc: field_pc,
             fp,
             timestamp,
@@ -491,7 +487,7 @@ impl MVIHEvent {
             dst_addr,
             imm: imm.val(),
             offset: offset.val(),
-        }
+        })
     }
 
     pub fn generate_event(
@@ -502,7 +498,7 @@ impl MVIHEvent {
         imm: BinaryField16b,
         field_pc: BinaryField32b,
         is_call_procedure: bool,
-    ) -> Option<Self> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let fp = interpreter.fp;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -520,16 +516,16 @@ impl MVIHEvent {
             // This move needs to be handled later, in the CALL.
             interpreter.moves_to_set.push(new_mv_info);
             interpreter.incr_pc();
-            return None;
+            return Ok(None);
         }
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
 
         interpreter
             .vrom
-            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32);
+            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
         interpreter.incr_pc();
 
-        Some(Self {
+        Ok(Some(Self {
             pc: field_pc,
             fp,
             timestamp,
@@ -537,7 +533,7 @@ impl MVIHEvent {
             dst_addr,
             imm: imm.val(),
             offset: offset.val(),
-        })
+        }))
     }
 }
 
@@ -570,23 +566,23 @@ impl LDIEvent {
         dst: BinaryField16b,
         imm: BinaryField32b,
         field_pc: BinaryField32b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, imm.val());
+            .set_u32(trace, fp ^ dst.val() as u32, imm.val())?;
         interpreter.incr_pc();
 
-        Self {
+        Ok(Self {
             pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
             imm: imm.val(),
-        }
+        })
     }
 }
 
