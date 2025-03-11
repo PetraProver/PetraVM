@@ -10,7 +10,9 @@ use tracing::{debug, trace};
 
 use crate::{
     event::{
-        b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, XorEvent, XoriEvent},
+        b32::{
+            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
+        },
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
@@ -260,6 +262,7 @@ impl Interpreter {
             Opcode::And => self.generate_and(trace)?,
             Opcode::Andi => self.generate_andi(trace)?,
             Opcode::Or => self.generate_or(trace)?,
+            Opcode::Ori => self.generate_ori(trace)?,
             Opcode::MVIH => self.generate_mvih(trace)?,
             Opcode::MVVW => self.generate_mvvw(trace)?,
             Opcode::MVVL => self.generate_mvvl(trace)?,
@@ -370,6 +373,14 @@ impl Interpreter {
         let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
         let new_or_event = OrEvent::generate_event(self, *dst, *src1, *src2);
         trace.or.push(new_or_event);
+
+        Ok(())
+    }
+
+    fn generate_ori(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_ori_event = OriEvent::generate_event(self, *dst, *src, *imm);
+        trace.ori.push(new_ori_event);
 
         Ok(())
     }
@@ -587,6 +598,7 @@ pub(crate) struct ZCrayTrace {
     xor: Vec<XorEvent>,
     bz: Vec<BzEvent>,
     or: Vec<OrEvent>,
+    ori: Vec<OriEvent>,
     xori: Vec<XoriEvent>,
     and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,

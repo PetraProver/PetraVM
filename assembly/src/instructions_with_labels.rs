@@ -426,6 +426,7 @@ pub fn get_frame_size_for_label(
             | Opcode::Muli
             | Opcode::Slli
             | Opcode::Srli
+            | Opcode::Ori
             | Opcode::Xori => {
                 let [_, dst, src, _] = instruction;
                 let max_accessed_addr = max(dst, src);
