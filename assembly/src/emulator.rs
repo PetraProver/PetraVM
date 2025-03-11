@@ -397,7 +397,7 @@ impl Interpreter {
 
     fn generate_and(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let new_and_event = AndEvent::generate_event(self, *dst, *src1, *src2);
+        let new_and_event = AndEvent::generate_event(self, *dst, *src1, *src2)?;
         trace.and.push(new_and_event);
 
         Ok(())
@@ -413,7 +413,7 @@ impl Interpreter {
 
     fn generate_or(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let new_or_event = OrEvent::generate_event(self, *dst, *src1, *src2);
+        let new_or_event = OrEvent::generate_event(self, *dst, *src1, *src2)?;
         trace.or.push(new_or_event);
 
         Ok(())
@@ -421,7 +421,7 @@ impl Interpreter {
 
     fn generate_ori(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         let [_, dst, src, imm] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
-        let new_ori_event = OriEvent::generate_event(self, *dst, *src, *imm);
+        let new_ori_event = OriEvent::generate_event(self, *dst, *src, *imm)?;
         trace.ori.push(new_ori_event);
 
         Ok(())
