@@ -113,7 +113,6 @@ impl ValueRom {
             if prev_val != value {
                 return Err(InterpreterError::VromRewrite(index));
             }
-            return Ok(());
         }
         Ok(())
     }
