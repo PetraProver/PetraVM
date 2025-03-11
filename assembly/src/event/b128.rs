@@ -1,8 +1,8 @@
-use binius_field::{BinaryField16b, BinaryField32b, BinaryField128b};
+use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 
 use super::Event;
 use crate::{
-    emulator::{InterpreterChannels, InterpreterError, InterpreterTables, Interpreter},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::BinaryOperation,
     fire_non_jump_event, G,
 };
@@ -27,31 +27,6 @@ pub(crate) struct B128AddEvent {
 }
 
 impl B128AddEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        timestamp: u32,
-        pc: BinaryField32b,
-        fp: u32,
-        dst: u16,
-        dst_val: u128,
-        src1: u16,
-        src1_val: u128,
-        src2: u16,
-        src2_val: u128,
-    ) -> Self {
-        Self {
-            timestamp,
-            pc,
-            fp,
-            dst,
-            dst_val,
-            src1,
-            src1_val,
-            src2,
-            src2_val,
-        }
-    }
-
     pub fn generate_event(
         interpreter: &mut Interpreter,
         dst: BinaryField16b,
@@ -59,26 +34,26 @@ impl B128AddEvent {
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        
+
         // Calculate addresses
         let dst_addr = fp ^ dst.val() as u32;
         let src1_addr = fp ^ src1.val() as u32;
         let src2_addr = fp ^ src2.val() as u32;
-        
+
         // Get source values
         let src1_val = interpreter.vrom.get_u128(src1_addr)?;
         let src2_val = interpreter.vrom.get_u128(src2_addr)?;
-        
+
         // In binary fields, addition is XOR
         let dst_val = src1_val ^ src2_val;
-        
+
         // Store result
         interpreter.vrom.set_u128(dst_addr, dst_val)?;
-        
+
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
-        
+
         Ok(Self {
             timestamp,
             pc,
@@ -102,7 +77,7 @@ impl BinaryOperation for B128AddEvent {
 
 impl super::LeftOp for B128AddEvent {
     type Left = BinaryField128b;
-    
+
     fn left(&self) -> BinaryField128b {
         BinaryField128b::new(self.src1_val)
     }
@@ -110,7 +85,7 @@ impl super::LeftOp for B128AddEvent {
 
 impl super::RigthOp for B128AddEvent {
     type Right = BinaryField128b;
-    
+
     fn right(&self) -> BinaryField128b {
         BinaryField128b::new(self.src2_val)
     }
@@ -118,7 +93,7 @@ impl super::RigthOp for B128AddEvent {
 
 impl super::OutputOp for B128AddEvent {
     type Output = BinaryField128b;
-    
+
     fn output(&self) -> BinaryField128b {
         BinaryField128b::new(self.dst_val)
     }
@@ -127,13 +102,17 @@ impl super::OutputOp for B128AddEvent {
 impl Event for B128AddEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         use super::{LeftOp, OutputOp, RigthOp};
-        
+
         // Verify that the result is correct (XOR of inputs)
         assert_eq!(self.output(), Self::operation(self.left(), self.right()));
-        
+
         // Update state channel
-        channels.state_channel.pull((self.pc, self.fp, self.timestamp));
-        channels.state_channel.push((self.pc * G, self.fp, self.timestamp + 1));
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }
 
@@ -157,31 +136,6 @@ pub(crate) struct B128MulEvent {
 }
 
 impl B128MulEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        timestamp: u32,
-        pc: BinaryField32b,
-        fp: u32,
-        dst: u16,
-        dst_val: u128,
-        src1: u16,
-        src1_val: u128,
-        src2: u16,
-        src2_val: u128,
-    ) -> Self {
-        Self {
-            timestamp,
-            pc,
-            fp,
-            dst,
-            dst_val,
-            src1,
-            src1_val,
-            src2,
-            src2_val,
-        }
-    }
-
     pub fn generate_event(
         interpreter: &mut Interpreter,
         dst: BinaryField16b,
@@ -189,29 +143,29 @@ impl B128MulEvent {
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        
+
         // Calculate addresses
         let dst_addr = fp ^ dst.val() as u32;
         let src1_addr = fp ^ src1.val() as u32;
         let src2_addr = fp ^ src2.val() as u32;
-        
+
         // Get source values
         let src1_val = interpreter.vrom.get_u128(src1_addr)?;
         let src2_val = interpreter.vrom.get_u128(src2_addr)?;
-        
+
         // Binary field multiplication
         let src1_bf = BinaryField128b::new(src1_val);
         let src2_bf = BinaryField128b::new(src2_val);
         let dst_bf = src1_bf * src2_bf;
         let dst_val = dst_bf.val();
-        
+
         // Store result
         interpreter.vrom.set_u128(dst_addr, dst_val)?;
-        
+
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         interpreter.incr_pc();
-        
+
         Ok(Self {
             timestamp,
             pc,
@@ -234,7 +188,7 @@ impl BinaryOperation for B128MulEvent {
 
 impl super::LeftOp for B128MulEvent {
     type Left = BinaryField128b;
-    
+
     fn left(&self) -> BinaryField128b {
         BinaryField128b::new(self.src1_val)
     }
@@ -242,7 +196,7 @@ impl super::LeftOp for B128MulEvent {
 
 impl super::RigthOp for B128MulEvent {
     type Right = BinaryField128b;
-    
+
     fn right(&self) -> BinaryField128b {
         BinaryField128b::new(self.src2_val)
     }
@@ -250,7 +204,7 @@ impl super::RigthOp for B128MulEvent {
 
 impl super::OutputOp for B128MulEvent {
     type Output = BinaryField128b;
-    
+
     fn output(&self) -> BinaryField128b {
         BinaryField128b::new(self.dst_val)
     }
@@ -259,13 +213,17 @@ impl super::OutputOp for B128MulEvent {
 impl Event for B128MulEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         use super::{LeftOp, OutputOp, RigthOp};
-        
+
         // Verify that the result is correct
         assert_eq!(self.output(), Self::operation(self.left(), self.right()));
-        
+
         // Update state channel
-        channels.state_channel.pull((self.pc, self.fp, self.timestamp));
-        channels.state_channel.push((self.pc * G, self.fp, self.timestamp + 1));
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.pc * G, self.fp, self.timestamp + 1));
     }
 }
 
@@ -278,14 +236,14 @@ mod tests {
         // Test the basic operation logic directly
         let val1 = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);
         let val2 = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
-        
+
         let bf1 = BinaryField128b::new(val1);
         let bf2 = BinaryField128b::new(val2);
-        
+
         // The operation should be XOR
         let expected = val1 ^ val2;
         let result = B128AddEvent::operation(bf1, bf2);
-        
+
         assert_eq!(result.val(), expected);
     }
 
@@ -294,14 +252,14 @@ mod tests {
         // Test the basic operation logic directly
         let val1 = 0x0000000000000002u128;
         let val2 = 0x0000000000000003u128;
-        
+
         let bf1 = BinaryField128b::new(val1);
         let bf2 = BinaryField128b::new(val2);
-        
+
         // Test the multiplication operation
         let result = B128MulEvent::operation(bf1, bf2);
         let expected = bf1 * bf2;
-        
+
         assert_eq!(result, expected);
     }
 }

@@ -9,8 +9,8 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::emulator::{InterpreterChannels, InterpreterError, InterpreterTables};
 
-pub(crate) mod b32;
 pub(crate) mod b128;
+pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod integer_ops;
