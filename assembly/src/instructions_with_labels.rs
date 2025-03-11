@@ -403,10 +403,12 @@ pub fn get_frame_size_for_label(
             Opcode::Bnz => {
                 let [op, src, target_low, target_high] = instruction;
                 let target = BinaryField32b::from_bases(&[target_low, target_high]).unwrap();
-                let int_target = field_pc_to_pc.get(&target).expect(&format!(
-                    "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
-                    target
-                ));
+                let int_target = field_pc_to_pc.get(&target).unwrap_or_else(|| {
+                    panic!(
+                        "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
+                        target
+                    )
+                });
                 let sub_offset =
                     get_frame_size_for_label(prom, *int_target, labels_fps, field_pc_to_pc);
                 let max_accessed_addr = max(sub_offset, src.val());

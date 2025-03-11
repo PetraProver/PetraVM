@@ -29,7 +29,7 @@ impl Event for BnzEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        let target_int = channels
+        channels
             .state_channel
             .push((self.target, self.fp, self.timestamp + 1));
     }

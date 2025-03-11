@@ -32,6 +32,7 @@ pub(crate) struct MVEventOutput {
 }
 
 impl MVEventOutput {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         parent: u32, // parent addr
         opcode: Opcode,
@@ -146,6 +147,7 @@ impl MVVWEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -214,7 +216,7 @@ impl MVVWEvent {
 
         if is_call_procedure {
             let new_mv_info = MVInfo {
-                mv_kind: MVKind::MVVW,
+                mv_kind: MVKind::Mvvw,
                 dst,
                 offset,
                 src,
@@ -304,6 +306,7 @@ impl MVVLEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -372,7 +375,7 @@ impl MVVLEvent {
 
         if is_call_procedure {
             let new_mv_info = MVInfo {
-                mv_kind: MVKind::MVVL,
+                mv_kind: MVKind::Mvvl,
                 dst,
                 offset,
                 src,
@@ -460,6 +463,7 @@ impl MVIHEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -507,7 +511,7 @@ impl MVIHEvent {
 
         if is_call_procedure {
             let new_mv_info = MVInfo {
-                mv_kind: MVKind::MVIH,
+                mv_kind: MVKind::Mvih,
                 dst,
                 offset,
                 src: imm,

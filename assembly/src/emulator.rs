@@ -53,9 +53,9 @@ pub struct InterpreterTables {
 
 #[derive(Debug, Clone)]
 pub(crate) enum MVKind {
-    MVVW,
-    MVVL,
-    MVIH,
+    Mvvw,
+    Mvvl,
+    Mvih,
 }
 
 #[derive(Debug, Clone)]
@@ -207,15 +207,7 @@ impl ValueRom {
         {
             self.set_u128(trace, parent, value);
             let event_out = MVEventOutput::new(
-                parent,
-                opcode,
-                field_pc,
-                fp,
-                timestamp,
-                dst,
-                src,
-                offset,
-                value as u128,
+                parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
             );
             event_out.push_mv_event(trace);
         }
@@ -229,7 +221,7 @@ impl ValueRom {
     }
 
     pub(crate) fn get_u8_call_procedure(&self, index: u32) -> Option<u8> {
-        self.vrom.get(&index).map(|&v| v)
+        self.vrom.get(&index).copied()
     }
 
     pub(crate) fn get_u16(&self, index: u32) -> u16 {
@@ -381,7 +373,7 @@ impl Interpreter {
     pub(crate) fn handles_call_moves(&mut self, trace: &mut ZCrayTrace) {
         for mv_info in &self.moves_to_set.clone() {
             match mv_info.mv_kind {
-                MVKind::MVVW => {
+                MVKind::Mvvw => {
                     let opt_event = MVVWEvent::generate_event_from_info(
                         self,
                         trace,
@@ -397,7 +389,7 @@ impl Interpreter {
                         trace.mvvw.push(event);
                     }
                 }
-                MVKind::MVVL => {
+                MVKind::Mvvl => {
                     let opt_event = MVVLEvent::generate_event_from_info(
                         self,
                         trace,
@@ -413,7 +405,7 @@ impl Interpreter {
                         trace.mvvl.push(event);
                     }
                 }
-                MVKind::MVIH => {
+                MVKind::Mvih => {
                     let event = MVIHEvent::generate_event_from_info(
                         self,
                         trace,
@@ -1039,7 +1031,7 @@ mod tests {
     fn test_zcray() {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
-        let prom = code_to_prom(&code, &vec![false]);
+        let prom = code_to_prom(&code, &[false]);
         let vrom = ValueRom::new_from_vec_u32(vec![0, 0]);
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 12);
