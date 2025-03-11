@@ -222,7 +222,6 @@ impl MVVWEvent {
                 src,
                 field_pc,
                 pc,
-                fp,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
@@ -381,7 +380,6 @@ impl MVVLEvent {
                 src,
                 field_pc,
                 pc,
-                fp,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
@@ -517,7 +515,6 @@ impl MVIHEvent {
                 src: imm,
                 field_pc,
                 pc,
-                fp,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
