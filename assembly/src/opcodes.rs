@@ -18,7 +18,7 @@ pub enum Opcode {
     Slli = 0x06,
     Addi = 0x07,
     Add = 0x08,
-    Muli = 0x09, // TODO: remove
+    Muli = 0x09,
     B32Muli = 0x0a,
     B32Mul = 0x10,
     // B32Add, // TODO
