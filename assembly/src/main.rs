@@ -63,9 +63,7 @@ fn main() {
 
     let zero = BinaryField16b::zero();
 
-    let mut labels_args = HashMap::new();
-    labels_args.insert(collatz.into(), 8);
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, labels_args, &field_pc_to_pc);
+    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &field_pc_to_pc);
     println!("frame sizes {:?}", frame_sizes);
 
     let expected_prom = vec![

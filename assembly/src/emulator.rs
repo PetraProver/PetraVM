@@ -468,6 +468,7 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        println!("opcode {:?}, instruction {:?}", opcode, instruction);
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace, field_pc)?,
@@ -786,7 +787,7 @@ impl Interpreter {
         target: BinaryField32b,
         // trace: &mut ZCrayTrace,
     ) -> Result<u32, InterpreterError> {
-        let (frame_size, opt_args_size) = self
+        let frame_size = self
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
@@ -1041,7 +1042,7 @@ mod tests {
         let prom = code_to_prom(&code, &vec![false]);
         let vrom = ValueRom::new_from_vec_u32(vec![0, 0]);
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, (12, Some(0)));
+        frames.insert(BinaryField32b::ONE, 12);
 
         let (trace, boundary_values) =
             ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
@@ -1065,7 +1066,7 @@ mod tests {
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, (24, Some(0)));
+        frames.insert(BinaryField32b::ONE, 24);
 
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
 
@@ -1268,7 +1269,7 @@ mod tests {
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
-        frames_args_size.insert(BinaryField32b::ONE, (32, Some(8)));
+        frames_args_size.insert(BinaryField32b::ONE, 32);
 
         let (traces, boundary_values) =
             ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, field_to_pc)
@@ -1333,9 +1334,10 @@ mod tests {
             }
         }
 
-        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, label_args, &field_pc_to_pc);
+        // The following method gives the correct frames for Fibonacci.
+        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &field_pc_to_pc);
         let mut max_frame = 0;
-        for (fs, _) in frame_sizes.values() {
+        for fs in frame_sizes.values() {
             if *fs as u32 > max_frame {
                 max_frame = *fs as u32;
             }

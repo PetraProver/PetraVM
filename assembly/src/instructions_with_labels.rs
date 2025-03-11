@@ -374,12 +374,9 @@ pub fn get_prom_inst_from_inst_with_label(
 // Labels hold the labels in the code, with their associated integer and binary
 // field PCs.
 type Labels = HashMap<String, BinaryField32b>;
-
-// Gives the number of arguments + return values for each label.
-type LabelsArgs = HashMap<BinaryField32b, u16>;
 // Binary field PC as the key. Values are: (Frame size, size of args
 // and return values).
-pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, (u16, Option<u16>)>;
+pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // Gives the field PC associated to an integer PC. Only conatins the PCs that
 // can be called by the PROM.
 pub(crate) type FieldPCToPC = HashMap<BinaryField32b, u32>;
@@ -388,14 +385,13 @@ pub fn get_frame_size_for_label(
     prom: &ProgramRom,
     label_pc: u32,
     labels_fps: &mut LabelsFrameSizes,
-    labels_args: &LabelsArgs,
     field_pc_to_pc: &FieldPCToPC,
 ) -> u16 {
     let mut cur_pc = label_pc;
     let mut interp_instruction = &prom[cur_pc as usize - 1];
     let mut instruction = interp_instruction.instruction;
     let field_pc = interp_instruction.field_pc;
-    if let Some((frame_size, _)) = labels_fps.get(&field_pc) {
+    if let Some(frame_size) = labels_fps.get(&field_pc) {
         return *frame_size;
     }
 
@@ -411,13 +407,8 @@ pub fn get_frame_size_for_label(
                     "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
                     target
                 ));
-                let sub_offset = get_frame_size_for_label(
-                    prom,
-                    *int_target,
-                    labels_fps,
-                    labels_args,
-                    field_pc_to_pc,
-                );
+                let sub_offset =
+                    get_frame_size_for_label(prom, *int_target, labels_fps, field_pc_to_pc);
                 let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);
             }
@@ -468,7 +459,7 @@ pub fn get_frame_size_for_label(
     // We know that there was no key `label_pc` before, since it was the first thing
     // we checked in this method.
     let field_pc = prom[label_pc as usize - 1].field_pc;
-    labels_fps.insert(field_pc, (cur_offset, labels_args.get(&field_pc).copied()));
+    labels_fps.insert(field_pc, cur_offset);
 
     cur_offset
 }
@@ -476,19 +467,12 @@ pub fn get_frame_size_for_label(
 pub fn get_frame_sizes_all_labels(
     prom: &ProgramRom,
     labels: Labels,
-    labels_args: LabelsArgs,
     field_pc_to_pc: &FieldPCToPC,
 ) -> LabelsFrameSizes {
     let mut labels_frame_sizes = HashMap::new();
     for (_, field_pc) in labels {
         let &pc = field_pc_to_pc.get(&field_pc).unwrap();
-        let _ = get_frame_size_for_label(
-            prom,
-            pc,
-            &mut labels_frame_sizes,
-            &labels_args,
-            field_pc_to_pc,
-        );
+        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes, field_pc_to_pc);
     }
     labels_frame_sizes
 }
