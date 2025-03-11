@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterTables, MVInfo, MVKind},
     event::Event,
     fire_non_jump_event,
     opcodes::Opcode,
@@ -144,32 +144,28 @@ impl MVVWEvent {
         }
     }
 
-    pub fn generate_event(
+    /// This method is called once the next_fp has been set by the CALL
+    /// procedure.
+    pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
+        pc: u32,
+        timestamp: u32,
+        fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
     ) -> Option<Self> {
-        let fp = interpreter.fp;
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.vrom.get_u32_move(src_addr);
-        if !is_call_procedure {
-            assert!(
-                opt_src_val.is_some(),
-                "Trying to move a nonexistent value from address {:?}",
-                src_addr
-            );
-        }
-
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
 
         interpreter.incr_pc();
 
+        // If we already know the value to set, then we can already push an event.
+        // Otherwise, we add the move to the list of move events to be pushed once we
+        // have access to the value.
         if let Some(src_val) = opt_src_val {
             interpreter
                 .vrom
@@ -201,6 +197,64 @@ impl MVVWEvent {
             );
             None
         }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        dst: BinaryField16b,
+        offset: BinaryField16b,
+        src: BinaryField16b,
+        field_pc: BinaryField32b,
+        is_call_procedure: bool,
+    ) -> Option<Self> {
+        let fp = interpreter.fp;
+        let timestamp = interpreter.timestamp;
+        let pc = interpreter.pc;
+
+        if is_call_procedure {
+            let new_mv_info = MVInfo {
+                mv_kind: MVKind::MVVW,
+                dst,
+                offset,
+                src,
+                field_pc,
+                pc,
+                fp,
+                timestamp,
+            };
+            // This move needs to be handled later, in the CALL.
+            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.incr_pc();
+            return None;
+        }
+
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = interpreter.vrom.get_u32_move(src_addr);
+        assert!(
+            opt_src_val.is_some(),
+            "Trying to move a nonexistent value from address {:?}",
+            src_addr
+        );
+
+        interpreter.incr_pc();
+
+        let src_val = opt_src_val.unwrap();
+        interpreter
+            .vrom
+            .set_u32(trace, dst_addr ^ offset.val() as u32, src_val);
+
+        Some(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            dst: dst.val(),
+            dst_addr,
+            src: src.val(),
+            src_val,
+            offset: offset.val(),
+        })
     }
 }
 
@@ -248,32 +302,32 @@ impl MVVLEvent {
         }
     }
 
-    pub fn generate_event(
+    /// This method is called once the next_fp has been set by the CALL
+    /// procedure.
+    pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        pc: u32,
+        timestamp: u32,
+        fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
     ) -> Option<Self> {
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
-        let fp = interpreter.fp;
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.vrom.get_u128_move(src_addr);
-        if !is_call_procedure {
-            assert!(
-                opt_src_val.is_some(),
-                "Trying to move a nonexistent value from address {:?}",
-                src_addr
-            );
-        }
 
+        interpreter.incr_pc();
+
+        // If we already know the value to set, then we can already push an event.
+        // Otherwise, we add the move to the list of move events to be pushed once we
+        // have access to the value.
         if let Some(src_val) = opt_src_val {
             interpreter
                 .vrom
-                .set_u128(dst_addr ^ offset.val() as u32, src_val);
+                .set_u128(trace, dst_addr ^ offset.val() as u32, src_val);
 
             Some(Self {
                 pc: field_pc,
@@ -301,6 +355,63 @@ impl MVVLEvent {
             );
             None
         }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        dst: BinaryField16b,
+        offset: BinaryField16b,
+        src: BinaryField16b,
+        field_pc: BinaryField32b,
+        is_call_procedure: bool,
+    ) -> Option<Self> {
+        let pc = interpreter.pc;
+        let timestamp = interpreter.timestamp;
+        let fp = interpreter.fp;
+
+        if is_call_procedure {
+            let new_mv_info = MVInfo {
+                mv_kind: MVKind::MVVL,
+                dst,
+                offset,
+                src,
+                field_pc,
+                pc,
+                fp,
+                timestamp,
+            };
+            // This move needs to be handled later, in the CALL.
+            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.incr_pc();
+            return None;
+        }
+
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = interpreter.vrom.get_u128_move(src_addr);
+        assert!(
+            opt_src_val.is_some(),
+            "Trying to move a nonexistent value from address {:?}",
+            src_addr
+        );
+
+        let src_val = opt_src_val.unwrap();
+
+        interpreter
+            .vrom
+            .set_u128(trace, dst_addr ^ offset.val() as u32, src_val);
+
+        Some(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            dst: dst.val(),
+            dst_addr,
+            src: src.val(),
+            src_val,
+            offset: offset.val(),
+        })
     }
 }
 
@@ -347,18 +458,23 @@ impl MVIHEvent {
         }
     }
 
-    pub fn generate_event(
+    /// This method is called once the next_fp has been set by the CALL
+    /// procedure.
+    pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
+        pc: u32,
+        timestamp: u32,
+        fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Self {
-        let fp = interpreter.fp;
+        // At this point, since we are in a call procedure, `dst` corresponds to the
+        // next_fp. And we know it has already been set, so we can read
+        // the destination address.
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
 
         interpreter
             .vrom
@@ -374,6 +490,53 @@ impl MVIHEvent {
             imm: imm.val(),
             offset: offset.val(),
         }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        dst: BinaryField16b,
+        offset: BinaryField16b,
+        imm: BinaryField16b,
+        field_pc: BinaryField32b,
+        is_call_procedure: bool,
+    ) -> Option<Self> {
+        let fp = interpreter.fp;
+        let pc = interpreter.pc;
+        let timestamp = interpreter.timestamp;
+
+        if is_call_procedure {
+            let new_mv_info = MVInfo {
+                mv_kind: MVKind::MVIH,
+                dst,
+                offset,
+                src: imm,
+                field_pc,
+                pc,
+                fp,
+                timestamp,
+            };
+            // This move needs to be handled later, in the CALL.
+            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.incr_pc();
+            return None;
+        }
+        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32);
+
+        interpreter
+            .vrom
+            .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32);
+        interpreter.incr_pc();
+
+        Some(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            dst: dst.val(),
+            dst_addr,
+            imm: imm.val(),
+            offset: offset.val(),
+        })
     }
 }
 

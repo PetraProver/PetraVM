@@ -9,6 +9,7 @@ const MIN_FRAME_SIZE: u32 = 8;
 /// - Available slack regions are reused when possible,
 /// - The allocation pointer is aligned (least significant log₂(padded size)
 ///   bits are cleared).
+#[derive(Debug, Default)]
 pub struct VromAllocator {
     /// The next free allocation pointer.
     pos: u32,

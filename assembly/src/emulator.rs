@@ -25,6 +25,7 @@ use crate::{
     },
     instructions_with_labels::LabelsFrameSizes,
     opcodes::Opcode,
+    vrom_allocator::VromAllocator,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -50,6 +51,25 @@ pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) enum MVKind {
+    MVVW,
+    MVVL,
+    MVIH,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MVInfo {
+    pub(crate) mv_kind: MVKind,
+    pub(crate) dst: BinaryField16b,
+    pub(crate) offset: BinaryField16b,
+    pub(crate) src: BinaryField16b,
+    pub(crate) field_pc: BinaryField32b,
+    pub(crate) pc: u32,
+    pub(crate) fp: u32,
+    pub(crate) timestamp: u32,
+}
+
 // TODO: Add some structured execution tracing
 
 #[derive(Debug, Default)]
@@ -62,8 +82,14 @@ pub(crate) struct Interpreter {
     pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
     pub(crate) vrom: ValueRom,
-    latest_fp: u32,
     frames: LabelsFrameSizes,
+    vrom_allocator: VromAllocator,
+    // Before a CALL, there are a few move operations used to populate the next frame. But the next
+    // frame pointer is not necessearily known at this point, and return values may also not be
+    // known. Thus, this `Vec` is used to store the move operations that need to be handled once we
+    // have enough information.Stores all move operations that should be handles during
+    // the current call procedure.
+    pub(crate) moves_to_set: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
     field_to_pc: HashMap<BinaryField32b, u32>,
@@ -86,9 +112,9 @@ pub(crate) struct ValueRom {
     // HashMap used to set values and push MV events during a CALL procedure.
     // When a MV occurs with a value that isn't set within a CALL procedure, we
     // assume it is a return value. Then, we add (addr_next_frame,
-    // addr_cur_frame) to `moves_to_set`. Whenever an address in the
-    // HashMap's keys is finally set, we populate the missing values and pop
-    // them.
+    // to_set_value) to `moves_to_set`, where `to_set_value` contains enough information to create
+    // a move event later. Whenever an address in the HashMap's keys is finally set, we populate
+    // the missing values and remove them from the HashMap.
     to_set: HashMap<u32, ToSetValue>,
 }
 
@@ -169,11 +195,29 @@ impl ValueRom {
         }
     }
 
-    pub(crate) fn set_u128(&mut self, index: u32, value: u128) {
+    pub(crate) fn set_u128(&mut self, trace: &mut ZCrayTrace, index: u32, value: u128) {
         assert!(index % 16 == 0, "Misaligned 128-bit VROM index: {index}");
         let bytes = value.to_le_bytes();
         for i in 0..16 {
             self.set_u8(index + i, bytes[i as usize]);
+        }
+
+        if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
+            self.to_set.remove(&index)
+        {
+            self.set_u128(trace, parent, value);
+            let event_out = MVEventOutput::new(
+                parent,
+                opcode,
+                field_pc,
+                fp,
+                timestamp,
+                dst,
+                src,
+                offset,
+                value as u128,
+            );
+            event_out.push_mv_event(trace);
         }
     }
 
@@ -285,13 +329,14 @@ impl Interpreter {
             timestamp: 0,
             prom,
             vrom: ValueRom::default(),
-            latest_fp: 0,
             frames,
             field_to_pc,
+            vrom_allocator: VromAllocator::default(),
+            moves_to_set: vec![],
         }
     }
 
-    pub(crate) const fn new_with_vrom(
+    pub(crate) fn new_with_vrom(
         prom: ProgramRom,
         vrom: ValueRom,
         frames: LabelsFrameSizes,
@@ -303,9 +348,10 @@ impl Interpreter {
             timestamp: 0,
             prom,
             vrom,
-            latest_fp: 0,
             frames,
             field_to_pc,
+            vrom_allocator: VromAllocator::default(),
+            moves_to_set: vec![],
         }
     }
 
@@ -326,6 +372,66 @@ impl Interpreter {
         }
     }
 
+    /// This method should only be called once the frame pointer has been
+    /// allocated. It is used to generate events -- whenever possible --
+    /// once the next_fp has been set by the allocator. When it is not yet
+    /// possible to generate the move event (because we are dealing with a
+    /// return value that has not yet been set), we add the move information to
+    /// `self.to_set`, so that it can be generated later on.
+    pub(crate) fn handles_call_moves(&mut self, trace: &mut ZCrayTrace) {
+        for mv_info in &self.moves_to_set.clone() {
+            match mv_info.mv_kind {
+                MVKind::MVVW => {
+                    let opt_event = MVVWEvent::generate_event_from_info(
+                        self,
+                        trace,
+                        mv_info.pc,
+                        mv_info.timestamp,
+                        mv_info.fp,
+                        mv_info.dst,
+                        mv_info.offset,
+                        mv_info.src,
+                        mv_info.field_pc,
+                    );
+                    if let Some(event) = opt_event {
+                        trace.mvvw.push(event);
+                    }
+                }
+                MVKind::MVVL => {
+                    let opt_event = MVVLEvent::generate_event_from_info(
+                        self,
+                        trace,
+                        mv_info.pc,
+                        mv_info.timestamp,
+                        mv_info.fp,
+                        mv_info.dst,
+                        mv_info.offset,
+                        mv_info.src,
+                        mv_info.field_pc,
+                    );
+                    if let Some(event) = opt_event {
+                        trace.mvvl.push(event);
+                    }
+                }
+                MVKind::MVIH => {
+                    let event = MVIHEvent::generate_event_from_info(
+                        self,
+                        trace,
+                        mv_info.pc,
+                        mv_info.timestamp,
+                        mv_info.fp,
+                        mv_info.dst,
+                        mv_info.offset,
+                        mv_info.src,
+                        mv_info.field_pc,
+                    );
+                    trace.mvih.push(event);
+                }
+            }
+        }
+        self.moves_to_set = vec![];
+    }
+
     #[inline(always)]
     pub(crate) fn vrom_size(&self) -> usize {
         self.vrom.vrom.len()
@@ -340,7 +446,8 @@ impl Interpreter {
         let mut trace = ZCrayTrace::default();
 
         let field_pc = self.prom[self.pc as usize - 1].field_pc;
-        self.allocate_new_frame(field_pc, &mut trace)?;
+        // Start by allocating a frame for the initial label.
+        self.allocate_new_frame(field_pc);
         while (self.step(&mut trace)?).is_some() {
             if self.is_halted() {
                 return Ok(trace);
@@ -375,7 +482,7 @@ impl Interpreter {
             Opcode::Taili => self.generate_taili(trace, field_pc)?,
             Opcode::TailV => self.generate_tailv(trace, field_pc)?,
             Opcode::Andi => self.generate_andi(trace, field_pc)?,
-            Opcode::MVIH => self.generate_mvih(trace, field_pc)?,
+            Opcode::MVIH => self.generate_mvih(trace, field_pc, is_call_procedure)?,
             Opcode::MVVW => self.generate_mvvw(trace, field_pc, is_call_procedure)?,
             Opcode::MVVL => self.generate_mvvl(trace, field_pc, is_call_procedure)?,
             Opcode::LDI => self.generate_ldi(trace, field_pc)?,
@@ -474,8 +581,7 @@ impl Interpreter {
         field_pc: BinaryField32b,
     ) -> Result<(), InterpreterError> {
         let [_, offset, next_fp, _] = self.prom[self.pc as usize - 1].instruction;
-        let new_tailv_event = TailVEvent::generate_event(self, trace, offset, next_fp, field_pc);
-        self.allocate_new_frame(offset.into(), trace)?;
+        let new_tailv_event = TailVEvent::generate_event(self, trace, offset, next_fp, field_pc)?;
         trace.tailv.push(new_tailv_event);
 
         Ok(())
@@ -489,8 +595,9 @@ impl Interpreter {
         let [_, target_low, target_high, next_fp] = self.prom[self.pc as usize - 1].instruction;
         let target = BinaryField32b::from_bases(&[target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_taili_event = TailiEvent::generate_event(self, trace, target, next_fp, field_pc);
-        self.allocate_new_frame(target, trace)?;
+        let next_fp_val = self.allocate_new_frame(target)?;
+        let new_taili_event =
+            TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc);
         trace.taili.push(new_taili_event);
 
         Ok(())
@@ -635,7 +742,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let [_, dst, offset, src] = self.prom[self.pc as usize - 1].instruction;
         let opt_new_mvvl_event =
-            MVVLEvent::generate_event(self, dst, offset, src, field_pc, is_call_procedure);
+            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure);
         if let Some(new_mvvl_event) = opt_new_mvvl_event {
             trace.mvvl.push(new_mvvl_event);
         }
@@ -647,10 +754,14 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        is_call_procedure: bool,
     ) -> Result<(), InterpreterError> {
         let [_, dst, offset, imm] = self.prom[self.pc as usize - 1].instruction;
-        let new_mvih_event = MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc);
-        trace.mvih.push(new_mvih_event);
+        let opt_new_mvih_event =
+            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc, is_call_procedure);
+        if let Some(new_mvih_event) = opt_new_mvih_event {
+            trace.mvih.push(new_mvih_event);
+        }
 
         Ok(())
     }
@@ -670,39 +781,20 @@ impl Interpreter {
     }
 
     // TODO: This is only a temporary method.
-    fn allocate_new_frame(
+    pub(crate) fn allocate_new_frame(
         &mut self,
         target: BinaryField32b,
-        trace: &mut ZCrayTrace,
-    ) -> Result<(), InterpreterError> {
-        // We need the +16 because the frame size we read corresponds to the largest
-        // offset accessed within the frame, and the largest possible object is
-        // a BF128.
-        // TODO: Figure out the exact size of the last object.
+        // trace: &mut ZCrayTrace,
+    ) -> Result<u32, InterpreterError> {
         let (frame_size, opt_args_size) = self
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
-        let mut max_size = *frame_size;
-        for (fs, _) in self.frames.values() {
-            if *fs > max_size {
-                max_size = *fs;
-            }
-        }
-        let frame_size = (max_size + 16).next_power_of_two();
-        // Add 8 for return PC and return FP.
-        let next_fp_offset = opt_args_size.expect("Args size missing.") as u32 + 8;
-        let alignment = (frame_size - self.latest_fp as u16 % frame_size) % frame_size;
-        assert!(alignment == 0);
-
-        let next_fp = self.latest_fp + alignment as u32 + frame_size as u32;
-
-        self.vrom
-            .set_u32(trace, self.latest_fp + next_fp_offset, next_fp);
-
-        self.latest_fp = next_fp;
-
-        Ok(())
+        // We need the +16 because the frame size we read corresponds to the largest
+        // offset accessed within the frame, and the largest possible object is
+        // a BF128.
+        // TODO: Figure out the exact size of the last object.
+        Ok(self.vrom_allocator.alloc(*frame_size as u32 + 16))
     }
 }
 

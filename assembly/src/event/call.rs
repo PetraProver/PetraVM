@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
     ZCrayTrace,
 };
@@ -56,13 +56,16 @@ impl TailiEvent {
         trace: &mut ZCrayTrace,
         target: BinaryField32b,
         next_fp: BinaryField16b,
+        next_fp_val: u32,
         field_pc: BinaryField32b,
     ) -> Self {
         let return_addr = interpreter.vrom.get_u32(interpreter.fp);
         let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
-        let next_fp_val = interpreter
+        interpreter
             .vrom
-            .get_u32(interpreter.fp ^ next_fp.val() as u32);
+            .set_u32(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val);
+
+        interpreter.handles_call_moves(trace);
 
         let pc = interpreter.pc;
         let fp = interpreter.fp;
@@ -119,6 +122,7 @@ pub(crate) struct TailVEvent {
     next_fp_val: u32,
     return_addr: u32,
     old_fp_val: u16,
+    target: u32,
 }
 
 impl TailVEvent {
@@ -132,6 +136,7 @@ impl TailVEvent {
         next_fp_val: u32,
         return_addr: u32,
         old_fp_val: u16,
+        target: u32,
     ) -> Self {
         Self {
             pc,
@@ -142,6 +147,7 @@ impl TailVEvent {
             next_fp_val,
             return_addr,
             old_fp_val,
+            target,
         }
     }
 
@@ -151,12 +157,21 @@ impl TailVEvent {
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
-    ) -> Self {
+    ) -> Result<Self, InterpreterError> {
         let return_addr = interpreter.vrom.get_u32(interpreter.fp);
         let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4);
-        let next_fp_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ next_fp.val() as u32);
+
+        let next_fp_addr = interpreter.fp ^ offset.val() as u32;
+        let target = interpreter.vrom.get_u32(next_fp_addr);
+
+        // We allocate a frame for the call.
+        let next_fp_val = interpreter.allocate_new_frame(target.into())?;
+        interpreter.vrom.set_u32(trace, next_fp_addr, next_fp_val);
+
+        // Once we have the next_fp, we knpw the destination address for the moves in
+        // the call procedures. We can then generate events for some moves and correctly
+        // delegate the other moves.
+        interpreter.handles_call_moves(trace);
 
         let pc = interpreter.pc;
         let fp = interpreter.fp;
@@ -168,7 +183,7 @@ impl TailVEvent {
         interpreter.vrom.set_u32(trace, next_fp_val, return_addr);
         interpreter.vrom.set_u32(trace, next_fp_val + 4, old_fp_val);
 
-        Self {
+        Ok(Self {
             pc: field_pc,
             fp,
             timestamp,
@@ -177,7 +192,8 @@ impl TailVEvent {
             next_fp_val,
             return_addr,
             old_fp_val: old_fp_val as u16,
-        }
+            target,
+        })
     }
 }
 
