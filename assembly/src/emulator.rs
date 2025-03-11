@@ -10,7 +10,7 @@ use tracing::{debug, trace};
 
 use crate::{
     event::{
-        b32::{AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
+        b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
@@ -257,6 +257,7 @@ impl Interpreter {
             Opcode::Ret => self.generate_ret(trace)?,
             Opcode::Taili => self.generate_taili(trace)?,
             Opcode::TailV => self.generate_tailv(trace)?,
+            Opcode::And => self.generate_and(trace)?,
             Opcode::Andi => self.generate_andi(trace)?,
             Opcode::MVIH => self.generate_mvih(trace)?,
             Opcode::MVVW => self.generate_mvvw(trace)?,
@@ -344,6 +345,14 @@ impl Interpreter {
         let new_taili_event = TailiEvent::generate_event(self, target, *next_fp);
         self.allocate_new_frame(target)?;
         trace.taili.push(new_taili_event);
+
+        Ok(())
+    }
+
+    fn generate_and(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+        let [_, dst, src1, src2] = self.prom.get(&self.pc).ok_or(InterpreterError::BadPc)?;
+        let new_and_event = AndEvent::generate_event(self, *dst, *src1, *src2);
+        trace.and.push(new_and_event);
 
         Ok(())
     }
@@ -569,6 +578,7 @@ pub(crate) struct ZCrayTrace {
     xor: Vec<XorEvent>,
     bz: Vec<BzEvent>,
     xori: Vec<XoriEvent>,
+    and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
     addi: Vec<AddiEvent>,
