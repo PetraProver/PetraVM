@@ -33,7 +33,7 @@ pub enum Opcode {
     // Slt, // TODO
     // Sltu, // TODO
     And = 0x13,
-    // Or = 0x13,
+    Or = 0x14,
     // Sll, // TODO
     // Srl, // TODO
     // Sra, // TODO

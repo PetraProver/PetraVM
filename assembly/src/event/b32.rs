@@ -63,6 +63,11 @@ impl_immediate_binary_operation!(XoriEvent);
 impl_event_for_binary_operation!(XoriEvent);
 
 /// Event for AND.
+///
+/// Performs an AND between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] & FP[src2]
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndEvent {
     timestamp: u32,
@@ -87,6 +92,11 @@ impl_binary_operation!(AndEvent);
 impl_event_for_binary_operation!(AndEvent);
 
 /// Event for ANDI.
+///
+/// Performs an AND between a target address and an immediate.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] & imm
 #[derive(Debug, Default, Clone)]
 pub(crate) struct AndiEvent {
     timestamp: u32,
@@ -102,13 +112,40 @@ pub(crate) struct AndiEvent {
 impl BinaryOperation for AndiEvent {
     #[inline(always)]
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        // TODO: can't we simplify it like for Xori?
         BinaryField32b::new(val.val() & imm.val() as u32)
     }
 }
 
 impl_immediate_binary_operation!(AndiEvent);
 impl_event_for_binary_operation!(AndiEvent);
+
+/// Event for OR.
+///
+/// Performs an OR between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src] | FP[src2]
+#[derive(Debug, Default, Clone)]
+pub(crate) struct OrEvent {
+    timestamp: u32,
+    pc: BinaryField32b,
+    fp: u32,
+    dst: u16,
+    dst_val: u32,
+    src1: u16,
+    src1_val: u32,
+    src2: u16,
+    src2_val: u32,
+}
+
+impl BinaryOperation for OrEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        BinaryField32b::new(val1.val() | val2.val())
+    }
+}
+
+impl_binary_operation!(OrEvent);
+impl_event_for_binary_operation!(OrEvent);
 
 /// Event for B32_MUL.
 ///
@@ -214,3 +251,22 @@ impl Event for B32MuliEvent {
 }
 
 impl_32b_immediate_binary_operation!(B32MuliEvent);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_logical_operations() {
+        let a = BinaryField32b::new(0b1111_1010_0000);
+        let b = BinaryField32b::new(0b1010_1111_0011);
+
+        let a_or_b = BinaryField32b::new(0b1111_1111_0011);
+        let a_xor_b = BinaryField32b::new(0b0101_0101_0011);
+        let a_and_b = BinaryField32b::new(0b1010_1010_0000);
+
+        assert_eq!(OrEvent::operation(a, b), a_or_b);
+        assert_eq!(XorEvent::operation(a, b), a_xor_b);
+        assert_eq!(AndEvent::operation(a, b), a_and_b);
+    }
+}
