@@ -27,6 +27,11 @@ impl VromAllocator {
         }
     }
 
+    /// Set the current position of the allocator.
+    pub fn set_pos(&mut self, pos: u32) {
+        self.pos = pos;
+    }
+
     /// Allocates a VROM address for an object with the given `requested_size`.
     ///
     /// The allocation process:

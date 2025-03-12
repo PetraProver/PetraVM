@@ -2,7 +2,13 @@ use std::{array::from_fn, collections::HashMap};
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{emulator::InterpreterError, event::mv::MVEventOutput, opcodes::Opcode, ZCrayTrace};
+use crate::{
+    emulator::InterpreterError,
+    event::mv::MVEventOutput,
+    opcodes::Opcode,
+    vrom_allocator::{self, VromAllocator},
+    ZCrayTrace,
+};
 
 type ToSetValue = (
     u32, // parent addr
@@ -17,7 +23,7 @@ type ToSetValue = (
 
 #[derive(Debug, Default)]
 pub(crate) struct ValueRom {
-    vrom: HashMap<u32, u8>,
+    vrom: Vec<u32>,
     // HashMap used to set values and push MV events during a CALL procedure.
     // When a MV occurs with a value that isn't set within a CALL procedure, we
     // assume it is a return value. Then, we add (addr_next_frame,
@@ -25,53 +31,52 @@ pub(crate) struct ValueRom {
     // a move event later. Whenever an address in the HashMap's keys is finally set, we populate
     // the missing values and remove them from the HashMap.
     to_set: HashMap<u32, ToSetValue>,
+    vrom_allocator: VromAllocator,
 }
 
 impl ValueRom {
-    pub fn new(vrom: HashMap<u32, u8>) -> Self {
-        Self {
-            vrom,
-            to_set: HashMap::new(),
-        }
-    }
-
-    pub fn new_from_vec(vals: Vec<u8>) -> Self {
-        let mut vrom = Self::default();
-
-        for (i, val) in vals.into_iter().enumerate() {
-            vrom.set_u8(i as u32, val);
-        }
-
-        vrom
-    }
-
-    pub fn new_from_vec_u32(vals: Vec<u32>) -> Self {
-        let mut vrom = Self::default();
-
-        for (i, val) in vals.into_iter().enumerate() {
-            vrom.set_u32(&mut ZCrayTrace::default(), 4 * i as u32, val);
-        }
-
+    pub fn new_from_vec(vals: Vec<u32>) -> Self {
+        let len = vals.len();
+        let mut vrom = ValueRom::default();
+        vrom.vrom = vals;
+        vrom.vrom_allocator = VromAllocator::default();
+        vrom.vrom_allocator.set_pos(len as u32);
         vrom
     }
 
     pub(crate) fn set_u8(&mut self, index: u32, value: u8) -> Result<(), InterpreterError> {
-        if let Some(prev_val) = self.vrom.insert(index, value) {
-            if prev_val != value {
-                return Err(InterpreterError::VromRewrite(index));
-            }
+        // Return error if index is out of bounds
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
+
+        // Check if there's a previous value and if it's different
+        // Keep in mind that the prev_value check cannot cover the case where the
+        // previous value is 0. The real double wrting check should be done in
+        // prover's constraints.
+        let prev_val = self.vrom[index as usize];
+        if prev_val != 0 && prev_val != value as u32 {
+            return Err(InterpreterError::VromRewrite(index));
+        }
+
+        // Store u8 as u32 directly
+        self.vrom[index as usize] = value as u32;
         Ok(())
     }
 
     pub(crate) fn set_u16(&mut self, index: u32, value: u16) -> Result<(), InterpreterError> {
-        if index % 2 != 0 {
-            return Err(InterpreterError::VromMisaligned(16, index));
+        // Return error if index is out of bounds
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
-        let bytes = value.to_le_bytes();
-        for i in 0..2 {
-            self.set_u8(index + i, bytes[i as usize])?;
+
+        let prev_val = self.vrom[index as usize];
+        if prev_val != 0 && prev_val != value as u32 {
+            return Err(InterpreterError::VromRewrite(index));
         }
+
+        // Store u16 as u32 directly
+        self.vrom[index as usize] = value as u32;
         Ok(())
     }
 
@@ -81,18 +86,22 @@ impl ValueRom {
         index: u32,
         value: u32,
     ) -> Result<(), InterpreterError> {
-        if index % 4 != 0 {
-            return Err(InterpreterError::VromMisaligned(32, index));
+        // Return error if index is out of bounds
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
-        let bytes = value.to_le_bytes();
-        for i in 0..4 {
-            self.set_u8(index + i, bytes[i as usize])?;
+
+        let prev_val = self.vrom[index as usize];
+        if prev_val != 0 && prev_val != value {
+            return Err(InterpreterError::VromRewrite(index));
         }
+
+        self.vrom[index as usize] = value;
 
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
             self.to_set.remove(&index)
         {
-            self.set_u32(trace, parent, value);
+            self.set_u32(trace, parent, value)?;
             let event_out = MVEventOutput::new(
                 parent,
                 opcode,
@@ -115,12 +124,33 @@ impl ValueRom {
         index: u32,
         value: u128,
     ) -> Result<(), InterpreterError> {
-        if index % 16 != 0 {
+        if index % 4 != 0 {
             return Err(InterpreterError::VromMisaligned(128, index));
         }
+
+        // For u128, we need to store it across multiple u32 slots (4 slots)
         let bytes = value.to_le_bytes();
-        for i in 0..16 {
-            self.set_u8(index + i, bytes[i as usize])?;
+        for i in 0..4 {
+            let idx = index + i * 4;
+            let slice_start = (i * 4) as usize;
+            let u32_val = u32::from_le_bytes([
+                bytes[slice_start],
+                bytes[slice_start + 1],
+                bytes[slice_start + 2],
+                bytes[slice_start + 3],
+            ]);
+
+            // Return error if index is out of bounds
+            if idx as usize >= self.vrom.len() {
+                return Err(InterpreterError::VromMissingValue(idx));
+            }
+
+            let prev_val = self.vrom[idx as usize];
+            if prev_val != 0 && prev_val != u32_val {
+                return Err(InterpreterError::VromRewrite(idx));
+            }
+
+            self.vrom[idx as usize] = u32_val;
         }
 
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
@@ -136,76 +166,89 @@ impl ValueRom {
     }
 
     pub(crate) fn get_u8(&self, index: u32) -> Result<u8, InterpreterError> {
-        match self.vrom.get(&index) {
-            Some(&value) => Ok(value),
-            None => Err(InterpreterError::VromMissingValue(index)),
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
+
+        Ok(self.vrom[index as usize] as u8)
     }
 
     pub(crate) fn get_u8_call_procedure(&self, index: u32) -> Option<u8> {
-        self.vrom.get(&index).copied()
+        if index as usize >= self.vrom.len() {
+            None
+        } else {
+            Some(self.vrom[index as usize] as u8)
+        }
     }
 
     pub(crate) fn get_u16(&self, index: u32) -> Result<u16, InterpreterError> {
-        if index % 2 != 0 {
-            return Err(InterpreterError::VromMisaligned(16, index));
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
 
-        let mut bytes = [0; 2];
-        for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = self.get_u8(index + i as u32)?;
-        }
-
-        Ok(u16::from_le_bytes(bytes))
+        Ok(self.vrom[index as usize] as u16)
     }
 
     pub(crate) fn get_u32(&self, index: u32) -> Result<u32, InterpreterError> {
-        if index % 4 != 0 {
-            return Err(InterpreterError::VromMisaligned(32, index));
-        }
-        let mut bytes = [0; 4];
-        for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = self.get_u8(index + i as u32)?;
+        if index as usize >= self.vrom.len() {
+            return Err(InterpreterError::VromMissingValue(index));
         }
 
-        Ok(u32::from_le_bytes(bytes))
+        Ok(self.vrom[index as usize])
     }
 
     pub(crate) fn get_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
-        if index % 4 != 0 {
-            return Err(InterpreterError::VromMisaligned(32, index));
+        if index as usize >= self.vrom.len() {
+            return Ok(None);
         }
-        let opt_bytes = from_fn(|i| self.get_u8_call_procedure(index + i as u32));
-        if opt_bytes.iter().any(|v| v.is_none()) {
-            Ok(None)
-        } else {
-            Ok(Some(u32::from_le_bytes(opt_bytes.map(|v| v.unwrap()))))
-        }
+
+        Ok(Some(self.vrom[index as usize]))
     }
 
     pub(crate) fn get_u128(&self, index: u32) -> Result<u128, InterpreterError> {
-        if index % 16 != 0 {
+        if index % 4 != 0 {
             return Err(InterpreterError::VromMisaligned(128, index));
         }
-        let mut bytes = [0; 16];
-        for (i, byte) in bytes.iter_mut().enumerate() {
-            *byte = self.get_u8(index + i as u32)?;
+
+        // For u128, we need to read from multiple u32 slots (4 slots)
+        let mut result: u128 = 0;
+        for i in 0..4 {
+            let idx = index + i * 4;
+            if idx as usize >= self.vrom.len() {
+                return Err(InterpreterError::VromMissingValue(idx));
+            }
+
+            let u32_val = self.vrom[idx as usize];
+            // Shift the value to its appropriate position and add to result
+            result |= (u32_val as u128) << (i * 32);
         }
 
-        Ok(u128::from_le_bytes(bytes))
+        Ok(result)
     }
 
     pub(crate) fn get_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
-        if index % 16 != 0 {
+        if index % 4 != 0 {
             return Err(InterpreterError::VromMisaligned(128, index));
         }
-        let opt_bytes = from_fn(|i| self.get_u8_call_procedure(index + i as u32));
 
-        if opt_bytes.iter().any(|v| v.is_none()) {
-            Ok(None)
-        } else {
-            Ok(Some(u128::from_le_bytes(opt_bytes.map(|v| v.unwrap()))))
+        // Check if all required slots are available
+        for i in 0..4 {
+            let idx = index + i * 4;
+            if idx as usize >= self.vrom.len() {
+                return Ok(None);
+            }
         }
+
+        // Read from multiple u32 slots (4 slots)
+        let mut result: u128 = 0;
+        for i in 0..4 {
+            let idx = index + i * 4;
+            let u32_val = self.vrom[idx as usize];
+            // Shift the value to its appropriate position and add to result
+            result |= (u32_val as u128) << (i * 32);
+        }
+
+        Ok(Some(result))
     }
 
     pub(crate) fn insert_to_set(
@@ -218,5 +261,9 @@ impl ValueRom {
         };
 
         Ok(())
+    }
+
+    pub(crate) fn allocate_new_frame(&mut self, target: u32) -> u32 {
+        self.vrom_allocator.alloc(target)
     }
 }

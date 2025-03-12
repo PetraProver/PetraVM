@@ -72,7 +72,6 @@ pub(crate) struct Interpreter {
     pub(crate) prom: ProgramRom,
     pub(crate) vrom: ValueRom,
     frames: LabelsFrameSizes,
-    vrom_allocator: VromAllocator,
     /// Before a CALL, there are a few move operations used to populate the next
     /// frame. But the next frame pointer is not necessarily known at this
     /// point, and return values may also not be known. Thus, this `Vec` is
@@ -146,7 +145,6 @@ impl Interpreter {
             vrom: ValueRom::default(),
             frames,
             pc_field_to_int,
-            vrom_allocator: VromAllocator::default(),
             moves_to_apply: vec![],
         }
     }
@@ -165,7 +163,6 @@ impl Interpreter {
             vrom,
             frames,
             pc_field_to_int,
-            vrom_allocator: VromAllocator::default(),
             moves_to_apply: vec![],
         }
     }
@@ -789,7 +786,7 @@ impl Interpreter {
         // offset accessed within the frame, and the largest possible object is
         // a BF128.
         // TODO: Figure out the exact size of the last object.
-        Ok(self.vrom_allocator.alloc(*frame_size as u32 + 4))
+        Ok(self.vrom.allocate_new_frame(*frame_size as u32 + 4))
     }
 }
 
