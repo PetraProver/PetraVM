@@ -5,7 +5,8 @@
 use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
 
 use binius_field::{
-    BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField,
+    BinaryField, BinaryField128b, BinaryField16b, BinaryField32b, ExtensionField, Field,
+    PackedField,
 };
 use binius_utils::bail;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -13,6 +14,7 @@ use tracing::{debug, trace};
 
 use crate::{
     event::{
+        b128::{B128AddEvent, B128MulEvent},
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
@@ -571,6 +573,12 @@ impl Interpreter {
             Opcode::B32Muli => {
                 self.generate_b32_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::B128Add => {
+                self.generate_b128_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::B128Mul => {
+                self.generate_b128_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -847,6 +855,36 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_b128_add(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_b128_add_event =
+            B128AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.b128_add.push(new_b128_add_event);
+        Ok(())
+    }
+
+    fn generate_b128_mul(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_b128_mul_event =
+            B128MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.b128_mul.push(new_b128_mul_event);
+        Ok(())
+    }
+
     fn generate_add(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -859,8 +897,8 @@ impl Interpreter {
         let new_add_event = AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            BinaryField32b::new(new_add_event.src1_val),
-            BinaryField32b::new(new_add_event.src2_val),
+            new_add_event.src1_val,
+            new_add_event.src2_val,
         ));
         trace.add.push(new_add_event);
 
@@ -879,8 +917,8 @@ impl Interpreter {
         let new_addi_event = AddiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            BinaryField32b::new(new_addi_event.src_val),
-            imm.into(),
+            new_addi_event.src_val,
+            imm.val() as u32,
         ));
         trace.addi.push(new_addi_event);
 
@@ -1044,6 +1082,7 @@ pub(crate) struct ZCrayTrace {
     and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
+    add: Vec<AddEvent>,
     addi: Vec<AddiEvent>,
     add32: Vec<Add32Event>,
     add64: Vec<Add64Event>,
@@ -1057,7 +1096,8 @@ pub(crate) struct ZCrayTrace {
     ldi: Vec<LDIEvent>,
     b32_mul: Vec<B32MulEvent>,
     b32_muli: Vec<B32MuliEvent>,
-    add: Vec<AddEvent>,
+    b128_add: Vec<B128AddEvent>,
+    b128_mul: Vec<B128MulEvent>,
 
     vrom: ValueRom,
 }
@@ -1144,25 +1184,30 @@ impl ZCrayTrace {
         ));
 
         fire_events!(self.bnz, &mut channels, &tables);
-        fire_events!(self.bz, &mut channels, &tables);
         fire_events!(self.xor, &mut channels, &tables);
+        fire_events!(self.bz, &mut channels, &tables);
+        fire_events!(self.or, &mut channels, &tables);
+        fire_events!(self.ori, &mut channels, &tables);
         fire_events!(self.xori, &mut channels, &tables);
+        fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
         fire_events!(self.shift, &mut channels, &tables);
-        fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
+        fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
-        fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
-        fire_events!(self.ldi, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
+        fire_events!(self.mvih, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);
         fire_events!(self.mvvl, &mut channels, &tables);
-        fire_events!(self.mvih, &mut channels, &tables);
+        fire_events!(self.ldi, &mut channels, &tables);
+        fire_events!(self.b32_mul, &mut channels, &tables);
+        fire_events!(self.b32_muli, &mut channels, &tables);
+        fire_events!(self.b128_add, &mut channels, &tables);
+        fire_events!(self.b128_mul, &mut channels, &tables);
 
         assert!(channels.state_channel.is_balanced());
     }
@@ -1186,7 +1231,7 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 
 #[cfg(test)]
 mod tests {
-    use binius_field::{Field, PackedField};
+    use binius_field::{BinaryField128b, Field, PackedField};
     use env_logger::{try_init_from_env, Env, DEFAULT_FILTER_ENV};
     use tracing_subscriber::EnvFilter;
 
@@ -1340,8 +1385,11 @@ mod tests {
 
         // Add targets needed in the code.
         let mut pc_field_to_int = HashMap::new();
+        // Add collatz
         pc_field_to_int.insert(collatz.into(), 1);
+        // Add case_recurse
         pc_field_to_int.insert(G.pow(4), 5);
+        // Add case_odd
         pc_field_to_int.insert(G.pow(10), 11);
 
         let instructions = vec![
@@ -1439,6 +1487,8 @@ mod tests {
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
 
+        // Set to `true` the move operations that are part of a CALL procedure in the
+        // Collatz code.
         let mut is_calling_procedure_hints = vec![false; instructions.len()];
         let indices = vec![7, 8, 9, 12, 13, 14];
         for idx in indices {
@@ -1459,13 +1509,25 @@ mod tests {
 
         traces.validate(boundary_values);
 
-        assert!(traces.shift.len() == expected_evens.len());
+        assert!(
+            traces.shift.len() == expected_evens.len(),
+            "Generated an incorrect number of even cases."
+        );
         for (i, &even) in expected_evens.iter().enumerate() {
-            assert!(traces.shift[i].src_val == even);
+            assert!(
+                traces.shift[i].src_val == even,
+                "Incorrect input to an even case."
+            );
         }
-        assert!(traces.muli.len() == expected_odds.len());
+        assert!(
+            traces.muli.len() == expected_odds.len(),
+            "Generated an incorrect number of odd cases."
+        );
         for (i, &odd) in expected_odds.iter().enumerate() {
-            assert!(traces.muli[i].src_val == odd);
+            assert!(
+                traces.muli[i].src_val == odd,
+                "Incorrect input to an odd case."
+            );
         }
 
         let nb_frames = expected_evens.len() + expected_odds.len();
@@ -1587,5 +1649,117 @@ mod tests {
             cur_fibs[1] = s;
         }
         cur_fibs[0]
+    }
+
+    #[test]
+    fn test_b128_operations() {
+        // Define opcodes and test values
+        let zero = BinaryField16b::zero();
+
+        // Offsets/addresses in our test program
+        let a_offset = 0x10; // Must be 16-byte aligned
+        let b_offset = 0x20; // Must be 16-byte aligned
+        let c_offset = 0x30; // Must be 16-byte aligned
+        let add_result_offset = 0x40; // Must be 16-byte aligned
+        let mul_result_offset = 0x50; // Must be 16-byte aligned
+
+        // Create binary field slot references
+        let a_slot = BinaryField16b::new(a_offset as u16);
+        let b_slot = BinaryField16b::new(b_offset as u16);
+        let c_slot = BinaryField16b::new(c_offset as u16);
+        let add_result_slot = BinaryField16b::new(add_result_offset as u16);
+        let mul_result_slot = BinaryField16b::new(mul_result_offset as u16);
+
+        // Construct a simple program with B128_ADD and B128_MUL instructions
+        // 1. B128_ADD @add_result, @a, @b
+        // 2. B128_MUL @mul_result, @add_result, @c
+        // 3. RET
+        let instructions = vec![
+            [
+                Opcode::B128Add.get_field_elt(),
+                add_result_slot,
+                a_slot,
+                b_slot,
+            ],
+            [
+                Opcode::B128Mul.get_field_elt(),
+                mul_result_slot,
+                add_result_slot,
+                c_slot,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        // Create the PROM
+        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+
+        // Set up the VROM with test values
+        let mut vrom = ValueRom::default();
+
+        // Test values
+        let a_val = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);
+        let b_val = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
+        let c_val = 0x9999999988888888u128 | (0x7777777766666666u128 << 64);
+
+        // Create a dummy trace only used to populate the initial VROM.
+        let mut dummy_zcray = ZCrayTrace::default();
+
+        // Set up return PC = 0, return FP = 0
+        vrom.set_u32(&mut dummy_zcray, 0, 0).unwrap();
+        vrom.set_u32(&mut dummy_zcray, 4, 0).unwrap();
+
+        // Set the test values in VROM
+        vrom.set_u128(&mut dummy_zcray, a_offset, a_val).unwrap();
+        vrom.set_u128(&mut dummy_zcray, b_offset, b_val).unwrap();
+        vrom.set_u128(&mut dummy_zcray, c_offset, c_val).unwrap();
+
+        // Set up frame sizes
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 128);
+
+        // Create an interpreter and run the program
+        let (trace, boundary_values) =
+            ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
+                .expect("Trace generation should not fail.");
+
+        // Capture the final PC before boundary_values is moved
+        let final_pc = boundary_values.final_pc;
+
+        // Validate the trace (this consumes boundary_values)
+        trace.validate(boundary_values);
+
+        // Calculate the expected results
+        let expected_add = a_val ^ b_val;
+        let a_bf = BinaryField128b::new(a_val);
+        let b_bf = BinaryField128b::new(b_val);
+        let c_bf = BinaryField128b::new(c_val);
+        let add_result_bf = a_bf + b_bf;
+        let expected_mul = (add_result_bf * c_bf).val();
+
+        // Verify the results in VROM
+        let actual_add = trace.vrom.get_u128(add_result_offset).unwrap();
+        let actual_mul = trace.vrom.get_u128(mul_result_offset).unwrap();
+
+        assert_eq!(actual_add, expected_add, "B128_ADD operation failed");
+        assert_eq!(actual_mul, expected_mul, "B128_MUL operation failed");
+
+        // Check that the events were created
+        assert_eq!(
+            trace.b128_add.len(),
+            1,
+            "Expected exactly one B128_ADD event"
+        );
+        assert_eq!(
+            trace.b128_mul.len(),
+            1,
+            "Expected exactly one B128_MUL event"
+        );
+
+        // The trace should have completed successfully
+        assert_eq!(
+            final_pc,
+            BinaryField32b::ZERO,
+            "Program did not end correctly"
+        );
     }
 }

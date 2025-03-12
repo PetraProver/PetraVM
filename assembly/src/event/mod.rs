@@ -12,6 +12,7 @@ use crate::{
     ZCrayTrace,
 };
 
+pub(crate) mod b128;
 pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
