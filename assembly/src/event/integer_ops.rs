@@ -324,132 +324,60 @@ pub mod arithmetization {
     };
     use binius_m3::{
         builder::{
-            upcast_col, Col, ConstraintSystem, Statement, TableFiller, TableId,
-            TableWitnessIndexSegment, B1, B128, B16, B32,
+            upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId, TableWitnessIndexSegment, B1, B128, B16, B32, B64
         },
         gadgets::u32::{U32Add, U32AddFlags},
     };
     use bytemuck::Pod;
 
     use super::model::{self, AddEvent};
-    use crate::emulator::InterpreterChannels;
+    use crate::{emulator::InterpreterChannels, opcodes::Opcode};
 
-    pub struct Add32Table {
-        id: TableId,
-        xin: Col<B1, 32>,
-        yin: Col<B1, 32>,
-        xin_packed: Col<B32>,
-        yin_packed: Col<B32>,
-        zout_packed: Col<B32>,
-        timestamp: Col<B32>,
-        inner_add: U32Add,
-    }
-
-    impl Add32Table {
-        pub fn new(cs: &mut ConstraintSystem, channel: ChannelId) -> Self {
-            let mut table = cs.add_table("add32");
-            let xin = table.add_committed("x1");
-            let xin_packed = table.add_packed("x1_packed", xin);
-            let yin = table.add_committed("yin");
-            let yin_packed = table.add_packed("yin_packed", yin);
-
-            let timestamp = table.add_committed("timestamp");
-            let inner_add = U32Add::new(&mut table, xin, yin, U32AddFlags::default());
-
-            let zout_packed = table.add_packed("zout_packed", inner_add.zout);
-
-            table.pull(
-                channel,
-                [
-                    upcast_col(timestamp),
-                    upcast_col(xin_packed),
-                    upcast_col(yin_packed),
-                ],
-            );
-            table.push(channel, [upcast_col(timestamp), upcast_col(zout_packed)]);
-
-            Self {
-                id: table.id(),
-                xin,
-                yin,
-                xin_packed,
-                yin_packed,
-                zout_packed,
-                timestamp,
-                inner_add,
-            }
-        }
-    }
-
-    impl<U: UnderlierType> TableFiller<U> for Add32Table
-    where
-        U: Pod + PackScalar<B1>,
-    {
-        type Event = model::Add32Event;
-
-        fn id(&self) -> TableId {
-            self.id
-        }
-
-        fn fill<'a>(
-            &'a self,
-            rows: impl Iterator<Item = &'a Self::Event>,
-            witness: &'a mut TableWitnessIndexSegment<U, binius_field::BinaryField128b>,
-        ) -> anyhow::Result<()> {
-            {
-                let mut xin = witness.get_mut_as(self.inner_add.xin)?;
-                let mut yin = witness.get_mut_as(self.inner_add.yin)?;
-                let mut xin_packed = witness.get_mut_as(self.xin_packed)?;
-                let mut yin_packed = witness.get_mut_as(self.yin_packed)?;
-                let mut zout_packed = witness.get_mut_as(self.zout_packed)?;
-                let mut timestamp = witness.get_mut_as(self.timestamp)?;
-                for (i, event) in rows.enumerate() {
-                    xin[i] = event.input1;
-                    yin[i] = event.input2;
-                    xin_packed[i] = event.input1;
-                    yin_packed[i] = event.input2;
-                    timestamp[i] = event.timestamp;
-                    zout_packed[i] = event.output;
-                }
-            }
-            self.inner_add.populate(witness)?;
-            Ok(())
-        }
-    }
     pub struct AddTable {
         id: TableId,
         pc: Col<B32>,
         fp: Col<B32>,
+        opcode: Col<B16>, // This should be a transparent column
         timestamp: Col<B32>,
         next_timestamp: Col<B32>, // TODO: This is currently unconstrained
-        dst: Col<B16>,
-        dst_val: Col<B32>,
         src1: Col<B16>,
         src2: Col<B16>,
-        src1_val: Col<B32>,
-        src2_val: Col<B32>,
+        dst: Col<B16>,
+        dst_val_packed: Col<B32>,
+        src1_val: Col<B1, 32>,
+        src1_val_packed: Col<B32>,
+        src2_val: Col<B1, 32>,
+        src2_val_packed: Col<B32>,
+        u32_add: U32Add,
     }
 
     impl AddTable {
         pub fn new(
             cs: &mut ConstraintSystem,
             state_channel: ChannelId,
-            add32_channel: ChannelId,
+            vrom_channel: ChannelId,
+            prom_channel: ChannelId,
         ) -> Self {
-            let mut table = cs.add_table("add");
+            let mut table = cs.add_table("axdd");
+
+            
 
             let pc = table.add_committed("pc");
             let fp = table.add_committed("fp");
             let timestamp = table.add_committed("timestamp");
+            let opcode = table.add_committed("opcode"); //TODO: opcode must be transparent
+            // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
+            table.assert_zero("opcode_is_correct", opcode - B16::new(Opcode::Add as u16));
 
             let src1 = table.add_committed("src1");
             let src2 = table.add_committed("src2");
+            let dst = table.add_committed("dst");
 
             let src1_val = table.add_committed("src1_val");
             let src2_val = table.add_committed("src2_val");
 
-            let dst = table.add_committed("dst");
-            let dst_val = table.add_committed("dst_val");
+            let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
+            let src2_val_packed = table.add_packed("src2_val_packed", src1_val);
 
             let next_pc =
                 table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
@@ -457,6 +385,21 @@ pub mod arithmetization {
             // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
             let next_timestamp = table.add_committed("next_timestamp");
 
+            let u32_add = U32Add::new(&mut table, src1_val, src2_val, U32AddFlags::default());
+            let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
+
+            // Reado opcode
+            table.push(prom_channel, [upcast_col(pc), upcast_col(opcode), upcast_col(dst), upcast_col(src1), upcast_col(src2)]);
+
+            // Read src1
+            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(src1), upcast_col(src1_val_packed)]);
+            // Read src2
+            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(src2), upcast_col(src2_val_packed)]);
+            // Write dst
+            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(dst), upcast_col(dst_val_packed)]);
+
+
+            // Flushing rules for the state channel
             table.push(
                 state_channel,
                 [upcast_col(pc), upcast_col(fp), upcast_col(timestamp)],
@@ -470,28 +413,22 @@ pub mod arithmetization {
                 ],
             );
 
-            table.push(
-                add32_channel,
-                [
-                    upcast_col(timestamp),
-                    upcast_col(src1_val),
-                    upcast_col(src2_val),
-                ],
-            );
-            table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
-
             Self {
                 id: table.id(),
                 pc,
                 fp,
+                opcode,
                 timestamp,
                 next_timestamp,
                 src1,
                 src2,
+                dst,
                 src1_val,
                 src2_val,
-                dst,
-                dst_val,
+                src1_val_packed,
+                src2_val_packed,
+                u32_add,
+                dst_val_packed,
             }
         }
     }
@@ -520,10 +457,11 @@ pub mod arithmetization {
 
                 let mut src1 = witness.get_mut_as(self.src1)?;
                 let mut src2 = witness.get_mut_as(self.src2)?;
+                let mut dst = witness.get_mut_as(self.dst)?;
                 let mut src1_val = witness.get_mut_as(self.src1_val)?;
                 let mut src2_val = witness.get_mut_as(self.src2_val)?;
-                let mut dst = witness.get_mut_as(self.dst)?;
-                let mut dst_val = witness.get_mut_as(self.dst_val)?;
+                let mut src1_val_packed = witness.get_mut_as(self.src1_val_packed)?;
+                let mut src2_val_packed = witness.get_mut_as(self.src2_val_packed)?;
 
                 for (i, event) in rows.enumerate() {
                     pc[i] = event.pc.into();
@@ -533,12 +471,14 @@ pub mod arithmetization {
 
                     src1[i] = event.src1;
                     src2[i] = event.src2;
+                    dst[i] = event.dst;
                     src1_val[i] = event.src1_val;
                     src2_val[i] = event.src2_val;
-                    dst[i] = event.dst;
-                    dst_val[i] = event.dst_val;
+                    src1_val_packed[i] = event.src1_val;
+                    src2_val_packed[i] = event.src2_val;
                 }
             }
+            self.u32_add.populate(witness);
             Ok(())
         }
     }
@@ -550,17 +490,18 @@ pub mod arithmetization {
         timestamp: Col<B32>,
         next_timestamp: Col<B32>, // TODO: This is currently unconstrained
         dst: Col<B16>,
-        dst_val: Col<B32>,
         src: Col<B16>,
-        src_val: Col<B32>,
-        imm: Col<B16>,
+        src_val: Col<B1, 32>,
+        src_val_packed: Col<B32>,
+        imm: Col<B1, 32>, // TODO: Should only use 16 columns
+        imm_packed: Col<B16>,
+        u32_add: U32Add,
     }
 
     impl AddiTable {
         pub fn new(
             cs: &mut ConstraintSystem,
             state_channel: ChannelId,
-            add32_channel: ChannelId,
         ) -> Self {
             let mut table = cs.add_table("addi");
 
@@ -570,16 +511,19 @@ pub mod arithmetization {
 
             let src = table.add_committed("src1");
             let src_val = table.add_committed("src1_val");
+            let src_val_packed = table.add_packed("src_val_packed", src_val);
             let imm =   table.add_committed("imm");
+            let imm_packed = table.add_packed("imm_packed", imm);
 
             let dst = table.add_committed("dst");
-            let dst_val = table.add_committed("dst_val");
 
             let next_pc =
                 table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
 
             // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
             let next_timestamp = table.add_committed("next_timestamp");
+
+            let u32_add = U32Add::new(&mut table, src_val, imm, U32AddFlags::default());
 
             table.push(
                 state_channel,
@@ -594,16 +538,6 @@ pub mod arithmetization {
                 ],
             );
 
-            table.push(
-                add32_channel,
-                [
-                    upcast_col(timestamp),
-                    upcast_col(src_val),
-                    upcast_col(imm),
-                ],
-            );
-            table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
-
             Self {
                 id: table.id(),
                 pc,
@@ -612,9 +546,11 @@ pub mod arithmetization {
                 next_timestamp,
                 src,
                 src_val,
+                src_val_packed,
                 dst,
-                dst_val,
                 imm,
+                imm_packed,
+                u32_add,
             }
         }
     }
@@ -644,7 +580,6 @@ pub mod arithmetization {
                 let mut src1 = witness.get_mut_as(self.src)?;
                 let mut src1_val = witness.get_mut_as(self.src_val)?;
                 let mut dst = witness.get_mut_as(self.dst)?;
-                let mut dst_val = witness.get_mut_as(self.dst_val)?;
                 let mut imm = witness.get_mut_as(self.imm)?;
 
                 for (i, event) in rows.enumerate() {
@@ -656,11 +591,145 @@ pub mod arithmetization {
                     src1[i] = event.src;
                     src1_val[i] = event.src_val;
                     dst[i] = event.dst;
-                    dst_val[i] = event.dst_val;
                     imm[i] = event.imm;
                 }
             }
             Ok(())
         }
     }
+
+    // struct MuliTable {
+    //     id: TableId,
+    //     pc: Col<B32>,
+    //     fp: Col<B32>,
+    //     timestamp: Col<B32>,
+    //     next_timestamp: Col<B32>, // TODO: This is currently unconstrained
+    //     dst: Col<B16>,
+    //     src: Col<B16>,
+    //     src_val_packed: Col<B32>,
+    //     imm: Col<B1, 32>, // TODO: Should only use 16 cols
+    //     imm_packed: Col<B16>,
+    //     aux: Col<B32>,
+    //     sum0: Col<B64>,
+    //     sum1: Col<B64>,
+    //     add1: U64Add,
+    // }
+
+    // impl MuliTable {
+    //     pub fn new(
+    //         cs: &mut ConstraintSystem,
+    //         state_channel: ChannelId,
+    //         add64_channel: ChannelId,
+    //         mul8_channel: ChannelId,
+    //     ) -> Self {
+    //         let mut table = cs.add_table("muli");
+
+    //         let pc = table.add_committed("pc");
+    //         let fp = table.add_committed("fp");
+    //         let timestamp = table.add_committed("timestamp");
+
+    //         let src = table.add_committed("src");
+    //         let src_val = table.add_committed("src_val");
+    //         let src_val_packed = table.add_packed(table, "src_val_packed");
+    //         let imm =   table.add_committed("imm");
+
+    //         let dst = table.add_committed("dst");
+    //         let dst_val = table.add_committed("dst_val");
+
+    //         let aux = table.add_committed("aux");
+    //         let sum0 = table.add_committed("sum0");
+    //         let sum1 = table.add_committed("sum1");
+
+    //         let next_pc =
+    //             table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
+
+    //         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
+    //         let next_timestamp = table.add_committed("next_timestamp");
+
+    //         table.push(
+    //             state_channel,
+    //             [upcast_col(pc), upcast_col(fp), upcast_col(timestamp)],
+    //         );
+    //         table.pull(
+    //             state_channel,
+    //             [
+    //                 upcast_col(next_pc),
+    //                 upcast_col(fp),
+    //                 upcast_col(next_timestamp),
+    //             ],
+    //         );
+
+    //         table.push(
+    //             add32_channel,
+    //             [
+    //                 upcast_col(timestamp),
+    //                 upcast_col(src_val),
+    //                 upcast_col(imm),
+    //             ],
+    //         );
+    //         table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
+
+    //         Self {
+    //             id: table.id(),
+    //             pc,
+    //             fp,
+    //             timestamp,
+    //             next_timestamp,
+    //             src,
+    //             dst,
+    //             imm,
+    //             src_val_packed,
+    //             imm_packed: todo!(),
+    //             aux,
+    //             sum0,
+    //             sum1,
+    //             add1: todo!(),
+    //         }
+    //     }
+    // }
+
+    #[test]
+	fn test_addi() {
+		let mut cs = ConstraintSystem::new();
+		let state_channel = cs.add_channel("state_channel");
+        let prom_channel = cs.add_channel("prom_channel");
+        let vrom_channel = cs.add_channel("vrom_channel");
+		let fibonacci_table = FibonacciTable::new(&mut cs, fibonacci_pairs);
+		let trace = FibonacciTrace::generate((0, 1), 40);
+		let statement = Statement {
+			boundaries: vec![
+				Boundary {
+					values: vec![B128::new(0), B128::new(1)],
+					channel_id: fibonacci_pairs,
+					direction: FlushDirection::Push,
+					multiplicity: 1,
+				},
+				Boundary {
+					values: vec![B128::new(165580141), B128::new(267914296)],
+					channel_id: fibonacci_pairs,
+					direction: FlushDirection::Pull,
+					multiplicity: 1,
+				},
+			],
+			table_sizes: vec![trace.rows.len()],
+		};
+		let allocator = Bump::new();
+		let mut witness = cs
+			.build_witness::<OptimalUnderlier128b>(&allocator, &statement)
+			.unwrap();
+
+		witness
+			.fill_table_sequential(&fibonacci_table, &trace.rows)
+			.unwrap();
+
+		let compiled_cs = cs.compile(&statement).unwrap();
+		let witness = witness.into_multilinear_extension_index::<B128>(&statement);
+
+		binius_core::constraint_system::validate::validate_witness(
+			&compiled_cs,
+			&statement.boundaries,
+			&witness,
+		)
+		.unwrap();
+	}
 }
