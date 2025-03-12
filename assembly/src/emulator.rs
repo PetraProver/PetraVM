@@ -38,10 +38,14 @@ pub struct Channel<T> {
 type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
 type VromChannel = Channel<u32>;
 type StateChannel = Channel<(BinaryField32b, u32, u32)>; // PC, FP, Timestamp
+type Add32Channel = Channel<(bool, u32, u32)>; // in/out, left, right
 
 #[derive(Default)]
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
+    pub prom_channel: PromChannel,
+    pub vrom_channel: VromChannel,
+    pub add32_channel: Channel<(bool, u32, u32)>,
 }
 
 type VromTable32 = HashMap<u32, u32>;

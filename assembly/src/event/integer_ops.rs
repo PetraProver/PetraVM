@@ -49,12 +49,12 @@ pub mod model {
 
     /// Event for the Add32 gadget.
     #[derive(Debug, Clone)]
-    pub(crate) struct Add32Event {
-        timestamp: u32,
-        output: u32,
-        input1: u32,
-        input2: u32,
-        cout: u32,
+    pub struct Add32Event {
+        pub(crate) timestamp: u32,
+        pub(crate) output: u32,
+        pub(crate) input1: u32,
+        pub(crate) input2: u32,
+        pub(crate) cout: u32,
     }
 
     impl Add32Event {
@@ -101,14 +101,14 @@ pub mod model {
     ///   1. FP[dst] = FP[src] + imm
     #[derive(Debug, Clone)]
     pub(crate) struct AddiEvent {
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u32,
-        src: u16,
+        pub(crate) pc: BinaryField32b,
+        pub(crate) fp: u32,
+        pub(crate) timestamp: u32,
+        pub(crate) dst: u16,
+        pub(crate) dst_val: u32,
+        pub(crate) src: u16,
         pub(crate) src_val: u32,
-        imm: u16,
+        pub(crate) imm: u16,
     }
 
     impl BinaryOperation for AddiEvent {
@@ -333,23 +333,109 @@ pub mod arithmetization {
 
     use super::model::{self, AddEvent};
     use crate::emulator::InterpreterChannels;
+
+    pub struct Add32Table {
+        id: TableId,
+        xin: Col<B1, 32>,
+        yin: Col<B1, 32>,
+        xin_packed: Col<B32>,
+        yin_packed: Col<B32>,
+        zout_packed: Col<B32>,
+        timestamp: Col<B32>,
+        inner_add: U32Add,
+    }
+
+    impl Add32Table {
+        pub fn new(cs: &mut ConstraintSystem, channel: ChannelId) -> Self {
+            let mut table = cs.add_table("add32");
+            let xin = table.add_committed("x1");
+            let xin_packed = table.add_packed("x1_packed", xin);
+            let yin = table.add_committed("yin");
+            let yin_packed = table.add_packed("yin_packed", yin);
+
+            let timestamp = table.add_committed("timestamp");
+            let inner_add = U32Add::new(&mut table, xin, yin, U32AddFlags::default());
+
+            let zout_packed = table.add_packed("zout_packed", inner_add.zout);
+
+            table.pull(
+                channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(xin_packed),
+                    upcast_col(yin_packed),
+                ],
+            );
+            table.push(channel, [upcast_col(timestamp), upcast_col(zout_packed)]);
+
+            Self {
+                id: table.id(),
+                xin,
+                yin,
+                xin_packed,
+                yin_packed,
+                zout_packed,
+                timestamp,
+                inner_add,
+            }
+        }
+    }
+
+    impl<U: UnderlierType> TableFiller<U> for Add32Table
+    where
+        U: Pod + PackScalar<B1>,
+    {
+        type Event = model::Add32Event;
+
+        fn id(&self) -> TableId {
+            self.id
+        }
+
+        fn fill<'a>(
+            &'a self,
+            rows: impl Iterator<Item = &'a Self::Event>,
+            witness: &'a mut TableWitnessIndexSegment<U, binius_field::BinaryField128b>,
+        ) -> anyhow::Result<()> {
+            {
+                let mut xin = witness.get_mut_as(self.inner_add.xin)?;
+                let mut yin = witness.get_mut_as(self.inner_add.yin)?;
+                let mut xin_packed = witness.get_mut_as(self.xin_packed)?;
+                let mut yin_packed = witness.get_mut_as(self.yin_packed)?;
+                let mut zout_packed = witness.get_mut_as(self.zout_packed)?;
+                let mut timestamp = witness.get_mut_as(self.timestamp)?;
+                for (i, event) in rows.enumerate() {
+                    xin[i] = event.input1;
+                    yin[i] = event.input2;
+                    xin_packed[i] = event.input1;
+                    yin_packed[i] = event.input2;
+                    timestamp[i] = event.timestamp;
+                    zout_packed[i] = event.output;
+                }
+            }
+            self.inner_add.populate(witness)?;
+            Ok(())
+        }
+    }
     pub struct AddTable {
         id: TableId,
         pc: Col<B32>,
         fp: Col<B32>,
         timestamp: Col<B32>,
         next_timestamp: Col<B32>, // TODO: This is currently unconstrained
+        dst: Col<B16>,
+        dst_val: Col<B32>,
         src1: Col<B16>,
         src2: Col<B16>,
-        src1_val: Col<B1, 32>,
-        src2_val: Col<B1, 32>,
-        src1_val_packed: Col<B32>,
-        src2_val_packed: Col<B32>,
-        inner_add: U32Add,
+        src1_val: Col<B32>,
+        src2_val: Col<B32>,
     }
 
     impl AddTable {
-        pub fn new(cs: &mut ConstraintSystem, channels: InterpreterChannels) -> Self {
+        pub fn new(
+            cs: &mut ConstraintSystem,
+            state_channel: ChannelId,
+            add32_channel: ChannelId,
+        ) -> Self {
             let mut table = cs.add_table("add");
 
             let pc = table.add_committed("pc");
@@ -362,15 +448,8 @@ pub mod arithmetization {
             let src1_val = table.add_committed("src1_val");
             let src2_val = table.add_committed("src2_val");
 
-            let src1_val_packed = table.add_packed::<_, 32, B32, 1>("src1_val_packed", src1_val);
-            let src2_val_packed = table.add_packed::<_, 32, B32, 1>("src2_val_packed", src2_val);
-
-            let inner_add = U32Add::new(
-                &mut table.with_namespace("inner_add"),
-                src1_val,
-                src2_val,
-                U32AddFlags::default(),
-            );
+            let dst = table.add_committed("dst");
+            let dst_val = table.add_committed("dst_val");
 
             let next_pc =
                 table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
@@ -379,17 +458,27 @@ pub mod arithmetization {
             let next_timestamp = table.add_committed("next_timestamp");
 
             table.push(
-                channels.state_channel.id,
+                state_channel,
                 [upcast_col(pc), upcast_col(fp), upcast_col(timestamp)],
             );
             table.pull(
-                channels.state_channel.id,
+                state_channel,
                 [
                     upcast_col(next_pc),
                     upcast_col(fp),
                     upcast_col(next_timestamp),
                 ],
             );
+
+            table.push(
+                add32_channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(src1_val),
+                    upcast_col(src2_val),
+                ],
+            );
+            table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
 
             Self {
                 id: table.id(),
@@ -401,9 +490,8 @@ pub mod arithmetization {
                 src2,
                 src1_val,
                 src2_val,
-                src1_val_packed,
-                src2_val_packed,
-                inner_add,
+                dst,
+                dst_val,
             }
         }
     }
@@ -425,35 +513,153 @@ pub mod arithmetization {
         ) -> Result<(), anyhow::Error> {
             {
                 let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
-                let mut fp: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.fp)?;
+                let mut fp = witness.get_mut_as(self.fp)?;
                 let mut timestamp = witness.get_mut_as(self.timestamp)?;
 
-                let mut next_timestamp =
-                    witness.get_mut_as(self.next_timestamp)?;
+                let mut next_timestamp = witness.get_mut_as(self.next_timestamp)?;
 
-                let mut src1: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.src1)?;
-                let mut src2: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.src2)?;
-                let mut src1_val: std::cell::RefMut<'_, [u32]> =
-                    witness.get_mut_as(self.src1_val)?;
-                let mut src2_val: std::cell::RefMut<'_, [u32]> =
-                    witness.get_mut_as(self.src2_val)?;
-                let mut src1_val_packed: std::cell::RefMut<'_, [u32]> =
-                    witness.get_mut_as(self.src1_val_packed)?;
+                let mut src1 = witness.get_mut_as(self.src1)?;
+                let mut src2 = witness.get_mut_as(self.src2)?;
+                let mut src1_val = witness.get_mut_as(self.src1_val)?;
+                let mut src2_val = witness.get_mut_as(self.src2_val)?;
+                let mut dst = witness.get_mut_as(self.dst)?;
+                let mut dst_val = witness.get_mut_as(self.dst_val)?;
 
                 for (i, event) in rows.enumerate() {
                     pc[i] = event.pc.into();
-                    fp[i] = event.fp.into();
+                    fp[i] = event.fp;
                     timestamp[i] = event.timestamp;
                     next_timestamp[i] = event.timestamp + 1u32;
 
-                    src1[i] = event.src1.into();
-                    src2[i] = event.src2.into();
-                    src1_val[i] = event.src1_val.into();
-                    src2_val[i] = event.src2_val.into();
-                    src1_val_packed[i] = event.src1_val.into();
+                    src1[i] = event.src1;
+                    src2[i] = event.src2;
+                    src1_val[i] = event.src1_val;
+                    src2_val[i] = event.src2_val;
+                    dst[i] = event.dst;
+                    dst_val[i] = event.dst_val;
                 }
             }
-            self.inner_add.populate(witness)?;
+            Ok(())
+        }
+    }
+
+    struct AddiTable {
+        id: TableId,
+        pc: Col<B32>,
+        fp: Col<B32>,
+        timestamp: Col<B32>,
+        next_timestamp: Col<B32>, // TODO: This is currently unconstrained
+        dst: Col<B16>,
+        dst_val: Col<B32>,
+        src: Col<B16>,
+        src_val: Col<B32>,
+        imm: Col<B16>,
+    }
+
+    impl AddiTable {
+        pub fn new(
+            cs: &mut ConstraintSystem,
+            state_channel: ChannelId,
+            add32_channel: ChannelId,
+        ) -> Self {
+            let mut table = cs.add_table("addi");
+
+            let pc = table.add_committed("pc");
+            let fp = table.add_committed("fp");
+            let timestamp = table.add_committed("timestamp");
+
+            let src = table.add_committed("src1");
+            let src_val = table.add_committed("src1_val");
+            let imm =   table.add_committed("imm");
+
+            let dst = table.add_committed("dst");
+            let dst_val = table.add_committed("dst_val");
+
+            let next_pc =
+                table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
+
+            // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
+            let next_timestamp = table.add_committed("next_timestamp");
+
+            table.push(
+                state_channel,
+                [upcast_col(pc), upcast_col(fp), upcast_col(timestamp)],
+            );
+            table.pull(
+                state_channel,
+                [
+                    upcast_col(next_pc),
+                    upcast_col(fp),
+                    upcast_col(next_timestamp),
+                ],
+            );
+
+            table.push(
+                add32_channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(src_val),
+                    upcast_col(imm),
+                ],
+            );
+            table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
+
+            Self {
+                id: table.id(),
+                pc,
+                fp,
+                timestamp,
+                next_timestamp,
+                src,
+                src_val,
+                dst,
+                dst_val,
+                imm,
+            }
+        }
+    }
+
+    impl<U: UnderlierType> TableFiller<U> for AddiTable
+    where
+        U: Pod + PackScalar<B1>,
+    {
+        type Event = model::AddiEvent;
+
+        fn id(&self) -> TableId {
+            self.id
+        }
+
+        fn fill<'a>(
+            &self,
+            rows: impl Iterator<Item = &'a Self::Event>,
+            witness: &'a mut TableWitnessIndexSegment<U>,
+        ) -> Result<(), anyhow::Error> {
+            {
+                let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
+                let mut fp = witness.get_mut_as(self.fp)?;
+                let mut timestamp = witness.get_mut_as(self.timestamp)?;
+
+                let mut next_timestamp = witness.get_mut_as(self.next_timestamp)?;
+
+                let mut src1 = witness.get_mut_as(self.src)?;
+                let mut src1_val = witness.get_mut_as(self.src_val)?;
+                let mut dst = witness.get_mut_as(self.dst)?;
+                let mut dst_val = witness.get_mut_as(self.dst_val)?;
+                let mut imm = witness.get_mut_as(self.imm)?;
+
+                for (i, event) in rows.enumerate() {
+                    pc[i] = event.pc.into();
+                    fp[i] = event.fp;
+                    timestamp[i] = event.timestamp;
+                    next_timestamp[i] = event.timestamp + 1u32;
+
+                    src1[i] = event.src;
+                    src1_val[i] = event.src_val;
+                    dst[i] = event.dst;
+                    dst_val[i] = event.dst_val;
+                    imm[i] = event.imm;
+                }
+            }
             Ok(())
         }
     }
