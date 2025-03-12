@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-// TODO: use a more accurate number for MIN_FRAME_SIZE
-const MIN_FRAME_SIZE: u32 = 8;
+// We need at least two slots for return pc and return fp.
+const MIN_FRAME_SIZE: u32 = 2;
 
 /// VromAllocator allocates VROM addresses for objects, ensuring that:
 /// - The object's size is padded to the next power-of-two (with a minimum of
@@ -118,9 +118,9 @@ const fn align_to(pos: u32, alignment: u32) -> u32 {
 /// # Examples
 ///
 /// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the
-///   remaining 4 bytes are dropped.
+///   remaining 4 slots are dropped.
 /// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
-///   (8,8)]`, but the 4-byte block is dropped, resulting in `[(8,8)]`.
+///   (8,8)]`, but the 4-slot block is dropped, resulting in `[(8,8)]`.
 fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
     let mut blocks = Vec::new();
     let mut current_addr = addr;
@@ -169,12 +169,12 @@ mod tests {
     fn test_split_into_power_of_two_blocks() {
         // Region exactly a power-of-two.
         assert_eq!(split_into_power_of_two_blocks(0, 8), vec![(0, 8)]);
-        // 12 bytes splits into (0,8) and (8,4) but the 4-byte block is dropped.
-        assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8)]);
+        // 12 slots splits into (0,8) and (8,4) but the 4-slot block is dropped.
+        assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8), (8, 4)]);
         // Region starting at a non power-of-two address.
         assert_eq!(
             split_into_power_of_two_blocks(5, 32),
-            vec![(8, 8), (16, 16)]
+            vec![(6, 2), (8, 8), (16, 16), (32, 4)]
         );
     }
 
@@ -182,14 +182,14 @@ mod tests {
     fn test_alloc_minimal_frame_size() {
         let mut allocator = VromAllocator::new();
         // A request smaller than MIN_FRAME_SIZE is bumped to MIN_FRAME_SIZE.
-        let addr1 = allocator.alloc(1); // next_power_of_two(1)=1, but max(1,8)=8.
+        let addr1 = allocator.alloc(1); // next_power_of_two(1)=1, but max(1,2)=2.
         assert_eq!(addr1, 0);
-        assert_eq!(allocator.pos, 8);
-        // A subsequent request bumps to 8.
-        let addr2 = allocator.alloc(4);
-        // Allocation occurs at pos = 8.
-        assert_eq!(addr2, 8);
-        assert_eq!(allocator.pos, 16);
+        assert_eq!(allocator.pos, 2);
+        // A subsequent request bumps to 4.
+        let addr2 = allocator.alloc(2);
+        // Allocation occurs at pos = 4.
+        assert_eq!(addr2, 2);
+        assert_eq!(allocator.pos, 4);
         // No external slack should be generated from alignment gaps.
         assert!(allocator.slack.is_empty());
     }
