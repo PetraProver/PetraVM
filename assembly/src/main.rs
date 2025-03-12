@@ -10,15 +10,17 @@ mod instruction_args;
 mod instructions_with_labels;
 mod opcodes;
 mod parser;
+mod vrom;
 mod vrom_allocator;
 
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
-use emulator::{Instruction, InterpreterInstruction, ProgramRom, ValueRom, ZCrayTrace, G};
+use emulator::{Instruction, InterpreterInstruction, ProgramRom, ZCrayTrace, G};
 use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
 use opcodes::Opcode;
 use parser::parse_program;
+use vrom::ValueRom;
 
 #[inline(always)]
 pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
