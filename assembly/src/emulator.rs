@@ -774,6 +774,7 @@ pub(crate) struct ZCrayTrace {
     and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
+    add: Vec<AddEvent>,
     addi: Vec<AddiEvent>,
     add32: Vec<Add32Event>,
     add64: Vec<Add64Event>,
@@ -789,7 +790,6 @@ pub(crate) struct ZCrayTrace {
     b32_muli: Vec<B32MuliEvent>,
     b128_add: Vec<B128AddEvent>,
     b128_mul: Vec<B128MulEvent>,
-    add: Vec<AddEvent>,
 
     vrom: ValueRom,
 }
@@ -862,25 +862,28 @@ impl ZCrayTrace {
         ));
 
         fire_events!(self.bnz, &mut channels, &tables);
-        fire_events!(self.bz, &mut channels, &tables);
         fire_events!(self.xor, &mut channels, &tables);
+        fire_events!(self.bz, &mut channels, &tables);
+        fire_events!(self.or, &mut channels, &tables);
+        fire_events!(self.ori, &mut channels, &tables);
         fire_events!(self.xori, &mut channels, &tables);
+        fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
         fire_events!(self.shift, &mut channels, &tables);
-        fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
+        fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
-        fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
-        fire_events!(self.ldi, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
+        fire_events!(self.mvih, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);
         fire_events!(self.mvvl, &mut channels, &tables);
-        fire_events!(self.mvih, &mut channels, &tables);
+        fire_events!(self.ldi, &mut channels, &tables);
+        fire_events!(self.b32_mul, &mut channels, &tables);
+        fire_events!(self.b32_muli, &mut channels, &tables);
         fire_events!(self.b128_add, &mut channels, &tables);
         fire_events!(self.b128_mul, &mut channels, &tables);
 
