@@ -60,7 +60,7 @@ impl TailiEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let return_addr = interpreter.vrom.get_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4)?;
+        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 1)?;
         interpreter
             .vrom
             .set_u32(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
@@ -77,7 +77,7 @@ impl TailiEvent {
         interpreter.vrom.set_u32(trace, next_fp_val, return_addr)?;
         interpreter
             .vrom
-            .set_u32(trace, next_fp_val + 4, old_fp_val)?;
+            .set_u32(trace, next_fp_val + 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,

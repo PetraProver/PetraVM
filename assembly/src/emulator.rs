@@ -1337,23 +1337,9 @@ mod tests {
             get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
                 .expect("Instructions were not formatted properly.");
 
-        let mut label_args = HashMap::new();
-        for (label, pc) in &labels {
-            match label.as_str() {
-                "fib" => {
-                    label_args.insert(*pc, 5);
-                }
-                "fib_helper" => {
-                    label_args.insert(*pc, 11);
-                }
-                _ => {}
-            }
-        }
-
         let mut frame_sizes = HashMap::new();
         frame_sizes.insert(BinaryField32b::ONE, 5);
         frame_sizes.insert(G.pow(5), 11);
-        let fib_power_two_frame_size = 8;
 
         let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
@@ -1365,6 +1351,7 @@ mod tests {
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
+        let fib_power_two_frame_size = 16;
         let mut cur_fibs = [0, 1];
         for i in 0..init_val {
             let s = cur_fibs[0] + cur_fibs[1];
