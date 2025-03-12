@@ -19,7 +19,7 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
         Event,
@@ -54,31 +54,15 @@ pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) enum MVKind {
-    Mvvw,
-    Mvvl,
-    Mvih,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct MVInfo {
-    pub(crate) mv_kind: MVKind,
-    pub(crate) dst: BinaryField16b,
-    pub(crate) offset: BinaryField16b,
-    pub(crate) src: BinaryField16b,
-    pub(crate) field_pc: BinaryField32b,
-    pub(crate) pc: u32,
-    pub(crate) timestamp: u32,
-}
-
 // TODO: Add some structured execution tracing
 
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {
-    // The integer PC represents to the power of `BinaryField32b::GENERATOR` of the actual field
-    // PC. Since we need to have a value for 0 as well (which is not in the multiplicative group),
-    // we shift all powers by 1, and 0 can be the halting value.
+    /// The integer PC represents to the exponent of the actual field
+    /// PC (which starts at `BinaryField32b::ONE` and iterate over the
+    /// multiplicative group). Since we need to have a value for 0 as well
+    /// (which is not in the multiplicative group), we shift all powers by
+    /// 1, and 0 can be the halting value.
     pub(crate) pc: u32,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
@@ -86,15 +70,16 @@ pub(crate) struct Interpreter {
     pub(crate) vrom: ValueRom,
     frames: LabelsFrameSizes,
     vrom_allocator: VromAllocator,
-    // Before a CALL, there are a few move operations used to populate the next frame. But the next
-    // frame pointer is not necessearily known at this point, and return values may also not be
-    // known. Thus, this `Vec` is used to store the move operations that need to be handled once we
-    // have enough information.Stores all move operations that should be handles during
-    // the current call procedure.
-    pub(crate) moves_to_set: Vec<MVInfo>,
+    /// Before a CALL, there are a few move operations used to populate the next
+    /// frame. But the next frame pointer is not necessarily known at this
+    /// point, and return values may also not be known. Thus, this `Vec` is
+    /// used to store the move operations that need to be handled once we
+    /// have enough information. Stores all move operations that should be
+    /// handles during the current call procedure.
+    pub(crate) moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
-    field_to_pc: HashMap<BinaryField32b, u32>,
+    pc_field_to_int: HashMap<BinaryField32b, u32>,
 }
 
 type ToSetValue = (
@@ -365,7 +350,7 @@ impl Interpreter {
     pub(crate) fn new(
         prom: ProgramRom,
         frames: LabelsFrameSizes,
-        field_to_pc: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Self {
         Self {
             pc: 1,
@@ -374,9 +359,9 @@ impl Interpreter {
             prom,
             vrom: ValueRom::default(),
             frames,
-            field_to_pc,
+            pc_field_to_int,
             vrom_allocator: VromAllocator::default(),
-            moves_to_set: vec![],
+            moves_to_apply: vec![],
         }
     }
 
@@ -384,7 +369,7 @@ impl Interpreter {
         prom: ProgramRom,
         vrom: ValueRom,
         frames: LabelsFrameSizes,
-        field_to_pc: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Self {
         Self {
             pc: 1,
@@ -393,9 +378,9 @@ impl Interpreter {
             prom,
             vrom,
             frames,
-            field_to_pc,
+            pc_field_to_int,
             vrom_allocator: VromAllocator::default(),
-            moves_to_set: vec![],
+            moves_to_apply: vec![],
         }
     }
 
@@ -410,7 +395,7 @@ impl Interpreter {
             self.pc = 0;
         } else {
             self.pc = *self
-                .field_to_pc
+                .pc_field_to_int
                 .get(&target)
                 .expect("This target should have been parsed.");
         }
@@ -426,7 +411,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
     ) -> Result<(), InterpreterError> {
-        for mv_info in &self.moves_to_set.clone() {
+        for mv_info in &self.moves_to_apply.clone() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
                     let opt_event = MVVWEvent::generate_event_from_info(
@@ -438,7 +423,6 @@ impl Interpreter {
                         mv_info.dst,
                         mv_info.offset,
                         mv_info.src,
-                        mv_info.field_pc,
                     )?;
                     if let Some(event) = opt_event {
                         trace.mvvw.push(event);
@@ -454,7 +438,6 @@ impl Interpreter {
                         mv_info.dst,
                         mv_info.offset,
                         mv_info.src,
-                        mv_info.field_pc,
                     )?;
                     if let Some(event) = opt_event {
                         trace.mvvl.push(event);
@@ -470,13 +453,12 @@ impl Interpreter {
                         mv_info.dst,
                         mv_info.offset,
                         mv_info.src,
-                        mv_info.field_pc,
                     )?;
                     trace.mvih.push(event);
                 }
             }
         }
-        self.moves_to_set = vec![];
+        self.moves_to_apply = vec![];
         Ok(())
     }
 
@@ -528,21 +510,49 @@ impl Interpreter {
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
         match opcode {
-            Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Xori => self.generate_xori(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Xor => self.generate_xor(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Slli => self.generate_slli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Srli => self.generate_srli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Ret => self.generate_ret(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::TailV => self.generate_tailv(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::And => self.generate_and(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Ori => self.generate_ori(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Bnz => {
+                self.generate_bnz(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Xori => {
+                self.generate_xori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Xor => {
+                self.generate_xor(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Slli => {
+                self.generate_slli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Srli => {
+                self.generate_srli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Addi => {
+                self.generate_addi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Add => {
+                self.generate_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Muli => {
+                self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Ret => {
+                self.generate_ret(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Taili => {
+                self.generate_taili(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::TailV => {
+                self.generate_tailv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::And => {
+                self.generate_and(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Andi => {
+                self.generate_andi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Or => self.generate_or(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?,
+            Opcode::Ori => {
+                self.generate_ori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::MVIH => {
                 self.generate_mvih(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
@@ -552,9 +562,15 @@ impl Interpreter {
             Opcode::MVVL => {
                 self.generate_mvvl(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
-            Opcode::LDI => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::LDI => {
+                self.generate_ldi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::B32Mul => {
+                self.generate_b32_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::B32Muli => {
+                self.generate_b32_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -564,6 +580,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         cond: BinaryField16b,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
@@ -586,6 +603,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -600,6 +618,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -614,6 +633,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         _: BinaryField16b,
         _: BinaryField16b,
         _: BinaryField16b,
@@ -628,6 +648,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -642,6 +663,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -657,6 +679,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         _: BinaryField16b,
@@ -671,6 +694,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
@@ -689,6 +713,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -703,6 +728,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -717,6 +743,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -731,6 +758,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -745,6 +773,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -779,6 +808,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -793,6 +823,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm_low: BinaryField16b,
@@ -820,6 +851,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -839,6 +871,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -912,6 +945,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
+        _: bool,
         dst: BinaryField16b,
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
@@ -1216,6 +1250,9 @@ mod tests {
 
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
 
+        // Create a dummy trace only used to populate the initial VROM.
+        let mut dummy_zcray = ZCrayTrace::default();
+
         //  ;; Frame:
         // 	;; Slot @0: Return PC
         // 	;; Slot @4: Return FP
@@ -1224,12 +1261,11 @@ mod tests {
         // 	;; Slot @16: Local: dst1
         // 	;; Slot @20: Local: src2
         //  ;; Slot @24: Local: dst2
-        let mut zcray_default = ZCrayTrace::default();
         let mut vrom = ValueRom::default();
-        vrom.set_u32(&mut zcray_default, 0, 0);
-        vrom.set_u32(&mut zcray_default, 4, 0);
-        vrom.set_u32(&mut zcray_default, 12, 2);
-        vrom.set_u32(&mut zcray_default, 20, 3);
+        vrom.set_u32(&mut dummy_zcray, 0, 0);
+        vrom.set_u32(&mut dummy_zcray, 4, 0);
+        vrom.set_u32(&mut dummy_zcray, 12, 2);
+        vrom.set_u32(&mut dummy_zcray, 20, 3);
 
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
             .expect("Trace generation should not fail.");

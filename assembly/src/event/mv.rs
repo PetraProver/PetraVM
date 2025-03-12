@@ -1,14 +1,29 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, MVInfo, MVKind,
-    },
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
     fire_non_jump_event,
     opcodes::Opcode,
     ZCrayTrace,
 };
+
+#[derive(Debug, Clone)]
+pub(crate) enum MVKind {
+    Mvvw,
+    Mvvl,
+    Mvih,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MVInfo {
+    pub(crate) mv_kind: MVKind,
+    pub(crate) dst: BinaryField16b,
+    pub(crate) offset: BinaryField16b,
+    pub(crate) src: BinaryField16b,
+    pub(crate) pc: BinaryField32b,
+    pub(crate) timestamp: u32,
+}
 
 /// Convenience macro to implement the `Event` trait for MV events.
 macro_rules! impl_mv_fire {
@@ -99,7 +114,7 @@ impl MVEventOutput {
                 );
                 trace.mvvw.push(new_event);
             }
-            _ => panic!(),
+            o => panic!("Events for {:?} should already have been generated.", o),
         }
     }
 }
@@ -153,19 +168,16 @@ impl MVVWEvent {
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
-        pc: u32,
+        pc: BinaryField32b,
         timestamp: u32,
         fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.vrom.get_u32_move(src_addr)?;
-
-        interpreter.incr_pc();
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of move events to be pushed once we
@@ -176,7 +188,7 @@ impl MVVWEvent {
                 .set_u32(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
-                pc: field_pc,
+                pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -188,16 +200,7 @@ impl MVVWEvent {
         } else {
             interpreter.vrom.insert_to_set(
                 dst_addr,
-                (
-                    src_addr,
-                    Opcode::MVVL,
-                    field_pc,
-                    fp,
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                ),
+                (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -222,12 +225,11 @@ impl MVVWEvent {
                 dst,
                 offset,
                 src,
-                field_pc,
-                pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.moves_to_apply.push(new_mv_info);
             interpreter.incr_pc();
             return Ok(None);
         }
@@ -309,19 +311,16 @@ impl MVVLEvent {
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
-        pc: u32,
+        pc: BinaryField32b,
         timestamp: u32,
         fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.vrom.get_u128_move(src_addr)?;
-
-        interpreter.incr_pc();
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of move events to be pushed once we
@@ -332,7 +331,7 @@ impl MVVLEvent {
                 .set_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
-                pc: field_pc,
+                pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -344,16 +343,7 @@ impl MVVLEvent {
         } else {
             interpreter.vrom.insert_to_set(
                 dst_addr,
-                (
-                    src_addr,
-                    Opcode::MVVL,
-                    field_pc,
-                    fp,
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                ),
+                (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -378,12 +368,11 @@ impl MVVLEvent {
                 dst,
                 offset,
                 src,
-                field_pc,
-                pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.moves_to_apply.push(new_mv_info);
             interpreter.incr_pc();
             return Ok(None);
         }
@@ -461,13 +450,12 @@ impl MVIHEvent {
     pub(crate) fn generate_event_from_info(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
-        pc: u32,
+        pc: BinaryField32b,
         timestamp: u32,
         fp: u32,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
@@ -477,10 +465,9 @@ impl MVIHEvent {
         interpreter
             .vrom
             .set_u32(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
-        interpreter.incr_pc();
 
         Ok(Self {
-            pc: field_pc,
+            pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -509,12 +496,11 @@ impl MVIHEvent {
                 dst,
                 offset,
                 src: imm,
-                field_pc,
-                pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_set.push(new_mv_info);
+            interpreter.moves_to_apply.push(new_mv_info);
             interpreter.incr_pc();
             return Ok(None);
         }
