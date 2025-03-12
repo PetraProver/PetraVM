@@ -33,7 +33,10 @@ impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadg
     pub fn generate_event(interpreter: &mut Interpreter, input1: T, input2: T) -> Self {
         let (output, carry) = input1.overflowing_add(&input2);
 
-        let cout = (output ^ input1 ^ input2) >> (1 + carry as usize) << (T::BITS - 1);
+        // Cout's i-th bit stores the carry for input1[i] + input2[i].
+        let cout = ((output ^ input1 ^ input2) >> 1)
+            + (T::from(carry as usize).expect("It should be possible to get T from usize.")
+                << (T::BITS - 1));
 
         let timestamp = interpreter.timestamp;
 
