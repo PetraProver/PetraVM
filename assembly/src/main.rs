@@ -187,7 +187,7 @@ fn main() {
     }
 
     let initial_value = 3999;
-    let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
+    let mut vrom = ValueRom::new_with_init_values(vec![initial_value]);
 
     let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
