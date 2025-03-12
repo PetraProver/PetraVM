@@ -1012,8 +1012,8 @@ mod tests {
     use tracing_subscriber::EnvFilter;
 
     use super::*;
+    use crate::get_full_prom_and_labels;
     use crate::parser::parse_program;
-    use crate::{get_full_prom_and_labels, instructions_with_labels::get_frame_sizes_all_labels};
 
     fn init_logger() {
         let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"));
@@ -1041,7 +1041,7 @@ mod tests {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code, &[false]);
-        let vrom = ValueRom::new_from_vec_u32(vec![0, 0]);
+        let vrom = ValueRom::new();
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 12);
 
@@ -1053,12 +1053,12 @@ mod tests {
     #[test]
     fn test_sli_ret() {
         let zero = BinaryField16b::zero();
-        let shift1_dst = BinaryField16b::new(16);
-        let shift1_src = BinaryField16b::new(12);
+        let shift1_dst = BinaryField16b::new(4);
+        let shift1_src = BinaryField16b::new(3);
         let shift1 = BinaryField16b::new(5);
 
-        let shift2_dst = BinaryField16b::new(24);
-        let shift2_src = BinaryField16b::new(20);
+        let shift2_dst = BinaryField16b::new(6);
+        let shift2_src = BinaryField16b::new(5);
         let shift2 = BinaryField16b::new(7);
 
         let instructions = vec![
@@ -1067,7 +1067,7 @@ mod tests {
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 24);
+        frames.insert(BinaryField32b::ONE, 6);
 
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
 
@@ -1076,23 +1076,24 @@ mod tests {
 
         //  ;; Frame:
         // 	;; Slot @0: Return PC
-        // 	;; Slot @4: Return FP
-        // 	;; Slot @8: ND Local: Next FP
-        // 	;; Slot @12: Local: src1
-        // 	;; Slot @16: Local: dst1
-        // 	;; Slot @20: Local: src2
-        //  ;; Slot @24: Local: dst2
+        // 	;; Slot @1: Return FP
+        // 	;; Slot @2: ND Local: Next FP
+        // 	;; Slot @3: Local: src1
+        // 	;; Slot @4: Local: dst1
+        // 	;; Slot @5: Local: src2
+        //  ;; Slot @6: Local: dst2
         let mut vrom = ValueRom::default();
+        vrom.allocate_new_frame(6);
         vrom.set_u32(&mut dummy_zcray, 0, 0);
-        vrom.set_u32(&mut dummy_zcray, 4, 0);
-        vrom.set_u32(&mut dummy_zcray, 12, 2);
-        vrom.set_u32(&mut dummy_zcray, 20, 3);
+        vrom.set_u32(&mut dummy_zcray, 1, 0);
+        vrom.set_u32(&mut dummy_zcray, 3, 2);
+        vrom.set_u32(&mut dummy_zcray, 5, 3);
 
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
             .expect("Trace generation should not fail.");
         let shifts = vec![
-            SliEvent::new(BinaryField32b::ONE, 0, 0, 16, 64, 12, 2, 5, ShiftKind::Left),
-            SliEvent::new(G, 0, 1, 24, 0, 20, 3, 7, ShiftKind::Right),
+            SliEvent::new(BinaryField32b::ONE, 0, 0, 4, 64, 3, 2, 5, ShiftKind::Left),
+            SliEvent::new(G, 0, 1, 6, 0, 5, 3, 7, ShiftKind::Right),
         ];
 
         let ret = RetEvent {
@@ -1116,38 +1117,38 @@ mod tests {
         //     collatz:
         //     ;; Frame:
         //     ;; Slot @0: Return PC
-        //     ;; Slot @4: Return FP
-        //     ;; Slot @8: Arg: n
-        //     ;; Slot @12: Return value
-        //     ;; Slot @16: ND Local: Next FP
-        //     ;; Slot @20: Local: n == 1
-        //     ;; Slot @24: Local: n % 2
-        //     ;; Slot @28: Local: 3*n
-        //     ;; Slot @32: Local: n >> 2 or 3*n + 1
+        //     ;; Slot @1: Return FP
+        //     ;; Slot @2: Arg: n
+        //     ;; Slot @3: Return value
+        //     ;; Slot @4: ND Local: Next FP
+        //     ;; Slot @5: Local: n == 1
+        //     ;; Slot @6: Local: n % 2
+        //     ;; Slot @7: Local: 3*n
+        //     ;; Slot @8: Local: n >> 1 or 3*n + 1
 
         //     ;; Branch to recursion label if value in slot 2 is not 1
-        //     XORI @20, @8, #1
-        //     BNZ case_recurse, @20 ;; branch if n != 1
-        //     XORI @12, @8, #0
+        //     XORI @5, @2, #1
+        //     BNZ case_recurse, @5 ;; branch if n != 1
+        //     XORI @3, @2, #0
         //     RET
 
         // case_recurse:
-        //     ANDI @24, @8, #1 ;; n % 2 is & 0x00..01
-        //     BNZ case_odd, @24 ;; branch if n % 2 == 0u32
+        //     ANDI @6, @2, #1  ;; n % 2 is & 0x00..01
+        //     BNZ case_odd, @6 ;; branch if n % 2 == 1u32
 
         //     ;; case even
         //     ;; n >> 1
-        //     SRLI @32, @8, #1
-        //     MVV.W @16[8], @32
-        //     MVV.W @16[12], @12
-        //     TAILI collatz, @16
+        //     SRLI @8, @2, #1
+        //     MVV.W @4[2], @8
+        //     MVV.W @4[3], @3
+        //     TAILI collatz, @4
 
         // case_odd:
-        //     MULI @28, @8, #3
-        //     ADDI @32, @28, #1
-        //     MVV.W @16[8], @32
-        //     MVV.W @16[12], @12
-        //     TAILI collatz, @16
+        //     MULI @7, @2, #3
+        //     ADDI @8, @7, #1
+        //     MVV.W @4[2], @8
+        //     MVV.W @4[3], @3
+        //     TAILI collatz, @4
 
         init_logger();
 
@@ -1172,93 +1173,93 @@ mod tests {
             // collatz:
             [
                 Opcode::Xori.get_field_elt(),
-                get_binary_slot(20),
-                get_binary_slot(8),
+                get_binary_slot(5),
+                get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  0G: XORI 20 8 1
+            ], //  0G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(20),
+                get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ 20 case_recurse
+            ], //  1G: BNZ case_recurse, @5
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
-                get_binary_slot(12),
-                get_binary_slot(8),
+                get_binary_slot(3),
+                get_binary_slot(2),
                 zero,
-            ], //  2G: XORI 12 8 zero
+            ], //  2G: XORI @3, @2, #0
             [Opcode::Ret.get_field_elt(), zero, zero, zero], //  3G: RET
             // case_recurse:
             [
                 Opcode::Andi.get_field_elt(),
-                get_binary_slot(24),
-                get_binary_slot(8),
+                get_binary_slot(6),
+                get_binary_slot(2),
                 get_binary_slot(1),
-            ], // 4G: ANDI 24 8 1
+            ], // 4G: ANDI @6, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(24),
+                get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ 24 case_odd
+            ], //  5G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
-                get_binary_slot(32),
                 get_binary_slot(8),
+                get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI 32 8 1
+            ], //  6G: SRLI @8, @2, #1
             [
                 Opcode::MVVW.get_field_elt(),
-                get_binary_slot(16),
+                get_binary_slot(4),
+                get_binary_slot(2),
                 get_binary_slot(8),
-                get_binary_slot(32),
-            ], //  7G: MVV.W @16[8], @32
+            ], //  7G: MVV.W @4[2], @8
             [
                 Opcode::MVVW.get_field_elt(),
-                get_binary_slot(16),
-                get_binary_slot(12),
-                get_binary_slot(12),
-            ], //  8G: MVV.W @16[12], @12
+                get_binary_slot(4),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], //  8G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
                 collatz,
                 zero,
-                get_binary_slot(16),
-            ], // 9G: TAILI collatz 16
+                get_binary_slot(4),
+            ], // 9G: TAILI collatz, @4
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
-                get_binary_slot(28),
-                get_binary_slot(8),
+                get_binary_slot(7),
+                get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI 28 8 3
+            ], //  10G: MULI @7, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
-                get_binary_slot(32),
-                get_binary_slot(28),
-                get_binary_slot(1),
-            ], //  11G: ADDI 32 28 1
-            [
-                Opcode::MVVW.get_field_elt(),
-                get_binary_slot(16),
                 get_binary_slot(8),
-                get_binary_slot(32),
-            ], //  12G: MVV.W @16[8], @32
+                get_binary_slot(7),
+                get_binary_slot(1),
+            ], //  11G: ADDI @8, @7, #1
             [
                 Opcode::MVVW.get_field_elt(),
-                get_binary_slot(16),
-                get_binary_slot(12),
-                get_binary_slot(12),
-            ], //  13G: MVV.W @16[12], @12
+                get_binary_slot(4),
+                get_binary_slot(2),
+                get_binary_slot(8),
+            ], //  12G: MVV.W @4[2], @8
+            [
+                Opcode::MVVW.get_field_elt(),
+                get_binary_slot(4),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], //  13G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
                 collatz,
                 zero,
-                get_binary_slot(16),
-            ], //  14G: TAILI collatz 16
+                get_binary_slot(4),
+            ], //  14G: TAILI collatz, @4
         ];
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
@@ -1273,11 +1274,11 @@ mod tests {
 
         let prom = code_to_prom(&instructions, &is_calling_procedure_hints);
         // return PC = 0, return FP = 0, n = 5
-        let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_val]);
+        let mut vrom = ValueRom::new_with_init_values(vec![0, 0, initial_val]);
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
-        frames_args_size.insert(BinaryField32b::ONE, 32);
+        frames_args_size.insert(BinaryField32b::ONE, 9);
 
         let (traces, boundary_values) =
             ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, pc_field_to_int)
@@ -1311,12 +1312,12 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.vrom.get_u32((i as u32 * 16 + 4) * 4).unwrap(), // next_fp
-                ((i + 1) * 16 * 4) as u32                              // next_fp_val
+                traces.vrom.get_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
+                ((i + 1) * 16) as u32                            // next_fp_val
             );
             assert_eq!(
-                traces.vrom.get_u32((i as u32 * 16 + 2) * 4).unwrap(), // n
-                cur_val                                                // n_val
+                traces.vrom.get_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
+                cur_val                                          // n_val
             );
 
             if cur_val % 2 == 0 {
@@ -1345,63 +1346,58 @@ mod tests {
         for (label, pc) in &labels {
             match label.as_str() {
                 "fib" => {
-                    label_args.insert(*pc, 8);
+                    label_args.insert(*pc, 5);
                 }
                 "fib_helper" => {
-                    label_args.insert(*pc, 16);
+                    label_args.insert(*pc, 11);
                 }
                 _ => {}
             }
         }
 
-        // The following method gives the correct frames for Fibonacci.
-        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
-        let mut max_frame = 0;
-        for fs in frame_sizes.values() {
-            if *fs as u32 > max_frame {
-                max_frame = *fs as u32;
-            }
-        }
-        max_frame = (max_frame + 16).next_power_of_two();
+        let mut frame_sizes = HashMap::new();
+        frame_sizes.insert(BinaryField32b::ONE, 5);
+        frame_sizes.insert(G.pow(5), 11);
+        let fib_power_two_frame_size = 8;
+        let fib_helper_power_two_frame_size = 16;
 
         let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
 
         // Set initial PC, FP and argument.
-        let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
+        let mut vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
-        let elt_size = 4_u32; // Each value is 32 bits.
         let mut cur_fibs = [0, 1];
         for i in 0..init_val {
             let s = cur_fibs[0] + cur_fibs[1];
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32((i + 1) * max_frame + 2 * elt_size)
+                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0],
                 "left {} right {}",
                 traces
                     .vrom
-                    .get_u32((i + 1) * max_frame + 2 * elt_size)
+                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0]
             );
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32((i + 1) * max_frame + 3 * elt_size)
+                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 3)
                     .unwrap(),
                 cur_fibs[1]
             );
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32((i + 1) * max_frame + 7 * elt_size)
+                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 7)
                     .unwrap(),
                 s
             );
@@ -1411,7 +1407,7 @@ mod tests {
         assert_eq!(
             traces
                 .vrom
-                .get_u32((init_val + 1) * max_frame + 5 * elt_size)
+                .get_u32(init_val * fib_helper_power_two_frame_size + fib_power_two_frame_size + 5)
                 .unwrap(),
             cur_fibs[0]
         );
@@ -1433,11 +1429,11 @@ mod tests {
         let zero = BinaryField16b::zero();
 
         // Offsets/addresses in our test program
-        let a_offset = 0x10; // Must be 16-byte aligned
-        let b_offset = 0x20; // Must be 16-byte aligned
-        let c_offset = 0x30; // Must be 16-byte aligned
-        let add_result_offset = 0x40; // Must be 16-byte aligned
-        let mul_result_offset = 0x50; // Must be 16-byte aligned
+        let a_offset = 4; // Must be 4-slot aligned
+        let b_offset = 8; // Must be 4-slot aligned
+        let c_offset = 12; // Must be 4-slot aligned
+        let add_result_offset = 16; // Must be 4-slot aligned
+        let mul_result_offset = 20; // Must be 4-slot aligned
 
         // Create binary field slot references
         let a_slot = BinaryField16b::new(a_offset as u16);
@@ -1469,9 +1465,6 @@ mod tests {
         // Create the PROM
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
 
-        // Set up the VROM with test values
-        let mut vrom = ValueRom::default();
-
         // Test values
         let a_val = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);
         let b_val = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
@@ -1480,18 +1473,48 @@ mod tests {
         // Create a dummy trace only used to populate the initial VROM.
         let mut dummy_zcray = ZCrayTrace::default();
 
-        // Set up return PC = 0, return FP = 0
-        vrom.set_u32(&mut dummy_zcray, 0, 0).unwrap();
-        vrom.set_u32(&mut dummy_zcray, 4, 0).unwrap();
+        // Create a Vec<u32> with all initial values
+        // Format: [return_pc, return_fp, padding, padding, a_chunks[4], b_chunks[4],
+        // c_chunks[4], zeros for results]
+        let mut init_values = vec![
+            // Return PC and FP
+            0,
+            0,
+            // Padding to align a_val at offset 4
+            0,
+            0,
+            // a_val broken into 4 u32 chunks (least significant bits first)
+            (a_val >> 0) as u32,  // 0x22222222
+            (a_val >> 32) as u32, // 0x11111111
+            (a_val >> 64) as u32, // 0x44444444
+            (a_val >> 96) as u32, // 0x33333333
+            // b_val broken into 4 u32 chunks
+            (b_val >> 0) as u32,  // 0x66666666
+            (b_val >> 32) as u32, // 0x55555555
+            (b_val >> 64) as u32, // 0x88888888
+            (b_val >> 96) as u32, // 0x77777777
+            // c_val broken into 4 u32 chunks
+            (c_val >> 0) as u32,  // 0x88888888
+            (c_val >> 32) as u32, // 0x99999999
+            (c_val >> 64) as u32, // 0x66666666
+            (c_val >> 96) as u32, // 0x77777777
+            // Space for results (8 more slots for add_result and mul_result)
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
 
-        // Set the test values in VROM
-        vrom.set_u128(&mut dummy_zcray, a_offset, a_val).unwrap();
-        vrom.set_u128(&mut dummy_zcray, b_offset, b_val).unwrap();
-        vrom.set_u128(&mut dummy_zcray, c_offset, c_val).unwrap();
+        // Use the init_values instead of populating the VROM manually
+        let vrom = ValueRom::new_with_init_values(init_values);
 
         // Set up frame sizes
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 128);
+        frames.insert(BinaryField32b::ONE, 24);
 
         // Create an interpreter and run the program
         let (trace, boundary_values) =

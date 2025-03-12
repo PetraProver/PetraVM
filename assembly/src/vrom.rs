@@ -132,16 +132,9 @@ impl ValueRom {
         self.check_alignment(index, 4)?;
 
         // For u128, we need to store it across multiple u32 slots (4 slots)
-        let bytes = value.to_le_bytes();
         for i in 0..4 {
-            let idx = index + i * 4;
-            let slice_start = (i * 4) as usize;
-            let u32_val = u32::from_le_bytes([
-                bytes[slice_start],
-                bytes[slice_start + 1],
-                bytes[slice_start + 2],
-                bytes[slice_start + 3],
-            ]);
+            let idx = index + i; // Store in consecutive slots
+            let u32_val = (value >> (i * 32)) as u32; // Extract 32-bit chunk directly
 
             self.check_bounds(idx)?;
 
@@ -209,7 +202,7 @@ impl ValueRom {
         // For u128, we need to read from multiple u32 slots (4 slots)
         let mut result: u128 = 0;
         for i in 0..4 {
-            let idx = index + i * 4;
+            let idx = index + i; // Read from consecutive slots
             self.check_bounds(idx)?;
 
             let u32_val = self.vrom[idx as usize];
@@ -227,7 +220,7 @@ impl ValueRom {
 
         // Check if all required slots are available
         for i in 0..4 {
-            let idx = index + i * 4;
+            let idx = index + i; // Check consecutive slots
             if idx as usize >= self.vrom.len() {
                 return Ok(None);
             }
@@ -236,7 +229,7 @@ impl ValueRom {
         // Read from multiple u32 slots (4 slots)
         let mut result: u128 = 0;
         for i in 0..4 {
-            let idx = index + i * 4;
+            let idx = index + i; // Read from consecutive slots
             let u32_val = self.vrom[idx as usize];
             // Shift the value to its appropriate position and add to result
             result |= u128::from(u32_val) << (i * 32);

@@ -17,7 +17,7 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 use emulator::{Instruction, InterpreterInstruction, ProgramRom, ZCrayTrace, G};
-use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
+use instructions_with_labels::get_full_prom_and_labels;
 use opcodes::Opcode;
 use parser::parse_program;
 use vrom::ValueRom;
@@ -64,9 +64,6 @@ fn main() {
             .expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
-
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
-    println!("frame sizes {:?}", frame_sizes);
 
     let expected_prom = vec![
         // collatz:
@@ -186,6 +183,8 @@ fn main() {
         );
     }
 
+    let mut frame_sizes = HashMap::new();
+    frame_sizes.insert(BinaryField32b::ONE, 9);
     let initial_value = 3999;
     let mut vrom = ValueRom::new_with_init_values(vec![initial_value]);
 
