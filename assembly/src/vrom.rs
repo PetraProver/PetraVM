@@ -263,6 +263,7 @@ impl ValueRom {
             for i in 0..self.init_values.len() {
                 self.vrom[i] = self.init_values[i];
             }
+            self.init_values.clear();
         }
 
         pos

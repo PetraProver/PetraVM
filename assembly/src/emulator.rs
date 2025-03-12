@@ -772,7 +772,6 @@ impl Interpreter {
         Ok(())
     }
 
-    // TODO: This is only a temporary method.
     pub(crate) fn allocate_new_frame(
         &mut self,
         target: BinaryField32b,
@@ -782,11 +781,7 @@ impl Interpreter {
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
-        // We need the +4 because the frame size we read corresponds to the largest
-        // offset accessed within the frame, and the largest possible object is
-        // a BF128.
-        // TODO: Figure out the exact size of the last object.
-        Ok(self.vrom.allocate_new_frame(*frame_size as u32 + 4))
+        Ok(self.vrom.allocate_new_frame(*frame_size as u32))
     }
 }
 
@@ -1359,7 +1354,6 @@ mod tests {
         frame_sizes.insert(BinaryField32b::ONE, 5);
         frame_sizes.insert(G.pow(5), 11);
         let fib_power_two_frame_size = 8;
-        let fib_helper_power_two_frame_size = 16;
 
         let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
@@ -1377,27 +1371,27 @@ mod tests {
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 2)
+                    .get_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0],
                 "left {} right {}",
                 traces
                     .vrom
-                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 2)
+                    .get_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0]
             );
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 3)
+                    .get_u32((i + 1) * fib_power_two_frame_size + 3)
                     .unwrap(),
                 cur_fibs[1]
             );
             assert_eq!(
                 traces
                     .vrom
-                    .get_u32(i * fib_helper_power_two_frame_size + fib_power_two_frame_size + 7)
+                    .get_u32((i + 1) * fib_power_two_frame_size + 7)
                     .unwrap(),
                 s
             );
@@ -1407,7 +1401,7 @@ mod tests {
         assert_eq!(
             traces
                 .vrom
-                .get_u32(init_val * fib_helper_power_two_frame_size + fib_power_two_frame_size + 5)
+                .get_u32((init_val + 1) * fib_power_two_frame_size + 5)
                 .unwrap(),
             cur_fibs[0]
         );
@@ -1473,9 +1467,6 @@ mod tests {
         // Create a dummy trace only used to populate the initial VROM.
         let mut dummy_zcray = ZCrayTrace::default();
 
-        // Create a Vec<u32> with all initial values
-        // Format: [return_pc, return_fp, padding, padding, a_chunks[4], b_chunks[4],
-        // c_chunks[4], zeros for results]
         let mut init_values = vec![
             // Return PC and FP
             0,
@@ -1509,7 +1500,6 @@ mod tests {
             0,
         ];
 
-        // Use the init_values instead of populating the VROM manually
         let vrom = ValueRom::new_with_init_values(init_values);
 
         // Set up frame sizes
