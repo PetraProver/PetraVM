@@ -379,13 +379,13 @@ type Labels = HashMap<String, BinaryField32b>;
 pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // Gives the field PC associated to an integer PC. Only conatins the PCs that
 // can be called by the PROM.
-pub(crate) type FieldPCToPC = HashMap<BinaryField32b, u32>;
+pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
 
 pub fn get_frame_size_for_label(
     prom: &ProgramRom,
     label_pc: u32,
     labels_fps: &mut LabelsFrameSizes,
-    field_pc_to_pc: &FieldPCToPC,
+    pc_field_to_int: &PCFieldToInt,
 ) -> u16 {
     let mut cur_pc = label_pc;
     let mut interp_instruction = &prom[cur_pc as usize - 1];
@@ -403,14 +403,14 @@ pub fn get_frame_size_for_label(
             Opcode::Bnz => {
                 let [op, src, target_low, target_high] = instruction;
                 let target = BinaryField32b::from_bases([target_low, target_high]).unwrap();
-                let int_target = field_pc_to_pc.get(&target).unwrap_or_else(|| {
+                let int_target = pc_field_to_int.get(&target).unwrap_or_else(|| {
                     panic!(
                         "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
                         target
                     )
                 });
                 let sub_offset =
-                    get_frame_size_for_label(prom, *int_target, labels_fps, field_pc_to_pc);
+                    get_frame_size_for_label(prom, *int_target, labels_fps, pc_field_to_int);
                 let max_accessed_addr = max(sub_offset, src.val());
                 cur_offset = max(cur_offset, max_accessed_addr);
             }
@@ -470,26 +470,26 @@ pub fn get_frame_size_for_label(
 pub fn get_frame_sizes_all_labels(
     prom: &ProgramRom,
     labels: Labels,
-    field_pc_to_pc: &FieldPCToPC,
+    pc_field_to_int: &PCFieldToInt,
 ) -> LabelsFrameSizes {
     let mut labels_frame_sizes = HashMap::new();
     for (_, field_pc) in labels {
-        let &pc = field_pc_to_pc.get(&field_pc).unwrap();
-        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes, field_pc_to_pc);
+        let &pc = pc_field_to_int.get(&field_pc).unwrap();
+        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes, pc_field_to_int);
     }
     labels_frame_sizes
 }
 
-fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, FieldPCToPC), String> {
+fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFieldToInt), String> {
     let mut labels = HashMap::new();
-    let mut field_pc_to_pc = HashMap::new();
+    let mut pc_field_to_int = HashMap::new();
     let mut field_pc = BinaryField32b::ONE;
     let mut pc = 1;
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s) => {
                 if labels.insert(s.clone(), field_pc).is_some()
-                    || field_pc_to_pc.insert(field_pc, pc).is_some()
+                    || pc_field_to_int.insert(field_pc, pc).is_some()
                 {
                     return Err(format!("Label {} already exists.", s));
                 }
@@ -501,14 +501,14 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, FieldP
             }
         }
     }
-    Ok((labels, field_pc_to_pc))
+    Ok((labels, pc_field_to_int))
 }
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
-) -> Result<(ProgramRom, Labels, FieldPCToPC), String> {
-    let (labels, field_pc_to_pc) = get_labels(instructions)?;
+) -> Result<(ProgramRom, Labels, PCFieldToInt), String> {
+    let (labels, pc_field_to_int) = get_labels(instructions)?;
     let mut prom = ProgramRom::new();
     let mut field_pc = BinaryField32b::ONE;
     assert_eq!(
@@ -527,7 +527,7 @@ pub(crate) fn get_full_prom_and_labels(
             is_call_procedure,
         )?;
     }
-    Ok((prom, labels, field_pc_to_pc))
+    Ok((prom, labels, pc_field_to_int))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {

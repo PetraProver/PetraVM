@@ -57,13 +57,13 @@ fn main() {
     for idx in indices_to_set_with_labels {
         is_call_procedure_hints_with_labels[idx] = true;
     }
-    let (prom, labels, field_pc_to_pc) =
+    let (prom, labels, pc_field_to_int) =
         get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
             .expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
 
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &field_pc_to_pc);
+    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
     println!("frame sizes {:?}", frame_sizes);
 
     let expected_prom = vec![
@@ -187,6 +187,6 @@ fn main() {
     let initial_value = 3999;
     let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
 
-    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, field_pc_to_pc)
+    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
 }

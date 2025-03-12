@@ -1082,9 +1082,9 @@ impl ZCrayTrace {
     fn generate(
         prom: ProgramRom,
         frames: LabelsFrameSizes,
-        field_to_pc: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(prom, frames, field_to_pc);
+        let mut interpreter = Interpreter::new(prom, frames, pc_field_to_int);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
@@ -1108,9 +1108,9 @@ impl ZCrayTrace {
         prom: ProgramRom,
         vrom: ValueRom,
         frames: LabelsFrameSizes,
-        field_to_pc: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, field_to_pc);
+        let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, pc_field_to_int);
 
         let mut trace = interpreter.run()?;
         trace.vrom = interpreter.vrom;
@@ -1339,10 +1339,10 @@ mod tests {
             .collect::<Vec<BinaryField16b>>();
 
         // Add targets needed in the code.
-        let mut field_to_pc = HashMap::new();
-        field_to_pc.insert(collatz.into(), 1);
-        field_to_pc.insert(G.pow(4), 5);
-        field_to_pc.insert(G.pow(10), 11);
+        let mut pc_field_to_int = HashMap::new();
+        pc_field_to_int.insert(collatz.into(), 1);
+        pc_field_to_int.insert(G.pow(4), 5);
+        pc_field_to_int.insert(G.pow(10), 11);
 
         let instructions = vec![
             // collatz:
@@ -1454,7 +1454,7 @@ mod tests {
         frames_args_size.insert(BinaryField32b::ONE, 32);
 
         let (traces, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, field_to_pc)
+            ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, pc_field_to_int)
                 .expect("Trace generation should not fail.");
 
         traces.validate(boundary_values);
@@ -1499,7 +1499,7 @@ mod tests {
             is_calling_procedure_hints[idx] = true;
         }
 
-        let (prom, labels, field_pc_to_pc) =
+        let (prom, labels, pc_field_to_int) =
             get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
                 .expect("Instructions were not formatted properly.");
 
@@ -1517,7 +1517,7 @@ mod tests {
         }
 
         // The following method gives the correct frames for Fibonacci.
-        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &field_pc_to_pc);
+        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
         let mut max_frame = 0;
         for fs in frame_sizes.values() {
             if *fs as u32 > max_frame {
@@ -1532,7 +1532,7 @@ mod tests {
         // Set initial PC, FP and argument.
         let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, initial_value]);
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, field_pc_to_pc)
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
