@@ -1462,17 +1462,17 @@ mod tests {
             0,
             0,
             // a_val broken into 4 u32 chunks (least significant bits first)
-            (a_val >> 0) as u32,  // 0x22222222
+            a_val as u32,         // 0x22222222
             (a_val >> 32) as u32, // 0x11111111
             (a_val >> 64) as u32, // 0x44444444
             (a_val >> 96) as u32, // 0x33333333
             // b_val broken into 4 u32 chunks
-            (b_val >> 0) as u32,  // 0x66666666
+            b_val as u32,         // 0x66666666
             (b_val >> 32) as u32, // 0x55555555
             (b_val >> 64) as u32, // 0x88888888
             (b_val >> 96) as u32, // 0x77777777
             // c_val broken into 4 u32 chunks
-            (c_val >> 0) as u32,  // 0x88888888
+            c_val as u32,         // 0x88888888
             (c_val >> 32) as u32, // 0x99999999
             (c_val >> 64) as u32, // 0x66666666
             (c_val >> 96) as u32, // 0x77777777

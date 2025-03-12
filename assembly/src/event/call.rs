@@ -185,7 +185,7 @@ impl TailVEvent {
         interpreter.vrom.set_u32(trace, next_fp_val, return_addr)?;
         interpreter
             .vrom
-            .set_u32(trace, next_fp_val + 4, old_fp_val)?;
+            .set_u32(trace, next_fp_val + 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,
