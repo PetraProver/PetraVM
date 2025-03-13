@@ -1,3 +1,4 @@
+#[framesize(9)]
 collatz:
     ;; Frame:
     ;; Slot @0: Return PC
@@ -23,13 +24,19 @@ case_recurse:
     ;; case even
     ;; n >> 1
     SRLI @8, @2, #1
+    #[callhint]
     MVV.W @4[2], @8
+    #[callhint]
     MVV.W @4[3], @3
+    #[callhint]
     TAILI collatz, @4
 
 case_odd:
     MULI @7, @2, #3
     ADDI @8, @7, #1
+    #[callhint]
     MVV.W @4[2], @8
+    #[callhint]
     MVV.W @4[3], @3
+    #[callhint]
     TAILI collatz, @4

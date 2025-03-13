@@ -102,6 +102,11 @@ label      = ${ label_name ~ ":" }
 
 COMMENT = _{ ";;" ~ (!NEWLINE ~ ANY)* }
 
+// Added directives for framesize and callhint
+framesize_number = @{ ASCII_DIGIT+ }
+framesize_directive = { "#[framesize(" ~ framesize_number ~ ")]" }
+callhint_directive = { "#[callhint]" }
+
 // TODO: Add support for constant expressions like "#{4 + 2 * 4}"
 // Currently, this allows us to specify immediates as integers as well as generator constants ending with "G"
 immediate = @{ "#" ~ "-"? ~ (ASCII_DIGIT)+ ~ ("G")? }
@@ -135,9 +140,14 @@ instruction = {
   | load_store
 }
 
-line = { (((label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }
+// Updated to support callhint directive before instructions
+instruction_with_hint = { callhint_directive? ~ instruction }
 
-start_label = { label ~ instruction ~ COMMENT? }
+// Updated line rule to include directives
+line = { (((framesize_directive? ~ label ~ instruction_with_hint?) | instruction_with_hint) ~ COMMENT?) | COMMENT }
+
+// Updated start_label to include framesize directive
+start_label = { framesize_directive? ~ label ~ instruction_with_hint ~ COMMENT? }
 
 // Program must have atleast one label and an instruction
 program = {

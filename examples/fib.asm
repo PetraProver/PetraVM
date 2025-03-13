@@ -1,3 +1,4 @@
+#[framesize(5)]
 fib:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
@@ -5,12 +6,18 @@ fib:
     ;; Slot 3: Return value
     ;; Slot 4: ND Local: Next FP
 
+    #[callhint]
     MVI.H @4[2], #0      ;; Move 0 into a argument
+    #[callhint]
     MVI.H @4[3], #1      ;; Move 1 into b argument
+    #[callhint]
     MVV.W @4[4], @2      ;; Move n into n argument
+    #[callhint]
     MVV.W @4[5], @3      ;; Move return value
+    #[callhint]
     TAILI fib_helper, @4 ;; Tail call to fib_helper (Slot 4 is the next FP)
 
+#[framesize(11)]
 fib_helper:
     ;; Slot @0: Return PC
     ;; Slot @1: Return FP
@@ -37,8 +44,13 @@ case_recurse:
     ADD @7, @2, @3
     B32_MULI @8, @4, #-1G ;; TODO: B32_MULI is deprecated and will be removed
 
+    #[callhint]
     MVV.W @6[2], @3       ;; Move b into a argument
+    #[callhint]
     MVV.W @6[3], @7       ;; Move a + b into b argument
+    #[callhint]
     MVV.W @6[4], @8       ;; Move n - 1 into n argument
+    #[callhint]
     MVV.W @6[5], @5       ;; Move return value
+    #[callhint]
     TAILI fib_helper, @6
