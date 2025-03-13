@@ -73,7 +73,9 @@ pub(crate) trait ImmediateBinaryOperation:
         imm: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.memory.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace
+            .memory
+            .get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -115,8 +117,12 @@ pub(crate) trait NonImmediateBinaryOperation:
         src2: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = trace.memory.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let src2_val = trace.memory.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src1_val = trace
+            .memory
+            .get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
+        let src2_val = trace
+            .memory
+            .get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             interpreter.timestamp,
