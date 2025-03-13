@@ -46,15 +46,12 @@ fn main() {
     let case_odd =
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
-    let (instructions, is_call_procedure_hints_with_labels, framesize_map) =
+    let (instructions, framesize_map) =
         parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
-    let (prom, labels, pc_field_to_int, label_framesizes) = get_full_prom_and_labels(
-        &instructions,
-        &is_call_procedure_hints_with_labels,
-        &framesize_map,
-    )
-    .expect("Instructions were not formatted properly.");
+    let (prom, labels, pc_field_to_int, label_framesizes) =
+        get_full_prom_and_labels(&instructions, &framesize_map)
+            .expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
 

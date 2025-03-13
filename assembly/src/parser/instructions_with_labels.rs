@@ -10,14 +10,9 @@ use crate::{
     G,
 };
 
-/// This is an incomplete list of instructions
-/// So far, only the ones added for parsing the fibonacci example has been added
-///
-/// Ideally we want another pass that removes labels, and replaces label
-/// references with the absolute program counter/instruction index we would jump
-/// to.
-#[derive(Debug)]
-pub enum InstructionsWithLabels {
+/// Represents the kind of instruction without the call hint property
+#[derive(Debug, Clone)]
+pub enum InstructionKind {
     Label(String),
     FrameSize(String, u16), // Function name, frame size
     B32Muli {
@@ -86,7 +81,58 @@ pub enum InstructionsWithLabels {
         imm: Immediate,
     },
     Ret,
-    // Add more instructions as needed
+}
+
+/// A wrapper that holds an instruction along with its call hint property
+#[derive(Debug, Clone)]
+pub struct InstructionsWithLabels {
+    pub kind: InstructionKind,
+    pub is_call_hint: bool,
+}
+
+impl InstructionsWithLabels {
+    /// Create a new instruction with the specified kind and call hint flag
+    pub fn new(kind: InstructionKind, is_call_hint: bool) -> Self {
+        Self { kind, is_call_hint }
+    }
+
+    /// Create a new regular instruction (not a call hint)
+    pub fn regular(kind: InstructionKind) -> Self {
+        Self::new(kind, false)
+    }
+
+    /// Create a new call hint instruction
+    pub fn call_hint(kind: InstructionKind) -> Self {
+        Self::new(kind, true)
+    }
+
+    /// Check if this instruction is a label
+    pub fn is_label(&self) -> bool {
+        matches!(self.kind, InstructionKind::Label(_))
+    }
+
+    /// Get the label name if this is a label instruction
+    pub fn label_name(&self) -> Option<&String> {
+        if let InstructionKind::Label(name) = &self.kind {
+            Some(name)
+        } else {
+            None
+        }
+    }
+
+    /// Check if this instruction is a frame size directive
+    pub fn is_framesize(&self) -> bool {
+        matches!(self.kind, InstructionKind::FrameSize(_, _))
+    }
+
+    /// Get the framesize info if this is a framesize directive
+    pub fn framesize_info(&self) -> Option<(&String, u16)> {
+        if let InstructionKind::FrameSize(name, size) = &self.kind {
+            Some((name, *size))
+        } else {
+            None
+        }
+    }
 }
 
 const fn incr_pc(pc: u32) -> u32 {
@@ -103,49 +149,48 @@ pub fn get_prom_inst_from_inst_with_label(
     labels: &Labels,
     field_pc: &mut BinaryField32b,
     instruction: &InstructionsWithLabels,
-    is_call_hint: bool,
 ) -> Result<(), String> {
-    match instruction {
-        InstructionsWithLabels::Label(s) => {
+    match &instruction.kind {
+        InstructionKind::Label(s) => {
             if labels.get(s).is_none() {
                 return Err(format!("Label {} not found in the HashMap of labels.", s));
             }
         }
-        InstructionsWithLabels::FrameSize(_, _) => {
+        InstructionKind::FrameSize(_, _) => {
             // No operation needed for FrameSize, it's processed separately
         }
-        InstructionsWithLabels::AddI { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::AddI { dst, src1, imm } => {
+            let inst = [
                 Opcode::Addi.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Add { dst, src1, src2 } => {
-            let instruction = [
+        InstructionKind::Add { dst, src1, src2 } => {
+            let inst = [
                 Opcode::Add.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::AndI { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::AndI { dst, src1, imm } => {
+            let inst = [
                 Opcode::Andi.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
@@ -153,48 +198,47 @@ pub fn get_prom_inst_from_inst_with_label(
             ];
 
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        // TODO: To change
-        InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::B32Muli { dst, src1, imm } => {
+            let inst = [
                 Opcode::B32Muli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
 
-            let instruction = [
+            let inst = [
                 Opcode::B32Muli.get_field_elt(),
                 imm.get_high_field_val(),
                 BinaryField16b::zero(),
                 BinaryField16b::zero(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Bnz { label, src } => {
+        InstructionKind::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
-                let instruction = [
+                let inst = [
                     Opcode::Bnz.get_field_elt(),
                     src.get_16bfield_val(),
                     targets_16b[0],
@@ -202,95 +246,95 @@ pub fn get_prom_inst_from_inst_with_label(
                 ];
 
                 prom.push(InterpreterInstruction::new(
-                    instruction,
+                    inst,
                     *field_pc,
-                    is_call_hint,
+                    instruction.is_call_hint,
                 ));
             } else {
                 return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
             }
             *field_pc *= G;
         }
-        InstructionsWithLabels::MulI { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::MulI { dst, src1, imm } => {
+            let inst = [
                 Opcode::Muli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MvvW { dst, src } => {
-            let instruction = [
+        InstructionKind::MvvW { dst, src } => {
+            let inst = [
                 Opcode::MVVW.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::SllI { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::SllI { dst, src1, imm } => {
+            let inst = [
                 Opcode::Slli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::SrlI { dst, src1, imm } => {
-            let instruction = [
+        InstructionKind::SrlI { dst, src1, imm } => {
+            let inst = [
                 Opcode::Srli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Ret => {
-            let instruction = [
+        InstructionKind::Ret => {
+            let inst = [
                 Opcode::Ret.get_field_elt(),
                 BinaryField16b::zero(),
                 BinaryField16b::zero(),
                 BinaryField16b::zero(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Taili { label, arg } => {
+        InstructionKind::Taili { label, arg } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
                     ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
-                let instruction = [
+                let inst = [
                     Opcode::Taili.get_field_elt(),
                     targets_16b[0],
                     targets_16b[1],
@@ -298,9 +342,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 ];
 
                 prom.push(InterpreterInstruction::new(
-                    instruction,
+                    inst,
                     *field_pc,
-                    is_call_hint,
+                    instruction.is_call_hint,
                 ));
             } else {
                 return Err(format!(
@@ -311,62 +355,62 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::XorI { dst, src, imm } => {
-            let instruction = [
+        InstructionKind::XorI { dst, src, imm } => {
+            let inst = [
                 Opcode::Xori.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Xor { dst, src1, src2 } => {
-            let instruction = [
+        InstructionKind::Xor { dst, src1, src2 } => {
+            let inst = [
                 Opcode::Xor.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MviH { dst, imm } => {
-            let instruction = [
+        InstructionKind::MviH { dst, imm } => {
+            let inst = [
                 Opcode::MVIH.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Ldi { dst, imm } => {
-            let instruction = [
+        InstructionKind::Ldi { dst, imm } => {
+            let inst = [
                 Opcode::LDI.get_field_elt(),
                 dst.get_16bfield_val(),
                 imm.get_field_val(),
                 imm.get_high_field_val(),
             ];
             prom.push(InterpreterInstruction::new(
-                instruction,
+                inst,
                 *field_pc,
-                is_call_hint,
+                instruction.is_call_hint,
             ));
 
             *field_pc *= G;
@@ -391,8 +435,8 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
     let mut field_pc = BinaryField32b::ONE;
     let mut pc = 1;
     for instruction in instructions {
-        match instruction {
-            InstructionsWithLabels::Label(s) => {
+        match &instruction.kind {
+            InstructionKind::Label(s) => {
                 if labels.insert(s.clone(), field_pc).is_some()
                     || pc_field_to_int.insert(field_pc, pc).is_some()
                 {
@@ -400,7 +444,7 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
                 }
                 // We do not increment the PC if we found a label.
             }
-            InstructionsWithLabels::FrameSize(_, _) => {
+            InstructionKind::FrameSize(_, _) => {
                 // Skip FrameSize entries when calculating PC addresses
             }
             _ => {
@@ -414,7 +458,6 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
-    is_call_procedure_hints: &[bool],
     framesize_map: &HashMap<String, u16>,
 ) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
     let (labels, pc_field_to_int) = get_labels(instructions)?;
@@ -429,22 +472,8 @@ pub(crate) fn get_full_prom_and_labels(
         }
     }
 
-    assert_eq!(
-        instructions.len(),
-        is_call_procedure_hints.len(),
-        "The instructions have length {} but the call procedure hints have length {}",
-        instructions.len(),
-        is_call_procedure_hints.len()
-    );
-
-    for (instruction, &is_call_procedure) in instructions.iter().zip(is_call_procedure_hints) {
-        get_prom_inst_from_inst_with_label(
-            &mut prom,
-            &labels,
-            &mut field_pc,
-            instruction,
-            is_call_procedure,
-        )?;
+    for instruction in instructions {
+        get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
     }
 
     Ok((prom, labels, pc_field_to_int, label_framesizes))
@@ -452,28 +481,59 @@ pub(crate) fn get_full_prom_and_labels(
 
 impl std::fmt::Display for InstructionsWithLabels {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            InstructionsWithLabels::Label(label) => write!(f, "{}:", label),
-            InstructionsWithLabels::FrameSize(label, size) => {
+        // Add call hint indicator if applicable
+        let call_hint_str = if self.is_call_hint {
+            "#[callhint] "
+        } else {
+            ""
+        };
+
+        match &self.kind {
+            InstructionKind::Label(label) => write!(f, "{}:", label),
+            InstructionKind::FrameSize(label, size) => {
                 write!(f, "#[framesize({})] {}:", size, label)
             }
-            InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-                write!(f, "B32_MULI {dst} {src1} {imm}")
+            InstructionKind::B32Muli { dst, src1, imm } => {
+                write!(f, "{}B32_MULI {} {} {}", call_hint_str, dst, src1, imm)
             }
-            InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
-            InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
-            InstructionsWithLabels::Taili { label, arg } => write!(f, "TAILI {label} {arg}"),
-            InstructionsWithLabels::Ldi { dst, imm } => write!(f, "LDI {dst} {imm}"),
-            InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
-            InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
-            InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
-            InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
-            InstructionsWithLabels::AddI { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
-            InstructionsWithLabels::AndI { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),
-            InstructionsWithLabels::MulI { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),
-            InstructionsWithLabels::SrlI { dst, src1, imm } => write!(f, "SRLI {dst} {src1} {imm}"),
-            InstructionsWithLabels::SllI { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
-            InstructionsWithLabels::Ret => write!(f, "RET"),
+            InstructionKind::MviH { dst, imm } => {
+                write!(f, "{}MVI.H {} {}", call_hint_str, dst, imm)
+            }
+            InstructionKind::MvvW { dst, src } => {
+                write!(f, "{}MVV.W {} {}", call_hint_str, dst, src)
+            }
+            InstructionKind::Taili { label, arg } => {
+                write!(f, "{}TAILI {} {}", call_hint_str, label, arg)
+            }
+            InstructionKind::Ldi { dst, imm } => write!(f, "{}LDI {} {}", call_hint_str, dst, imm),
+            InstructionKind::Xor { dst, src1, src2 } => {
+                write!(f, "{}XOR {} {} {}", call_hint_str, dst, src1, src2)
+            }
+            InstructionKind::XorI { dst, src, imm } => {
+                write!(f, "{}XORI {} {} {}", call_hint_str, dst, src, imm)
+            }
+            InstructionKind::Bnz { label, src } => {
+                write!(f, "{}BNZ {} {}", call_hint_str, label, src)
+            }
+            InstructionKind::Add { dst, src1, src2 } => {
+                write!(f, "{}ADD {} {} {}", call_hint_str, dst, src1, src2)
+            }
+            InstructionKind::AddI { dst, src1, imm } => {
+                write!(f, "{}ADDI {} {} {}", call_hint_str, dst, src1, imm)
+            }
+            InstructionKind::AndI { dst, src1, imm } => {
+                write!(f, "{}ANDI {} {} {}", call_hint_str, dst, src1, imm)
+            }
+            InstructionKind::MulI { dst, src1, imm } => {
+                write!(f, "{}MULI {} {} {}", call_hint_str, dst, src1, imm)
+            }
+            InstructionKind::SrlI { dst, src1, imm } => {
+                write!(f, "{}SRLI {} {} {}", call_hint_str, dst, src1, imm)
+            }
+            InstructionKind::SllI { dst, src1, imm } => {
+                write!(f, "{}SLLI {} {} {}", call_hint_str, dst, src1, imm)
+            }
+            InstructionKind::Ret => write!(f, "{}RET", call_hint_str),
         }
     }
 }

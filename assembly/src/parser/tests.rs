@@ -2,8 +2,8 @@
 mod test_parser {
     use pest::Parser;
 
-    use crate::parser::InstructionsWithLabels;
     use crate::parser::{parse_program, AsmParser, Rule};
+    use crate::parser::{InstructionKind, InstructionsWithLabels};
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
@@ -82,7 +82,7 @@ mod test_parser {
     #[test]
     fn test_parsing() {
         let code = include_str!("../../../examples/fib.asm");
-        let (instrs, call_hints, framesize_map) = parse_program(code).unwrap();
+        let (instrs, framesize_map) = parse_program(code).unwrap();
 
         println!("Frame sizes:");
         for (func, size) in &framesize_map {
@@ -90,17 +90,9 @@ mod test_parser {
         }
 
         println!("\nInstructions with call hints:");
-        for (i, instr) in instrs.iter().enumerate() {
-            let hint_str = if call_hints[i] { " #[callhint]" } else { "" };
-            if matches!(instr, InstructionsWithLabels::Label(_)) {
-                // Fixed here - extract the label string with a clone rather than a reference
-                let label = if let InstructionsWithLabels::Label(ref l) = instr {
-                    l.clone()
-                } else {
-                    String::new()
-                };
-
-                let framesize_str = if let Some(size) = framesize_map.get(&label) {
+        for instr in &instrs {
+            if let Some(label) = instr.label_name() {
+                let framesize_str = if let Some(&size) = framesize_map.get(label) {
                     format!("#[framesize({})] ", size)
                 } else {
                     String::new()
@@ -108,7 +100,7 @@ mod test_parser {
 
                 println!("\n{}{}", framesize_str, instr);
             } else {
-                println!("   {}{}", hint_str, instr);
+                println!("   {}", instr);
             }
         }
     }
