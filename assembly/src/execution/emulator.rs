@@ -2,15 +2,12 @@
 //! Instruction Memory (PROM). It processes events and updates the machine state
 //! accordingly.
 
-use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
+use std::{collections::HashMap, fmt::Debug};
 
 use binius_field::{
-    BinaryField, BinaryField128b, BinaryField16b, BinaryField32b, ExtensionField, Field,
-    PackedField,
+    BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField,
 };
-use binius_utils::bail;
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use tracing::{debug, trace};
+use tracing::trace;
 
 use crate::{
     event::{
@@ -24,7 +21,6 @@ use crate::{
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
-        Event,
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
@@ -32,7 +28,6 @@ use crate::{
     opcodes::Opcode,
     parser::LabelsFrameSizes,
     vrom::ValueRom,
-    vrom_allocator::VromAllocator,
     ZCrayTrace,
 };
 
@@ -926,24 +921,8 @@ impl Interpreter {
 mod tests {
     use super::*;
     use crate::parser::parse_program;
-    use crate::util::init_logger;
+    use crate::util::{collatz_orbits, init_logger};
     use crate::{get_binary_slot, get_full_prom_and_labels};
-
-    pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
-        let mut cur_value = initial_val;
-        let mut evens = vec![];
-        let mut odds = vec![];
-        while cur_value != 1 {
-            if cur_value % 2 == 0 {
-                evens.push(cur_value);
-                cur_value /= 2;
-            } else {
-                odds.push(cur_value);
-                cur_value = 3 * cur_value + 1;
-            }
-        }
-        (evens, odds)
-    }
 
     pub(crate) fn code_to_prom(
         code: &[Instruction],
@@ -1137,7 +1116,7 @@ mod tests {
 
         let prom = code_to_prom(&instructions, &is_calling_procedure_hints);
         // return PC = 0, return FP = 0, n = 5
-        let mut vrom = ValueRom::new_with_init_values(vec![0, 0, initial_val]);
+        let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_val]);
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
@@ -1193,7 +1172,7 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let mut instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
+        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
 
         let mut is_calling_procedure_hints = vec![false; instructions.len()];
         let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];
@@ -1213,7 +1192,7 @@ mod tests {
         let initial_value = G.pow(init_val as u64).val();
 
         // Set initial PC, FP and argument.
-        let mut vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
+        let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
             .expect("Trace generation should not fail.");
@@ -1260,15 +1239,5 @@ mod tests {
                 .unwrap(),
             cur_fibs[0]
         );
-    }
-
-    fn fibonacci(n: usize) -> u32 {
-        let mut cur_fibs = [0, 1];
-        for _ in 0..n {
-            let s = cur_fibs[0] + cur_fibs[1];
-            cur_fibs[0] = cur_fibs[1];
-            cur_fibs[1] = s;
-        }
-        cur_fibs[0]
     }
 }

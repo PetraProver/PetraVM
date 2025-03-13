@@ -20,12 +20,8 @@ use execution::{Instruction, InterpreterInstruction, ProgramRom, G};
 use opcodes::Opcode;
 use parser::get_full_prom_and_labels;
 use parser::parse_program;
+use util::get_binary_slot;
 use vrom::ValueRom;
-
-#[inline(always)]
-pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
-    BinaryField16b::new(i)
-}
 
 pub(crate) fn code_to_prom(
     code: &[Instruction],
@@ -186,7 +182,7 @@ fn main() {
     let mut frame_sizes = HashMap::new();
     frame_sizes.insert(BinaryField32b::ONE, 9);
     let initial_value = 3999;
-    let mut vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
+    let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
     let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
