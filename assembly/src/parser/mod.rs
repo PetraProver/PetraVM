@@ -320,12 +320,9 @@ fn parse_instruction(
     Ok(())
 }
 
-pub fn parse_program(
-    input: &str,
-) -> Result<(Vec<InstructionsWithLabels>, HashMap<String, u16>), Error> {
+pub fn parse_program(input: &str) -> Result<Vec<InstructionsWithLabels>, Error> {
     let parser = AsmParser::parse(Rule::program, input);
     let mut instrs = Vec::<InstructionsWithLabels>::new();
-    let mut framesize_map = HashMap::new();
     let mut current_framesize = None;
 
     let program = parser
@@ -338,18 +335,5 @@ pub fn parse_program(
         parse_line(&mut instrs, line.into_inner(), &mut current_framesize)?;
     }
 
-    // Process framesize directives
-    let mut i = 0;
-    while i < instrs.len() {
-        if let Some((name, size)) = instrs[i].framesize_info() {
-            framesize_map.insert(name.clone(), size);
-            // Remove the FrameSize directive
-            instrs.remove(i);
-            // Don't increment i since we removed an item
-        } else {
-            i += 1;
-        }
-    }
-
-    Ok((instrs, framesize_map))
+    Ok(instrs)
 }

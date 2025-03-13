@@ -46,12 +46,10 @@ fn main() {
     let case_odd =
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
-    let (instructions, framesize_map) =
-        parse_program(include_str!("../../examples/collatz.asm")).unwrap();
+    let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
     let (prom, labels, pc_field_to_int, label_framesizes) =
-        get_full_prom_and_labels(&instructions, &framesize_map)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
 
@@ -173,11 +171,9 @@ fn main() {
         );
     }
 
-    let mut frame_sizes = HashMap::new();
-    frame_sizes.insert(BinaryField32b::ONE, 9);
     let initial_value = 3999;
     let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
-    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, label_framesizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
 }

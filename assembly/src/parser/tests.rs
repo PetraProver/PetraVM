@@ -80,32 +80,6 @@ mod test_parser {
     }
 
     #[test]
-    fn test_parsing() {
-        let code = include_str!("../../../examples/fib.asm");
-        let (instrs, framesize_map) = parse_program(code).unwrap();
-
-        println!("Frame sizes:");
-        for (func, size) in &framesize_map {
-            println!("{}: {}", func, size);
-        }
-
-        println!("\nInstructions with call hints:");
-        for instr in &instrs {
-            if let Some(label) = instr.label_name() {
-                let framesize_str = if let Some(&size) = framesize_map.get(label) {
-                    format!("#[framesize({})] ", size)
-                } else {
-                    String::new()
-                };
-
-                println!("\n{}{}", framesize_str, instr);
-            } else {
-                println!("   {}", instr);
-            }
-        }
-    }
-
-    #[test]
     fn test_all_instructions() {
         let lines = [
             "label:",

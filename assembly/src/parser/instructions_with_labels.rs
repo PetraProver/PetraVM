@@ -458,22 +458,32 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
-    framesize_map: &HashMap<String, u16>,
 ) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
+    // First, get the labels and their PC values
     let (labels, pc_field_to_int) = get_labels(instructions)?;
-    let mut prom = ProgramRom::new();
-    let mut field_pc = BinaryField32b::ONE;
+
+    // Now we can build the frame size map indexed by binary field PC
     let mut label_framesizes = HashMap::new();
 
-    // First, collect framesize information for all labels
-    for (label, &field_pc) in &labels {
-        if let Some(&size) = framesize_map.get(label) {
-            label_framesizes.insert(field_pc, size);
+    // Extract frame sizes from the instructions
+    for instruction in instructions {
+        if let Some((func_name, size)) = instruction.framesize_info() {
+            // Look up the PC for this function label
+            if let Some(&pc) = labels.get(func_name) {
+                label_framesizes.insert(pc, size);
+            }
         }
     }
 
+    // Build the program ROM
+    let mut prom = ProgramRom::new();
+    let mut field_pc = BinaryField32b::ONE;
+
     for instruction in instructions {
-        get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
+        // Skip FrameSize directives when building the ROM
+        if !instruction.is_framesize() {
+            get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
+        }
     }
 
     Ok((prom, labels, pc_field_to_int, label_framesizes))

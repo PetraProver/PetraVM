@@ -1172,16 +1172,11 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let (instrs, framesize_map) =
-            parse_program(include_str!("../../../examples/fib.asm")).unwrap();
+        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
 
         let (prom, labels, pc_field_to_int, label_framesizes) =
-            get_full_prom_and_labels(&instrs, &framesize_map)
+            get_full_prom_and_labels(&instructions)
                 .expect("Instructions were not formatted properly.");
-
-        let mut frame_sizes = HashMap::new();
-        frame_sizes.insert(BinaryField32b::ONE, 5);
-        frame_sizes.insert(G.pow(5), 11);
 
         let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
@@ -1189,8 +1184,9 @@ mod tests {
         // Set initial PC, FP and argument.
         let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
+        let (traces, _) =
+            ZCrayTrace::generate_with_vrom(prom, vrom, label_framesizes, pc_field_to_int)
+                .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
         let fib_power_two_frame_size = 16;
