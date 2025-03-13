@@ -7,12 +7,12 @@ mod test_parser {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert!(parser.is_ok(), "assembly failed to parse: {}", asm);
+        assert!(parser.is_ok(), "Assembly failed to parse: {}", asm);
     }
 
     fn ensure_parser_fails(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert!(parser.is_err());
+        assert!(parser.is_err(), "Assembly unexpectedly parsed: {}", asm);
     }
 
     #[test]
@@ -144,19 +144,19 @@ mod test_parser {
 
     #[test]
     fn test_directives() {
-        // Test framesize directive
+        // Framesize directive tests.
         ensure_parser_succeeds(Rule::framesize_directive, "#[framesize(8)]");
         ensure_parser_succeeds(Rule::framesize_directive, "#[framesize(123)]");
         ensure_parser_fails(Rule::framesize_directive, "#[framesize]");
         ensure_parser_fails(Rule::framesize_directive, "#[framesize()]");
         ensure_parser_fails(Rule::framesize_directive, "#[framesize(abc)]");
 
-        // Test callhint directive
+        // Callhint directive tests.
         ensure_parser_succeeds(Rule::callhint_directive, "#[callhint]");
         ensure_parser_fails(Rule::callhint_directive, "#[callhint()]");
         ensure_parser_fails(Rule::callhint_directive, "#callhint]");
 
-        // Test directive with instruction
+        // Directive with instruction tests.
         ensure_parser_succeeds(Rule::instruction_with_hint, "#[callhint] RET");
         ensure_parser_succeeds(Rule::instruction_with_hint, "RET");
         ensure_parser_succeeds(Rule::instruction_with_hint, "#[callhint] MVV.W @3[4], @2");

@@ -16,130 +16,136 @@ pub(crate) use instructions_with_labels::{
 #[grammar = "parser/asm.pest"]
 struct AsmParser;
 
+/// Helper to get the first inner pair with a custom error message.
 #[inline]
 fn get_first_inner<'a>(pair: Pair<'a, Rule>, msg: &str) -> Pair<'a, Rule> {
     pair.into_inner().next().expect(msg)
 }
 
-// A line may have a label and an instruction
+/// Helper function to push an instruction into the list, respecting the call
+/// hint flag.
+fn push_instruction(
+    instrs: &mut Vec<InstructionsWithLabels>,
+    instr: InstructionKind,
+    has_callhint: bool,
+) {
+    if has_callhint {
+        instrs.push(InstructionsWithLabels::call_hint(instr));
+    } else {
+        instrs.push(InstructionsWithLabels::regular(instr));
+    }
+}
+
+/// Parses a single line (which may contain a label and/or an instruction).
 fn parse_line(
     instrs: &mut Vec<InstructionsWithLabels>,
     pairs: Pairs<'_, Rule>,
     current_framesize: &mut Option<u16>,
 ) -> Result<(), Error> {
+    // Flag to track a pending call hint for the next instruction.
     let mut has_callhint = false;
 
-    for instr_or_label in pairs {
-        match instr_or_label.as_rule() {
+    for pair in pairs {
+        match pair.as_rule() {
             Rule::framesize_directive => {
-                let mut inner = instr_or_label.into_inner();
-                let size = inner
+                // Parse and store framesize for the next label.
+                let mut inner = pair.into_inner();
+                let size_str = inner
                     .next()
                     .expect("framesize directive must have a size")
                     .as_str();
-                let size = u16::from_str(size).map_err(|_| {
-                    Error::BadArgument(BadArgumentError::Immediate(size.to_string()))
+                let size = u16::from_str(size_str).map_err(|_| {
+                    Error::BadArgument(BadArgumentError::Immediate(size_str.to_string()))
                 })?;
-
-                // Store the framesize for the next label
                 *current_framesize = Some(size);
             }
             Rule::label => {
-                let label_name = get_first_inner(instr_or_label, "label must have label_name");
+                let label_name = get_first_inner(pair, "label must have label_name");
                 let label_str = label_name.as_span().as_str().to_string();
 
-                // If we have a pending framesize, associate it with this label
+                // If a framesize is pending, attach it to the label.
                 if let Some(size) = current_framesize.take() {
                     instrs.push(InstructionsWithLabels::regular(InstructionKind::FrameSize(
                         label_str.clone(),
                         size,
                     )));
                 }
-
                 instrs.push(InstructionsWithLabels::regular(InstructionKind::Label(
                     label_str,
                 )));
             }
             Rule::instruction => {
-                parse_instruction(instrs, instr_or_label, has_callhint)?;
-                has_callhint = false; // Reset call hint flag
+                parse_instruction(instrs, pair, has_callhint)?;
+                has_callhint = false;
             }
             Rule::instruction_with_hint => {
-                let mut inner = instr_or_label.into_inner();
-
-                // Check if first item is a callhint directive
+                let mut inner = pair.into_inner();
+                // Check if the first token is a callhint directive.
                 if let Some(first) = inner.next() {
                     if first.as_rule() == Rule::callhint_directive {
                         has_callhint = true;
                     } else {
-                        // It's the instruction itself
+                        // First token is the instruction itself.
                         parse_instruction(instrs, first, has_callhint)?;
-                        has_callhint = false; // Reset call hint flag
+                        has_callhint = false;
                     }
                 }
-
-                // If there's another item, it must be the instruction
+                // If there is a second token, it must be the instruction.
                 if let Some(instruction) = inner.next() {
                     parse_instruction(instrs, instruction, has_callhint)?;
-                    has_callhint = false; // Reset call hint flag
+                    has_callhint = false;
                 }
             }
-            Rule::EOI => (),
-            Rule::line => parse_line(instrs, instr_or_label.into_inner(), current_framesize)?,
+            Rule::line => {
+                // Recursively parse inner lines.
+                parse_line(instrs, pair.into_inner(), current_framesize)?;
+            }
+            Rule::EOI => {}
             _ => {
                 return Err(Error::UnknownInstruction(
-                    instr_or_label.as_span().as_str().to_string(),
+                    pair.as_span().as_str().to_string(),
                 ));
             }
         }
     }
-
     Ok(())
 }
 
-// Helper function to parse instructions
+/// Helper function to parse an instruction and push it into the vector.
 fn parse_instruction(
     instrs: &mut Vec<InstructionsWithLabels>,
     instruction: Pair<'_, Rule>,
     has_callhint: bool,
 ) -> Result<(), Error> {
-    let instruction = get_first_inner(instruction, "Instruction has inner tokens");
-    match instruction.as_rule() {
+    // Get the first inner token to determine the instruction type.
+    let instr_token = get_first_inner(instruction, "Instruction has inner tokens");
+    match instr_token.as_rule() {
         Rule::mov_imm => {
-            let mut mov_imm = instruction.into_inner();
-            // Since we know this has to be MVI_H instruction
-            let rule = get_first_inner(
-                mov_imm.next().expect("This instruction is MVI_H"),
-                "MVI_H has instruction",
+            let mut inner = instr_token.into_inner();
+            let instr_rule = get_first_inner(
+                inner.next().expect("Expected MVI_H instruction"),
+                "MVI_H missing",
             )
             .as_rule();
-            let dest = mov_imm.next().expect("MVI_H has dest");
-            let imm = mov_imm.next().expect("MVI_H has imm");
+            let dest = inner.next().expect("MVI_H missing destination");
+            let imm = inner.next().expect("MVI_H missing immediate");
             let dst = SlotWithOffset::from_str(dest.as_str())?;
             let imm = Immediate::from_str(imm.as_str())?;
-            match rule {
+            match instr_rule {
                 Rule::MVI_H_instr => {
-                    let instr = InstructionKind::MviH { dst, imm };
-                    if has_callhint {
-                        instrs.push(InstructionsWithLabels::call_hint(instr));
-                    } else {
-                        instrs.push(InstructionsWithLabels::regular(instr));
-                    }
+                    push_instruction(instrs, InstructionKind::MviH { dst, imm }, has_callhint);
                 }
-                _ => {
-                    unreachable!("We have implemented all mov_imm instructions");
-                }
+                _ => unreachable!("Unexpected mov_imm instruction type"),
             }
         }
         Rule::binary_imm => {
-            let mut binary_imm = instruction.into_inner();
-            let rule =
-                get_first_inner(binary_imm.next().unwrap(), "binary_imm has instruction").as_rule();
-            let dst = binary_imm.next().expect("binary_imm has dest");
-            let src1 = binary_imm.next().expect("binary_imm has src1");
-            let imm = Immediate::from_str(binary_imm.next().expect("binary_imm has imm").as_str())?;
-
-            let instr = match rule {
+            let mut inner = instr_token.into_inner();
+            let instr_rule =
+                get_first_inner(inner.next().unwrap(), "binary_imm missing instruction").as_rule();
+            let dst = inner.next().expect("binary_imm missing dest");
+            let src1 = inner.next().expect("binary_imm missing src1");
+            let imm = Immediate::from_str(inner.next().expect("binary_imm missing imm").as_str())?;
+            let instr = match instr_rule {
                 Rule::B32_MULI_instr => InstructionKind::B32Muli {
                     dst: Slot::from_str(dst.as_str())?,
                     src1: Slot::from_str(src1.as_str())?,
@@ -175,59 +181,41 @@ fn parse_instruction(
                     src1: Slot::from_str(src1.as_str())?,
                     imm,
                 },
-                _ => {
-                    unimplemented!("binary_imm: {:?} not implemented", rule);
-                }
+                _ => unimplemented!("binary_imm: {:?} not implemented", instr_rule),
             };
-
-            if has_callhint {
-                instrs.push(InstructionsWithLabels::call_hint(instr));
-            } else {
-                instrs.push(InstructionsWithLabels::regular(instr));
-            }
+            push_instruction(instrs, instr, has_callhint);
         }
         Rule::mov_non_imm => {
-            let mut mov_non_imm = instruction.into_inner();
-            let rule = get_first_inner(mov_non_imm.next().unwrap(), "mov_non_imm has instruction")
-                .as_rule();
-            let dst = mov_non_imm.next().expect("mov_non_imm has dst");
-            let src = mov_non_imm.next().expect("mov_non_imm has src");
-            match rule {
+            let mut inner = instr_token.into_inner();
+            let instr_rule =
+                get_first_inner(inner.next().unwrap(), "mov_non_imm missing instruction").as_rule();
+            let dst = inner.next().expect("mov_non_imm missing destination");
+            let src = inner.next().expect("mov_non_imm missing source");
+            match instr_rule {
                 Rule::MVV_W_instr => {
-                    let instr = InstructionKind::MvvW {
-                        dst: SlotWithOffset::from_str(dst.as_str())?,
-                        src: Slot::from_str(src.as_str())?,
-                    };
-
-                    if has_callhint {
-                        instrs.push(InstructionsWithLabels::call_hint(instr));
-                    } else {
-                        instrs.push(InstructionsWithLabels::regular(instr));
-                    }
+                    push_instruction(
+                        instrs,
+                        InstructionKind::MvvW {
+                            dst: SlotWithOffset::from_str(dst.as_str())?,
+                            src: Slot::from_str(src.as_str())?,
+                        },
+                        has_callhint,
+                    );
                 }
-                Rule::MVV_L_instr => {
-                    unimplemented!("MVV_L_instr not implemented");
-                }
-                _ => {
-                    unimplemented!("mov_non_imm: {:?} not implemented", rule);
-                }
-            };
+                Rule::MVV_L_instr => unimplemented!("MVV_L_instr not implemented"),
+                _ => unimplemented!("mov_non_imm: {:?} not implemented", instr_rule),
+            }
         }
         Rule::jump_with_op_imm => {
-            let mut jump_with_op_instrs_imm = instruction.into_inner();
-            let rule = get_first_inner(
-                jump_with_op_instrs_imm.next().unwrap(),
-                "jump_with_op_instrs_imm has instruction",
+            let mut inner = instr_token.into_inner();
+            let instr_rule = get_first_inner(
+                inner.next().unwrap(),
+                "jump_with_op_imm missing instruction",
             )
             .as_rule();
-            let dst = jump_with_op_instrs_imm
-                .next()
-                .expect("jump_with_op_instrs_imm has dst");
-            let imm = jump_with_op_instrs_imm
-                .next()
-                .expect("jump_with_op_instrs_imm has imm");
-
-            let instr = match rule {
+            let dst = inner.next().expect("jump_with_op_imm missing destination");
+            let imm = inner.next().expect("jump_with_op_imm missing immediate");
+            let instr = match instr_rule {
                 Rule::TAILI_instr => InstructionKind::Taili {
                     label: dst.as_str().to_string(),
                     arg: Slot::from_str(imm.as_str())?,
@@ -236,90 +224,63 @@ fn parse_instruction(
                     label: dst.as_str().to_string(),
                     src: Slot::from_str(imm.as_str())?,
                 },
-                _ => {
-                    unimplemented!("jump_with_op_imm: {:?} not implemented", rule);
-                }
+                _ => unimplemented!("jump_with_op_imm: {:?} not implemented", instr_rule),
             };
-
-            if has_callhint {
-                instrs.push(InstructionsWithLabels::call_hint(instr));
-            } else {
-                instrs.push(InstructionsWithLabels::regular(instr));
-            }
+            push_instruction(instrs, instr, has_callhint);
         }
         Rule::load_imm => {
-            let mut load_imm = instruction.into_inner();
-            let rule = get_first_inner(
-                load_imm.next().expect("load_imm has LDI.W instruction"),
-                "load_imm has LDI.W instruction",
+            let mut inner = instr_token.into_inner();
+            let instr_rule = get_first_inner(
+                inner.next().expect("load_imm missing instruction"),
+                "load_imm missing instruction",
             )
             .as_rule();
-            let dst = Slot::from_str(load_imm.next().expect("load_imm has dst").as_str())?;
-            let imm = Immediate::from_str(load_imm.next().expect("load_imm has imm").as_str())?;
-            match rule {
+            let dst = Slot::from_str(inner.next().expect("load_imm missing destination").as_str())?;
+            let imm =
+                Immediate::from_str(inner.next().expect("load_imm missing immediate").as_str())?;
+            match instr_rule {
                 Rule::LDI_W_instr => {
-                    let instr = InstructionKind::Ldi { dst, imm };
-
-                    if has_callhint {
-                        instrs.push(InstructionsWithLabels::call_hint(instr));
-                    } else {
-                        instrs.push(InstructionsWithLabels::regular(instr));
-                    }
+                    push_instruction(instrs, InstructionKind::Ldi { dst, imm }, has_callhint);
                 }
-                _ => {
-                    unreachable!("We have implemented all load_imm instructions");
-                }
+                _ => unreachable!("Unexpected load_imm instruction type"),
             }
         }
         Rule::binary_non_imm => {
-            let mut binary_op = instruction.into_inner();
-            let rule =
-                get_first_inner(binary_op.next().unwrap(), "binary_op has instruction").as_rule();
-            let dst = Slot::from_str(binary_op.next().expect("binary_op has dst").as_str())?;
-            let src1 = Slot::from_str(binary_op.next().expect("binary_op has src1").as_str())?;
-            let src2 = Slot::from_str(binary_op.next().expect("binary_op has src2").as_str())?;
-
-            let instr = match rule {
+            let mut inner = instr_token.into_inner();
+            let instr_rule =
+                get_first_inner(inner.next().unwrap(), "binary_non_imm missing instruction")
+                    .as_rule();
+            let dst = Slot::from_str(inner.next().expect("binary_non_imm missing dest").as_str())?;
+            let src1 = Slot::from_str(inner.next().expect("binary_non_imm missing src1").as_str())?;
+            let src2 = Slot::from_str(inner.next().expect("binary_non_imm missing src2").as_str())?;
+            let instr = match instr_rule {
                 Rule::XOR_instr => InstructionKind::Xor { dst, src1, src2 },
                 Rule::ADD_instr => InstructionKind::Add { dst, src1, src2 },
-                _ => {
-                    unimplemented!("binary_op: {:?} not implemented", rule);
-                }
+                _ => unimplemented!("binary_non_imm: {:?} not implemented", instr_rule),
             };
-
-            if has_callhint {
-                instrs.push(InstructionsWithLabels::call_hint(instr));
-            } else {
-                instrs.push(InstructionsWithLabels::regular(instr));
-            }
+            push_instruction(instrs, instr, has_callhint);
         }
         Rule::nullary => {
-            let mut nullary = instruction.into_inner();
-            let rule =
-                get_first_inner(nullary.next().unwrap(), "nullary has instruction").as_rule();
-            match rule {
-                Rule::RET_instr => {
-                    let instr = InstructionKind::Ret;
-
-                    if has_callhint {
-                        instrs.push(InstructionsWithLabels::call_hint(instr));
-                    } else {
-                        instrs.push(InstructionsWithLabels::regular(instr));
-                    }
-                }
-                _ => unreachable!("All nullary instructions are implemented"),
+            let instr_rule = get_first_inner(
+                instr_token.into_inner().next().unwrap(),
+                "nullary missing instruction",
+            )
+            .as_rule();
+            match instr_rule {
+                Rule::RET_instr => push_instruction(instrs, InstructionKind::Ret, has_callhint),
+                _ => unreachable!("Unexpected nullary instruction"),
             }
         }
         _ => {
             return Err(Error::UnknownInstruction(
-                instruction.as_span().as_str().to_string(),
+                instr_token.as_span().as_str().to_string(),
             ));
         }
     }
-
     Ok(())
 }
 
+/// Entry point for parsing a program.
 pub fn parse_program(input: &str) -> Result<Vec<InstructionsWithLabels>, Error> {
     let parser = AsmParser::parse(Rule::program, input);
     let mut instrs = Vec::<InstructionsWithLabels>::new();
