@@ -101,9 +101,7 @@ impl AddiEvent {
         let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
-        interpreter
-            .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, dst_val)?;
+        interpreter.set_value(trace, fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -218,9 +216,7 @@ impl MuliEvent {
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
-        interpreter
-            .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, dst_val)?;
+        interpreter.set_value(trace, fp ^ dst.val() as u32, dst_val)?;
 
         let (aux, sum0, sum1) =
             schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);

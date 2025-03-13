@@ -82,9 +82,7 @@ impl SliEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter
-            .vrom
-            .set_u32(trace, interpreter.fp ^ dst.val() as u32, new_val)?;
+        interpreter.set_value(trace, interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
 
         Ok(SliEvent::new(

@@ -87,9 +87,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        interpreter
-            .vrom
-            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        interpreter.set_value(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }
@@ -137,9 +135,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        interpreter
-            .vrom
-            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        interpreter.set_value(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }

@@ -50,7 +50,7 @@ impl B128AddEvent {
         let dst_val = src1_val ^ src2_val;
 
         // Store result
-        interpreter.vrom.set_u128(trace, dst_addr, dst_val)?;
+        interpreter.set_value_u128(trace, dst_addr, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -164,7 +164,7 @@ impl B128MulEvent {
         let dst_val = dst_bf.val();
 
         // Store result
-        interpreter.vrom.set_u128(trace, dst_addr, dst_val)?;
+        interpreter.set_value_u128(trace, dst_addr, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;

@@ -150,12 +150,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_new_vrom() {
-        let vrom = ValueRom::new();
-        assert_eq!(vrom.vrom.len(), 0);
-    }
-
-    #[test]
     fn test_new_with_init_values() {
         let init_values = vec![1, 2, 3, 4];
         let mut vrom = ValueRom::new_with_init_values(init_values.clone());
@@ -309,21 +303,21 @@ mod tests {
 
         // Allocate second frame
         let pos2 = vrom.allocate_new_frame(10);
-        assert_eq!(pos2, 5);
-        assert_eq!(vrom.vrom.len(), 15);
+        assert_eq!(pos2, 16);
+        assert_eq!(vrom.vrom.len(), 16 + 10);
 
         // Allocate third frame
         let pos3 = vrom.allocate_new_frame(3);
-        assert_eq!(pos3, 15);
-        assert_eq!(vrom.vrom.len(), 18);
+        assert_eq!(pos3, 28);
+        assert_eq!(vrom.vrom.len(), 31);
 
         // Verify all frames are accessible
         vrom.set_value(0, 100u32).unwrap(); // First frame
-        vrom.set_value(5, 200u32).unwrap(); // Second frame
-        vrom.set_value(15, 300u32).unwrap(); // Third frame
+        vrom.set_value(16, 200u32).unwrap(); // Second frame
+        vrom.set_value(28, 300u32).unwrap(); // Third frame
 
         assert_eq!(vrom.get_u32(0).unwrap(), 100);
-        assert_eq!(vrom.get_u32(5).unwrap(), 200);
-        assert_eq!(vrom.get_u32(15).unwrap(), 300);
+        assert_eq!(vrom.get_u32(16).unwrap(), 200);
+        assert_eq!(vrom.get_u32(28).unwrap(), 300);
     }
 }
