@@ -7,7 +7,7 @@ mod test_parser {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert!(parser.is_ok());
+        assert!(parser.is_ok(), "assembly failed to parse: {}", asm);
     }
 
     fn ensure_parser_fails(rule: Rule, asm: &str) {
@@ -26,6 +26,8 @@ mod test_parser {
             "RET\n\n",
             ";; Just a comment\n",
             "BNZ case_recurse, @4 ;; branch if n == 1\n",
+            "MULU @4, @3, @1\n",
+            "SLLI @4, @3, @1\n",
         ];
         for asm in ok_instrs {
             ensure_parser_succeeds(Rule::line, asm);
@@ -80,6 +82,65 @@ mod test_parser {
             } else {
                 println!("    {instr}");
             }
+        }
+    }
+
+    #[test]
+    fn test_all_instructions() {
+        let lines = [
+            "label:",
+            "XOR @4, @3, @2",
+            "B32_ADD @4, @3, @2",
+            "B32_MUL @4, @3, @2",
+            "B128_ADD @4, @3, @2",
+            "B128_MUL @4, @3, @2",
+            "ADD @3, @2, @1",
+            "SUB @3, @2, @1",
+            "SLT @3, @2, @1",
+            "SLTU @3, @2, @1",
+            "AND @3, @2, @1",
+            "OR @3, @2, @1",
+            "SLL @3, @2, @1",
+            "SRL @3, @2, @1",
+            "SRA @3, @2, @1",
+            "MUL @3, @2, @1",
+            "MULU @3, @2, @1",
+            "MULSU @3, @2, @1",
+            "XORI @3, @2, #1",
+            "B32_ADDI @3, @2, #1",
+            "B32_MULI @3, @2, #1",
+            "ADDI @3, @2, #1",
+            "SLTI @3, @2, #1",
+            "SLTIU @3, @2, #1",
+            "ANDI @3, @2, #1",
+            "ORI @3, @2, #1",
+            "SLLI @3, @2, #1",
+            "SRLI @3, @2, #1",
+            "SRAI @3, @2, #1",
+            "MULI @3, @2, #1",
+            "LW @3, @2, #1",
+            "SW @3, @2, #1",
+            "LB @3, @2, #1",
+            "LBU @3, @2, #1",
+            "LH @3, @2, #1",
+            "LHU @3, @2, #1",
+            "SB @3, @2, #1",
+            "SH @3, @2, #1",
+            "MVV.W @3[4], @2",
+            "MVV.L @3[4], @2",
+            "MVI.H @3[4], #2",
+            "LDI.W @3, #2",
+            "RET",
+            "J label",
+            "J @4",
+            "CALLI label, @4",
+            "TAILI label, @4",
+            "BNZ label, @4",
+            "CALLV @5, @3",
+            "TAILV @5, @3",
+        ];
+        for line in lines {
+            ensure_parser_succeeds(Rule::line, line);
         }
     }
 }

@@ -131,9 +131,6 @@ fn parse_line(
                         let dst = mov_non_imm.next().expect("mov_non_imm has dst");
                         let src = mov_non_imm.next().expect("mov_non_imm has src");
                         match rule {
-                            Rule::MVV_B_instr => {
-                                unimplemented!("MVV_B_instr not implemented");
-                            }
                             Rule::MVV_W_instr => {
                                 instrs.push(InstructionsWithLabels::MvvW {
                                     dst: SlotWithOffset::from_str(dst.as_str())?,

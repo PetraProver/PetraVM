@@ -39,7 +39,6 @@ LH_instr       = { "LH" }
 LHU_instr      = { "LHU" }
 SB_instr       = { "SB" }
 SH_instr       = { "SH" }
-MVV_B_instr    = { "MVV.B" }
 MVV_W_instr    = { "MVV.W" }
 MVV_L_instr    = { "MVV.L" }
 MVI_H_instr    = { "MVI.H" }
@@ -61,24 +60,24 @@ binary_non_imm_instrs = ${
   | B128_MUL_instr
   | ADD_instr
   | SUB_instr
-  | SLT_instr
   | SLTU_instr
+  | SLT_instr
   | AND_instr
   | OR_instr
   | SLL_instr
   | SRL_instr
   | SRA_instr
-  | MUL_instr
-  | MULU_instr
   | MULSU_instr
+  | MULU_instr
+  | MUL_instr
 }
 binary_imm_instrs     = ${
     XORI_instr
   | B32_ADDI_instr
   | B32_MULI_instr
   | ADDI_instr
-  | SLTI_instr
   | SLTIU_instr
+  | SLTI_instr
   | ANDI_instr
   | ORI_instr
   | SLLI_instr
@@ -86,8 +85,8 @@ binary_imm_instrs     = ${
   | SRAI_instr
   | MULI_instr
 }
-load_store_instrs     = ${ LW_instr | SW_instr | LB_instr | LBU_instr | LH_instr | LHU_instr | SB_instr | SH_instr }
-mov_non_imm_instrs    = ${ MVV_B_instr | MVV_W_instr | MVV_L_instr }
+load_store_instrs     = ${ LW_instr | SW_instr | LBU_instr | LB_instr | LHU_instr | LH_instr | SB_instr | SH_instr }
+mov_non_imm_instrs    = ${ MVV_W_instr | MVV_L_instr }
 mov_imm_instr         = ${ MVI_H_instr }
 load_imm_instr        = ${ LDI_W_instr }
 nullary_instrs        = ${ RET_instr }
