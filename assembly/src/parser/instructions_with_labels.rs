@@ -3,9 +3,9 @@ use std::{cmp::max, collections::HashMap};
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 use thiserror::Error;
 
+use super::instruction_args::{Immediate, Slot, SlotWithOffset};
 use crate::{
     emulator::{InterpreterInstruction, ProgramRom},
-    instruction_args::{Immediate, Slot, SlotWithOffset},
     opcodes::Opcode,
     G,
 };
@@ -88,7 +88,7 @@ pub enum InstructionsWithLabels {
     // Add more instructions as needed
 }
 
-fn incr_pc(pc: u32) -> u32 {
+const fn incr_pc(pc: u32) -> u32 {
     if pc == u32::MAX {
         // We skip over 0, as it is inaccessible in the multiplicative group.
         return 1;
@@ -471,7 +471,7 @@ pub enum Error {
     },
 
     #[error("Bad argument: {0}")]
-    BadArgument(#[from] crate::instruction_args::BadArgumentError),
+    BadArgument(#[from] super::instruction_args::BadArgumentError),
 
     #[error("You must have at least one label and one instruction")]
     NoStartLabelOrInstructionFound,

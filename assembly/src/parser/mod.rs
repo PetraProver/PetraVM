@@ -2,11 +2,14 @@ use std::str::FromStr;
 
 use pest::{iterators::Pair, iterators::Pairs, Parser};
 
-use crate::{
-    instruction_args::{Immediate, Slot, SlotWithOffset},
-    instructions_with_labels::{Error, InstructionsWithLabels},
-};
+mod instruction_args;
+mod instructions_with_labels;
 mod tests;
+
+use instruction_args::{Immediate, Slot, SlotWithOffset};
+pub(crate) use instructions_with_labels::{
+    get_full_prom_and_labels, Error, InstructionsWithLabels, LabelsFrameSizes,
+};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]

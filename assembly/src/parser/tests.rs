@@ -2,7 +2,7 @@
 mod test_parser {
     use pest::Parser;
 
-    use crate::instructions_with_labels::InstructionsWithLabels;
+    use crate::parser::InstructionsWithLabels;
     use crate::parser::{parse_line, parse_program, AsmParser, Rule};
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {

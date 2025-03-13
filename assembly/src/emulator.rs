@@ -13,6 +13,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
 
 use crate::{
+    channels::StateChannel,
     event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
@@ -28,23 +29,14 @@ use crate::{
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
-    instructions_with_labels::LabelsFrameSizes,
     opcodes::Opcode,
+    parser::LabelsFrameSizes,
     vrom::ValueRom,
     vrom_allocator::VromAllocator,
+    ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
-#[derive(Debug, Default)]
-pub struct Channel<T> {
-    net_multiplicities: HashMap<T, isize>,
-}
-
-// TODO: Think on unifying types used for recurring variables (fp, pc, ...)
-
-type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
-type VromChannel = Channel<u32>;
-type StateChannel = Channel<(BinaryField32b, u32, u32)>; // PC, FP, Timestamp
 
 #[derive(Default)]
 pub struct InterpreterChannels {
@@ -82,7 +74,7 @@ pub(crate) struct Interpreter {
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
-    vrom: ValueRom,
+    pub(crate) vrom: ValueRom,
     frames: LabelsFrameSizes,
     /// HashMap used to set values and push MV events during a CALL procedure.
     /// When a MV occurs with a value that isn't set within a CALL procedure, we
@@ -116,10 +108,11 @@ pub(crate) type Instruction = [BinaryField16b; 4];
 pub(crate) struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
-    // Hint given by the compiler to let us know whether the current instruction is part of a CALL
-    // procedure. If so, all following instructions are too, until we reach a CALL. Moreover, we
-    // assume all instructions that are part of the call procedure to be MV instructions used to
-    // populate the next frame.
+    /// Hint given by the compiler to let us know whether the current
+    /// instruction is part of a CALL procedure. If so, all following
+    /// instructions are too, until we reach a CALL. Moreover, we assume all
+    /// instructions that are part of the call procedure to be MV instructions
+    /// used to populate the next frame.
     is_call_procedure: bool,
 }
 
@@ -929,234 +922,27 @@ impl Interpreter {
     }
 }
 
-impl<T: Hash + Eq + Debug> Channel<T> {
-    pub(crate) fn push(&mut self, val: T) {
-        trace!("PUSH {:?}", val);
-        match self.net_multiplicities.get_mut(&val) {
-            Some(multiplicity) => {
-                *multiplicity += 1;
-
-                // Remove the key if the multiplicity is zero, to improve Debug behavior.
-                if *multiplicity == 0 {
-                    self.net_multiplicities.remove(&val);
-                }
-            }
-            None => {
-                let _ = self.net_multiplicities.insert(val, 1);
-            }
-        }
-    }
-
-    pub(crate) fn pull(&mut self, val: T) {
-        trace!("PULL {:?}", val);
-        match self.net_multiplicities.get_mut(&val) {
-            Some(multiplicity) => {
-                *multiplicity -= 1;
-
-                // Remove the key if the multiplicity is zero, to improve Debug behavior.
-                if *multiplicity == 0 {
-                    self.net_multiplicities.remove(&val);
-                }
-            }
-            None => {
-                let _ = self.net_multiplicities.insert(val, -1);
-            }
-        }
-    }
-}
-
-impl StateChannel {
-    pub(crate) fn is_balanced(&self) -> bool {
-        #[cfg(debug_assertions)]
-        if !self.net_multiplicities.is_empty() {
-            let mut sorted_multiplicities: Vec<_> =
-                self.net_multiplicities.clone().into_iter().collect();
-
-            // Sort by timestamp
-            sorted_multiplicities.sort_by_key(|((_pc, _fp, timestamp), _)| *timestamp);
-
-            // TODO: better debugging?
-            debug!("Unbalanced State Channel:");
-            let _ = sorted_multiplicities
-                .iter()
-                .map(|x| trace!("{:?}", x))
-                .collect::<Vec<_>>();
-        }
-        self.net_multiplicities.is_empty()
-    }
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct ZCrayTrace {
-    bnz: Vec<BnzEvent>,
-    xor: Vec<XorEvent>,
-    bz: Vec<BzEvent>,
-    or: Vec<OrEvent>,
-    ori: Vec<OriEvent>,
-    xori: Vec<XoriEvent>,
-    and: Vec<AndEvent>,
-    andi: Vec<AndiEvent>,
-    shift: Vec<SliEvent>,
-    add: Vec<AddEvent>,
-    addi: Vec<AddiEvent>,
-    add32: Vec<Add32Event>,
-    add64: Vec<Add64Event>,
-    muli: Vec<MuliEvent>,
-    taili: Vec<TailiEvent>,
-    tailv: Vec<TailVEvent>,
-    ret: Vec<RetEvent>,
-    mvih: Vec<MVIHEvent>,
-    pub(crate) mvvw: Vec<MVVWEvent>,
-    pub(crate) mvvl: Vec<MVVLEvent>,
-    ldi: Vec<LDIEvent>,
-    b32_mul: Vec<B32MulEvent>,
-    b32_muli: Vec<B32MuliEvent>,
-    b128_add: Vec<B128AddEvent>,
-    b128_mul: Vec<B128MulEvent>,
-
-    vrom: ValueRom,
-}
-
-pub(crate) struct BoundaryValues {
-    final_pc: BinaryField32b,
-    final_fp: u32,
-    timestamp: u32,
-}
-
-/// Convenience macro to `fire` all events logged.
-/// This will execute all the flushes that these events trigger.
-macro_rules! fire_events {
-    ($events:expr, $channels:expr, $tables:expr) => {
-        $events
-            .iter()
-            .for_each(|event| event.fire($channels, $tables));
-    };
-}
-
-impl ZCrayTrace {
-    fn generate(
-        prom: ProgramRom,
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(prom, frames, pc_field_to_int);
-
-        let mut trace = interpreter.run()?;
-        trace.vrom = interpreter.vrom;
-
-        let final_pc = if interpreter.pc == 0 {
-            BinaryField32b::zero()
-        } else {
-            G.pow(interpreter.pc as u64)
-        };
-
-        let boundary_values = BoundaryValues {
-            final_pc,
-            final_fp: interpreter.fp,
-            timestamp: interpreter.timestamp,
-        };
-
-        Ok((trace, boundary_values))
-    }
-
-    pub(crate) fn generate_with_vrom(
-        prom: ProgramRom,
-        vrom: ValueRom,
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, pc_field_to_int);
-
-        let mut trace = interpreter.run()?;
-        trace.vrom = interpreter.vrom;
-
-        let final_pc = if interpreter.pc == 0 {
-            BinaryField32b::zero()
-        } else {
-            G.pow(interpreter.pc as u64)
-        };
-
-        let boundary_values = BoundaryValues {
-            final_pc,
-            final_fp: interpreter.fp,
-            timestamp: interpreter.timestamp,
-        };
-        Ok((trace, boundary_values))
-    }
-
-    fn validate(&self, boundary_values: BoundaryValues) {
-        let mut channels = InterpreterChannels::default();
-
-        let tables = InterpreterTables::default();
-
-        // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
-        channels.state_channel.push((BinaryField32b::ONE, 0, 0));
-        // Final boundary pull.
-        channels.state_channel.pull((
-            boundary_values.final_pc,
-            boundary_values.final_fp,
-            boundary_values.timestamp,
-        ));
-
-        fire_events!(self.bnz, &mut channels, &tables);
-        fire_events!(self.xor, &mut channels, &tables);
-        fire_events!(self.bz, &mut channels, &tables);
-        fire_events!(self.or, &mut channels, &tables);
-        fire_events!(self.ori, &mut channels, &tables);
-        fire_events!(self.xori, &mut channels, &tables);
-        fire_events!(self.and, &mut channels, &tables);
-        fire_events!(self.andi, &mut channels, &tables);
-        fire_events!(self.shift, &mut channels, &tables);
-        fire_events!(self.add, &mut channels, &tables);
-        fire_events!(self.addi, &mut channels, &tables);
-        fire_events!(self.add32, &mut channels, &tables);
-        fire_events!(self.add64, &mut channels, &tables);
-        fire_events!(self.muli, &mut channels, &tables);
-        fire_events!(self.taili, &mut channels, &tables);
-        fire_events!(self.tailv, &mut channels, &tables);
-        fire_events!(self.ret, &mut channels, &tables);
-        fire_events!(self.mvih, &mut channels, &tables);
-        fire_events!(self.mvvw, &mut channels, &tables);
-        fire_events!(self.mvvl, &mut channels, &tables);
-        fire_events!(self.ldi, &mut channels, &tables);
-        fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
-        fire_events!(self.b128_add, &mut channels, &tables);
-        fire_events!(self.b128_mul, &mut channels, &tables);
-
-        assert!(channels.state_channel.is_balanced());
-    }
-}
-
-pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
-    let mut cur_value = initial_val;
-    let mut evens = vec![];
-    let mut odds = vec![];
-    while cur_value != 1 {
-        if cur_value % 2 == 0 {
-            evens.push(cur_value);
-            cur_value /= 2;
-        } else {
-            odds.push(cur_value);
-            cur_value = 3 * cur_value + 1;
-        }
-    }
-    (evens, odds)
-}
-
 #[cfg(test)]
 mod tests {
-    use binius_field::{BinaryField128b, Field, PackedField};
-    use env_logger::{try_init_from_env, Env, DEFAULT_FILTER_ENV};
-    use tracing_subscriber::EnvFilter;
-
     use super::*;
-    use crate::get_full_prom_and_labels;
     use crate::parser::parse_program;
+    use crate::util::init_logger;
+    use crate::{get_binary_slot, get_full_prom_and_labels};
 
-    fn init_logger() {
-        let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"));
-        tracing_subscriber::fmt().with_env_filter(filter).init();
+    pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
+        let mut cur_value = initial_val;
+        let mut evens = vec![];
+        let mut odds = vec![];
+        while cur_value != 1 {
+            if cur_value % 2 == 0 {
+                evens.push(cur_value);
+                cur_value /= 2;
+            } else {
+                odds.push(cur_value);
+                cur_value = 3 * cur_value + 1;
+            }
+        }
+        (evens, odds)
     }
 
     pub(crate) fn code_to_prom(
@@ -1187,65 +973,6 @@ mod tests {
         let (trace, boundary_values) =
             ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
         trace.validate(boundary_values);
-    }
-
-    #[test]
-    fn test_sli_ret() {
-        let zero = BinaryField16b::zero();
-        let shift1_dst = BinaryField16b::new(4);
-        let shift1_src = BinaryField16b::new(3);
-        let shift1 = BinaryField16b::new(5);
-
-        let shift2_dst = BinaryField16b::new(6);
-        let shift2_src = BinaryField16b::new(5);
-        let shift2 = BinaryField16b::new(7);
-
-        let instructions = vec![
-            [Opcode::Slli.get_field_elt(), shift1_dst, shift1_src, shift1],
-            [Opcode::Srli.get_field_elt(), shift2_dst, shift2_src, shift2],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
-        ];
-        let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 6);
-
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
-
-        //  ;; Frame:
-        // 	;; Slot @0: Return PC
-        // 	;; Slot @1: Return FP
-        // 	;; Slot @2: ND Local: Next FP
-        // 	;; Slot @3: Local: src1
-        // 	;; Slot @4: Local: dst1
-        // 	;; Slot @5: Local: src2
-        //  ;; Slot @6: Local: dst2
-        let mut vrom = ValueRom::default();
-        vrom.allocate_new_frame(6);
-        vrom.set_value(0, 0u32);
-        vrom.set_value(1, 0u32);
-        vrom.set_value(3, 2u32);
-        vrom.set_value(5, 3u32);
-
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
-            .expect("Trace generation should not fail.");
-        let shifts = vec![
-            SliEvent::new(BinaryField32b::ONE, 0, 0, 4, 64, 3, 2, 5, ShiftKind::Left),
-            SliEvent::new(G, 0, 1, 6, 0, 5, 3, 7, ShiftKind::Right),
-        ];
-
-        let ret = RetEvent {
-            pc: G.square(), // PC = 3
-            fp: 0,
-            timestamp: 2,
-            fp_0_val: 0,
-            fp_1_val: 0,
-        };
-
-        assert_eq!(traces.shift, shifts);
-        assert_eq!(traces.ret, vec![ret]);
-    }
-
-    pub(crate) fn get_binary_slot(i: u16) -> BinaryField16b {
-        BinaryField16b::new(i)
     }
 
     #[test]
@@ -1543,140 +1270,5 @@ mod tests {
             cur_fibs[1] = s;
         }
         cur_fibs[0]
-    }
-
-    #[test]
-    fn test_b128_operations() {
-        // Define opcodes and test values
-        let zero = BinaryField16b::zero();
-
-        // Offsets/addresses in our test program
-        let a_offset = 4; // Must be 4-slot aligned
-        let b_offset = 8; // Must be 4-slot aligned
-        let c_offset = 12; // Must be 4-slot aligned
-        let add_result_offset = 16; // Must be 4-slot aligned
-        let mul_result_offset = 20; // Must be 4-slot aligned
-
-        // Create binary field slot references
-        let a_slot = BinaryField16b::new(a_offset as u16);
-        let b_slot = BinaryField16b::new(b_offset as u16);
-        let c_slot = BinaryField16b::new(c_offset as u16);
-        let add_result_slot = BinaryField16b::new(add_result_offset as u16);
-        let mul_result_slot = BinaryField16b::new(mul_result_offset as u16);
-
-        // Construct a simple program with B128_ADD and B128_MUL instructions
-        // 1. B128_ADD @add_result, @a, @b
-        // 2. B128_MUL @mul_result, @add_result, @c
-        // 3. RET
-        let instructions = vec![
-            [
-                Opcode::B128Add.get_field_elt(),
-                add_result_slot,
-                a_slot,
-                b_slot,
-            ],
-            [
-                Opcode::B128Mul.get_field_elt(),
-                mul_result_slot,
-                add_result_slot,
-                c_slot,
-            ],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
-        ];
-
-        // Create the PROM
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
-
-        // Test values
-        let a_val = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);
-        let b_val = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
-        let c_val = 0x9999999988888888u128 | (0x7777777766666666u128 << 64);
-
-        // Create a dummy trace only used to populate the initial VROM.
-        let mut dummy_zcray = ZCrayTrace::default();
-
-        let mut init_values = vec![
-            // Return PC and FP
-            0,
-            0,
-            // Padding to align a_val at offset 4
-            0,
-            0,
-            // a_val broken into 4 u32 chunks (least significant bits first)
-            a_val as u32,         // 0x22222222
-            (a_val >> 32) as u32, // 0x11111111
-            (a_val >> 64) as u32, // 0x44444444
-            (a_val >> 96) as u32, // 0x33333333
-            // b_val broken into 4 u32 chunks
-            b_val as u32,         // 0x66666666
-            (b_val >> 32) as u32, // 0x55555555
-            (b_val >> 64) as u32, // 0x88888888
-            (b_val >> 96) as u32, // 0x77777777
-            // c_val broken into 4 u32 chunks
-            c_val as u32,         // 0x88888888
-            (c_val >> 32) as u32, // 0x99999999
-            (c_val >> 64) as u32, // 0x66666666
-            (c_val >> 96) as u32, // 0x77777777
-            // Space for results (8 more slots for add_result and mul_result)
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-        ];
-
-        let vrom = ValueRom::new_with_init_values(init_values);
-
-        // Set up frame sizes
-        let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 24);
-
-        // Create an interpreter and run the program
-        let (trace, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
-                .expect("Trace generation should not fail.");
-
-        // Capture the final PC before boundary_values is moved
-        let final_pc = boundary_values.final_pc;
-
-        // Validate the trace (this consumes boundary_values)
-        trace.validate(boundary_values);
-
-        // Calculate the expected results
-        let expected_add = a_val ^ b_val;
-        let a_bf = BinaryField128b::new(a_val);
-        let b_bf = BinaryField128b::new(b_val);
-        let c_bf = BinaryField128b::new(c_val);
-        let add_result_bf = a_bf + b_bf;
-        let expected_mul = (add_result_bf * c_bf).val();
-
-        // Verify the results in VROM
-        let actual_add = trace.vrom.get_u128(add_result_offset).unwrap();
-        let actual_mul = trace.vrom.get_u128(mul_result_offset).unwrap();
-
-        assert_eq!(actual_add, expected_add, "B128_ADD operation failed");
-        assert_eq!(actual_mul, expected_mul, "B128_MUL operation failed");
-
-        // Check that the events were created
-        assert_eq!(
-            trace.b128_add.len(),
-            1,
-            "Expected exactly one B128_ADD event"
-        );
-        assert_eq!(
-            trace.b128_mul.len(),
-            1,
-            "Expected exactly one B128_MUL event"
-        );
-
-        // The trace should have completed successfully
-        assert_eq!(
-            final_pc,
-            BinaryField32b::ZERO,
-            "Program did not end correctly"
-        );
     }
 }
