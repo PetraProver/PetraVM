@@ -25,7 +25,7 @@ use crate::{
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::StateChannel,
-    memory::Memory,
+    memory::{Memory, MemoryError},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
     ProgramRom, ValueRom, ZCrayTrace,
@@ -104,10 +104,14 @@ pub(crate) enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
-    VromRewrite(u32),
-    VromMisaligned(u8, u32),
-    VromMissingValue(u32),
+    MemoryError(MemoryError),
     Exception(InterpreterException),
+}
+
+impl From<MemoryError> for InterpreterError {
+    fn from(err: MemoryError) -> Self {
+        InterpreterError::MemoryError(err)
+    }
 }
 
 #[derive(Debug)]

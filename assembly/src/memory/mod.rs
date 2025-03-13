@@ -1,16 +1,19 @@
+mod error;
 mod vrom;
 mod vrom_allocator;
 
-pub(crate) use vrom::ValueRom;
-use vrom::{VromPendingUpdates, VromUpdate};
+pub(crate) use error::MemoryError;
+pub(crate) use vrom::{ValueRom, VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
-use crate::{execution::InterpreterError, InterpreterInstruction};
+use crate::InterpreterInstruction;
 
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is
 /// loaded. It maps every PC to a specific instruction to execute.
 pub type ProgramRom = Vec<InterpreterInstruction>;
 
+/// The `Memory` for an execution contains an *immutable* Program ROM and a
+/// *mutable* Value ROM.
 #[derive(Debug, Default)]
 pub struct Memory {
     prom: ProgramRom,
@@ -19,28 +22,33 @@ pub struct Memory {
 }
 
 impl Memory {
+    /// Initializes a new `Memory` instance.
     pub fn new(prom: ProgramRom, vrom: ValueRom) -> Self {
         Self { prom, vrom }
     }
 
+    /// Returns a reference to the VROM.
     pub fn prom(&self) -> &ProgramRom {
         &self.prom
     }
 
+    /// Returns a reference to the VROM.
     pub fn vrom(&self) -> &ValueRom {
         &self.vrom
     }
 
+    /// Returns a mutable reference to the VROM.
     pub fn vrom_mut(&mut self) -> &mut ValueRom {
         &mut self.vrom
     }
 
-    // TODO Robin change error here and below
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, InterpreterError> {
+    /// Reads a 32-bit value in VROM at the provided index.
+    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
         self.vrom.get_u32(index)
     }
 
-    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, InterpreterError> {
+    /// Reads a 128-bit value in VROM at the provided index.
+    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.vrom.get_u128(index)
     }
 
@@ -62,7 +70,7 @@ impl Memory {
         &mut self,
         dst: u32,
         pending_update: VromUpdate,
-    ) -> Result<(), InterpreterError> {
+    ) -> Result<(), MemoryError> {
         self.vrom.insert_pending(dst, pending_update)
     }
 
@@ -71,7 +79,7 @@ impl Memory {
     ///
     /// This method is used in MOVE operations to determine if a value is
     /// available or still unset.
-    pub(crate) fn get_vrom_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
+    pub(crate) fn get_vrom_u32_move(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         if self.vrom.pending_updates.contains_key(&index) {
             // Value is pending, not available yet
             Ok(None)
@@ -89,7 +97,7 @@ impl Memory {
     ///
     /// This method is used in MOVE operations to determine if a value is
     /// available or still unset.
-    pub(crate) fn get_vrom_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
+    pub(crate) fn get_vrom_u128_move(&self, index: u32) -> Result<Option<u128>, MemoryError> {
         if self.vrom.pending_updates.contains_key(&index) {
             // Value is pending, not available yet
             Ok(None)
