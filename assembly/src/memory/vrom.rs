@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use super::error::MemoryError;
+use super::MemoryError;
 use crate::{memory::VromAllocator, opcodes::Opcode};
 
 /// `ValueRom` represents a memory structure for storing different sized values.

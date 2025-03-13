@@ -118,7 +118,7 @@ impl From<MemoryError> for InterpreterError {
 pub(crate) enum InterpreterException {}
 
 impl Interpreter {
-    pub(crate) fn new(
+    pub(crate) const fn new(
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Self {
@@ -133,7 +133,7 @@ impl Interpreter {
     }
 
     #[inline(always)]
-    pub(crate) fn incr_pc(&mut self) {
+    pub(crate) const fn incr_pc(&mut self) {
         self.pc += 1;
     }
 
@@ -757,26 +757,18 @@ impl Interpreter {
     /// This generic method works with u8, u16, and u32 values. It stores the
     /// value in VROM and processes any dependent values in to_set.
     pub(crate) fn set_vrom<T>(
-        &mut self,
+        &self,
         trace: &mut ZCrayTrace,
         index: u32,
         value: T,
     ) -> Result<(), InterpreterError>
     where
-        T: Copy + Into<u32>,
+        T: Copy + Into<u32> + Into<u128>,
     {
-        // Convert to u32 for storage
-        let u32_value: u32 = value.into();
-
-        // Set the value in VROM
-        trace.memory.vrom_mut().set_value(index, u32_value)?;
-
-        // Handle any pending entry for this index
+        // Handle any pending entry for this index.
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            trace.memory.vrom_mut().pending_updates.remove(&index)
+            trace.memory.set_vrom(index, value)?
         {
-            /// Set the pending entry
-            self.set_vrom(trace, parent, u32_value)?;
             let event_out = MVEventOutput::new(
                 parent,
                 opcode,
@@ -786,7 +778,7 @@ impl Interpreter {
                 dst,
                 src,
                 offset,
-                u128::from(u32_value),
+                value.into(),
             );
             event_out.push_mv_event(trace);
         }
@@ -795,22 +787,15 @@ impl Interpreter {
 
     /// Sets a u128 value and handles pending to_set entries
     pub(crate) fn set_vrom_u128(
-        &mut self,
+        &self,
         trace: &mut ZCrayTrace,
         index: u32,
         value: u128,
     ) -> Result<(), InterpreterError> {
-        let vrom = trace.memory.vrom_mut();
-
-        // Set the value in VROM
-        vrom.set_u128(index, value)?;
-
-        // Handle any pending to_set entries for this index
+        // Handle any pending to_set entries for this index.
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            vrom.pending_updates.remove(&index)
+            trace.memory.set_vrom_u128(index, value)?
         {
-            /// Set the pending entry
-            self.set_vrom_u128(trace, parent, value)?;
             let event_out = MVEventOutput::new(
                 parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
             );

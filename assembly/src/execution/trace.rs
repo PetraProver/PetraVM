@@ -81,8 +81,8 @@ impl ZCrayTrace {
         }
     }
 
-    pub fn prom(&self) -> &ProgramRom {
-        &self.memory.prom()
+    pub const fn prom(&self) -> &ProgramRom {
+        self.memory.prom()
     }
 
     pub(crate) fn generate(
