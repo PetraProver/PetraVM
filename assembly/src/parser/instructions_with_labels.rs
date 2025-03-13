@@ -5,7 +5,7 @@ use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
 use crate::{
-    emulator::{InterpreterInstruction, ProgramRom},
+    execution::{InterpreterInstruction, ProgramRom},
     opcodes::Opcode,
     G,
 };

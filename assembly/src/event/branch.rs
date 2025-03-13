@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::Event;
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     fire_non_jump_event,
 };
 

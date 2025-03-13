@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{emulator::InterpreterError, vrom_allocator::VromAllocator};
+use crate::{execution::InterpreterError, vrom_allocator::VromAllocator};
 
 /// ValueRom represents a memory structure for storing different sized values
 #[derive(Debug, Default)]

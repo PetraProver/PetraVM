@@ -1,3 +1,5 @@
+//! Debugging module to detect unbalanced channels during program execution.
+
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use binius_field::BinaryField32b;

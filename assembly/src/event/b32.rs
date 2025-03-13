@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::{BinaryOperation, Event};
 use crate::{
-    emulator::InterpreterError, fire_non_jump_event, impl_32b_immediate_binary_operation,
+    execution::InterpreterError, fire_non_jump_event, impl_32b_immediate_binary_operation,
     impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
     ZCrayTrace, G,
 };
@@ -224,7 +224,7 @@ pub(crate) struct B32MuliEvent {
 
 impl B32MuliEvent {
     pub fn generate_event(
-        interpreter: &mut crate::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
@@ -262,8 +262,8 @@ impl BinaryOperation for B32MuliEvent {
 impl Event for B32MuliEvent {
     fn fire(
         &self,
-        channels: &mut crate::emulator::InterpreterChannels,
-        _tables: &crate::emulator::InterpreterTables,
+        channels: &mut crate::execution::InterpreterChannels,
+        _tables: &crate::execution::InterpreterTables,
     ) {
         assert_eq!(
             self.dst_val,

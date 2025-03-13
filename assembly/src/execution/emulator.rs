@@ -13,7 +13,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
 
 use crate::{
-    channels::StateChannel,
     event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
@@ -29,6 +28,7 @@ use crate::{
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
+    execution::StateChannel,
     opcodes::Opcode,
     parser::LabelsFrameSizes,
     vrom::ValueRom,
@@ -1193,7 +1193,7 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let mut instructions = parse_program(include_str!("../../examples/fib.asm")).unwrap();
+        let mut instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
 
         let mut is_calling_procedure_hints = vec![false; instructions.len()];
         let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];

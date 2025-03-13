@@ -4,12 +4,10 @@
 
 // TODO: Add doc
 
-mod channels;
-mod emulator;
 mod event;
+mod execution;
 mod opcodes;
 mod parser;
-mod trace;
 mod util;
 mod vrom;
 mod vrom_allocator;
@@ -17,11 +15,11 @@ mod vrom_allocator;
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
-use emulator::{Instruction, InterpreterInstruction, ProgramRom, G};
+use execution::ZCrayTrace;
+use execution::{Instruction, InterpreterInstruction, ProgramRom, G};
 use opcodes::Opcode;
 use parser::get_full_prom_and_labels;
 use parser::parse_program;
-use trace::ZCrayTrace;
 use vrom::ValueRom;
 
 #[inline(always)]

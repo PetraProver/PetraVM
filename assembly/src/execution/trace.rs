@@ -1,10 +1,11 @@
+//! This module stores all `Event`s generated during a program execution and
+//! generates the associated execution trace.
+
 use std::collections::HashMap;
 
 use binius_field::{BinaryField32b, Field, PackedField};
 
 use crate::{
-    channels::StateChannel,
-    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ProgramRom},
     event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
@@ -17,6 +18,10 @@ use crate::{
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
         Event, ImmediateBinaryOperation, NonImmediateBinaryOperation,
+    },
+    execution::StateChannel,
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ProgramRom,
     },
     parser::LabelsFrameSizes,
     ValueRom, G,
