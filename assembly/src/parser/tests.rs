@@ -27,7 +27,7 @@ mod test_parser {
             ";; Just a comment\n",
             "BNZ case_recurse, @4 ;; branch if n == 1\n",
             "MULU @4, @3, @1\n",
-            "SLLI @4, @3, @1\n",
+            "SLLI @4, @3, #1\n",
         ];
         for asm in ok_instrs {
             ensure_parser_succeeds(Rule::line, asm);
