@@ -1,7 +1,10 @@
 use binius_field::BinaryField32b;
 
 use super::Event;
-use crate::execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables};
+use crate::{
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    ZCrayTrace,
+};
 
 /// Event for RET.
 ///
@@ -22,6 +25,7 @@ pub struct RetEvent {
 impl RetEvent {
     pub fn new(
         interpreter: &Interpreter,
+        trace: &ZCrayTrace,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
@@ -29,20 +33,21 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.get_vrom_u32(fp)?,
-            fp_1_val: interpreter.get_vrom_u32(fp + 1)?,
+            fp_0_val: trace.memory.get_vrom_u32(fp)?,
+            fp_1_val: trace.memory.get_vrom_u32(fp + 1)?,
         })
     }
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &ZCrayTrace,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
 
-        let ret_event = RetEvent::new(interpreter, field_pc);
-        interpreter.jump_to(BinaryField32b::new(interpreter.get_vrom_u32(fp)?));
-        interpreter.fp = interpreter.get_vrom_u32(fp + 1)?;
+        let ret_event = RetEvent::new(interpreter, trace, field_pc);
+        interpreter.jump_to(BinaryField32b::new(trace.memory.get_vrom_u32(fp)?));
+        interpreter.fp = trace.memory.get_vrom_u32(fp + 1)?;
 
         ret_event
     }

@@ -6,28 +6,29 @@
 
 mod event;
 mod execution;
+mod memory;
 mod opcodes;
 mod parser;
 mod util;
-mod vrom;
-mod vrom_allocator;
 
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 use execution::ZCrayTrace;
-use execution::{Instruction, InterpreterInstruction, ProgramRom, G};
+use execution::{Instruction, InterpreterInstruction, G};
+use memory::{Memory, ProgramRom, ValueRom};
 use opcodes::Opcode;
 use parser::get_full_prom_and_labels;
 use parser::parse_program;
 use util::get_binary_slot;
-use vrom::ValueRom;
 
 pub(crate) fn code_to_prom(
     code: &[Instruction],
     is_calling_procedure_hints: &[bool],
 ) -> ProgramRom {
     let mut prom = ProgramRom::new();
+    // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
+    // `*G`.
     let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
     for (i, &instruction) in code.iter().enumerate() {
         let interp_inst =
@@ -184,6 +185,8 @@ fn main() {
     let initial_value = 3999;
     let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
 
-    let _ = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+    let memory = Memory::new(prom, vrom);
+
+    let _ = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
 }

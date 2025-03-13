@@ -25,10 +25,10 @@ use crate::{
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::StateChannel,
+    memory::Memory,
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    vrom::ValueRom,
-    ZCrayTrace,
+    ProgramRom, ValueRom, ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -46,18 +46,6 @@ pub struct InterpreterTables {
 
 // TODO: Add some structured execution tracing
 
-/// Represents the data needed to create a move event later
-pub(crate) type ToSetValue = (
-    u32,            // parent addr
-    Opcode,         // operation code
-    BinaryField32b, // field PC
-    u32,            // fp
-    u32,            // timestamp
-    BinaryField16b, // dst
-    BinaryField16b, // src
-    BinaryField16b, // offset
-);
-
 #[derive(Debug, Default)]
 pub(crate) struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
@@ -68,17 +56,7 @@ pub(crate) struct Interpreter {
     pub(crate) pc: u32,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
-    pub(crate) prom: ProgramRom,
-    pub(crate) vrom: ValueRom,
     frames: LabelsFrameSizes,
-    /// HashMap used to set values and push MV events during a CALL procedure.
-    /// When a MV occurs with a value that isn't set within a CALL procedure, we
-    /// assume it is a return value. Then, we add (addr_next_frame,
-    /// to_set_value) to `to_set`, where `to_set_value` contains enough
-    /// information to create a move event later. Whenever an address in the
-    /// HashMap's keys is finally set, we populate the missing values and
-    /// remove them from the HashMap.
-    to_set: HashMap<u32, ToSetValue>,
     /// Before a CALL, there are a few move operations used to populate the next
     /// frame. But the next frame pointer is not necessarily known at this
     /// point, and return values may also not be known. Thus, this `Vec` is
@@ -90,10 +68,6 @@ pub(crate) struct Interpreter {
     // and their associated integer PC.
     pc_field_to_int: HashMap<BinaryField32b, u32>,
 }
-
-/// The Program ROM, or Instruction Memory, is an immutable memory where code is
-/// loaded. It maps every PC to a specific instruction to execute.
-pub type ProgramRom = Vec<InterpreterInstruction>;
 
 /// An `Instruction` is composed of an opcode and up to three 16-bit arguments
 /// to be used by this operation.
@@ -141,7 +115,6 @@ pub(crate) enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) fn new(
-        prom: ProgramRom,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Self {
@@ -149,30 +122,8 @@ impl Interpreter {
             pc: 1,
             fp: 0,
             timestamp: 0,
-            prom,
-            vrom: ValueRom::default(),
             frames,
             pc_field_to_int,
-            to_set: HashMap::new(),
-            moves_to_apply: vec![],
-        }
-    }
-
-    pub(crate) fn new_with_vrom(
-        prom: ProgramRom,
-        vrom: ValueRom,
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Self {
-        Self {
-            pc: 1,
-            fp: 0,
-            timestamp: 0,
-            prom,
-            vrom,
-            frames,
-            pc_field_to_int,
-            to_set: HashMap::new(),
             moves_to_apply: vec![],
         }
     }
@@ -260,12 +211,12 @@ impl Interpreter {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 
-    pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
-        let mut trace = ZCrayTrace::default();
+    pub fn run(&mut self, memory: Memory) -> Result<ZCrayTrace, InterpreterError> {
+        let mut trace = ZCrayTrace::new(memory);
 
-        let field_pc = self.prom[self.pc as usize - 1].field_pc;
+        let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
-        self.allocate_new_frame(field_pc);
+        self.allocate_new_frame(&mut trace, field_pc);
         loop {
             match self.step(&mut trace) {
                 Ok(_) => {}
@@ -285,10 +236,10 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        if self.pc as usize - 1 > self.prom.len() {
+        if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let instruction = &self.prom[self.pc as usize - 1];
+        let instruction = &trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction.instruction;
         let field_pc = instruction.field_pc;
         let is_call_procedure = instruction.is_call_procedure;
@@ -381,12 +332,12 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = self.get_vrom_u32(self.fp ^ cond.val() as u32)?;
+        let cond_val = trace.memory.get_vrom_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(self, cond, target, field_pc)?;
+            let new_bnz_event = BnzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, cond, target, field_pc)?;
+            let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bz.push(new_bz_event);
         }
 
@@ -432,7 +383,7 @@ impl Interpreter {
         _: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate_event(self, field_pc)?;
+        let new_ret_event = RetEvent::generate_event(self, trace, field_pc)?;
         trace.ret.push(new_ret_event);
 
         Ok(())
@@ -495,7 +446,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = self.allocate_new_frame(target)?;
+        let next_fp_val = self.allocate_new_frame(trace, target)?;
         let new_taili_event =
             TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
         trace.taili.push(new_taili_event);
@@ -622,10 +573,10 @@ impl Interpreter {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        if self.pc as usize > self.prom.len() {
+        if self.pc as usize > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let [second_opcode, imm_high, third, fourth] = self.prom[self.pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
 
         if second_opcode.val() != Opcode::B32Muli.into()
             || third != BinaryField16b::ZERO
@@ -783,74 +734,18 @@ impl Interpreter {
     }
 
     pub(crate) fn allocate_new_frame(
-        &mut self,
+        &self,
+        trace: &mut ZCrayTrace,
         target: BinaryField32b,
-        // trace: &mut ZCrayTrace,
     ) -> Result<u32, InterpreterError> {
         let frame_size = self
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
-        Ok(self.vrom.allocate_new_frame(*frame_size as u32))
-    }
-
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, InterpreterError> {
-        self.vrom.get_u32(index)
-    }
-
-    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, InterpreterError> {
-        self.vrom.get_u128(index)
-    }
-
-    /// Insert a value to be set later
-    ///
-    /// Maps a destination address to a ToSetValue which contains necessary
-    /// information to create a move event once the value is available.
-    pub(crate) fn insert_to_set(
-        &mut self,
-        dst: u32,
-        to_set_val: ToSetValue,
-    ) -> Result<(), InterpreterError> {
-        if self.to_set.insert(dst, to_set_val).is_some() {
-            return Err(InterpreterError::VromRewrite(dst));
-        }
-        Ok(())
-    }
-
-    /// Attempts to get a u32 value from VROM, returning None if the value is
-    /// pending in to_set
-    ///
-    /// This method is used in move operations to determine if a value is
-    /// available or still waiting to be set.
-    pub(crate) fn get_vrom_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
-        if self.to_set.contains_key(&index) {
-            // Value is pending, not available yet
-            Ok(None)
-        } else {
-            // Try to get the value from VROM
-            match self.get_vrom_u32(index) {
-                Ok(value) => Ok(Some(value)),
-                Err(e) => Err(e),
-            }
-        }
-    }
-
-    /// Attempts to get a u128 value from VROM, returning None if the value is
-    /// pending in to_set
-    ///
-    /// This method is used in move operations to determine if a value is
-    /// available or still waiting to be set.
-    pub(crate) fn get_vrom_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
-        if self.to_set.contains_key(&index) {
-            // Value is pending, not available yet
-            Ok(None)
-        } else {
-            // Try to get the value from VROM
-            match self.vrom.get_u128(index) {
-                Ok(value) => Ok(Some(value)),
-                Err(e) => Err(e),
-            }
-        }
+        Ok(trace
+            .memory
+            .vrom_mut()
+            .allocate_new_frame(*frame_size as u32))
     }
 
     /// Sets a value of any integer type and handles pending to_set entries
@@ -864,18 +759,19 @@ impl Interpreter {
         value: T,
     ) -> Result<(), InterpreterError>
     where
-        T: Copy + Into<u32> + Into<u128>,
+        T: Copy + Into<u32>,
     {
         // Convert to u32 for storage
         let u32_value: u32 = value.into();
 
         // Set the value in VROM
-        self.vrom.set_value(index, u32_value)?;
+        trace.memory.vrom_mut().set_value(index, u32_value)?;
 
-        // Handle any pending to_set entries for this index
+        // Handle any pending entry for this index
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            self.to_set.remove(&index)
+            trace.memory.vrom_mut().pending_updates.remove(&index)
         {
+            /// Set the pending entry
             self.set_vrom(trace, parent, u32_value)?;
             let event_out = MVEventOutput::new(
                 parent,
@@ -900,13 +796,16 @@ impl Interpreter {
         index: u32,
         value: u128,
     ) -> Result<(), InterpreterError> {
+        let vrom = trace.memory.vrom_mut();
+
         // Set the value in VROM
-        self.vrom.set_u128(index, value)?;
+        vrom.set_u128(index, value)?;
 
         // Handle any pending to_set entries for this index
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            self.to_set.remove(&index)
+            vrom.pending_updates.remove(&index)
         {
+            /// Set the pending entry
             self.set_vrom_u128(trace, parent, value)?;
             let event_out = MVEventOutput::new(
                 parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
@@ -945,12 +844,13 @@ mod tests {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code, &[false]);
-        let vrom = ValueRom::new();
+        let memory = Memory::new(prom, ValueRom::new());
+
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 12);
 
         let (trace, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
+            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -1118,12 +1018,14 @@ mod tests {
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_val]);
 
+        let memory = Memory::new(prom, vrom);
+
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
         frames_args_size.insert(BinaryField32b::ONE, 9);
 
         let (traces, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, pc_field_to_int)
+            ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)
                 .expect("Trace generation should not fail.");
 
         traces.validate(boundary_values);
@@ -1154,12 +1056,12 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.vrom.get_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
-                ((i + 1) * 16) as u32                            // next_fp_val
+                traces.memory.get_vrom_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
+                ((i + 1) * 16) as u32                                   // next_fp_val
             );
             assert_eq!(
-                traces.vrom.get_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
-                cur_val                                          // n_val
+                traces.memory.get_vrom_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
+                cur_val                                                 // n_val
             );
 
             if cur_val % 2 == 0 {
@@ -1193,8 +1095,9 @@ mod tests {
 
         // Set initial PC, FP and argument.
         let vrom = ValueRom::new_with_init_values(vec![0, 0, initial_value]);
+        let memory = Memory::new(prom, vrom);
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+        let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
@@ -1204,27 +1107,31 @@ mod tests {
             let s = cur_fibs[0] + cur_fibs[1];
             assert_eq!(
                 traces
-                    .vrom
+                    .memory
+                    .vrom()
                     .get_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0],
                 "left {} right {}",
                 traces
-                    .vrom
+                    .memory
+                    .vrom()
                     .get_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0]
             );
             assert_eq!(
                 traces
-                    .vrom
+                    .memory
+                    .vrom()
                     .get_u32((i + 1) * fib_power_two_frame_size + 3)
                     .unwrap(),
                 cur_fibs[1]
             );
             assert_eq!(
                 traces
-                    .vrom
+                    .memory
+                    .vrom()
                     .get_u32((i + 1) * fib_power_two_frame_size + 7)
                     .unwrap(),
                 s
@@ -1234,7 +1141,8 @@ mod tests {
         }
         assert_eq!(
             traces
-                .vrom
+                .memory
+                .vrom()
                 .get_u32((init_val + 1) * fib_power_two_frame_size + 5)
                 .unwrap(),
             cur_fibs[0]

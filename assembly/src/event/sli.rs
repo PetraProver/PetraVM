@@ -68,7 +68,9 @@ impl SliEvent {
         kind: ShiftKind,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace
+            .memory
+            .get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
             0
         } else {
@@ -115,7 +117,7 @@ mod test {
     use binius_field::PackedField;
 
     use super::*;
-    use crate::{code_to_prom, event::ret::RetEvent, opcodes::Opcode, ValueRom};
+    use crate::{code_to_prom, event::ret::RetEvent, memory::Memory, opcodes::Opcode, ValueRom};
 
     #[test]
     fn test_program_with_sli_ops() {
@@ -153,7 +155,9 @@ mod test {
         vrom.set_value(3, 2u32);
         vrom.set_value(5, 3u32);
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
+        let memory = Memory::new(prom, vrom);
+
+        let (traces, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
         let shifts = vec![
             SliEvent::new(BinaryField32b::ONE, 0, 0, 4, 64, 3, 2, 5, ShiftKind::Left),

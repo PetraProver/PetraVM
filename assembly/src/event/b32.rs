@@ -231,7 +231,9 @@ impl B32MuliEvent {
         imm: BinaryField32b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace
+            .memory
+            .get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         debug_assert!(field_pc == G.pow(interpreter.pc as u64 - 1));
         let event = Self::new(

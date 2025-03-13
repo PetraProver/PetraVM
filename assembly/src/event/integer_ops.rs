@@ -98,7 +98,7 @@ impl AddiEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.get_vrom_u32(fp ^ src.val() as u32)?;
+        let src_val = trace.memory.get_vrom_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = src_val + imm.val() as u32;
         interpreter.set_vrom(trace, fp ^ dst.val() as u32, dst_val)?;
@@ -211,7 +211,7 @@ impl MuliEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.get_vrom_u32(fp ^ src.val() as u32)?;
+        let src_val = trace.memory.get_vrom_u32(fp ^ src.val() as u32)?;
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?

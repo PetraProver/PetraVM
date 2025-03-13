@@ -43,8 +43,8 @@ impl B128AddEvent {
         let src2_addr = fp ^ src2.val() as u32;
 
         // Get source values
-        let src1_val = interpreter.get_vrom_u128(src1_addr)?;
-        let src2_val = interpreter.get_vrom_u128(src2_addr)?;
+        let src1_val = trace.memory.get_vrom_u128(src1_addr)?;
+        let src2_val = trace.memory.get_vrom_u128(src2_addr)?;
 
         // In binary fields, addition is XOR
         let dst_val = src1_val ^ src2_val;
@@ -154,8 +154,8 @@ impl B128MulEvent {
         let src2_addr = fp ^ src2.val() as u32;
 
         // Get source values
-        let src1_val = interpreter.get_vrom_u128(src1_addr)?;
-        let src2_val = interpreter.get_vrom_u128(src2_addr)?;
+        let src1_val = trace.memory.get_vrom_u128(src1_addr)?;
+        let src2_val = trace.memory.get_vrom_u128(src2_addr)?;
 
         // Binary field multiplication
         let src1_bf = BinaryField128b::new(src1_val);
@@ -238,7 +238,7 @@ mod tests {
     use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{code_to_prom, opcodes::Opcode, ValueRom};
+    use crate::{code_to_prom, memory::Memory, opcodes::Opcode, ValueRom};
 
     #[test]
     fn test_b128_add_operation() {
@@ -355,15 +355,15 @@ mod tests {
         ];
 
         let vrom = ValueRom::new_with_init_values(init_values);
+        let memory = Memory::new(prom, vrom);
 
         // Set up frame sizes
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 24);
 
         // Create an interpreter and run the program
-        let (trace, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
-                .expect("Trace generation should not fail.");
+        let (trace, boundary_values) = ZCrayTrace::generate(memory, frames, HashMap::new())
+            .expect("Trace generation should not fail.");
 
         // Capture the final PC before boundary_values is moved
         let final_pc = boundary_values.final_pc;
@@ -380,8 +380,8 @@ mod tests {
         let expected_mul = (add_result_bf * c_bf).val();
 
         // Verify the results in VROM
-        let actual_add = trace.vrom.get_u128(add_result_offset).unwrap();
-        let actual_mul = trace.vrom.get_u128(mul_result_offset).unwrap();
+        let actual_add = trace.memory.get_vrom_u128(add_result_offset).unwrap();
+        let actual_mul = trace.memory.get_vrom_u128(mul_result_offset).unwrap();
 
         assert_eq!(actual_add, expected_add, "B128_ADD operation failed");
         assert_eq!(actual_mul, expected_mul, "B128_MUL operation failed");

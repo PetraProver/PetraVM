@@ -19,11 +19,10 @@ use crate::{
         sli::SliEvent,
         Event,
     },
-    execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ProgramRom,
-    },
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    memory::Memory,
     parser::LabelsFrameSizes,
-    ValueRom, G,
+    ProgramRom, ValueRom, G,
 };
 
 #[derive(Debug, Default)]
@@ -53,7 +52,8 @@ pub(crate) struct ZCrayTrace {
     pub(crate) b32_muli: Vec<B32MuliEvent>,
     pub(crate) b128_add: Vec<B128AddEvent>,
     pub(crate) b128_mul: Vec<B128MulEvent>,
-    pub(crate) vrom: ValueRom,
+
+    pub(crate) memory: Memory,
 }
 
 pub(crate) struct BoundaryValues {
@@ -74,41 +74,25 @@ macro_rules! fire_events {
 }
 
 impl ZCrayTrace {
-    pub(crate) fn generate(
-        prom: ProgramRom,
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(prom, frames, pc_field_to_int);
-
-        let mut trace = interpreter.run()?;
-        trace.vrom = interpreter.vrom;
-
-        let final_pc = if interpreter.pc == 0 {
-            BinaryField32b::zero()
-        } else {
-            G.pow(interpreter.pc as u64)
-        };
-
-        let boundary_values = BoundaryValues {
-            final_pc,
-            final_fp: interpreter.fp,
-            timestamp: interpreter.timestamp,
-        };
-
-        Ok((trace, boundary_values))
+    pub(crate) fn new(memory: Memory) -> Self {
+        Self {
+            memory,
+            ..Default::default()
+        }
     }
 
-    pub(crate) fn generate_with_vrom(
-        prom: ProgramRom,
-        vrom: ValueRom,
+    pub fn prom(&self) -> &ProgramRom {
+        &self.memory.prom()
+    }
+
+    pub(crate) fn generate(
+        memory: Memory,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
-        let mut trace = interpreter.run()?;
-        trace.vrom = interpreter.vrom;
+        let mut trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
             BinaryField32b::zero()

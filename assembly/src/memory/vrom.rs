@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use crate::{execution::InterpreterError, vrom_allocator::VromAllocator};
+use binius_field::{BinaryField16b, BinaryField32b};
 
-/// ValueRom represents a memory structure for storing different sized values
-#[derive(Debug, Default)]
+use crate::{execution::InterpreterError, memory::VromAllocator, opcodes::Opcode};
+
+/// `ValueRom` represents a memory structure for storing different sized values.
+#[derive(Clone, Debug, Default)]
 pub(crate) struct ValueRom {
     /// Storage for values, each slot is a u32
     vrom: Vec<u32>,
@@ -11,25 +13,63 @@ pub(crate) struct ValueRom {
     vrom_allocator: VromAllocator,
     /// Initial values to populate new frames
     init_values: Vec<u32>,
+    /// `HashMap` used to hold pending values to be set when pushing MOVE events
+    /// during a CALL procedure.
+    ///
+    /// When a MOVE occurs with a value that isn't set within a CALL procedure,
+    /// we assume it is a return value. Then, we add `(addr_next_frame,
+    /// to_set_value)` to `pending_updates`, where `to_set_value` contains
+    /// enough information to create a move event later. Whenever an address
+    /// in the HashMap's keys is finally set, we populate the missing values
+    /// and remove them from the map.
+    pub(crate) pending_updates: VromPendingUpdates,
 }
 
-impl ValueRom {
-    /// Create a new ValueRom with initial values
-    pub fn new_with_init_values(vals: Vec<u32>) -> Self {
-        Self {
-            vrom: Vec::new(),
-            vrom_allocator: VromAllocator::default(),
-            init_values: vals,
-        }
-    }
+pub(crate) type VromPendingUpdates = HashMap<u32, VromUpdate>;
 
-    /// Create an empty ValueRom
+/// Represents the data needed to create a move event later.
+pub(crate) type VromUpdate = (
+    u32,            // parent addr
+    Opcode,         // operation code
+    BinaryField32b, // field pc
+    u32,            // fp
+    u32,            // timestamp
+    BinaryField16b, // dst
+    BinaryField16b, // src
+    BinaryField16b, // offset
+);
+
+impl ValueRom {
+    /// Creates an empty `ValueRom`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Set a value at the specified index
-    /// The value will be stored as a u32 regardless of its original size
+    /// Creates a new `ValueRom` with initial values.
+    pub fn new_with_init_values(vals: Vec<u32>) -> Self {
+        Self {
+            init_values: vals,
+            ..Default::default()
+        }
+    }
+
+    /// Inserts a pending value to be set later.
+    ///
+    /// Maps a destination address to a `VromUpdate` which contains necessary
+    /// information to create a MOVE event once the value is available.
+    pub(crate) fn insert_pending(
+        &mut self,
+        dst: u32,
+        to_set_val: VromUpdate,
+    ) -> Result<(), InterpreterError> {
+        if self.pending_updates.insert(dst, to_set_val).is_some() {
+            return Err(InterpreterError::VromRewrite(dst));
+        }
+        Ok(())
+    }
+
+    /// Sets a value at the specified index.
+    /// The value will be stored as a `u32` regardless of its original size.
     pub(crate) fn set_value<T: Into<u32>>(
         &mut self,
         index: u32,
@@ -47,7 +87,7 @@ impl ValueRom {
         Ok(())
     }
 
-    /// Set a u128 value at the specified index
+    /// Sets a `u128` value at the specified index.
     pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), InterpreterError> {
         self.check_alignment(index, 4)?;
 
@@ -68,25 +108,25 @@ impl ValueRom {
         Ok(())
     }
 
-    /// Get a u8 value from the specified index
+    /// Gets a `u8` value from the specified index.
     pub(crate) fn get_u8(&self, index: u32) -> Result<u8, InterpreterError> {
         self.check_bounds(index)?;
         Ok(self.vrom[index as usize] as u8)
     }
 
-    /// Get a u16 value from the specified index
+    /// Gets a `u16` value from the specified index.
     pub(crate) fn get_u16(&self, index: u32) -> Result<u16, InterpreterError> {
         self.check_bounds(index)?;
         Ok(self.vrom[index as usize] as u16)
     }
 
-    /// Get a u32 value from the specified index
+    /// Gets a `u32` value from the specified index.
     pub(crate) fn get_u32(&self, index: u32) -> Result<u32, InterpreterError> {
         self.check_bounds(index)?;
         Ok(self.vrom[index as usize])
     }
 
-    /// Get a u128 value from the specified index
+    /// Gets a `u128` value from the specified index.
     pub(crate) fn get_u128(&self, index: u32) -> Result<u128, InterpreterError> {
         self.check_alignment(index, 4)?;
 
@@ -126,7 +166,7 @@ impl ValueRom {
         pos
     }
 
-    /// Check if the index is within bounds
+    /// Checks if the index is within bounds.
     fn check_bounds(&self, index: u32) -> Result<(), InterpreterError> {
         if index as usize >= self.vrom.len() {
             Err(InterpreterError::VromMissingValue(index))
@@ -135,7 +175,7 @@ impl ValueRom {
         }
     }
 
-    /// Check if the index has proper alignment
+    /// Checks if the index has proper alignment.
     fn check_alignment(&self, index: u32, alignment: u32) -> Result<(), InterpreterError> {
         if index % alignment != 0 {
             Err(InterpreterError::VromMisaligned(
