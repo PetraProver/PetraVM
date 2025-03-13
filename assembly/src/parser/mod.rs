@@ -230,6 +230,9 @@ fn parse_line(
                             Rule::SUB_instr => {
                                 instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
                             }
+                            Rule::MUL_instr => {
+                                instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
                             }

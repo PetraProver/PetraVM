@@ -21,7 +21,7 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltuEvent, SubEvent,
         },
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
@@ -553,6 +553,9 @@ impl Interpreter {
             Opcode::Muli => {
                 self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::Mul => {
+                self.generate_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::Ret => {
                 self.generate_ret(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
@@ -881,6 +884,53 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_mul(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_mul_event = MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        let aux = new_mul_event.aux;
+        let aux_sums = new_mul_event.aux_sums;
+        let cum_sums = new_mul_event.cum_sums;
+
+        // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
+        for i in 0..aux.len() / 2 {
+            trace.add64.push(Add64Event::generate_event(
+                self,
+                aux[2 * i] as u64,
+                (aux[2 * i + 1] as u64) << 8,
+            ));
+        }
+        // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
+        // Check the first element.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            aux_sums[0],
+            aux_sums[1] << 8,
+        ));
+        // CHeck the second element.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            cum_sums[0],
+            aux_sums[2] << 16,
+        ));
+
+        // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            cum_sums[1],
+            aux_sums[3] << 24,
+        ));
+        trace.mul.push(new_mul_event);
+
+        Ok(())
+    }
+
     fn generate_b32_mul(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -1158,6 +1208,7 @@ pub(crate) struct ZCrayTrace {
     add32: Vec<Add32Event>,
     add64: Vec<Add64Event>,
     muli: Vec<MuliEvent>,
+    mul: Vec<MulEvent>,
     taili: Vec<TailiEvent>,
     tailv: Vec<TailVEvent>,
     calli: Vec<CalliEvent>,
@@ -1264,13 +1315,17 @@ impl ZCrayTrace {
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
         fire_events!(self.shift, &mut channels, &tables);
+        fire_events!(self.sltu, &mut channels, &tables);
+        fire_events!(self.sub, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
+        fire_events!(self.mul, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
+        fire_events!(self.calli, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
         fire_events!(self.mvih, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);
@@ -1401,6 +1456,110 @@ mod tests {
 
         assert_eq!(traces.shift, shifts);
         assert_eq!(traces.ret, vec![ret]);
+    }
+
+    #[test]
+    fn test_muli_ret() {
+        let zero = BinaryField16b::zero();
+        let src_addr = BinaryField16b::new(8);
+        let output_addr = BinaryField16b::new(12);
+
+        let a = rand::random();
+        let b = BinaryField16b::new(rand::random());
+
+        let instructions = vec![
+            [Opcode::Muli.get_field_elt(), output_addr, src_addr, b],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 12);
+
+        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+
+        // Create a dummy trace only used to populate the initial VROM.
+        let mut dummy_zcray = ZCrayTrace::default();
+
+        //  ;; Frame:
+        // 	;; Slot @0: Return PC
+        // 	;; Slot @4: Return FP
+        // 	;; Slot @8: Local: a
+        //  ;; Slot @12: Local: output
+        let mut vrom = ValueRom::default();
+        vrom.set_u32(&mut dummy_zcray, 0, 0);
+        vrom.set_u32(&mut dummy_zcray, 4, 0);
+        vrom.set_u32(&mut dummy_zcray, 8, a);
+
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
+            .expect("Trace generation should not fail.");
+
+        let ret = RetEvent {
+            pc: G.square(), // PC = 3
+            fp: 0,
+            timestamp: 2,
+            fp_0_val: 0,
+            fp_1_val: 0,
+        };
+
+        assert_eq!(traces.vrom.get_u32(12).unwrap(), a * b.val() as u32);
+    }
+
+    #[test]
+    fn test_mul_ret() {
+        let zero = BinaryField16b::zero();
+        let src1_addr = BinaryField16b::new(8);
+        let src2_addr = BinaryField16b::new(12);
+        let output_addr = BinaryField16b::new(16);
+
+        let a = rand::random();
+        let b = rand::random();
+
+        let instructions = vec![
+            [
+                Opcode::Mul.get_field_elt(),
+                output_addr,
+                src1_addr,
+                src2_addr,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 16);
+
+        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+
+        // Create a dummy trace only used to populate the initial VROM.
+        let mut dummy_zcray = ZCrayTrace::default();
+
+        //  ;; Frame:
+        // 	;; Slot @0: Return PC
+        // 	;; Slot @4: Return FP
+        // 	;; Slot @8: Local: a
+        // 	;; Slot @12: Local: b
+        //  ;; Slot @16: Local: output
+        let mut vrom = ValueRom::default();
+        vrom.set_u32(&mut dummy_zcray, 0, 0);
+        vrom.set_u32(&mut dummy_zcray, 4, 0);
+        vrom.set_u32(&mut dummy_zcray, 8, a);
+        vrom.set_u32(&mut dummy_zcray, 12, b);
+
+        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
+            .expect("Trace generation should not fail.");
+
+        let ret = RetEvent {
+            pc: G.square(), // PC = 3
+            fp: 0,
+            timestamp: 2,
+            fp_0_val: 0,
+            fp_1_val: 0,
+        };
+
+        assert_eq!(
+            traces.vrom.get_u32(16).unwrap(),
+            a * b,
+            "The multiplication of a: {a} and b: {b} should give {} but gives {:?} instead",
+            a * b,
+            traces.vrom.get_u32(16).unwrap()
+        );
     }
 
     pub(crate) fn get_binary_slot(i: u16) -> BinaryField16b {

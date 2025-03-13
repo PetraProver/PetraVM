@@ -92,6 +92,11 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         imm: Immediate,
     },
+    Mul {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     SrlI {
         dst: Slot,
         src1: Slot,
@@ -261,6 +266,21 @@ pub fn get_prom_inst_from_inst_with_label(
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Mul.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
             ];
             prom.push(InterpreterInstruction::new(
                 instruction,
@@ -488,7 +508,7 @@ pub fn get_frame_size_for_label(
     let mut opcode =
         Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
 
-    let call_and_ret_opcodes = vec![Opcode::Taili, Opcode::TailV, Opcode::Calli, Opcode::Ret];
+    let call_and_ret_opcodes = [Opcode::Taili, Opcode::TailV, Opcode::Calli, Opcode::Ret];
     while !call_and_ret_opcodes.contains(&opcode) {
         match opcode {
             Opcode::Bnz => {
@@ -529,6 +549,7 @@ pub fn get_frame_size_for_label(
             | Opcode::Sltu
             | Opcode::Or
             | Opcode::Xor
+            | Opcode::Mul
             | Opcode::B32Mul
             | Opcode::B128Add
             | Opcode::B128Mul => {
@@ -647,6 +668,7 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
             InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
             InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
+            InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
             InstructionsWithLabels::Sltu { dst, src1, src2 } => {
                 write!(f, "SLTU {dst} {src1} {src2}")
