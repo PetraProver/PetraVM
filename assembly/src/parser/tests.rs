@@ -3,7 +3,7 @@ mod test_parser {
     use pest::Parser;
 
     use crate::parser::InstructionsWithLabels;
-    use crate::parser::{parse_line, parse_program, AsmParser, Rule};
+    use crate::parser::{parse_program, AsmParser, Rule};
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
@@ -28,6 +28,8 @@ mod test_parser {
             "BNZ case_recurse, @4 ;; branch if n == 1\n",
             "MULU @4, @3, @1\n",
             "SLLI @4, @3, #1\n",
+            "#[framesize(8)] Somelabel:\n",
+            "#[callhint] MVV.W @4[2], @8\n",
         ];
         for asm in ok_instrs {
             ensure_parser_succeeds(Rule::line, asm);
@@ -40,6 +42,8 @@ mod test_parser {
             "Jlabel\n",
             "",
             "Random line\n",
+            "#[framesize] Somelabel:\n",    // Missing size
+            "#[callhint MVV.W @4[2], @8\n", // Missing closing bracket
         ];
         for asm in err_instrs {
             ensure_parser_fails(Rule::line, asm);
@@ -54,6 +58,8 @@ mod test_parser {
             "_start: \n RET",
             "_start: BNZ case_recurse, @4 ;; branch if n == 1\n",
             "_start: ;; Some comment\n BNZ case_recurse, @4 ;; branch if n == 1\n",
+            "#[framesize(8)] _start: RET",
+            "#[framesize(9)] _start: #[callhint] RET",
         ];
         for asm in ok_programs {
             ensure_parser_succeeds(Rule::program, asm);
@@ -66,6 +72,7 @@ mod test_parser {
             "RET\n_start:",
             "RET ;; Some comment",
             "_start:",
+            "#[framesize] _start: RET", // Missing size
         ];
         for asm in err_programs {
             ensure_parser_fails(Rule::program, asm);
@@ -75,12 +82,33 @@ mod test_parser {
     #[test]
     fn test_parsing() {
         let code = include_str!("../../../examples/fib.asm");
-        let instrs = parse_program(code).unwrap();
-        for instr in instrs {
+        let (instrs, call_hints, framesize_map) = parse_program(code).unwrap();
+
+        println!("Frame sizes:");
+        for (func, size) in &framesize_map {
+            println!("{}: {}", func, size);
+        }
+
+        println!("\nInstructions with call hints:");
+        for (i, instr) in instrs.iter().enumerate() {
+            let hint_str = if call_hints[i] { " #[callhint]" } else { "" };
             if matches!(instr, InstructionsWithLabels::Label(_)) {
-                println!("\n{instr}");
+                // Fixed here - extract the label string with a clone rather than a reference
+                let label = if let InstructionsWithLabels::Label(ref l) = instr {
+                    l.clone()
+                } else {
+                    String::new()
+                };
+
+                let framesize_str = if let Some(size) = framesize_map.get(&label) {
+                    format!("#[framesize({})] ", size)
+                } else {
+                    String::new()
+                };
+
+                println!("\n{}{}", framesize_str, instr);
             } else {
-                println!("    {instr}");
+                println!("   {}{}", hint_str, instr);
             }
         }
     }
@@ -89,6 +117,8 @@ mod test_parser {
     fn test_all_instructions() {
         let lines = [
             "label:",
+            "#[framesize(12)] label:",
+            "#[callhint] XOR @4, @3, @2",
             "XOR @4, @3, @2",
             "B32_ADD @4, @3, @2",
             "B32_MUL @4, @3, @2",
@@ -126,6 +156,7 @@ mod test_parser {
             "LHU @3, @2, #1",
             "SB @3, @2, #1",
             "SH @3, @2, #1",
+            "#[callhint] MVV.W @3[4], @2",
             "MVV.W @3[4], @2",
             "MVV.L @3[4], @2",
             "MVI.H @3[4], #2",
@@ -133,6 +164,7 @@ mod test_parser {
             "RET",
             "J label",
             "J @4",
+            "#[callhint] CALLI label, @4",
             "CALLI label, @4",
             "TAILI label, @4",
             "BNZ label, @4",
@@ -142,5 +174,25 @@ mod test_parser {
         for line in lines {
             ensure_parser_succeeds(Rule::line, line);
         }
+    }
+
+    #[test]
+    fn test_directives() {
+        // Test framesize directive
+        ensure_parser_succeeds(Rule::framesize_directive, "#[framesize(8)]");
+        ensure_parser_succeeds(Rule::framesize_directive, "#[framesize(123)]");
+        ensure_parser_fails(Rule::framesize_directive, "#[framesize]");
+        ensure_parser_fails(Rule::framesize_directive, "#[framesize()]");
+        ensure_parser_fails(Rule::framesize_directive, "#[framesize(abc)]");
+
+        // Test callhint directive
+        ensure_parser_succeeds(Rule::callhint_directive, "#[callhint]");
+        ensure_parser_fails(Rule::callhint_directive, "#[callhint()]");
+        ensure_parser_fails(Rule::callhint_directive, "#callhint]");
+
+        // Test directive with instruction
+        ensure_parser_succeeds(Rule::instruction_with_hint, "#[callhint] RET");
+        ensure_parser_succeeds(Rule::instruction_with_hint, "RET");
+        ensure_parser_succeeds(Rule::instruction_with_hint, "#[callhint] MVV.W @3[4], @2");
     }
 }

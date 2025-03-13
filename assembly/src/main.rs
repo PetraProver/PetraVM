@@ -46,18 +46,15 @@ fn main() {
     let case_odd =
         ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10)).collect::<Vec<BinaryField16b>>();
 
-    let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
+    let (instructions, is_call_procedure_hints_with_labels, framesize_map) =
+        parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
-    // Sets the call procedure hints to true for the returned PROM (where
-    // instructions are given with the labels).
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    let indices_to_set_with_labels = vec![9, 10, 11, 15, 16, 17];
-    for idx in indices_to_set_with_labels {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
-    let (prom, labels, pc_field_to_int) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+    let (prom, labels, pc_field_to_int, label_framesizes) = get_full_prom_and_labels(
+        &instructions,
+        &is_call_procedure_hints_with_labels,
+        &framesize_map,
+    )
+    .expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
 

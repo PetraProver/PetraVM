@@ -19,6 +19,7 @@ use crate::{
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
     Label(String),
+    FrameSize(String, u16), // Function name, frame size
     B32Muli {
         dst: Slot,
         src1: Slot,
@@ -109,6 +110,9 @@ pub fn get_prom_inst_from_inst_with_label(
             if labels.get(s).is_none() {
                 return Err(format!("Label {} not found in the HashMap of labels.", s));
             }
+        }
+        InstructionsWithLabels::FrameSize(_, _) => {
+            // No operation needed for FrameSize, it's processed separately
         }
         InstructionsWithLabels::AddI { dst, src1, imm } => {
             let instruction = [
@@ -396,6 +400,9 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
                 }
                 // We do not increment the PC if we found a label.
             }
+            InstructionsWithLabels::FrameSize(_, _) => {
+                // Skip FrameSize entries when calculating PC addresses
+            }
             _ => {
                 field_pc *= G;
                 pc = incr_pc(pc);
@@ -408,10 +415,20 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
-) -> Result<(ProgramRom, Labels, PCFieldToInt), String> {
+    framesize_map: &HashMap<String, u16>,
+) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
     let (labels, pc_field_to_int) = get_labels(instructions)?;
     let mut prom = ProgramRom::new();
     let mut field_pc = BinaryField32b::ONE;
+    let mut label_framesizes = HashMap::new();
+
+    // First, collect framesize information for all labels
+    for (label, &field_pc) in &labels {
+        if let Some(&size) = framesize_map.get(label) {
+            label_framesizes.insert(field_pc, size);
+        }
+    }
+
     assert_eq!(
         instructions.len(),
         is_call_procedure_hints.len(),
@@ -419,6 +436,7 @@ pub(crate) fn get_full_prom_and_labels(
         instructions.len(),
         is_call_procedure_hints.len()
     );
+
     for (instruction, &is_call_procedure) in instructions.iter().zip(is_call_procedure_hints) {
         get_prom_inst_from_inst_with_label(
             &mut prom,
@@ -428,13 +446,17 @@ pub(crate) fn get_full_prom_and_labels(
             is_call_procedure,
         )?;
     }
-    Ok((prom, labels, pc_field_to_int))
+
+    Ok((prom, labels, pc_field_to_int, label_framesizes))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InstructionsWithLabels::Label(label) => write!(f, "{}:", label),
+            InstructionsWithLabels::FrameSize(label, size) => {
+                write!(f, "#[framesize({})] {}:", size, label)
+            }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
                 write!(f, "B32_MULI {dst} {src1} {imm}")
             }

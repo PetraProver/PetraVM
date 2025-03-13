@@ -1172,16 +1172,11 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
+        let (instructions, call_hints, framesize_map) =
+            parse_program(include_str!("../../../examples/fib.asm")).unwrap();
 
-        let mut is_calling_procedure_hints = vec![false; instructions.len()];
-        let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];
-        for idx in indices {
-            is_calling_procedure_hints[idx] = true;
-        }
-
-        let (prom, labels, pc_field_to_int) =
-            get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
+        let (prom, labels, pc_field_to_int, label_framesizes) =
+            get_full_prom_and_labels(&instructions, &call_hints, &framesize_map)
                 .expect("Instructions were not formatted properly.");
 
         let mut frame_sizes = HashMap::new();
