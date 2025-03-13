@@ -175,7 +175,7 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.get_vrom_u32_move(src_addr)?;
 
@@ -232,7 +232,7 @@ impl MVVWEvent {
             return Ok(None);
         }
 
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter
             .get_vrom_u32_move(src_addr)?
@@ -313,7 +313,7 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter.get_vrom_u128_move(src_addr)?;
 
@@ -370,7 +370,7 @@ impl MVVLEvent {
             return Ok(None);
         }
 
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let src_val = interpreter
             .get_vrom_u128_move(src_addr)?
@@ -450,7 +450,7 @@ impl MVIHEvent {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
 
         interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
@@ -492,7 +492,7 @@ impl MVIHEvent {
             interpreter.incr_pc();
             return Ok(None);
         }
-        let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = interpreter.get_vrom_u32(fp ^ dst.val() as u32)?;
 
         interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
         interpreter.incr_pc();

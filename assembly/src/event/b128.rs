@@ -43,8 +43,8 @@ impl B128AddEvent {
         let src2_addr = fp ^ src2.val() as u32;
 
         // Get source values
-        let src1_val = interpreter.vrom.get_u128(src1_addr)?;
-        let src2_val = interpreter.vrom.get_u128(src2_addr)?;
+        let src1_val = interpreter.get_vrom_u128(src1_addr)?;
+        let src2_val = interpreter.get_vrom_u128(src2_addr)?;
 
         // In binary fields, addition is XOR
         let dst_val = src1_val ^ src2_val;
@@ -154,8 +154,8 @@ impl B128MulEvent {
         let src2_addr = fp ^ src2.val() as u32;
 
         // Get source values
-        let src1_val = interpreter.vrom.get_u128(src1_addr)?;
-        let src2_val = interpreter.vrom.get_u128(src2_addr)?;
+        let src1_val = interpreter.get_vrom_u128(src1_addr)?;
+        let src2_val = interpreter.get_vrom_u128(src2_addr)?;
 
         // Binary field multiplication
         let src1_bf = BinaryField128b::new(src1_val);

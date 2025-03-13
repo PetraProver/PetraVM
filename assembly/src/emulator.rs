@@ -82,7 +82,7 @@ pub(crate) struct Interpreter {
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) prom: ProgramRom,
-    pub(crate) vrom: ValueRom,
+    vrom: ValueRom,
     frames: LabelsFrameSizes,
     /// HashMap used to set values and push MV events during a CALL procedure.
     /// When a MV occurs with a value that isn't set within a CALL procedure, we
@@ -393,7 +393,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32)?;
+        let cond_val = self.get_vrom_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
             let new_bnz_event = BnzEvent::generate_event(self, cond, target, field_pc)?;
             trace.bnz.push(new_bnz_event);
@@ -806,6 +806,14 @@ impl Interpreter {
         Ok(self.vrom.allocate_new_frame(*frame_size as u32))
     }
 
+    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, InterpreterError> {
+        self.vrom.get_u32(index)
+    }
+
+    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, InterpreterError> {
+        self.vrom.get_u128(index)
+    }
+
     /// Insert a value to be set later
     ///
     /// Maps a destination address to a ToSetValue which contains necessary
@@ -832,7 +840,7 @@ impl Interpreter {
             Ok(None)
         } else {
             // Try to get the value from VROM
-            match self.vrom.get_u32(index) {
+            match self.get_vrom_u32(index) {
                 Ok(value) => Ok(Some(value)),
                 Err(e) => Err(e),
             }

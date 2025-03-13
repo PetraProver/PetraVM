@@ -104,12 +104,15 @@ impl ValueRom {
         Ok(result)
     }
 
-    /// Allocate a new frame with the given target
+    /// Allocates a new frame with the specified size.
     pub(crate) fn allocate_new_frame(&mut self, requested_size: u32) -> u32 {
         let pos = self.vrom_allocator.alloc(requested_size);
 
-        // Resize the vector to accommodate the new frame
-        self.vrom.resize((pos + requested_size) as usize, 0);
+        // Ensure the vector has enough space for the new frame.
+        let required_size = (pos + requested_size) as usize;
+        if required_size > self.vrom.len() {
+            self.vrom.resize(required_size, 0);
+        }
 
         // Copy initial values if available
         if !self.init_values.is_empty() {
@@ -307,17 +310,17 @@ mod tests {
         assert_eq!(vrom.vrom.len(), 16 + 10);
 
         // Allocate third frame
-        let pos3 = vrom.allocate_new_frame(3);
-        assert_eq!(pos3, 28);
-        assert_eq!(vrom.vrom.len(), 31);
+        let pos3 = vrom.allocate_new_frame(7);
+        assert_eq!(pos3, 8);
+        assert_eq!(vrom.vrom.len(), 26);
 
         // Verify all frames are accessible
         vrom.set_value(0, 100u32).unwrap(); // First frame
         vrom.set_value(16, 200u32).unwrap(); // Second frame
-        vrom.set_value(28, 300u32).unwrap(); // Third frame
+        vrom.set_value(8, 300u32).unwrap(); // Third frame
 
         assert_eq!(vrom.get_u32(0).unwrap(), 100);
         assert_eq!(vrom.get_u32(16).unwrap(), 200);
-        assert_eq!(vrom.get_u32(28).unwrap(), 300);
+        assert_eq!(vrom.get_u32(8).unwrap(), 300);
     }
 }

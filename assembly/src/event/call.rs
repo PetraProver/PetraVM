@@ -59,8 +59,8 @@ impl TailiEvent {
         next_fp_val: u32,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.vrom.get_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 1)?;
+        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 1)?;
         interpreter.set_vrom(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
 
         interpreter.handles_call_moves(trace)?;
@@ -156,11 +156,11 @@ impl TailVEvent {
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.vrom.get_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.vrom.get_u32(interpreter.fp ^ 4)?;
+        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 4)?;
 
         let next_fp_addr = interpreter.fp ^ offset.val() as u32;
-        let target = interpreter.vrom.get_u32(next_fp_addr)?;
+        let target = interpreter.get_vrom_u32(next_fp_addr)?;
 
         // We allocate a frame for the call.
         let next_fp_val = interpreter.allocate_new_frame(target.into())?;

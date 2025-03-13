@@ -68,9 +68,7 @@ impl SliEvent {
         kind: ShiftKind,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
             0
         } else {

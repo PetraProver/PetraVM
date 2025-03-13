@@ -29,8 +29,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom.get_u32(fp)?,
-            fp_1_val: interpreter.vrom.get_u32(fp + 1)?,
+            fp_0_val: interpreter.get_vrom_u32(fp)?,
+            fp_1_val: interpreter.get_vrom_u32(fp + 1)?,
         })
     }
 
@@ -41,8 +41,8 @@ impl RetEvent {
         let fp = interpreter.fp;
 
         let ret_event = RetEvent::new(interpreter, field_pc);
-        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get_u32(fp)?));
-        interpreter.fp = interpreter.vrom.get_u32(fp + 1)?;
+        interpreter.jump_to(BinaryField32b::new(interpreter.get_vrom_u32(fp)?));
+        interpreter.fp = interpreter.get_vrom_u32(fp + 1)?;
 
         ret_event
     }
