@@ -807,6 +807,9 @@ impl Interpreter {
     }
 
     /// Insert a value to be set later
+    ///
+    /// Maps a destination address to a ToSetValue which contains necessary
+    /// information to create a move event once the value is available.
     pub(crate) fn insert_to_set(
         &mut self,
         dst: u32,
@@ -818,24 +821,47 @@ impl Interpreter {
         Ok(())
     }
 
-    pub(crate) fn get_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
+    /// Attempts to get a u32 value from VROM, returning None if the value is
+    /// pending in to_set
+    ///
+    /// This method is used in move operations to determine if a value is
+    /// available or still waiting to be set.
+    pub(crate) fn get_vrom_u32_move(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
         if self.to_set.contains_key(&index) {
+            // Value is pending, not available yet
             Ok(None)
         } else {
-            Ok(Some(self.vrom.get_u32(index)?))
+            // Try to get the value from VROM
+            match self.vrom.get_u32(index) {
+                Ok(value) => Ok(Some(value)),
+                Err(e) => Err(e),
+            }
         }
     }
 
-    pub(crate) fn get_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
-        if self.to_set.contains_key(&(index as u32)) {
+    /// Attempts to get a u128 value from VROM, returning None if the value is
+    /// pending in to_set
+    ///
+    /// This method is used in move operations to determine if a value is
+    /// available or still waiting to be set.
+    pub(crate) fn get_vrom_u128_move(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
+        if self.to_set.contains_key(&index) {
+            // Value is pending, not available yet
             Ok(None)
         } else {
-            Ok(Some(self.vrom.get_u128(index)?))
+            // Try to get the value from VROM
+            match self.vrom.get_u128(index) {
+                Ok(value) => Ok(Some(value)),
+                Err(e) => Err(e),
+            }
         }
     }
 
-    /// Set a value of any integer type and handle any pending to_set entries
-    pub(crate) fn set_value<T>(
+    /// Sets a value of any integer type and handles pending to_set entries
+    ///
+    /// This generic method works with u8, u16, and u32 values. It stores the
+    /// value in VROM and processes any dependent values in to_set.
+    pub(crate) fn set_vrom<T>(
         &mut self,
         trace: &mut ZCrayTrace,
         index: u32,
@@ -854,7 +880,7 @@ impl Interpreter {
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
             self.to_set.remove(&index)
         {
-            self.set_value(trace, parent, u32_value)?;
+            self.set_vrom(trace, parent, u32_value)?;
             let event_out = MVEventOutput::new(
                 parent,
                 opcode,
@@ -871,8 +897,8 @@ impl Interpreter {
         Ok(())
     }
 
-    /// Set a u128 value and handle any pending to_set entries
-    pub(crate) fn set_value_u128(
+    /// Sets a u128 value and handles pending to_set entries
+    pub(crate) fn set_vrom_u128(
         &mut self,
         trace: &mut ZCrayTrace,
         index: u32,
@@ -885,7 +911,7 @@ impl Interpreter {
         if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
             self.to_set.remove(&index)
         {
-            self.set_value_u128(trace, parent, value)?;
+            self.set_vrom_u128(trace, parent, value)?;
             let event_out = MVEventOutput::new(
                 parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
             );

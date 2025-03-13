@@ -177,13 +177,13 @@ impl MVVWEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.get_u32_move(src_addr)?;
+        let opt_src_val = interpreter.get_vrom_u32_move(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of move events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            interpreter.set_value(trace, dst_addr ^ offset.val() as u32, src_val)?;
+            interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -235,13 +235,13 @@ impl MVVWEvent {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let opt_src_val = interpreter
-            .get_u32_move(src_addr)?
+            .get_vrom_u32_move(src_addr)?
             .ok_or(InterpreterError::VromMissingValue(src_addr));
 
         interpreter.incr_pc();
 
         let src_val = opt_src_val.unwrap();
-        interpreter.set_value(trace, dst_addr ^ offset.val() as u32, src_val)?;
+        interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -315,13 +315,13 @@ impl MVVLEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = interpreter.get_u128_move(src_addr)?;
+        let opt_src_val = interpreter.get_vrom_u128_move(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of move events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            interpreter.set_value_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
+            interpreter.set_vrom_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -373,10 +373,10 @@ impl MVVLEvent {
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let src_val = interpreter
-            .get_u128_move(src_addr)?
+            .get_vrom_u128_move(src_addr)?
             .ok_or(InterpreterError::VromMissingValue(src_addr))?;
 
-        interpreter.set_value_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
+        interpreter.set_vrom_u128(trace, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -452,7 +452,7 @@ impl MVIHEvent {
         // the destination address.
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
 
-        interpreter.set_value(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -494,7 +494,7 @@ impl MVIHEvent {
         }
         let dst_addr = interpreter.vrom.get_u32(fp ^ dst.val() as u32)?;
 
-        interpreter.set_value(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        interpreter.set_vrom(trace, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
         interpreter.incr_pc();
 
         Ok(Some(Self {
@@ -543,7 +543,7 @@ impl LDIEvent {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        interpreter.set_value(trace, fp ^ dst.val() as u32, imm.val())?;
+        interpreter.set_vrom(trace, fp ^ dst.val() as u32, imm.val())?;
         interpreter.incr_pc();
 
         Ok(Self {

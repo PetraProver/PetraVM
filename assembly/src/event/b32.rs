@@ -246,7 +246,7 @@ impl B32MuliEvent {
             src_val,
             imm.val(),
         );
-        interpreter.set_value(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         interpreter.incr_pc();
