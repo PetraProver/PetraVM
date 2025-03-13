@@ -1,7 +1,7 @@
 use binius_field::BinaryField32b;
 
 use super::Event;
-use crate::emulator::{Interpreter, InterpreterChannels, InterpreterTables};
+use crate::emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables};
 
 /// Event for RET.
 ///
@@ -20,23 +20,29 @@ pub struct RetEvent {
 }
 
 impl RetEvent {
-    pub fn new(interpreter: &Interpreter) -> Self {
+    pub fn new(
+        interpreter: &Interpreter,
+        field_pc: BinaryField32b,
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        Self {
-            pc: interpreter.pc,
+        Ok(Self {
+            pc: field_pc,
             fp,
             timestamp: interpreter.timestamp,
-            fp_0_val: interpreter.vrom.get_u32(fp),
-            fp_1_val: interpreter.vrom.get_u32(fp + 4),
-        }
+            fp_0_val: interpreter.get_vrom_u32(fp)?,
+            fp_1_val: interpreter.get_vrom_u32(fp + 1)?,
+        })
     }
 
-    pub fn generate_event(interpreter: &mut Interpreter) -> RetEvent {
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        field_pc: BinaryField32b,
+    ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
 
-        let ret_event = RetEvent::new(interpreter);
-        interpreter.jump_to(BinaryField32b::new(interpreter.vrom.get_u32(fp)));
-        interpreter.fp = interpreter.vrom.get_u32(fp + 4);
+        let ret_event = RetEvent::new(interpreter, field_pc);
+        interpreter.jump_to(BinaryField32b::new(interpreter.get_vrom_u32(fp)?));
+        interpreter.fp = interpreter.get_vrom_u32(fp + 1)?;
 
         ret_event
     }

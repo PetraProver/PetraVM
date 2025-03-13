@@ -1,44 +1,44 @@
 fib:
     ;; Slot 0: Return PC
-    ;; Slot 4: Return FP
-    ;; Slot 8: Arg: n
-    ;; Slot 12: Return value
-    ;; Slot 16: ND Local: Next FP
+    ;; Slot 1: Return FP
+    ;; Slot 2: Arg: n
+    ;; Slot 3: Return value
+    ;; Slot 4: ND Local: Next FP
 
-    MVI.H @16[8], #0      ;; Move 0 into a argument
-    MVI.H @16[12], #1     ;; Move 1 into b argument
-    MVV.W @16[16], @8     ;; Move n into n argument
-    MVV.W @16[20], @12    ;; Move return value
-    TAILI fib_helper, @16 ;; Tail call to fib_helper (Slot 16 is the next FP)
+    MVI.H @4[2], #0      ;; Move 0 into a argument
+    MVI.H @4[3], #1      ;; Move 1 into b argument
+    MVV.W @4[4], @2      ;; Move n into n argument
+    MVV.W @4[5], @3      ;; Move return value
+    TAILI fib_helper, @4 ;; Tail call to fib_helper (Slot 4 is the next FP)
 
 fib_helper:
     ;; Slot @0: Return PC
-    ;; Slot @4: Return FP
-    ;; Slot @8: Arg: a
-    ;; Slot @12: Arg: b
-    ;; Slot @16: Arg: n
-    ;; Slot @20: Return value
-    ;; Slot @24: ND Local: Next FP
-    ;; Slot @28: Local: a + b
-    ;; Slot @32: Local: n - 1
-    ;; Slot @36: Local: n == 0G
-    ;; Slot @40: Local: 0G constant
+    ;; Slot @1: Return FP
+    ;; Slot @2: Arg: a
+    ;; Slot @3: Arg: b
+    ;; Slot @4: Arg: n
+    ;; Slot @5: Return value
+    ;; Slot @6: ND Local: Next FP
+    ;; Slot @7: Local: a + b
+    ;; Slot @8: Local: n - 1
+    ;; Slot @9: Local: n == 0G
+    ;; Slot @10: Local: 0G constant
 
-    ;; Branch to recursion label if value in slot 16 is not equal to G^0
-    LDI.W @40, #0G
-    XOR @36, @16, @40     ;; XOR will put 0 in slot 36 if n == 0G
-    BNZ case_recurse, @36 ;; branch if n != 0G
+    ;; Branch to recursion label if value in slot 4 is not equal to G^0
+    LDI.W @10, #0G
+    XOR @9, @4, @10     ;; XOR will put 0 in slot 9 if n == 0G
+    BNZ case_recurse, @9 ;; branch if n != 0G
 
     ;; Constraint return value equals a
     ;; Idea: assembly CPY is alias for XORI with 0 immediate
-    XORI @20, @8, #0
+    XORI @5, @2, #0
     RET
 case_recurse:
-    ADD @28, @8, @12
-    B32_MULI @32, @16, #-1G ;; TODO: B32_MULI is deprecated and will be removed
+    ADD @7, @2, @3
+    B32_MULI @8, @4, #-1G ;; TODO: B32_MULI is deprecated and will be removed
 
-    MVV.W @24[8], @12       ;; Move b into a argument
-    MVV.W @24[12], @28      ;; Move a + b into b argument
-    MVV.W @24[16], @32      ;; Move n - 1 into n argument
-    MVV.W @24[20], @20      ;; Move return value
-    TAILI fib_helper, @24
+    MVV.W @6[2], @3       ;; Move b into a argument
+    MVV.W @6[3], @7       ;; Move a + b into b argument
+    MVV.W @6[4], @8       ;; Move n - 1 into n argument
+    MVV.W @6[5], @5       ;; Move return value
+    TAILI fib_helper, @6

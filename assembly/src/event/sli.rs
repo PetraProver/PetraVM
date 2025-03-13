@@ -1,8 +1,9 @@
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterTables, G},
+    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
     event::Event,
+    ZCrayTrace,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,12 +61,14 @@ impl SliEvent {
 
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
         kind: ShiftKind,
-    ) -> SliEvent {
-        let src_val = interpreter.vrom.get_u32(interpreter.fp ^ src.val() as u32);
+        field_pc: BinaryField32b,
+    ) -> Result<Self, InterpreterError> {
+        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
             0
         } else {
@@ -77,13 +80,11 @@ impl SliEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter
-            .vrom
-            .set_u32(interpreter.fp ^ dst.val() as u32, new_val);
+        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
 
-        SliEvent::new(
-            pc,
+        Ok(SliEvent::new(
+            field_pc,
             interpreter.fp,
             timestamp,
             dst.val(),
@@ -92,7 +93,7 @@ impl SliEvent {
             src_val,
             imm.val(),
             kind,
-        )
+        ))
     }
 }
 
