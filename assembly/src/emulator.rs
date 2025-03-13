@@ -103,10 +103,10 @@ pub(crate) struct ValueRom {
     // HashMap used to set values and push MV events during a CALL procedure.
     // When a MV occurs with a value that isn't set within a CALL procedure, we
     // assume it is a return value. Then, we add (addr_next_frame,
-    // to_set_value) to `moves_to_set`, where `to_set_value` contains enough information to create
-    // a move event later. Whenever an address in the HashMap's keys is finally set, we populate
-    // the missing values and remove them from the HashMap.
-    to_set: HashMap<u32, ToSetValue>,
+    // to_set_value) to `moves_to_apply`, where `to_set_value` contains enough information to
+    // create a move event later. Whenever an address in the HashMap's keys is finally set, we
+    // populate the missing values and remove them from the HashMap.
+    to_set: HashMap<u32, Vec<ToSetValue>>,
 }
 
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is
@@ -175,22 +175,24 @@ impl ValueRom {
             self.set_u8(index + i, bytes[i as usize])?;
         }
 
-        if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            self.to_set.remove(&index)
-        {
-            self.set_u32(trace, parent, value);
-            let event_out = MVEventOutput::new(
-                parent,
-                opcode,
-                field_pc,
-                fp,
-                timestamp,
-                dst,
-                src,
-                offset,
-                value as u128,
-            );
-            event_out.push_mv_event(trace);
+        // if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
+        if let Some(to_set_vals) = self.to_set.remove(&index) {
+            for to_set_val in to_set_vals {
+                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
+                self.set_u32(trace, parent, value);
+                let event_out = MVEventOutput::new(
+                    parent,
+                    opcode,
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                    value as u128,
+                );
+                event_out.push_mv_event(trace);
+            }
         }
         Ok(())
     }
@@ -209,14 +211,15 @@ impl ValueRom {
             self.set_u8(index + i, bytes[i as usize])?;
         }
 
-        if let Some((parent, opcode, field_pc, fp, timestamp, dst, src, offset)) =
-            self.to_set.remove(&index)
-        {
-            self.set_u128(trace, parent, value)?;
-            let event_out = MVEventOutput::new(
-                parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
-            );
-            event_out.push_mv_event(trace);
+        if let Some(to_set_vals) = self.to_set.remove(&index) {
+            for to_set_val in to_set_vals {
+                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
+                self.set_u128(trace, parent, value)?;
+                let event_out = MVEventOutput::new(
+                    parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
+                );
+                event_out.push_mv_event(trace);
+            }
         }
         Ok(())
     }
@@ -294,15 +297,15 @@ impl ValueRom {
         }
     }
 
+    /// Inserts `to_set_val` to `to_set`. Once the value at `parent` is written,
+    /// we can then set all values associated to that same value, and
+    /// generate the associated move events.
     pub(crate) fn insert_to_set(
         &mut self,
-        dst: u32,
+        parent: u32,
         to_set_val: ToSetValue,
     ) -> Result<(), InterpreterError> {
-        // TODO: change this so we can copy multiple times one value.
-        if self.to_set.insert(dst, to_set_val).is_some() {
-            return Err(InterpreterError::VromRewrite(dst));
-        };
+        self.to_set.entry(parent).or_default().push(to_set_val);
 
         Ok(())
     }

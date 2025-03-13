@@ -198,6 +198,10 @@ impl MVVWEvent {
                 offset: offset.val(),
             }))
         } else {
+            // `src_val` is not yet known, which is means it's a return value from the
+            // function called. So we insert `dst_addr ^ offset` to the addresses to track
+            // in `to_set`. As soon as it is set in the called funciton, we can also set the
+            // value at `src_addr` and generate the move event.
             interpreter.vrom.insert_to_set(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
