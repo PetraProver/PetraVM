@@ -1,8 +1,8 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     fire_non_jump_event,
     opcodes::Opcode,
     ZCrayTrace,

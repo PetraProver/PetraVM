@@ -3,8 +3,8 @@ use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use super::BinaryOperation;
 use crate::{
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, ZCrayTrace,
 };
