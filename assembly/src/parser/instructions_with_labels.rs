@@ -81,6 +81,7 @@ pub enum InstructionKind {
         imm: Immediate,
     },
     Ret,
+    // TODO: Add more instructions as needed
 }
 
 /// A wrapper that holds an instruction along with its call-hint flag.
