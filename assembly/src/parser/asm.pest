@@ -54,7 +54,7 @@ TAILV_instr    = { "TAILV" }
 
 // Note: This does not refer to BinaryFields but instructions that takes in three operands inlcuding destination
 binary_non_imm_instrs = ${
-    XOR_instr
+    SLTU_instr
   | B32_ADD_instr
   | B32_MUL_instr
   | B128_ADD_instr
@@ -62,7 +62,7 @@ binary_non_imm_instrs = ${
   | ADD_instr
   | SUB_instr
   | SLT_instr
-  | SLTU_instr
+  | XOR_instr
   | AND_instr
   | OR_instr
   | SLL_instr

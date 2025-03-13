@@ -19,8 +19,10 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{TailVEvent, TailiEvent},
-        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        call::{CalliEvent, TailVEvent, TailiEvent},
+        integer_ops::{
+            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, SltuEvent, SubEvent,
+        },
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
@@ -297,6 +299,7 @@ impl ValueRom {
         dst: u32,
         to_set_val: ToSetValue,
     ) -> Result<(), InterpreterError> {
+        // TODO: change this so we can copy multiple times one value.
         if self.to_set.insert(dst, to_set_val).is_some() {
             return Err(InterpreterError::VromRewrite(dst));
         };
@@ -388,7 +391,12 @@ impl Interpreter {
 
     #[inline(always)]
     pub(crate) fn incr_pc(&mut self) {
-        self.pc += 1;
+        if self.pc == u32::MAX {
+            // We skip over 0, as it is inaccessible in the multiplicative group.
+            self.pc = 1;
+        } else {
+            self.pc += 1;
+        }
     }
 
     #[inline(always)]
@@ -533,6 +541,12 @@ impl Interpreter {
             Opcode::Add => {
                 self.generate_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::Sub => {
+                self.generate_sub(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sltu => {
+                self.generate_sltu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::Muli => {
                 self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
@@ -544,6 +558,9 @@ impl Interpreter {
             }
             Opcode::TailV => {
                 self.generate_tailv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Calli => {
+                self.generate_calli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
             Opcode::And => {
                 self.generate_and(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
@@ -717,6 +734,25 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_calli(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        next_fp: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let target = BinaryField32b::from_bases([target_low, target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let next_fp_val = self.allocate_new_frame(target)?;
+        let new_calli_event =
+            CalliEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
+        trace.calli.push(new_calli_event);
+
+        Ok(())
+    }
+
     fn generate_and(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -743,6 +779,36 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_andi_event = AndiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.andi.push(new_andi_event);
+
+        Ok(())
+    }
+
+    fn generate_sub(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sub_event = SubEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.sub.push(new_sub_event);
+
+        Ok(())
+    }
+
+    fn generate_sltu(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sltu_event = SltuEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.sltu.push(new_sltu_event);
 
         Ok(())
     }
@@ -1081,6 +1147,8 @@ pub(crate) struct ZCrayTrace {
     xori: Vec<XoriEvent>,
     and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
+    sub: Vec<SubEvent>,
+    sltu: Vec<SltuEvent>,
     shift: Vec<SliEvent>,
     add: Vec<AddEvent>,
     addi: Vec<AddiEvent>,
@@ -1089,6 +1157,7 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     tailv: Vec<TailVEvent>,
+    calli: Vec<CalliEvent>,
     ret: Vec<RetEvent>,
     mvih: Vec<MVIHEvent>,
     pub(crate) mvvw: Vec<MVVWEvent>,
@@ -1099,7 +1168,7 @@ pub(crate) struct ZCrayTrace {
     b128_add: Vec<B128AddEvent>,
     b128_mul: Vec<B128MulEvent>,
 
-    vrom: ValueRom,
+    pub(crate) vrom: ValueRom,
 }
 
 pub(crate) struct BoundaryValues {
@@ -1549,6 +1618,53 @@ mod tests {
                 cur_val = 3 * cur_val + 1;
             }
         }
+    }
+
+    #[test]
+    fn test_naive_div() {
+        let instructions = parse_program(include_str!("../../examples/div.asm")).unwrap();
+
+        // Sets the call procedure hints to true for the returned PROM (where
+        // instructions are given with the labels).
+        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
+        let indices_to_set_with_labels = vec![4, 5, 6, 7];
+        for idx in indices_to_set_with_labels {
+            is_call_procedure_hints_with_labels[idx] = true;
+        }
+        let (prom, labels, pc_field_to_int) =
+            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
+                .expect("Instructions were not formatted properly.");
+
+        let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
+        println!("frame sizes {:?}", frame_sizes);
+
+        let a = rand::random();
+        let b = rand::random();
+        let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, a, b]);
+
+        let mut pc = BinaryField32b::ONE;
+        let mut pc_field_to_int = HashMap::new();
+        for i in 0..prom.len() {
+            pc_field_to_int.insert(pc, i as u32 + 1);
+            pc *= G;
+        }
+        let (trace, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+            .expect("Trace generation should not fail.");
+
+        assert_eq!(
+            trace
+                .vrom
+                .get_u32(16)
+                .expect("Return value for quotient not set."),
+            a / b
+        );
+        assert_eq!(
+            trace
+                .vrom
+                .get_u32(20)
+                .expect("Return value for remainder not set."),
+            a % b
+        );
     }
 
     #[test]

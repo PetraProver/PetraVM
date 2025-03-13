@@ -27,12 +27,12 @@ pub enum Opcode {
     // Srai, // TODO
     // Slti, // TODO
     // Sltiu, // TODO
-    // Sub, // TODO
     // Slt, // TODO
-    // Sltu, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
+    Sub = 0x019,
+    Sltu = 0x20,
     // Sll, // TODO
     // Srl, // TODO
     // Sra, // TODO
@@ -49,10 +49,10 @@ pub enum Opcode {
     // Jump instructions
     // Jumpi, // TODO
     // JumpV, // TODO
-    // Calli, // TODO,
     // CallV, // TODO,
     Taili = 0x0c,
     TailV = 0x12,
+    Calli = 0x18,
     Ret = 0x0b,
 
     // Branch instructions

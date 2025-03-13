@@ -168,6 +168,12 @@ fn parse_line(
                                     arg: Slot::from_str(imm.as_str())?,
                                 });
                             }
+                            Rule::CALLI_instr => {
+                                instrs.push(InstructionsWithLabels::Calli {
+                                    label: dst.as_str().to_string(),
+                                    arg: Slot::from_str(imm.as_str())?,
+                                });
+                            }
                             Rule::BNZ_instr => {
                                 instrs.push(InstructionsWithLabels::Bnz {
                                     label: dst.as_str().to_string(),
@@ -217,6 +223,12 @@ fn parse_line(
                             }
                             Rule::ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Add { dst, src1, src2 });
+                            }
+                            Rule::SLTU_instr => {
+                                instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
+                            }
+                            Rule::SUB_instr => {
+                                instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
                             }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);

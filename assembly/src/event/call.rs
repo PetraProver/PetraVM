@@ -3,7 +3,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
-    ZCrayTrace,
+    ZCrayTrace, G,
 };
 
 /// Event for TAILI.
@@ -208,6 +208,99 @@ impl Event for TailVEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.offset as u32),
+            self.next_fp_val,
+            self.timestamp + 1,
+        ));
+    }
+}
+
+/// Event for CALLI.
+///
+/// Performs a function call to the target address given by an immediate.
+///
+/// Logic:
+///   1. [FP[next_fp] + 0] = PC + 1 (return address)
+///   2. [FP[next_fp] + 1] = FP (old frame pointer)
+///   3. FP = FP[next_fp]
+///   4. PC = target
+
+#[derive(Debug, Clone)]
+pub(crate) struct CalliEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    target: u32,
+    next_fp: u16,
+    next_fp_val: u32,
+}
+
+impl CalliEvent {
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        pc: BinaryField32b,
+        fp: u32,
+        timestamp: u32,
+        target: u32,
+        next_fp: u16,
+        next_fp_val: u32,
+    ) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            target,
+            next_fp,
+            next_fp_val,
+        }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        target: BinaryField32b,
+        next_fp: BinaryField16b,
+        next_fp_val: u32,
+        field_pc: BinaryField32b,
+    ) -> Result<Self, InterpreterError> {
+        interpreter
+            .vrom
+            .set_u32(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+
+        interpreter.handles_call_moves(trace)?;
+
+        let pc = interpreter.pc;
+        let fp = interpreter.fp;
+        let timestamp = interpreter.timestamp;
+
+        interpreter.fp = next_fp_val;
+        interpreter.jump_to(target);
+
+        let return_pc = if pc == u32::MAX {
+            1
+        } else {
+            (field_pc * G).val()
+        };
+        interpreter.vrom.set_u32(trace, next_fp_val, return_pc)?;
+        interpreter.vrom.set_u32(trace, next_fp_val + 4, fp)?;
+
+        Ok(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            target: target.val(),
+            next_fp: next_fp.val(),
+            next_fp_val,
+        })
+    }
+}
+
+impl Event for CalliEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels.state_channel.push((
+            BinaryField32b::new(self.target),
             self.next_fp_val,
             self.timestamp + 1,
         ));

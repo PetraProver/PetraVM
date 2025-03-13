@@ -36,6 +36,14 @@ pub enum InstructionsWithLabels {
         label: String,
         arg: Slot,
     },
+    Calli {
+        label: String,
+        arg: Slot,
+    },
+    Tailv {
+        offset: Slot,
+        arg: Slot,
+    },
     Ldi {
         dst: Slot,
         imm: Immediate,
@@ -63,6 +71,16 @@ pub enum InstructionsWithLabels {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
+    },
+    Sub {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Sltu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
     },
     AndI {
         dst: Slot,
@@ -128,6 +146,36 @@ pub fn get_prom_inst_from_inst_with_label(
         InstructionsWithLabels::Add { dst, src1, src2 } => {
             let instruction = [
                 Opcode::Add.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sub { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sub.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sltu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sltu.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
@@ -307,6 +355,47 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Calli { label, arg } => {
+            if let Some(target) = labels.get(label) {
+                let targets_16b =
+                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let instruction = [
+                    Opcode::Calli.get_field_elt(),
+                    targets_16b[0],
+                    targets_16b[1],
+                    arg.get_16bfield_val(),
+                ];
+
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    is_call_hint,
+                ));
+            } else {
+                return Err(format!(
+                    "Label in Taili instruction, {}, nonexistent.",
+                    label
+                ));
+            }
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Tailv { offset, arg } => {
+            let instruction = [
+                Opcode::TailV.get_field_elt(),
+                offset.get_16bfield_val(),
+                arg.get_16bfield_val(),
+                BinaryField16b::zero(),
+            ];
+
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::XorI { dst, src, imm } => {
             let instruction = [
                 Opcode::Xori.get_field_elt(),
@@ -398,7 +487,9 @@ pub fn get_frame_size_for_label(
     let mut cur_offset = 0;
     let mut opcode =
         Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
-    while opcode != Opcode::Taili && opcode != Opcode::TailV && opcode != Opcode::Ret {
+
+    let call_and_ret_opcodes = vec![Opcode::Taili, Opcode::TailV, Opcode::Calli, Opcode::Ret];
+    while !call_and_ret_opcodes.contains(&opcode) {
         match opcode {
             Opcode::Bnz => {
                 let [op, src, target_low, target_high] = instruction;
@@ -434,6 +525,8 @@ pub fn get_frame_size_for_label(
             }
             Opcode::Add
             | Opcode::And
+            | Opcode::Sub
+            | Opcode::Sltu
             | Opcode::Or
             | Opcode::Xor
             | Opcode::B32Mul
@@ -453,9 +546,10 @@ pub fn get_frame_size_for_label(
                 let [_, dst, _, _] = instruction;
                 cur_offset = max(dst.val(), cur_offset);
             }
-            Opcode::Ret | Opcode::Taili | Opcode::TailV => {
+            op if call_and_ret_opcodes.contains(&op) => {
                 unreachable!("This is explicitely skipped.")
             }
+            _ => panic!("Unknown opcode."),
         }
 
         cur_pc = incr_pc(cur_pc);
@@ -546,11 +640,17 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
             InstructionsWithLabels::Taili { label, arg } => write!(f, "TAILI {label} {arg}"),
+            InstructionsWithLabels::Calli { label, arg } => write!(f, "CALLI {label} {arg}"),
+            InstructionsWithLabels::Tailv { offset, arg } => write!(f, "TAILV {offset} {arg}"),
             InstructionsWithLabels::Ldi { dst, imm } => write!(f, "LDI {dst} {imm}"),
             InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
             InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
             InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
+            InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
+            InstructionsWithLabels::Sltu { dst, src1, src2 } => {
+                write!(f, "SLTU {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::AddI { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
             InstructionsWithLabels::AndI { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),
             InstructionsWithLabels::MulI { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),

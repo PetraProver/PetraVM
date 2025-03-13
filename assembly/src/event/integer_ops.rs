@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
 use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
@@ -143,7 +145,7 @@ pub(crate) struct AddEvent {
 
 impl BinaryOperation for AddEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val() + val2.val())
+        BinaryField32b::new(val1.val().wrapping_add(val2.val()))
     }
 }
 
@@ -280,3 +282,63 @@ impl Event for MuliEvent {
         fire_non_jump_event!(self, channels);
     }
 }
+
+/// Event for SLTU.
+///
+/// Performs an SLTU between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] < FP[src2]
+#[derive(Debug, Clone)]
+pub(crate) struct SltuEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u32,
+    src1: u16,
+    pub(crate) src1_val: u32,
+    src2: u16,
+    pub(crate) src2_val: u32,
+}
+
+impl BinaryOperation for SltuEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        // LT is checked using a SUB gadget.
+        BinaryField32b::new((val1.val() < val2.val()) as u32)
+    }
+}
+
+// Note: The addition is checked thanks to the ADD32 table.
+impl_binary_operation!(SltuEvent);
+impl_event_for_binary_operation!(SltuEvent);
+
+// Event for SUB.
+///
+/// Performs a SUB between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] - FP[src2]
+#[derive(Debug, Clone)]
+pub(crate) struct SubEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u32,
+    src1: u16,
+    pub(crate) src1_val: u32,
+    src2: u16,
+    pub(crate) src2_val: u32,
+}
+
+impl BinaryOperation for SubEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        // SUB is checked using a specific gadget, similarly to ADD.
+        BinaryField32b::new(val1.val().wrapping_sub(val2.val()))
+    }
+}
+
+// Note: The addition is checked thanks to the ADD32 table.
+impl_binary_operation!(SubEvent);
+impl_event_for_binary_operation!(SubEvent);

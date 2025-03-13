@@ -199,7 +199,7 @@ impl MVVWEvent {
             }))
         } else {
             interpreter.vrom.insert_to_set(
-                dst_addr,
+                dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
@@ -342,7 +342,7 @@ impl MVVLEvent {
             }))
         } else {
             interpreter.vrom.insert_to_set(
-                dst_addr,
+                dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
