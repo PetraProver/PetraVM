@@ -117,7 +117,7 @@ pub(crate) struct InterpreterInstruction {
 }
 
 impl InterpreterInstruction {
-    pub(crate) fn new(
+    pub(crate) const fn new(
         instruction: Instruction,
         field_pc: BinaryField32b,
         is_call_procedure: bool,
@@ -261,7 +261,7 @@ impl Interpreter {
     }
 
     #[inline(always)]
-    pub(crate) fn is_halted(&self) -> bool {
+    pub(crate) const fn is_halted(&self) -> bool {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 

@@ -50,7 +50,7 @@ pub(crate) struct MVEventOutput {
 
 impl MVEventOutput {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub(crate) const fn new(
         parent: u32, // parent addr
         opcode: Opcode,
         field_pc: BinaryField32b, // field PC
