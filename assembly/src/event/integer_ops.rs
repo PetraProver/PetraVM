@@ -2,10 +2,10 @@ pub mod model {
     use binius_field::{BinaryField16b, BinaryField32b};
 
     use crate::{
-        emulator::{Interpreter, InterpreterChannels, InterpreterTables},
+        emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
         event::{BinaryOperation, Event},
         fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
-        impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+        impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, ZCrayTrace,
     };
     /// Event for the Add64 gadget.
     #[derive(Debug, Clone)]
@@ -100,7 +100,7 @@ pub mod model {
     /// Logic:
     ///   1. FP[dst] = FP[src] + imm
     #[derive(Debug, Clone)]
-    pub(crate) struct AddiEvent {
+    pub struct AddiEvent {
         pub(crate) pc: BinaryField32b,
         pub(crate) fp: u32,
         pub(crate) timestamp: u32,
@@ -123,22 +123,24 @@ pub mod model {
     impl AddiEvent {
         pub fn generate_event(
             interpreter: &mut Interpreter,
+            trace: &mut ZCrayTrace,
             dst: BinaryField16b,
             src: BinaryField16b,
             imm: BinaryField16b,
-        ) -> Self {
+            field_pc: BinaryField32b,
+        ) -> Result<Self, InterpreterError> {
             let fp = interpreter.fp;
-            let src_val = interpreter.get_u32(fp ^ src.val() as u32);
+            let src_val = interpreter.get_vrom_u32(fp ^ src.val() as u32)?;
             // The following addition is checked thanks to the ADD32 table.
             let dst_val = src_val + imm.val() as u32;
-            interpreter.set_vrom_u32(fp ^ dst.val() as u32, dst_val);
+            interpreter.set_vrom(trace, fp ^ dst.val() as u32, dst_val)?;
 
             let pc = interpreter.pc;
             let timestamp = interpreter.timestamp;
             interpreter.incr_pc();
 
-            Self {
-                pc,
+            Ok(Self {
+                pc: field_pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -146,7 +148,7 @@ pub mod model {
                 src: src.val(),
                 src_val,
                 imm: imm.val(),
-            }
+            })
         }
     }
 
@@ -234,17 +236,19 @@ pub mod model {
 
         pub fn generate_event(
             interpreter: &mut Interpreter,
+            trace: &mut ZCrayTrace,
             dst: BinaryField16b,
             src: BinaryField16b,
             imm: BinaryField16b,
-        ) -> Self {
+            field_pc: BinaryField32b,
+        ) -> Result<Self, InterpreterError> {
             let fp = interpreter.fp;
-            let src_val = interpreter.get_vrom_u32(fp ^ src.val() as u32);
+            let src_val = interpreter.get_vrom_u32(fp ^ src.val() as u32)?;
 
             let imm_val = imm.val();
             let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
-            interpreter.set_vrom_u32(fp ^ dst.val() as u32, dst_val);
+            interpreter.set_vrom(trace, fp ^ dst.val() as u32, dst_val);
 
             let (aux, sum0, sum1) =
                 schoolbook_multiplication_intermediate_sums(src_val, imm_val, dst_val);
@@ -252,8 +256,8 @@ pub mod model {
             let pc = interpreter.pc;
             let timestamp = interpreter.timestamp;
             interpreter.incr_pc();
-            Self {
-                pc,
+            Ok(Self {
+                pc: field_pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -264,7 +268,7 @@ pub mod model {
                 aux,
                 sum0,
                 sum1,
-            }
+            })
         }
     }
 
@@ -307,7 +311,7 @@ pub mod model {
 }
 
 pub mod arithmetization {
-    use std::time;
+    use std::{collections::HashMap, time};
 
     use binius_core::{
         constraint_system::channel::{Boundary, ChannelId, FlushDirection},
@@ -324,14 +328,22 @@ pub mod arithmetization {
     };
     use binius_m3::{
         builder::{
-            upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId, TableWitnessIndexSegment, B1, B128, B16, B32, B64
+            upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId,
+            TableWitnessIndexSegment, B1, B128, B16, B32, B64,
         },
         gadgets::u32::{U32Add, U32AddFlags},
     };
+    use bumpalo::Bump;
     use bytemuck::Pod;
 
     use super::model::{self, AddEvent};
-    use crate::{emulator::InterpreterChannels, opcodes::Opcode};
+    use crate::{
+        code_to_prom,
+        emulator::{BoundaryValues, InterpreterChannels},
+        emulator_arithmetization::arithmetization::ZCrayTable,
+        opcodes::Opcode,
+        ValueRom, ZCrayTrace,
+    };
 
     pub struct AddTable {
         id: TableId,
@@ -360,13 +372,11 @@ pub mod arithmetization {
         ) -> Self {
             let mut table = cs.add_table("axdd");
 
-            
-
             let pc = table.add_committed("pc");
             let fp = table.add_committed("fp");
             let timestamp = table.add_committed("timestamp");
             let opcode = table.add_committed("opcode"); //TODO: opcode must be transparent
-            // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
+                                                        // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
             table.assert_zero("opcode_is_correct", opcode - B16::new(Opcode::Add as u16));
 
             let src1 = table.add_committed("src1");
@@ -389,15 +399,44 @@ pub mod arithmetization {
             let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
             // Reado opcode
-            table.push(prom_channel, [upcast_col(pc), upcast_col(opcode), upcast_col(dst), upcast_col(src1), upcast_col(src2)]);
+            table.push(
+                prom_channel,
+                [
+                    upcast_col(pc),
+                    upcast_col(opcode),
+                    upcast_col(dst),
+                    upcast_col(src1),
+                    upcast_col(src2),
+                ],
+            );
 
             // Read src1
-            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(src1), upcast_col(src1_val_packed)]);
+            table.push(
+                vrom_channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(src1),
+                    upcast_col(src1_val_packed),
+                ],
+            );
             // Read src2
-            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(src2), upcast_col(src2_val_packed)]);
+            table.push(
+                vrom_channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(src2),
+                    upcast_col(src2_val_packed),
+                ],
+            );
             // Write dst
-            table.push(vrom_channel, [upcast_col(timestamp), upcast_col(dst), upcast_col(dst_val_packed)]);
-
+            table.push(
+                vrom_channel,
+                [
+                    upcast_col(timestamp),
+                    upcast_col(dst),
+                    upcast_col(dst_val_packed),
+                ],
+            );
 
             // Flushing rules for the state channel
             table.push(
@@ -483,7 +522,7 @@ pub mod arithmetization {
         }
     }
 
-    struct AddiTable {
+    pub struct AddiTable {
         id: TableId,
         pc: Col<B32>,
         fp: Col<B32>,
@@ -499,10 +538,7 @@ pub mod arithmetization {
     }
 
     impl AddiTable {
-        pub fn new(
-            cs: &mut ConstraintSystem,
-            state_channel: ChannelId,
-        ) -> Self {
+        pub fn new(cs: &mut ConstraintSystem, state_channel: ChannelId) -> Self {
             let mut table = cs.add_table("addi");
 
             let pc = table.add_committed("pc");
@@ -512,7 +548,7 @@ pub mod arithmetization {
             let src = table.add_committed("src1");
             let src_val = table.add_committed("src1_val");
             let src_val_packed = table.add_packed("src_val_packed", src_val);
-            let imm =   table.add_committed("imm");
+            let imm = table.add_committed("imm");
             let imm_packed = table.add_packed("imm_packed", imm);
 
             let dst = table.add_committed("dst");
@@ -641,10 +677,12 @@ pub mod arithmetization {
     //         let sum1 = table.add_committed("sum1");
 
     //         let next_pc =
-    //             table.add_linear_combination("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
+    //             table.add_linear_combination("next_pc", pc *
+    // B32::MULTIPLICATIVE_GENERATOR);
 
-    //         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
-    //         let next_timestamp = table.add_committed("next_timestamp");
+    //         // TODO: Next timestamp should be either timestamp + 1 or
+    // timestamp*G.         let next_timestamp =
+    // table.add_committed("next_timestamp");
 
     //         table.push(
     //             state_channel,
@@ -667,7 +705,8 @@ pub mod arithmetization {
     //                 upcast_col(imm),
     //             ],
     //         );
-    //         table.pull(add32_channel, [upcast_col(timestamp), upcast_col(dst_val)]);
+    //         table.pull(add32_channel, [upcast_col(timestamp),
+    // upcast_col(dst_val)]);
 
     //         Self {
     //             id: table.id(),
@@ -689,47 +728,60 @@ pub mod arithmetization {
     // }
 
     #[test]
-	fn test_addi() {
-		let mut cs = ConstraintSystem::new();
-		let state_channel = cs.add_channel("state_channel");
-        let prom_channel = cs.add_channel("prom_channel");
-        let vrom_channel = cs.add_channel("vrom_channel");
-		let fibonacci_table = FibonacciTable::new(&mut cs, fibonacci_pairs);
-		let trace = FibonacciTrace::generate((0, 1), 40);
-		let statement = Statement {
-			boundaries: vec![
-				Boundary {
-					values: vec![B128::new(0), B128::new(1)],
-					channel_id: fibonacci_pairs,
-					direction: FlushDirection::Push,
-					multiplicity: 1,
-				},
-				Boundary {
-					values: vec![B128::new(165580141), B128::new(267914296)],
-					channel_id: fibonacci_pairs,
-					direction: FlushDirection::Pull,
-					multiplicity: 1,
-				},
-			],
-			table_sizes: vec![trace.rows.len()],
-		};
-		let allocator = Bump::new();
-		let mut witness = cs
-			.build_witness::<OptimalUnderlier128b>(&allocator, &statement)
-			.unwrap();
+    fn test_addi() {
+        let mut cs = ConstraintSystem::new();
+        let zcray_table = ZCrayTable::new(&mut cs);
 
-		witness
-			.fill_table_sequential(&fibonacci_table, &trace.rows)
-			.unwrap();
+        let zero = B16::zero();
+        let code = vec![[Opcode::Add.get_field_elt(), zero, zero, zero]];
+        let prom = code_to_prom(&code, &[false]);
+        let vrom = ValueRom::new();
+        let mut frames = HashMap::new();
+        frames.insert(B32::ONE, 12);
 
-		let compiled_cs = cs.compile(&statement).unwrap();
-		let witness = witness.into_multilinear_extension_index::<B128>(&statement);
+        let (
+            trace,
+            BoundaryValues {
+                final_pc,
+                final_fp,
+                timestamp: final_timestamp,
+            },
+        ) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
+        let statement = Statement {
+            boundaries: vec![
+                Boundary {
+                    values: vec![B128::new(0), B128::new(0), B128::new(0)], /* inital_pc = 0,
+                                                                             * inital_fp = 0,
+                                                                             * initial_timestamp
+                                                                             * = 0 */
+                    channel_id: zcray_table.state_channel,
+                    direction: FlushDirection::Push,
+                    multiplicity: 1,
+                },
+                Boundary {
+                    values: vec![B128::new(final_pc.val() as u128), B128::new(final_fp as u128), B128::new(final_timestamp as u128)],
+                    channel_id: zcray_table.state_channel,
+                    direction: FlushDirection::Pull,
+                    multiplicity: 1,
+                },
+            ],
+            table_sizes: vec![trace.add.len()], // TODO: What should be here?
+        };
+        let allocator = Bump::new();
+        let mut witness = cs
+            .build_witness::<OptimalUnderlier128b>(&allocator, &statement)
+            .unwrap();
 
-		binius_core::constraint_system::validate::validate_witness(
-			&compiled_cs,
-			&statement.boundaries,
-			&witness,
-		)
-		.unwrap();
-	}
+        zcray_table.populate(trace, &mut witness);
+
+        let compiled_cs = cs.compile(&statement).unwrap();
+        let witness = witness.into_multilinear_extension_index(&statement);
+
+        binius_core::constraint_system::validate::validate_witness(
+            &compiled_cs,
+            &statement.boundaries,
+            &witness,
+        )
+        .unwrap();
+    }
 }

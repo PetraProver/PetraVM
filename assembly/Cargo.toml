@@ -18,6 +18,7 @@ binius_m3.workspace = true
 binius_core.workspace = true
 bytemuck.workspace = true
 anyhow.workspace = true
+bumpalo.workspace = true
 
 [dev-dependencies]
 rand = "0.8"

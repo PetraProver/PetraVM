@@ -20,6 +20,7 @@ pub(crate) mod integer_ops;
 pub(crate) mod mv;
 pub(crate) mod ret;
 pub(crate) mod sli;
+pub(crate) mod cpu;
 
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {

@@ -5,6 +5,7 @@
 // TODO: Add doc
 
 mod emulator;
+mod emulator_arithmetization;
 mod event;
 mod instruction_args;
 mod instructions_with_labels;

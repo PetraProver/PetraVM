@@ -13,6 +13,7 @@ bytemuck = { version = "1.18.0", features = [
     "min_const_generics",
     "must_cast",
 ] }
+bumpalo = { version = "3.16.0", features = ["collections"] }
 binius_field = {path = "../binius/crates/field"}
 binius_utils = {path = "../binius/crates/utils"}
 binius_m3 = {path = "../binius/crates/m3"}

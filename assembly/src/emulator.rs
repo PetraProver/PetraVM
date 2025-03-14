@@ -2,7 +2,7 @@
 //! Instruction Memory (PROM). It processes events and updates the machine state
 //! accordingly.
 
-use std::{array::from_fn, collections::HashMap, fmt::Debug, hash::Hash};
+use std::{array::from_fn, collections::{binary_heap::Iter, HashMap}, fmt::Debug, hash::Hash};
 
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{
@@ -21,7 +21,7 @@ use crate::{
         },
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
-        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        integer_ops::model::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
@@ -397,7 +397,7 @@ impl Interpreter {
         target_low: BinaryField16b,
         target_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let target = (BinaryField32b::from_bases(&[target_low, target_high]))
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
         let cond_val = self.get_vrom_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
@@ -511,7 +511,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let target = BinaryField32b::from_bases(&[target_low, target_high])
+        let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let next_fp_val = self.allocate_new_frame(target)?;
         let new_taili_event =
@@ -651,7 +651,7 @@ impl Interpreter {
         {
             return Err(InterpreterError::BadPc);
         }
-        let imm = BinaryField32b::from_bases(&[imm_low, imm_high])
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.b32_muli.push(new_b32muli_event);
@@ -701,8 +701,8 @@ impl Interpreter {
         let new_add_event = AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            new_add_event.src1_val,
-            new_add_event.src2_val,
+            BinaryField32b::new(new_add_event.src1_val),
+            BinaryField32b::new(new_add_event.src2_val),
         ));
         trace.add.push(new_add_event);
 
@@ -721,8 +721,8 @@ impl Interpreter {
         let new_addi_event = AddiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.add32.push(Add32Event::generate_event(
             self,
-            new_addi_event.src_val,
-            imm.val() as u32,
+            BinaryField32b::new(new_addi_event.src_val),
+            imm.into(),
         ));
         trace.addi.push(new_addi_event);
 
@@ -792,7 +792,7 @@ impl Interpreter {
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let imm = BinaryField32b::from_bases(&[imm_low, imm_high])
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let new_ldi_event = LDIEvent::generate_event(self, trace, dst, imm, field_pc)?;
         trace.ldi.push(new_ldi_event);
@@ -1003,7 +1003,7 @@ pub(crate) struct ZCrayTrace {
     and: Vec<AndEvent>,
     andi: Vec<AndiEvent>,
     shift: Vec<SliEvent>,
-    add: Vec<AddEvent>,
+    pub(crate) add: Vec<AddEvent>,
     addi: Vec<AddiEvent>,
     add32: Vec<Add32Event>,
     add64: Vec<Add64Event>,
@@ -1024,9 +1024,9 @@ pub(crate) struct ZCrayTrace {
 }
 
 pub(crate) struct BoundaryValues {
-    final_pc: BinaryField32b,
-    final_fp: u32,
-    timestamp: u32,
+    pub(crate) final_pc: BinaryField32b,
+    pub(crate) final_fp: u32,
+    pub(crate) timestamp: u32,
 }
 
 /// Convenience macro to `fire` all events logged.
