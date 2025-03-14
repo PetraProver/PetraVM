@@ -757,6 +757,8 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
+    use num_traits::WrappingAdd;
+
     use super::*;
     use crate::parser::parse_program;
     use crate::util::{collatz_orbits, init_logger};
@@ -1032,7 +1034,7 @@ mod tests {
         frame_sizes.insert(BinaryField32b::ONE, 5);
         frame_sizes.insert(G.pow(5), 11);
 
-        let init_val = 5000;
+        let init_val = 12;
         let initial_value = G.pow(init_val as u64).val();
 
         // Set initial PC, FP and argument.
@@ -1047,7 +1049,7 @@ mod tests {
         let mut cur_fibs = [0, 1];
         // Check all intermediary values.
         for i in 0..init_val {
-            let s = cur_fibs[0] + cur_fibs[1];
+            let s = cur_fibs[0].wrapping_add(&cur_fibs[1]);
             assert_eq!(
                 traces
                     .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)

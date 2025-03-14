@@ -100,7 +100,7 @@ impl AddiEvent {
         let fp = interpreter.fp;
         let src_val = trace.get_vrom_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src_val + imm.val() as u32;
+        let dst_val = src_val.wrapping_add(imm.val() as u32);
         trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
@@ -141,7 +141,7 @@ pub(crate) struct AddEvent {
 
 impl BinaryOperation for AddEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val() + val2.val())
+        BinaryField32b::new(val1.val().wrapping_add(val2.val()))
     }
 }
 
