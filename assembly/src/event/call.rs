@@ -59,9 +59,9 @@ impl TailiEvent {
         next_fp_val: u32,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 1)?;
-        interpreter.set_vrom_u32(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
+        trace.set_vrom_u32(interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
 
         interpreter.handles_call_moves(trace)?;
 
@@ -72,8 +72,8 @@ impl TailiEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(target);
 
-        interpreter.set_vrom_u32(trace, next_fp_val, return_addr)?;
-        interpreter.set_vrom_u32(trace, next_fp_val ^ 1, old_fp_val)?;
+        trace.set_vrom_u32(next_fp_val, return_addr)?;
+        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,
@@ -156,15 +156,15 @@ impl TailVEvent {
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 4)?;
+        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 4)?;
 
         let next_fp_addr = interpreter.fp ^ offset.val() as u32;
-        let target = interpreter.get_vrom_u32(next_fp_addr)?;
+        let target = trace.get_vrom_u32(next_fp_addr)?;
 
         // We allocate a frame for the call.
-        let next_fp_val = interpreter.allocate_new_frame(target.into())?;
-        interpreter.set_vrom_u32(trace, next_fp_addr, next_fp_val)?;
+        let next_fp_val = interpreter.allocate_new_frame(trace, target.into())?;
+        trace.set_vrom_u32(next_fp_addr, next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
@@ -178,8 +178,8 @@ impl TailVEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(BinaryField32b::new(interpreter.fp ^ offset.val() as u32));
 
-        interpreter.set_vrom_u32(trace, next_fp_val, return_addr)?;
-        interpreter.set_vrom_u32(trace, next_fp_val ^ 1, old_fp_val)?;
+        trace.set_vrom_u32(next_fp_val, return_addr)?;
+        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,

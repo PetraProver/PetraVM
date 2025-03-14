@@ -25,10 +25,10 @@ use crate::{
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::StateChannel,
+    memory::{Memory, MemoryError},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    vrom::ValueRom,
-    ZCrayTrace,
+    ProgramRom, ValueRom, ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -56,8 +56,6 @@ pub(crate) struct Interpreter {
     pub(crate) pc: u32,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
-    pub(crate) prom: ProgramRom,
-    pub(crate) vrom: ValueRom,
     frames: LabelsFrameSizes,
     /// Before a CALL, there are a few move operations used to populate the next
     /// frame. But the next frame pointer is not necessarily known at this
@@ -70,10 +68,6 @@ pub(crate) struct Interpreter {
     // and their associated integer PC.
     pc_field_to_int: HashMap<BinaryField32b, u32>,
 }
-
-/// The Program ROM, or Instruction Memory, is an immutable memory where code is
-/// loaded. It maps every PC to a specific instruction to execute.
-pub type ProgramRom = Vec<InterpreterInstruction>;
 
 /// An `Instruction` is composed of an opcode and up to three 16-bit arguments
 /// to be used by this operation.
@@ -110,18 +104,21 @@ pub(crate) enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
-    VromRewrite(u32),
-    VromMisaligned(u8, u32),
-    VromMissingValue(u32),
+    MemoryError(MemoryError),
     Exception(InterpreterException),
+}
+
+impl From<MemoryError> for InterpreterError {
+    fn from(err: MemoryError) -> Self {
+        InterpreterError::MemoryError(err)
+    }
 }
 
 #[derive(Debug)]
 pub(crate) enum InterpreterException {}
 
 impl Interpreter {
-    pub(crate) fn new(
-        prom: ProgramRom,
+    pub(crate) const fn new(
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
     ) -> Self {
@@ -129,26 +126,6 @@ impl Interpreter {
             pc: 1,
             fp: 0,
             timestamp: 0,
-            prom,
-            vrom: ValueRom::default(),
-            frames,
-            pc_field_to_int,
-            moves_to_apply: vec![],
-        }
-    }
-
-    pub(crate) fn new_with_vrom(
-        prom: ProgramRom,
-        vrom: ValueRom,
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Self {
-        Self {
-            pc: 1,
-            fp: 0,
-            timestamp: 0,
-            prom,
-            vrom,
             frames,
             pc_field_to_int,
             moves_to_apply: vec![],
@@ -156,7 +133,7 @@ impl Interpreter {
     }
 
     #[inline(always)]
-    pub(crate) fn incr_pc(&mut self) {
+    pub(crate) const fn incr_pc(&mut self) {
         if self.pc == u32::MAX {
             // Skip over 0, as it is inaccessible in the multiplicative group.
             self.pc = 1
@@ -175,36 +152,6 @@ impl Interpreter {
                 .get(&target)
                 .expect("This target should have been parsed.");
         }
-    }
-
-    #[inline(always)]
-    pub(crate) fn set_vrom_u32(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        index: u32,
-        value: u32,
-    ) -> Result<(), InterpreterError> {
-        self.vrom.set_u32(trace, index, value)
-    }
-
-    #[inline(always)]
-    pub(crate) fn set_vrom_u128(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        index: u32,
-        value: u128,
-    ) -> Result<(), InterpreterError> {
-        self.vrom.set_u128(trace, index, value)
-    }
-
-    #[inline(always)]
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, InterpreterError> {
-        self.vrom.get_u32(index)
-    }
-
-    #[inline(always)]
-    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, InterpreterError> {
-        self.vrom.get_u128(index)
     }
 
     /// This method should only be called once the frame pointer has been
@@ -273,12 +220,12 @@ impl Interpreter {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 
-    pub fn run(&mut self) -> Result<ZCrayTrace, InterpreterError> {
-        let mut trace = ZCrayTrace::default();
+    pub fn run(&mut self, memory: Memory) -> Result<ZCrayTrace, InterpreterError> {
+        let mut trace = ZCrayTrace::new(memory);
 
-        let field_pc = self.prom[self.pc as usize - 1].field_pc;
+        let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
-        self.allocate_new_frame(field_pc);
+        self.allocate_new_frame(&mut trace, field_pc);
         loop {
             match self.step(&mut trace) {
                 Ok(_) => {}
@@ -298,10 +245,10 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
-        if self.pc as usize - 1 > self.prom.len() {
+        if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let instruction = &self.prom[self.pc as usize - 1];
+        let instruction = &trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction.instruction;
         let field_pc = instruction.field_pc;
         let is_call_procedure = instruction.is_call_procedure;
@@ -394,12 +341,12 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = self.vrom.get_u32(self.fp ^ cond.val() as u32)?;
+        let cond_val = trace.get_vrom_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(self, cond, target, field_pc)?;
+            let new_bnz_event = BnzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, cond, target, field_pc)?;
+            let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bz.push(new_bz_event);
         }
 
@@ -445,7 +392,7 @@ impl Interpreter {
         _: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate_event(self, field_pc)?;
+        let new_ret_event = RetEvent::generate_event(self, trace, field_pc)?;
         trace.ret.push(new_ret_event);
 
         Ok(())
@@ -508,7 +455,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = self.allocate_new_frame(target)?;
+        let next_fp_val = self.allocate_new_frame(trace, target)?;
         let new_taili_event =
             TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
         trace.taili.push(new_taili_event);
@@ -635,10 +582,10 @@ impl Interpreter {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        if self.pc as usize > self.prom.len() {
+        if self.pc as usize > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let [second_opcode, imm_high, third, fourth] = self.prom[self.pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
 
         if second_opcode.val() != Opcode::B32Muli.into()
             || third != BinaryField16b::ZERO
@@ -796,15 +743,15 @@ impl Interpreter {
     }
 
     pub(crate) fn allocate_new_frame(
-        &mut self,
+        &self,
+        trace: &mut ZCrayTrace,
         target: BinaryField32b,
-        // trace: &mut ZCrayTrace,
     ) -> Result<u32, InterpreterError> {
         let frame_size = self
             .frames
             .get(&target)
             .ok_or(InterpreterError::InvalidInput)?;
-        Ok(self.vrom.allocate_new_frame(*frame_size as u32))
+        Ok(trace.vrom_mut().allocate_new_frame(*frame_size as u32))
     }
 }
 
@@ -836,12 +783,13 @@ mod tests {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code, &[false]);
-        let vrom = ValueRom::new_with_init_vec(&[0, 0]);
+        let memory = Memory::new(prom, ValueRom::new_with_init_vec(&[0, 0]));
+
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 12);
 
         let (trace, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
+            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -1009,12 +957,14 @@ mod tests {
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vec(&[0, 0, initial_val]);
 
+        let memory = Memory::new(prom, vrom);
+
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
         frames_args_size.insert(BinaryField32b::ONE, 9);
 
         let (traces, boundary_values) =
-            ZCrayTrace::generate_with_vrom(prom, vrom, frames_args_size, pc_field_to_int)
+            ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)
                 .expect("Trace generation should not fail.");
 
         traces.validate(boundary_values);
@@ -1045,11 +995,11 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.vrom.get_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
+                traces.get_vrom_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
                 ((i + 1) * 16) as u32                            // next_fp_val
             );
             assert_eq!(
-                traces.vrom.get_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
+                traces.get_vrom_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
                 cur_val                                          // n_val
             );
 
@@ -1061,7 +1011,7 @@ mod tests {
         }
 
         // Check return value.
-        assert_eq!(traces.vrom.get_u32(3).unwrap(), 1);
+        assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
     }
 
     #[test]
@@ -1087,8 +1037,9 @@ mod tests {
 
         // Set initial PC, FP and argument.
         let vrom = ValueRom::new_with_init_vec(&[0, 0, initial_value]);
+        let memory = Memory::new(prom, vrom);
 
-        let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+        let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
         // Check that Fibonacci is computed properly.
@@ -1099,28 +1050,24 @@ mod tests {
             let s = cur_fibs[0] + cur_fibs[1];
             assert_eq!(
                 traces
-                    .vrom
-                    .get_u32((i + 1) * fib_power_two_frame_size + 2)
+                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0],
                 "left {} right {}",
                 traces
-                    .vrom
-                    .get_u32((i + 1) * fib_power_two_frame_size + 2)
+                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
                     .unwrap(),
                 cur_fibs[0]
             );
             assert_eq!(
                 traces
-                    .vrom
-                    .get_u32((i + 1) * fib_power_two_frame_size + 3)
+                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 3)
                     .unwrap(),
                 cur_fibs[1]
             );
             assert_eq!(
                 traces
-                    .vrom
-                    .get_u32((i + 1) * fib_power_two_frame_size + 7)
+                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 7)
                     .unwrap(),
                 s
             );
@@ -1130,18 +1077,16 @@ mod tests {
         // Check the final return value.
         assert_eq!(
             traces
-                .vrom
-                .get_u32((init_val + 1) * fib_power_two_frame_size + 5)
+                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
                 .unwrap(),
             cur_fibs[0]
         );
         // Check that the returned value is propagated correctly.
         assert_eq!(
             traces
-                .vrom
-                .get_u32((init_val + 1) * fib_power_two_frame_size + 5)
+                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
                 .unwrap(),
-            traces.vrom.get_u32(3).unwrap()
+            traces.get_vrom_u32(3).unwrap()
         );
     }
 }

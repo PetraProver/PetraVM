@@ -2,16 +2,19 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
+use super::MemoryError;
 use crate::{
-    event::mv::MVEventOutput, execution::InterpreterError, opcodes::Opcode,
-    vrom_allocator::VromAllocator, ZCrayTrace,
+    event::mv::MVEventOutput, execution::InterpreterError, memory::vrom_allocator::VromAllocator,
+    opcodes::Opcode, ZCrayTrace,
 };
 
-/// Represents the data needed to create a move event later
-pub(crate) type ToSetValue = (
+pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
+
+/// Represents the data needed to create a move event later.
+pub(crate) type VromUpdate = (
     u32,            // parent addr
     Opcode,         // operation code
-    BinaryField32b, // field PC
+    BinaryField32b, // field pc
     u32,            // fp
     u32,            // timestamp
     BinaryField16b, // dst
@@ -19,8 +22,8 @@ pub(crate) type ToSetValue = (
     BinaryField16b, // offset
 );
 
-/// ValueRom represents a memory structure for storing different sized values
-#[derive(Debug, Default)]
+/// `ValueRom` represents a memory structure for storing different sized values.
+#[derive(Clone, Debug, Default)]
 pub(crate) struct ValueRom {
     /// Storage for values, each slot is a u32
     vrom: HashMap<u32, u32>,
@@ -33,7 +36,7 @@ pub(crate) struct ValueRom {
     /// information to create a move event later. Whenever an address in the
     /// HashMap's keys is finally set, we populate the missing values and
     /// remove them from the HashMap.
-    to_set: HashMap<u32, Vec<ToSetValue>>,
+    pub(crate) pending_updates: VromPendingUpdates,
 }
 
 impl ValueRom {
@@ -50,7 +53,7 @@ impl ValueRom {
     pub fn new_with_init_vec(init_values: &[u32]) -> Self {
         let mut vrom = Self::default();
         for (i, &value) in init_values.iter().enumerate() {
-            vrom.set_init_u32(i as u32, value);
+            vrom.set_u32(i as u32, value);
         }
 
         vrom
@@ -60,10 +63,10 @@ impl ValueRom {
     ///
     /// Initializes a u32 value in the VROM without checking whether there are
     /// associated values in `to_set`.
-    pub(crate) fn set_init_u32(&mut self, index: u32, value: u32) -> Result<(), InterpreterError> {
+    pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         if let Some(prev_val) = self.vrom.insert(index, value) {
             if prev_val != value {
-                return Err(InterpreterError::VromRewrite(index));
+                return Err(MemoryError::VromRewrite(index));
             }
         }
 
@@ -74,14 +77,14 @@ impl ValueRom {
     ///
     /// Initializes a u32 value in the VROM without checking whether there are
     /// associated values in `to_set`.
-    fn set_init_u128(&mut self, index: u32, value: u128) -> Result<(), InterpreterError> {
+    pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
         self.check_alignment(index, 4)?;
 
         for i in 0..4 {
             let cur_word = (value >> (32 * i)) as u32;
             if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
                 if prev_val != cur_word {
-                    return Err(InterpreterError::VromRewrite(index));
+                    return Err(MemoryError::VromRewrite(index));
                 }
             }
         }
@@ -89,85 +92,80 @@ impl ValueRom {
         Ok(())
     }
 
-    /// Sets a u32 value at the specified index.
-    pub(crate) fn set_u32(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        index: u32,
-        value: u32,
-    ) -> Result<(), InterpreterError> {
-        if let Some(prev_val) = self.vrom.insert(index, value) {
-            if prev_val != value {
-                return Err(InterpreterError::VromRewrite(index));
-            }
-        }
+    // /// Sets a u32 value at the specified index.
+    // pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(),
+    // MemoryError> {     if let Some(prev_val) = self.vrom.insert(index, value)
+    // {         if prev_val != value {
+    //             return Err(MemoryError::VromRewrite(index));
+    //         }
+    //     }
 
-        if let Some(to_set_vals) = self.to_set.remove(&index) {
-            for to_set_val in to_set_vals {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
-                self.set_u32(trace, parent, value);
-                let event_out = MVEventOutput::new(
-                    parent,
-                    opcode,
-                    field_pc,
-                    fp,
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                    value as u128,
-                );
-                event_out.push_mv_event(trace);
-            }
-        }
+    //     if let Some(to_set_vals) = self.pending_updates.remove(&index) {
+    //         for to_set_val in to_set_vals {
+    //             let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) =
+    // to_set_val;             self.set_u32(parent, value);
+    //             let event_out = MVEventOutput::new(
+    //                 parent,
+    //                 opcode,
+    //                 field_pc,
+    //                 fp,
+    //                 timestamp,
+    //                 dst,
+    //                 src,
+    //                 offset,
+    //                 value as u128,
+    //             );
+    //             event_out.push_mv_event(self);
+    //         }
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
-    /// Sets a u128 value at the specified index
-    pub(crate) fn set_u128(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        index: u32,
-        value: u128,
-    ) -> Result<(), InterpreterError> {
-        let nb_words = 4;
-        self.check_alignment(index, nb_words)?;
+    // /// Sets a u128 value at the specified index
+    // pub(crate) fn set_u128(
+    //     &mut self,
+    //     trace: &mut ZCrayTrace,
+    //     index: u32,
+    //     value: u128,
+    // ) -> Result<(), MemoryError> {
+    //     let nb_words = 4;
+    //     self.check_alignment(index, nb_words)?;
 
-        // For u128, we need to store it across multiple u32 slots (4 slots)
-        for i in 0..4 {
-            self.set_u32(trace, index + i, (value >> (32 * i)) as u32)?;
-        }
+    //     // For u128, we need to store it across multiple u32 slots (4 slots)
+    //     for i in 0..4 {
+    //         self.set_u32(index + i, (value >> (32 * i)) as u32)?;
+    //     }
 
-        if let Some(to_set_vals) = self.to_set.remove(&index) {
-            for to_set_val in to_set_vals {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
-                self.set_u128(trace, parent, value)?;
-                let event_out = MVEventOutput::new(
-                    parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
-                );
-                event_out.push_mv_event(trace);
-            }
-        }
+    //     if let Some(to_set_vals) = self.pending_updates.remove(&index) {
+    //         for to_set_val in to_set_vals {
+    //             let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) =
+    // to_set_val;             self.set_u128(trace, parent, value)?;
+    //             let event_out = MVEventOutput::new(
+    //                 parent, opcode, field_pc, fp, timestamp, dst, src, offset,
+    // value,             );
+    //             event_out.push_mv_event(trace);
+    //         }
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     /// Gets a u32 value from the specified index.
-    pub(crate) fn get_u32(&self, index: u32) -> Result<u32, InterpreterError> {
+    pub(crate) fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
         match self.vrom.get(&index) {
             Some(&value) => Ok(value),
-            None => Err(InterpreterError::VromMissingValue(index)),
+            None => Err(MemoryError::VromMissingValue(index)),
         }
     }
 
     /// Gets an optional u32 value from the specified index.
-    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, InterpreterError> {
+    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         Ok(self.vrom.get(&index).copied())
     }
 
     /// Gets a u128 value from the specified index.
-    pub(crate) fn get_u128(&self, index: u32) -> Result<u128, InterpreterError> {
+    pub(crate) fn get_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.check_alignment(index, 4)?;
 
         // For u128, we need to read from multiple u32 slots (4 slots)
@@ -184,7 +182,7 @@ impl ValueRom {
     }
 
     /// Gets an optional u128 value from the specified index.
-    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, InterpreterError> {
+    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
         // We need to read four words.
         self.check_alignment(index, 4)?;
 
@@ -209,10 +207,10 @@ impl ValueRom {
         self.vrom_allocator.alloc(requested_size)
     }
 
-    /// Check if the index has proper alignment
-    fn check_alignment(&self, index: u32, alignment: u32) -> Result<(), InterpreterError> {
+    /// Checks if the index has proper alignment.
+    fn check_alignment(&self, index: u32, alignment: u32) -> Result<(), MemoryError> {
         if index % alignment != 0 {
-            Err(InterpreterError::VromMisaligned(
+            Err(MemoryError::VromMisaligned(
                 alignment.try_into().unwrap(),
                 index,
             ))
@@ -225,12 +223,15 @@ impl ValueRom {
     ///
     /// Maps a destination address to a ToSetValue which contains necessary
     /// information to create a move event once the value is available.
-    pub(crate) fn insert_to_set(
+    pub(crate) fn insert_pending(
         &mut self,
         parent: u32,
-        to_set_val: ToSetValue,
-    ) -> Result<(), InterpreterError> {
-        self.to_set.entry(parent).or_default().push(to_set_val);
+        pending_value: VromUpdate,
+    ) -> Result<(), MemoryError> {
+        self.pending_updates
+            .entry(parent)
+            .or_default()
+            .push(pending_value);
 
         Ok(())
     }
@@ -246,7 +247,7 @@ mod tests {
 
         // Test u32
         let u32_val: u32 = 0xABCDEF12;
-        vrom.set_init_u32(2, u32_val).unwrap();
+        vrom.set_u32(2, u32_val).unwrap();
         assert_eq!(vrom.get_u32(2).unwrap(), u32_val);
     }
 
@@ -255,7 +256,7 @@ mod tests {
         let mut vrom = ValueRom::default();
 
         let u128_val: u128 = 0x1122334455667788_99AABBCCDDEEFF00;
-        vrom.set_init_u128(0, u128_val).unwrap();
+        vrom.set_u128(0, u128_val).unwrap();
 
         // Check that the value was stored correctly
         assert_eq!(vrom.get_u128(0).unwrap(), u128_val);
@@ -271,16 +272,16 @@ mod tests {
     fn test_value_rewrite_error() {
         let mut vrom = ValueRom::default();
         // First write should succeed
-        vrom.set_init_u32(0, 42u32).unwrap();
+        vrom.set_u32(0, 42u32).unwrap();
 
         // Same value write should succeed (idempotent)
-        vrom.set_init_u32(0, 42u32).unwrap();
+        vrom.set_u32(0, 42u32).unwrap();
 
         // Different value write should fail
-        let result = vrom.set_init_u32(0, 43u32);
+        let result = vrom.set_u32(0, 43u32);
         assert!(result.is_err());
 
-        if let Err(InterpreterError::VromRewrite(index)) = result {
+        if let Err(MemoryError::VromRewrite(index)) = result {
             assert_eq!(index, 0);
         } else {
             panic!("Expected VromRewrite error");
@@ -294,16 +295,16 @@ mod tests {
         let u128_val_2: u128 = 0x1122334455667788_99AABBCCDDEEFF01; // One bit different
 
         // First write should succeed
-        vrom.set_init_u128(0, u128_val_1).unwrap();
+        vrom.set_u128(0, u128_val_1).unwrap();
 
         // Same value write should succeed (idempotent)
-        vrom.set_init_u128(0, u128_val_1).unwrap();
+        vrom.set_u128(0, u128_val_1).unwrap();
 
         // Different value write should fail at the first different 32-bit chunk
-        let result = vrom.set_init_u128(0, u128_val_2);
+        let result = vrom.set_u128(0, u128_val_2);
         assert!(result.is_err());
 
-        if let Err(InterpreterError::VromRewrite(index)) = result {
+        if let Err(MemoryError::VromRewrite(index)) = result {
             assert_eq!(index, 0); // The least significant 32-bit chunk differs
         } else {
             panic!("Expected VromRewrite error");
@@ -318,7 +319,7 @@ mod tests {
         let result = vrom.get_u32(0);
         assert!(result.is_err());
 
-        if let Err(InterpreterError::VromMissingValue(index)) = result {
+        if let Err(MemoryError::VromMissingValue(index)) = result {
             assert_eq!(index, 0);
         } else {
             panic!("Expected VromMissingValue error");
@@ -329,10 +330,10 @@ mod tests {
     fn test_u128_misaligned_error() {
         let mut vrom = ValueRom::default();
         // Try to set a u128 at a misaligned index
-        let result = vrom.set_init_u128(1, 0);
+        let result = vrom.set_u128(1, 0);
         assert!(result.is_err());
 
-        if let Err(InterpreterError::VromMisaligned(alignment, index)) = result {
+        if let Err(MemoryError::VromMisaligned(alignment, index)) = result {
             assert_eq!(alignment, 4);
             assert_eq!(index, 1);
         } else {
