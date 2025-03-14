@@ -1,3 +1,4 @@
+#[framesize(0x9)]
 collatz:
     ;; Frame:
     ;; Slot @0: Return PC

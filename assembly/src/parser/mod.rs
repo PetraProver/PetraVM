@@ -20,18 +20,33 @@ fn get_first_inner<'a>(pair: Pair<'a, Rule>, msg: &str) -> Pair<'a, Rule> {
     pair.into_inner().next().expect(msg)
 }
 
-// A line may have a label and an instruction
+// A line may have a frame size annotation, a label and an instruction
 fn parse_line(
     instrs: &mut Vec<InstructionsWithLabels>,
     pairs: Pairs<'_, Rule>,
 ) -> Result<(), Error> {
+    let mut current_frame_size: Option<u16> = None;
+
     for instr_or_label in pairs {
         match instr_or_label.as_rule() {
+            Rule::frame_size_annotation => {
+                let frame_size_hex =
+                    get_first_inner(instr_or_label, "frame_size_annotation must have frame_size");
+                let hex_str = frame_size_hex.as_str().trim_start_matches("0x");
+                let frame_size = u16::from_str_radix(hex_str, 16).map_err(|_| {
+                    Error::BadArgument(instruction_args::BadArgumentError::FrameSize(
+                        hex_str.to_string(),
+                    ))
+                })?;
+                current_frame_size = Some(frame_size);
+            }
             Rule::label => {
                 let label_name = get_first_inner(instr_or_label, "label must have label_name");
                 instrs.push(InstructionsWithLabels::Label(
                     label_name.as_span().as_str().to_string(),
+                    current_frame_size, // Include the frame size with the label
                 ));
+                current_frame_size = None; // Reset after using it
             }
             Rule::instruction => {
                 let instruction = get_first_inner(instr_or_label, "Instruction has inner tokens");

@@ -1,3 +1,4 @@
+#[framesize(0x5)]
 fib:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
@@ -11,6 +12,7 @@ fib:
     MVV.W @4[5], @3      ;; Move return value
     TAILI fib_helper, @4 ;; Tail call to fib_helper (Slot 4 is the next FP)
 
+#[framesize(0xb)]
 fib_helper:
     ;; Slot @0: Return PC
     ;; Slot @1: Return FP

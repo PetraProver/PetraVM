@@ -77,7 +77,7 @@ mod test_parser {
         let code = include_str!("../../../examples/fib.asm");
         let instrs = parse_program(code).unwrap();
         for instr in instrs {
-            if matches!(instr, InstructionsWithLabels::Label(_)) {
+            if matches!(instr, InstructionsWithLabels::Label(_, _)) {
                 println!("\n{instr}");
             } else {
                 println!("    {instr}");
@@ -88,6 +88,7 @@ mod test_parser {
     #[test]
     fn test_all_instructions() {
         let lines = [
+            "#[framesize(0x1a)] label:",
             "label:",
             "XOR @4, @3, @2",
             "B32_ADD @4, @3, @2",
