@@ -49,23 +49,35 @@ impl Memory {
     }
 
     /// Reads a 32-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
         self.vrom.get_u32(index)
     }
 
     /// Reads an optional 32-bit value in VROM at the provided index.
-    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
-        self.vrom.get_opt_u32(index)
-    }
-
-    /// Reads an optional 128-bit value in VROM at the provided index.
-    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
-        self.vrom.get_opt_u128(index)
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
+        self.vrom.get_vrom_opt_u32(index)
     }
 
     /// Reads a 128-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.vrom.get_u128(index)
+    }
+
+    /// Reads an optional 128-bit value in VROM at the provided index.
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
+        self.vrom.get_vrom_opt_u128(index)
     }
 
     /// Sets a 32-bit value in VROM at the provided index.

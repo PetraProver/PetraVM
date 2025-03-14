@@ -183,7 +183,7 @@ fn main() {
     let mut frame_sizes = HashMap::new();
     frame_sizes.insert(BinaryField32b::ONE, 9);
     let initial_value = 3999;
-    let vrom = ValueRom::new_with_init_vec(&[0, 0, initial_value]);
+    let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
 
     let memory = Memory::new(prom, vrom);
 

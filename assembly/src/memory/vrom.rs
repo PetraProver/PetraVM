@@ -10,7 +10,7 @@ use crate::{
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
-/// Represents the data needed to create a move event later.
+/// Represents the data needed to create a MOVE event later.
 pub(crate) type VromUpdate = (
     u32,            // parent addr
     Opcode,         // operation code
@@ -32,15 +32,15 @@ pub(crate) struct ValueRom {
     /// HashMap used to set values and push MV events during a CALL procedure.
     /// When a MV occurs with a value that isn't set within a CALL procedure, we
     /// assume it is a return value. Then, we add (addr_next_frame,
-    /// to_set_value) to `to_set`, where `to_set_value` contains enough
-    /// information to create a move event later. Whenever an address in the
-    /// HashMap's keys is finally set, we populate the missing values and
-    /// remove them from the HashMap.
+    /// pending_update) to `pending_updates`, where `pending_update` contains
+    /// enough information to create a MOVE event later. Whenever an address
+    /// in the HashMap's keys is finally set, we populate the missing values
+    /// and remove them from the HashMap.
     pub(crate) pending_updates: VromPendingUpdates,
 }
 
 impl ValueRom {
-    /// Create an empty ValueRom
+    /// Creates an empty ValueRom.
     pub fn new(vrom: HashMap<u32, u32>) -> Self {
         Self {
             vrom,
@@ -48,9 +48,8 @@ impl ValueRom {
         }
     }
 
-    /// Creates a default VROM and intializes it with the provided vector of u32
-    /// values.
-    pub fn new_with_init_vec(init_values: &[u32]) -> Self {
+    /// Creates a default VROM and intializes it with the provided u32 values.
+    pub fn new_with_init_vals(init_values: &[u32]) -> Self {
         let mut vrom = Self::default();
         for (i, &value) in init_values.iter().enumerate() {
             vrom.set_u32(i as u32, value);
@@ -62,7 +61,7 @@ impl ValueRom {
     /// Used for memory initialization before the start of the trace generation.
     ///
     /// Initializes a u32 value in the VROM without checking whether there are
-    /// associated values in `to_set`.
+    /// associated values in `pending_updates`.
     pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         if let Some(prev_val) = self.vrom.insert(index, value) {
             if prev_val != value {
@@ -76,7 +75,7 @@ impl ValueRom {
     /// Used for memory initialization before the start of the trace generation.
     ///
     /// Initializes a u32 value in the VROM without checking whether there are
-    /// associated values in `to_set`.
+    /// associated values in `pending_updates`.
     pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
         self.check_alignment(index, 4)?;
 
@@ -92,66 +91,10 @@ impl ValueRom {
         Ok(())
     }
 
-    // /// Sets a u32 value at the specified index.
-    // pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(),
-    // MemoryError> {     if let Some(prev_val) = self.vrom.insert(index, value)
-    // {         if prev_val != value {
-    //             return Err(MemoryError::VromRewrite(index));
-    //         }
-    //     }
-
-    //     if let Some(to_set_vals) = self.pending_updates.remove(&index) {
-    //         for to_set_val in to_set_vals {
-    //             let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) =
-    // to_set_val;             self.set_u32(parent, value);
-    //             let event_out = MVEventOutput::new(
-    //                 parent,
-    //                 opcode,
-    //                 field_pc,
-    //                 fp,
-    //                 timestamp,
-    //                 dst,
-    //                 src,
-    //                 offset,
-    //                 value as u128,
-    //             );
-    //             event_out.push_mv_event(self);
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
-
-    // /// Sets a u128 value at the specified index
-    // pub(crate) fn set_u128(
-    //     &mut self,
-    //     trace: &mut ZCrayTrace,
-    //     index: u32,
-    //     value: u128,
-    // ) -> Result<(), MemoryError> {
-    //     let nb_words = 4;
-    //     self.check_alignment(index, nb_words)?;
-
-    //     // For u128, we need to store it across multiple u32 slots (4 slots)
-    //     for i in 0..4 {
-    //         self.set_u32(index + i, (value >> (32 * i)) as u32)?;
-    //     }
-
-    //     if let Some(to_set_vals) = self.pending_updates.remove(&index) {
-    //         for to_set_val in to_set_vals {
-    //             let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) =
-    // to_set_val;             self.set_u128(trace, parent, value)?;
-    //             let event_out = MVEventOutput::new(
-    //                 parent, opcode, field_pc, fp, timestamp, dst, src, offset,
-    // value,             );
-    //             event_out.push_mv_event(trace);
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
-
     /// Gets a u32 value from the specified index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
     pub(crate) fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
         match self.vrom.get(&index) {
             Some(&value) => Ok(value),
@@ -160,11 +103,17 @@ impl ValueRom {
     }
 
     /// Gets an optional u32 value from the specified index.
-    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         Ok(self.vrom.get(&index).copied())
     }
 
     /// Gets a u128 value from the specified index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.check_alignment(index, 4)?;
 
@@ -182,12 +131,15 @@ impl ValueRom {
     }
 
     /// Gets an optional u128 value from the specified index.
-    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
         // We need to read four words.
         self.check_alignment(index, 4)?;
 
         let opt_words = (0..4)
-            .map(|i| self.get_opt_u32(index).unwrap())
+            .map(|i| self.get_vrom_opt_u32(index).unwrap())
             .collect::<Vec<_>>();
         if opt_words.iter().any(|v| v.is_none()) {
             Ok(None)
@@ -219,10 +171,10 @@ impl ValueRom {
         }
     }
 
-    /// Inserts a value to be set later.
+    /// Inserts a pending value to be set later.
     ///
-    /// Maps a destination address to a ToSetValue which contains necessary
-    /// information to create a move event once the value is available.
+    /// Maps a destination address to a `VromUpdate` which contains necessary
+    /// information to create a MOVE event once the value is available.
     pub(crate) fn insert_pending(
         &mut self,
         parent: u32,

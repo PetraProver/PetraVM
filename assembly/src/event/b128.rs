@@ -344,7 +344,7 @@ mod tests {
                                    * mul_result) */
         ];
 
-        let vrom = ValueRom::new_with_init_vec(&init_values);
+        let vrom = ValueRom::new_with_init_vals(&init_values);
         let memory = Memory::new(prom, vrom);
 
         // Set up frame sizes

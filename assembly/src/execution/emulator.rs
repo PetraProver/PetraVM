@@ -157,9 +157,9 @@ impl Interpreter {
     /// This method should only be called once the frame pointer has been
     /// allocated. It is used to generate events -- whenever possible --
     /// once the next_fp has been set by the allocator. When it is not yet
-    /// possible to generate the move event (because we are dealing with a
+    /// possible to generate the MOVE event (because we are dealing with a
     /// return value that has not yet been set), we add the move information to
-    /// `self.to_set`, so that it can be generated later on.
+    /// the trace's `pending_updates`, so that it can be generated later on.
     pub(crate) fn handles_call_moves(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -785,7 +785,7 @@ mod tests {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code, &[false]);
-        let memory = Memory::new(prom, ValueRom::new_with_init_vec(&[0, 0]));
+        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
 
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 12);
@@ -957,7 +957,7 @@ mod tests {
 
         let prom = code_to_prom(&instructions, &is_calling_procedure_hints);
         // return PC = 0, return FP = 0, n = 5
-        let vrom = ValueRom::new_with_init_vec(&[0, 0, initial_val]);
+        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);
 
         let memory = Memory::new(prom, vrom);
 
@@ -1034,11 +1034,11 @@ mod tests {
         frame_sizes.insert(BinaryField32b::ONE, 5);
         frame_sizes.insert(G.pow(5), 11);
 
-        let init_val = 12;
+        let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
 
         // Set initial PC, FP and argument.
-        let vrom = ValueRom::new_with_init_vec(&[0, 0, initial_value]);
+        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
         let memory = Memory::new(prom, vrom);
 
         let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)

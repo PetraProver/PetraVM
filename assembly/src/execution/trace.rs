@@ -155,9 +155,9 @@ impl ZCrayTrace {
     pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.memory.set_vrom_u32(index, value)?;
 
-        if let Some(to_set_vals) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for to_set_val in to_set_vals {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
+        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
+            for pending_update in pending_updates {
+                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
                 self.set_vrom_u32(parent, value);
                 let event_out = MVEventOutput::new(
                     parent,
@@ -177,13 +177,13 @@ impl ZCrayTrace {
         Ok(())
     }
 
-    /// Sets a u128 value at the specified index
+    /// Sets a u128 value at the specified index.
     pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
         self.memory.set_vrom_u128(index, value)?;
 
-        if let Some(to_set_vals) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for to_set_val in to_set_vals {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = to_set_val;
+        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
+            for pending_update in pending_updates {
+                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
                 self.set_vrom_u128(parent, value)?;
                 let event_out = MVEventOutput::new(
                     parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
@@ -196,28 +196,41 @@ impl ZCrayTrace {
     }
 
     /// Reads a 32-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
         self.memory.get_vrom_u32(index)
     }
 
     /// Reads an optional 32-bit value in VROM at the provided index.
-    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
-        self.memory.get_opt_u32(index)
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
+        self.memory.get_vrom_opt_u32(index)
     }
+
     /// Reads a 128-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.memory.get_vrom_u128(index)
     }
 
     /// Reads an optional 128-bit value in VROM at the provided index.
-    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
-        self.memory.get_opt_u128(index)
+    ///
+    /// Used for MOVE operations that are part of a CALL procedure, since the
+    /// value to move may not yet be known.
+    pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
+        self.memory.get_vrom_opt_u128(index)
     }
 
-    /// Inserts a value to be set later.
+    /// Inserts a pending value to be set later.
     ///
-    /// Maps a destination address to a ToSetValue which contains necessary
-    /// information to create a move event once the value is available.
+    /// Maps a destination address to a `VromUpdate` which contains necessary
+    /// information to create a MOVE event once the value is available.
     pub(crate) fn insert_pending(
         &mut self,
         parent: u32,

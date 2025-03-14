@@ -179,10 +179,10 @@ impl MVVWEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_opt_u32(src_addr)?;
+        let opt_src_val = trace.get_vrom_opt_u32(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
-        // Otherwise, we add the move to the list of move events to be pushed once we
+        // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
             trace.set_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
@@ -200,8 +200,8 @@ impl MVVWEvent {
         } else {
             // `src_val` is not yet known, which is means it's a return value from the
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
-            // in `to_set`. As soon as it is set in the called funciton, we can also set the
-            // value at `src_addr` and generate the move event.
+            // in `pending_updates`. As soon as it is set in the called funciton, we can
+            // also set the value at `src_addr` and generate the MOVE event.
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
@@ -241,7 +241,7 @@ impl MVVWEvent {
         let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let src_val = trace
-            .get_opt_u32(src_addr)?
+            .get_vrom_opt_u32(src_addr)?
             .ok_or(MemoryError::VromMissingValue(src_addr))?;
 
         interpreter.incr_pc();
@@ -320,10 +320,10 @@ impl MVVLEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_opt_u128(src_addr)?;
+        let opt_src_val = trace.get_vrom_opt_u128(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
-        // Otherwise, we add the move to the list of move events to be pushed once we
+        // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
             trace.set_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
@@ -378,7 +378,7 @@ impl MVVLEvent {
         let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
         let src_addr = fp ^ src.val() as u32;
         let src_val = trace
-            .get_opt_u128(src_addr)?
+            .get_vrom_opt_u128(src_addr)?
             .ok_or(MemoryError::VromMissingValue(src_addr))?;
 
         trace.set_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
