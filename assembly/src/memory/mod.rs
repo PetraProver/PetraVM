@@ -1,3 +1,4 @@
+mod ram;
 mod vrom;
 mod vrom_allocator;
 
@@ -12,6 +13,8 @@ pub(crate) enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),
+    RamAddressOutOfBounds(u32, usize),
+    RamMisalignedAccess(u32, usize),
 }
 
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is
