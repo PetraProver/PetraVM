@@ -244,11 +244,27 @@ mod tests {
         assert_eq!(value, 0x12345678);
 
         assert_eq!(ram.access_history.len(), 2);
-        assert!(ram.access_history[0].is_write);
-        assert_eq!(ram.access_history[0].value, 0x12345678);
-        assert_eq!(ram.access_history[0].previous_value, 0);
-        assert!(!ram.access_history[1].is_write);
-        assert_eq!(ram.access_history[1].value, 0x12345678);
+
+        let write_history = RamAccessEvent {
+            address: 0,
+            value: 0x12345678,
+            previous_value: 0,
+            timestamp: 1,
+            pc: BinaryField32b::ONE,
+            is_write: true,
+            size: AccessSize::Word,
+        };
+        let read_history = RamAccessEvent {
+            address: 0,
+            value: 0x12345678,
+            previous_value: 0x12345678,
+            timestamp: 2,
+            pc: BinaryField32b::ONE,
+            is_write: false,
+            size: AccessSize::Word,
+        };
+        assert_eq!(ram.access_history[0], write_history);
+        assert_eq!(ram.access_history[1], read_history);
     }
 
     #[test]
