@@ -318,9 +318,6 @@ mod tests {
         let b_val = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
         let c_val = 0x9999999988888888u128 | (0x7777777766666666u128 << 64);
 
-        // Create a dummy trace only used to populate the initial VROM.
-        let mut dummy_zcray = ZCrayTrace::default();
-
         let mut init_values = vec![
             // Return PC and FP
             0,
@@ -342,19 +339,12 @@ mod tests {
             c_val as u32,         // 0x88888888
             (c_val >> 32) as u32, // 0x99999999
             (c_val >> 64) as u32, // 0x66666666
-            (c_val >> 96) as u32, // 0x77777777
-            // Space for results (8 more slots for add_result and mul_result)
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
+            (c_val >> 96) as u32, /* 0x77777777
+                                   * Space for results (8 more slots for add_result and
+                                   * mul_result) */
         ];
 
-        let vrom = ValueRom::new_with_init_values(init_values);
+        let vrom = ValueRom::new_with_init_vec(&init_values);
 
         // Set up frame sizes
         let mut frames = HashMap::new();

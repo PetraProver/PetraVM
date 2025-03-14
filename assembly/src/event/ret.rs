@@ -30,7 +30,7 @@ impl RetEvent {
             fp,
             timestamp: interpreter.timestamp,
             fp_0_val: interpreter.get_vrom_u32(fp)?,
-            fp_1_val: interpreter.get_vrom_u32(fp + 1)?,
+            fp_1_val: interpreter.get_vrom_u32(fp ^ 1)?,
         })
     }
 

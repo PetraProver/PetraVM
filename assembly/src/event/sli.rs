@@ -80,7 +80,7 @@ impl SliEvent {
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
-        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, new_val)?;
+        interpreter.set_vrom_u32(trace, interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
 
         Ok(SliEvent::new(
@@ -120,12 +120,12 @@ mod test {
     #[test]
     fn test_program_with_sli_ops() {
         let zero = BinaryField16b::zero();
-        let shift1_dst = BinaryField16b::new(4);
-        let shift1_src = BinaryField16b::new(3);
+        let shift1_dst = BinaryField16b::new(3);
+        let shift1_src = BinaryField16b::new(2);
         let shift1 = BinaryField16b::new(5);
 
-        let shift2_dst = BinaryField16b::new(6);
-        let shift2_src = BinaryField16b::new(5);
+        let shift2_dst = BinaryField16b::new(5);
+        let shift2_src = BinaryField16b::new(4);
         let shift2 = BinaryField16b::new(7);
 
         let instructions = vec![
@@ -141,23 +141,21 @@ mod test {
         //  ;; Frame:
         // 	;; Slot @0: Return PC
         // 	;; Slot @1: Return FP
-        // 	;; Slot @2: ND Local: Next FP
-        // 	;; Slot @3: Local: src1
-        // 	;; Slot @4: Local: dst1
-        // 	;; Slot @5: Local: src2
-        //  ;; Slot @6: Local: dst2
+        // 	;; Slot @2: Local: src1
+        // 	;; Slot @3: Local: dst1
+        // 	;; Slot @4: Local: src2
+        //  ;; Slot @5: Local: dst2
         let mut vrom = ValueRom::default();
-        vrom.allocate_new_frame(6);
-        vrom.set_value(0, 0u32);
-        vrom.set_value(1, 0u32);
-        vrom.set_value(3, 2u32);
-        vrom.set_value(5, 3u32);
+        vrom.set_init_u32(0, 0);
+        vrom.set_init_u32(1, 0);
+        vrom.set_init_u32(2, 2u32);
+        vrom.set_init_u32(4, 3u32);
 
         let (traces, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new())
             .expect("Trace generation should not fail.");
         let shifts = vec![
-            SliEvent::new(BinaryField32b::ONE, 0, 0, 4, 64, 3, 2, 5, ShiftKind::Left),
-            SliEvent::new(G, 0, 1, 6, 0, 5, 3, 7, ShiftKind::Right),
+            SliEvent::new(BinaryField32b::ONE, 0, 0, 3, 64, 2, 2, 5, ShiftKind::Left),
+            SliEvent::new(G, 0, 1, 5, 0, 4, 3, 7, ShiftKind::Right),
         ];
 
         let ret = RetEvent {
