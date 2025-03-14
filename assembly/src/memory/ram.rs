@@ -103,6 +103,12 @@ impl RamValue for u32 {
     }
 }
 
+impl Default for Ram {
+    fn default() -> Self {
+        Self::new(MIN_RAM_SIZE)
+    }
+}
+
 impl Ram {
     /// Creates a new RAM with initial capacity (rounded up to the next power of
     /// two)
@@ -142,7 +148,7 @@ impl Ram {
 
         if addr_usize % size.byte_size() != 0 {
             let size_u8 = size.byte_size().min(u8::MAX as usize) as u8;
-            return Err(MemoryError::VromMisaligned(size_u8, addr));
+            return Err(MemoryError::RamMisalignedAccess(addr, size.byte_size()));
         }
 
         Ok(())
@@ -153,7 +159,7 @@ impl Ram {
         let end_addr = addr as usize + size.byte_size();
 
         if end_addr > self.data.len() {
-            return Err(MemoryError::VromMissingValue(addr));
+            return Err(MemoryError::RamAddressOutOfBounds(addr, size.byte_size()));
         }
 
         Ok(())
@@ -312,10 +318,11 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(MemoryError::VromMissingValue(addr)) => {
+            Err(MemoryError::RamAddressOutOfBounds(addr, size)) => {
                 assert_eq!(addr, MIN_RAM_SIZE as u32);
+                assert_eq!(size, 4);
             }
-            _ => panic!("Expected VromMissingValue error"),
+            _ => panic!("Expected RamAddressOutOfBounds error"),
         }
     }
 
@@ -326,11 +333,11 @@ mod tests {
         let result = ram.write::<u32>(1, 0x12345678, 1, BinaryField32b::ONE);
         assert!(result.is_err());
 
-        if let Err(MemoryError::VromMisaligned(size, addr)) = result {
+        if let Err(MemoryError::RamMisalignedAccess(addr, size)) = result {
             assert_eq!(addr, 1);
             assert_eq!(size, 4);
         } else {
-            panic!("Expected VromMisaligned error");
+            panic!("Expected RamMisalignedAccess error");
         }
     }
 
