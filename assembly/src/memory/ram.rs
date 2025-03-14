@@ -244,10 +244,10 @@ mod tests {
         assert_eq!(value, 0x12345678);
 
         assert_eq!(ram.access_history.len(), 2);
-        assert_eq!(ram.access_history[0].is_write, true);
+        assert!(ram.access_history[0].is_write);
         assert_eq!(ram.access_history[0].value, 0x12345678);
         assert_eq!(ram.access_history[0].previous_value, 0);
-        assert_eq!(ram.access_history[1].is_write, false);
+        assert!(!ram.access_history[1].is_write);
         assert_eq!(ram.access_history[1].value, 0x12345678);
     }
 
