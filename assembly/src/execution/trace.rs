@@ -245,4 +245,68 @@ impl ZCrayTrace {
     pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
         self.memory.vrom_mut()
     }
+
+    // RAM access methods
+    /// Reads a u8 value from RAM at the provided address.
+    pub(crate) fn read_ram_u8(
+        &mut self,
+        addr: u32,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<u8, MemoryError> {
+        self.memory.read_ram_u8(addr, timestamp, pc)
+    }
+
+    /// Reads a u16 value from RAM at the provided address.
+    pub(crate) fn read_ram_u16(
+        &mut self,
+        addr: u32,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<u16, MemoryError> {
+        self.memory.read_ram_u16(addr, timestamp, pc)
+    }
+
+    /// Reads a u32 value from RAM at the provided address.
+    pub(crate) fn read_ram_u32(
+        &mut self,
+        addr: u32,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<u32, MemoryError> {
+        self.memory.read_ram_u32(addr, timestamp, pc)
+    }
+
+    /// Writes a u8 value to RAM at the provided address.
+    pub(crate) fn write_ram_u8(
+        &mut self,
+        addr: u32,
+        value: u8,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<(), MemoryError> {
+        self.memory.write_ram_u8(addr, value, timestamp, pc)
+    }
+
+    /// Writes a u16 value to RAM at the provided address.
+    pub(crate) fn write_ram_u16(
+        &mut self,
+        addr: u32,
+        value: u16,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<(), MemoryError> {
+        self.memory.write_ram_u16(addr, value, timestamp, pc)
+    }
+
+    /// Writes a u32 value to RAM at the provided address.
+    pub(crate) fn write_ram_u32(
+        &mut self,
+        addr: u32,
+        value: u32,
+        timestamp: u32,
+        pc: BinaryField32b,
+    ) -> Result<(), MemoryError> {
+        self.memory.write_ram_u32(addr, value, timestamp, pc)
+    }
 }

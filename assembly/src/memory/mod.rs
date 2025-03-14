@@ -77,6 +77,8 @@ impl Memory {
         &mut self.ram
     }
 
+    // ValueROM access methods
+
     /// Reads a 32-bit value in VROM at the provided index.
     ///
     /// Returns an error if the value is not found. This method should be used
