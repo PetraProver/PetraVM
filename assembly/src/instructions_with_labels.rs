@@ -107,6 +107,11 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         imm: Immediate,
     },
+    SraI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
     Ret,
     // Add more instructions as needed
 }
@@ -335,6 +340,21 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::SraI { dst, src1, imm } => {
+            let instruction = [
+                Opcode::Srai.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::Ret => {
             let instruction = [
                 Opcode::Ret.get_field_elt(),
@@ -530,16 +550,17 @@ pub fn get_frame_size_for_label(
             | Opcode::Muli
             | Opcode::Slli
             | Opcode::Srli
+            | Opcode::Srai
             | Opcode::Ori
             | Opcode::Xori => {
                 let [_, dst, src, _] = instruction;
-                let max_accessed_addr = max(dst, src);
-                cur_offset = max(max_accessed_addr.val(), cur_offset);
+                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
+                cur_offset = max(max_accessed_addr, cur_offset);
             }
             Opcode::B32Muli => {
                 let [_, dst, src, _] = instruction;
-                let max_accessed_addr = max(dst, src);
-                cur_offset = max(max_accessed_addr.val(), cur_offset);
+                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
+                cur_offset = max(max_accessed_addr, cur_offset);
                 // B32Muli needs two rows.
                 cur_pc = incr_pc(cur_pc);
             }
@@ -550,22 +571,26 @@ pub fn get_frame_size_for_label(
             | Opcode::Or
             | Opcode::Xor
             | Opcode::Mul
-            | Opcode::B32Mul
-            | Opcode::B128Add
-            | Opcode::B128Mul => {
+            | Opcode::B32Mul => {
                 let [_, dst, src1, src2] = instruction;
-                let max_accessed_addr = max(dst, src1);
-                let max_accessed_addr = max(max_accessed_addr, src2);
-                cur_offset = max(max_accessed_addr.val(), cur_offset);
+                let max_accessed_addr = max(dst.val() + 4, src1.val() + 4);
+                let max_accessed_addr = max(max_accessed_addr, src2.val() + 4);
+                cur_offset = max(max_accessed_addr, cur_offset);
+            }
+            Opcode::B128Add | Opcode::B128Mul => {
+                let [_, dst, src1, src2] = instruction;
+                let max_accessed_addr = max(dst.val() + 16, src1.val() + 16);
+                let max_accessed_addr = max(max_accessed_addr, src2.val() + 16);
+                cur_offset = max(max_accessed_addr, cur_offset);
             }
             Opcode::MVVW | Opcode::MVVL => {
                 let [_, dst, _, src] = instruction;
-                let max_accessed_addr = max(dst, src);
-                cur_offset = max(max_accessed_addr.val(), cur_offset);
+                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
+                cur_offset = max(max_accessed_addr, cur_offset);
             }
             Opcode::LDI | Opcode::MVIH => {
                 let [_, dst, _, _] = instruction;
-                cur_offset = max(dst.val(), cur_offset);
+                cur_offset = max(dst.val() + 4, cur_offset);
             }
             op if call_and_ret_opcodes.contains(&op) => {
                 unreachable!("This is explicitely skipped.")
@@ -678,6 +703,7 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::MulI { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),
             InstructionsWithLabels::SrlI { dst, src1, imm } => write!(f, "SRLI {dst} {src1} {imm}"),
             InstructionsWithLabels::SllI { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
+            InstructionsWithLabels::SraI { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
             InstructionsWithLabels::Ret => write!(f, "RET"),
         }
     }

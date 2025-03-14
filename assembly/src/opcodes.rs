@@ -16,6 +16,7 @@ pub enum Opcode {
     Andi = 0x04,
     Srli = 0x05,
     Slli = 0x06,
+    Srai = 0x22,
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,

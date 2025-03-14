@@ -10,6 +10,7 @@ use crate::{
 pub enum ShiftKind {
     Left,
     Right,
+    ArithmeticRight,
 }
 
 /// Event for SLLI and SRLI.
@@ -77,6 +78,7 @@ impl SliEvent {
             match kind {
                 ShiftKind::Left => src_val << imm.val(),
                 ShiftKind::Right => src_val >> imm.val(),
+                ShiftKind::ArithmeticRight => ((src_val as i32) << imm.val()) as u32,
             }
         };
 

@@ -116,6 +116,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SRAI_instr => {
+                                instrs.push(InstructionsWithLabels::SraI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             _ => {
                                 unimplemented!("binary_imm: {:?} not implemented", rule);
                             }
