@@ -367,8 +367,7 @@ pub fn get_prom_inst_from_inst_with_label(
     Ok(())
 }
 
-// Labels hold the labels in the code, with their associated integer and binary
-// field PCs.
+// Labels hold the labels in the code, with their associated binary field PCs.
 type Labels = HashMap<String, BinaryField32b>;
 // Binary field PC as the key. Values are: frame size.
 pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
