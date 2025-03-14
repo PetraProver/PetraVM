@@ -347,6 +347,7 @@ pub mod arithmetization {
 
     pub struct AddTable {
         id: TableId,
+        // TODO: Use the cpu gadget
         pc: Col<B32>,
         fp: Col<B32>,
         opcode: Col<B16>, // This should be a transparent column
@@ -370,7 +371,7 @@ pub mod arithmetization {
             vrom_channel: ChannelId,
             prom_channel: ChannelId,
         ) -> Self {
-            let mut table = cs.add_table("axdd");
+            let mut table = cs.add_table("add");
 
             let pc = table.add_committed("pc");
             let fp = table.add_committed("fp");
@@ -733,8 +734,12 @@ pub mod arithmetization {
         let zcray_table = ZCrayTable::new(&mut cs);
 
         let zero = B16::zero();
-        let code = vec![[Opcode::Add.get_field_elt(), zero, zero, zero]];
-        let prom = code_to_prom(&code, &[false]);
+        // TODO: This is a Ret!!!
+        let code = vec![
+            [Opcode::Add.get_field_elt(), zero, zero, zero],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+        let prom = code_to_prom(&code, &[false; 2]);
         let vrom = ValueRom::new();
         let mut frames = HashMap::new();
         frames.insert(B32::ONE, 12);
@@ -759,13 +764,17 @@ pub mod arithmetization {
                     multiplicity: 1,
                 },
                 Boundary {
-                    values: vec![B128::new(final_pc.val() as u128), B128::new(final_fp as u128), B128::new(final_timestamp as u128)],
+                    values: vec![
+                        B128::new(final_pc.val() as u128),
+                        B128::new(final_fp as u128),
+                        B128::new(final_timestamp as u128),
+                    ],
                     channel_id: zcray_table.state_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
             ],
-            table_sizes: vec![trace.add.len()], // TODO: What should be here?
+            table_sizes: vec![trace.add.len(), trace.ret.len()], // TODO: What should be here?
         };
         let allocator = Bump::new();
         let mut witness = cs

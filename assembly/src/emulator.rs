@@ -1010,7 +1010,7 @@ pub(crate) struct ZCrayTrace {
     muli: Vec<MuliEvent>,
     taili: Vec<TailiEvent>,
     tailv: Vec<TailVEvent>,
-    ret: Vec<RetEvent>,
+    pub(crate) ret: Vec<RetEvent>,
     mvih: Vec<MVIHEvent>,
     pub(crate) mvvw: Vec<MVVWEvent>,
     pub(crate) mvvl: Vec<MVVLEvent>,

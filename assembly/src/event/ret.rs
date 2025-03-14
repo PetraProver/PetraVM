@@ -62,7 +62,7 @@ impl Event for RetEvent {
     }
 }
 
-mod arithmetization {
+pub mod arithmetization {
     use binius_core::constraint_system::channel::ChannelId;
     use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, Field};
     use binius_m3::builder::{
@@ -76,7 +76,7 @@ mod arithmetization {
         opcodes::Opcode,
     };
 
-    struct RetTable {
+    pub(crate) struct RetTable {
         id: TableId,
         cpu_cols: CpuColumns,
         fp1: Col<B32>, // Virtual
