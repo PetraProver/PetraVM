@@ -17,10 +17,10 @@ use crate::{
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::SliEvent,
-        Event
+        Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
-    memory::{Memory, MemoryError, VromUpdate, ProgramRom, ValueRom},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
     parser::LabelsFrameSizes,
 };
 

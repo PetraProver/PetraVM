@@ -4,8 +4,8 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
-use crate::{execution::InterpreterInstruction, opcodes::Opcode, execution::G};
 use crate::memory::ProgramRom;
+use crate::{execution::InterpreterInstruction, execution::G, opcodes::Opcode};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added

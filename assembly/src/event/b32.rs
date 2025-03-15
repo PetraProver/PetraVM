@@ -2,8 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::{BinaryOperation, Event};
 use crate::{
-    execution::{InterpreterError, ZCrayTrace, G}, impl_32b_immediate_binary_operation,
-    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
+    execution::{InterpreterError, ZCrayTrace, G},
+    impl_32b_immediate_binary_operation, impl_binary_operation, impl_event_for_binary_operation,
+    impl_immediate_binary_operation,
 };
 
 /// Event for XOR.

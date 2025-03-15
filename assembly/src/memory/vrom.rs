@@ -3,11 +3,7 @@ use std::collections::HashMap;
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::MemoryError;
-use crate::{
-    memory::vrom_allocator::VromAllocator,
-    opcodes::Opcode,
-    execution::ZCrayTrace,
-};
+use crate::{execution::ZCrayTrace, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 

@@ -1,9 +1,8 @@
 use binius_field::BinaryField32b;
 
 use super::Event;
-use crate::{
-    execution::{Interpreter, InterpreterChannels, InterpreterError, ZCrayTrace, InterpreterTables},
-    
+use crate::execution::{
+    Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
 };
 
 /// Event for RET.

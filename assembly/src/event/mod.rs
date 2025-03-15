@@ -7,9 +7,7 @@ use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{
-    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
-};
+use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
 
 pub(crate) mod b128;
 pub(crate) mod b32;
