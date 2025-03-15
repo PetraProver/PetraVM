@@ -1026,13 +1026,9 @@ mod tests {
             is_calling_procedure_hints[idx] = true;
         }
 
-        let (prom, labels, pc_field_to_int) =
+        let (prom, labels, pc_field_to_int, frame_sizes) =
             get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
                 .expect("Instructions were not formatted properly.");
-
-        let mut frame_sizes = HashMap::new();
-        frame_sizes.insert(BinaryField32b::ONE, 5);
-        frame_sizes.insert(G.pow(5), 11);
 
         let init_val = 4;
         let initial_value = G.pow(init_val as u64).val();
