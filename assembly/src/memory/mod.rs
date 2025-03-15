@@ -4,7 +4,7 @@ mod vrom_allocator;
 pub(crate) use vrom::{ValueRom, VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
-use crate::InterpreterInstruction;
+use crate::execution::InterpreterInstruction;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]

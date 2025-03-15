@@ -4,8 +4,9 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::MemoryError;
 use crate::{
-    event::mv::MVEventOutput, execution::InterpreterError, memory::vrom_allocator::VromAllocator,
-    opcodes::Opcode, ZCrayTrace,
+    memory::vrom_allocator::VromAllocator,
+    opcodes::Opcode,
+    execution::ZCrayTrace,
 };
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;

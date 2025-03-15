@@ -18,17 +18,17 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::StateChannel,
-    memory::{Memory, MemoryError},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    ProgramRom, ValueRom, ZCrayTrace,
+    execution::ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
