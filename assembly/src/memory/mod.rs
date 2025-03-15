@@ -25,14 +25,12 @@ pub type ProgramRom = Vec<InterpreterInstruction>;
 
 /// The `Memory` for an execution contains an *immutable* Program ROM,
 /// a *mutable* Value ROM, and a *mutable* RAM.
-#[derive(Debug)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Memory {
     prom: ProgramRom,
     vrom: ValueRom,
     ram: Ram,
 }
-
 
 impl Memory {
     /// Initializes a new `Memory` instance.
