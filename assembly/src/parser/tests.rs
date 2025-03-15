@@ -168,7 +168,7 @@ mod test_parser {
         for idx in indices_to_set_with_labels {
             is_call_procedure_hints_with_labels[idx] = true;
         }
-        let (prom, labels, pc_field_to_int) =
+        let (prom, labels, pc_field_to_int, _) =
             get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
                 .expect("Instructions were not formatted properly.");
 

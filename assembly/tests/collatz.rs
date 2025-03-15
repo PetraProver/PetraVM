@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-
-use binius_field::{BinaryField32b, Field};
 use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom, ZCrayTrace};
 
 #[test]
@@ -16,13 +13,9 @@ fn test_collatz_validation() {
     }
 
     // Generate the program ROM and associated data
-    let (prom, _, pc_field_to_int) =
+    let (prom, _, pc_field_to_int, frame_sizes) =
         get_full_prom_and_labels(&instructions, &is_call_procedure_hints)
             .expect("Failed to process instructions");
-
-    // Set up frame sizes for the program
-    let mut frame_sizes = HashMap::new();
-    frame_sizes.insert(BinaryField32b::ONE, 9);
 
     // Test with multiple initial values
     for &initial_value in &[5, 27, 3999] {
