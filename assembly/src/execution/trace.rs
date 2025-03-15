@@ -198,7 +198,7 @@ impl ZCrayTrace {
     ///
     /// Returns an error if the value is not found. This method should be used
     /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
+    pub fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
         self.memory.get_vrom_u32(index)
     }
 

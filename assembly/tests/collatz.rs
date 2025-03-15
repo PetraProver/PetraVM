@@ -39,11 +39,11 @@ fn test_collatz_validation() {
         trace.validate(boundary_values);
 
         // Verify the final result is 1, as expected for the Collatz conjecture
-        // assert_eq!(
-        //     trace.get_vrom_u32(3).unwrap(),
-        //     1,
-        //     "Final result should be 1 for initial value {}",
-        //     initial_value
-        // );
+        assert_eq!(
+            trace.get_vrom_u32(3).unwrap(),
+            1,
+            "Final result should be 1 for initial value {}",
+            initial_value
+        );
     }
 }
