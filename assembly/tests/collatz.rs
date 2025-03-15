@@ -20,19 +20,19 @@ fn test_collatz_validation() {
         get_full_prom_and_labels(&instructions, &is_call_procedure_hints)
             .expect("Failed to process instructions");
 
+    // Set up frame sizes for the program
+    let mut frame_sizes = HashMap::new();
+    frame_sizes.insert(BinaryField32b::ONE, 9);
+
     // Test with multiple initial values
     for &initial_value in &[5, 27, 3999] {
-        // Set up frame sizes for the program
-        let mut frame_sizes = HashMap::new();
-        frame_sizes.insert(BinaryField32b::ONE, 9);
-
         // Initialize the VROM with the initial value
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
         let memory = Memory::new(prom.clone(), vrom);
 
         // Execute the program and generate the trace
         let (trace, boundary_values) =
-            ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int.clone())
+            ZCrayTrace::generate(memory, frame_sizes.clone(), pc_field_to_int.clone())
                 .expect("Trace generation should not fail");
 
         // Validate the trace - this is the key functionality we're testing
