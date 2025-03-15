@@ -373,7 +373,7 @@ pub fn get_prom_inst_from_inst_with_label(
 type Labels = HashMap<String, BinaryField32b>;
 // Binary field PC as the key. Values are: (Frame size, size of args
 // and return values).
-pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
+pub type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // Gives the field PC associated to an integer PC. Only conatins the PCs that
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
@@ -402,7 +402,7 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
     Ok((labels, pc_field_to_int))
 }
 
-pub(crate) fn get_full_prom_and_labels(
+pub fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
 ) -> Result<(ProgramRom, Labels, PCFieldToInt), String> {

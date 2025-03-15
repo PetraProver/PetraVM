@@ -25,7 +25,7 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub(crate) struct ZCrayTrace {
+pub struct ZCrayTrace {
     pub(crate) bnz: Vec<BnzEvent>,
     pub(crate) xor: Vec<XorEvent>,
     pub(crate) bz: Vec<BzEvent>,
@@ -55,7 +55,7 @@ pub(crate) struct ZCrayTrace {
     memory: Memory,
 }
 
-pub(crate) struct BoundaryValues {
+pub struct BoundaryValues {
     pub(crate) final_pc: BinaryField32b,
     pub(crate) final_fp: u32,
     pub(crate) timestamp: u32,
@@ -80,11 +80,11 @@ impl ZCrayTrace {
         }
     }
 
-    pub const fn prom(&self) -> &ProgramRom {
+    pub(crate) const fn prom(&self) -> &ProgramRom {
         self.memory.prom()
     }
 
-    pub(crate) fn generate(
+    pub fn generate(
         memory: Memory,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
@@ -107,7 +107,7 @@ impl ZCrayTrace {
         Ok((trace, boundary_values))
     }
 
-    pub(crate) fn validate(&self, boundary_values: BoundaryValues) {
+    pub fn validate(&self, boundary_values: BoundaryValues) {
         let mut channels = InterpreterChannels::default();
 
         let tables = InterpreterTables::default();

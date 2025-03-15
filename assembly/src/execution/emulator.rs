@@ -73,8 +73,8 @@ pub(crate) struct Interpreter {
 /// to be used by this operation.
 pub(crate) type Instruction = [BinaryField16b; 4];
 
-#[derive(Debug, Default, PartialEq)]
-pub(crate) struct InterpreterInstruction {
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
     /// Hint given by the compiler to let us know whether the current
@@ -100,7 +100,7 @@ impl InterpreterInstruction {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterError {
+pub enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
@@ -115,7 +115,7 @@ impl From<MemoryError> for InterpreterError {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterException {}
+pub enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) const fn new(

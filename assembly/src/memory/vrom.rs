@@ -21,7 +21,7 @@ pub(crate) type VromUpdate = (
 
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ValueRom {
+pub struct ValueRom {
     /// Storage for values, each slot is a u32
     vrom: HashMap<u32, u32>,
     /// Allocator for new frames
