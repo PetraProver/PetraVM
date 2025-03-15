@@ -14,7 +14,7 @@ use crate::{execution::InterpreterInstruction, opcodes::Opcode, ProgramRom, G};
 /// to.
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
-    Label(String),
+    Label(String, Option<u16>),
     B32Muli {
         dst: Slot,
         src1: Slot,
@@ -101,7 +101,7 @@ pub fn get_prom_inst_from_inst_with_label(
     is_call_hint: bool,
 ) -> Result<(), String> {
     match instruction {
-        InstructionsWithLabels::Label(s) => {
+        InstructionsWithLabels::Label(s, _) => {
             if labels.get(s).is_none() {
                 return Err(format!("Label {} not found in the HashMap of labels.", s));
             }
@@ -367,29 +367,37 @@ pub fn get_prom_inst_from_inst_with_label(
     Ok(())
 }
 
-// Labels hold the labels in the code, with their associated integer and binary
-// field PCs.
+// Labels hold the labels in the code, with their associated binary field PCs.
 type Labels = HashMap<String, BinaryField32b>;
-// Binary field PC as the key. Values are: (Frame size, size of args
-// and return values).
+// Binary field PC as the key. Values are: frame size.
 pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
-// Gives the field PC associated to an integer PC. Only conatins the PCs that
+// Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
 
-fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFieldToInt), String> {
+fn get_labels(
+    instructions: &[InstructionsWithLabels],
+) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), String> {
     let mut labels = HashMap::new();
     let mut pc_field_to_int = HashMap::new();
+    let mut frame_sizes = HashMap::new();
     let mut field_pc = BinaryField32b::ONE;
     let mut pc = 1;
+
     for instruction in instructions {
         match instruction {
-            InstructionsWithLabels::Label(s) => {
+            InstructionsWithLabels::Label(s, frame_size) => {
                 if labels.insert(s.clone(), field_pc).is_some()
                     || pc_field_to_int.insert(field_pc, pc).is_some()
                 {
                     return Err(format!("Label {} already exists.", s));
                 }
+
+                // If we have a frame size for this label, add it to our frame_sizes map
+                if let Some(size) = frame_size {
+                    frame_sizes.insert(field_pc, *size);
+                }
+
                 // We do not increment the PC if we found a label.
             }
             _ => {
@@ -398,16 +406,17 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
             }
         }
     }
-    Ok((labels, pc_field_to_int))
+    Ok((labels, pc_field_to_int, frame_sizes))
 }
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
-) -> Result<(ProgramRom, Labels, PCFieldToInt), String> {
-    let (labels, pc_field_to_int) = get_labels(instructions)?;
+) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
+    let (labels, pc_field_to_int, frame_sizes) = get_labels(instructions)?;
     let mut prom = ProgramRom::new();
     let mut field_pc = BinaryField32b::ONE;
+
     assert_eq!(
         instructions.len(),
         is_call_procedure_hints.len(),
@@ -415,6 +424,7 @@ pub(crate) fn get_full_prom_and_labels(
         instructions.len(),
         is_call_procedure_hints.len()
     );
+
     for (instruction, &is_call_procedure) in instructions.iter().zip(is_call_procedure_hints) {
         get_prom_inst_from_inst_with_label(
             &mut prom,
@@ -424,13 +434,20 @@ pub(crate) fn get_full_prom_and_labels(
             is_call_procedure,
         )?;
     }
-    Ok((prom, labels, pc_field_to_int))
+
+    Ok((prom, labels, pc_field_to_int, frame_sizes))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InstructionsWithLabels::Label(label) => write!(f, "{}:", label),
+            InstructionsWithLabels::Label(label, frame_size) => {
+                if let Some(size) = frame_size {
+                    write!(f, "#[framesize(0x{:x})]\n{}:", size, label)
+                } else {
+                    write!(f, "{}:", label)
+                }
+            }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
                 write!(f, "B32_MULI {dst} {src1} {imm}")
             }
