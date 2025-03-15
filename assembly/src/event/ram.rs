@@ -1102,11 +1102,11 @@ mod tests {
         // Check address and value methods
         assert_eq!(lw_event.address(), 0x1000);
         assert_eq!(lw_event.value(), 0x12345678);
-        assert_eq!(lw_event.is_store(), false);
+        assert!(!lw_event.is_store());
 
         assert_eq!(sw_event.address(), 0x1000);
         assert_eq!(sw_event.value(), 0x12345678);
-        assert_eq!(sw_event.is_store(), true);
+        assert!(sw_event.is_store());
     }
 
     #[test]
