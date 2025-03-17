@@ -1,4 +1,3 @@
-
 use std::{collections::HashMap, time};
 
 use binius_core::{
@@ -66,7 +65,7 @@ impl AddTable {
         let opcode = table.add_committed("opcode"); //TODO: opcode must be transparent
                                                     // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
                                                     // TODO: Why opcode - B16::new(Opcode::Add as u16) doesn't work?
-        table.assert_zero("opcode_is_correcto", opcode.into());
+        table.assert_zero("opcode_is_correcto", opcode - B16::new(Opcode::Add as u16));
 
         let src1 = table.add_committed("src1");
         let src2 = table.add_committed("src2");
@@ -101,44 +100,22 @@ impl AddTable {
         // Read src1
         table.push(
             vrom_channel,
-            [
-                timestamp,
-                upcast_col(src1),
-                upcast_col(src1_val_packed),
-            ],
+            [timestamp, upcast_col(src1), src1_val_packed],
         );
         // Read src2
         table.push(
             vrom_channel,
-            [
-                timestamp,
-                upcast_col(src2),
-                upcast_col(src2_val_packed),
-            ],
+            [timestamp, upcast_col(src2), src2_val_packed],
         );
         // Write dst
         table.push(
             vrom_channel,
-            [
-                timestamp,
-                upcast_col(dst),
-                upcast_col(dst_val_packed),
-            ],
+            [timestamp, upcast_col(dst), dst_val_packed],
         );
 
         // Flushing rules for the state channel
-        table.push(
-            state_channel,
-            [pc, upcast_col(fp), timestamp],
-        );
-        table.pull(
-            state_channel,
-            [
-                next_pc,
-                upcast_col(fp),
-                upcast_col(next_timestamp),
-            ],
-        );
+        table.push(state_channel, [pc, fp, timestamp]);
+        table.pull(state_channel, [next_pc, fp, next_timestamp]);
 
         Self {
             id: table.id(),
@@ -188,8 +165,8 @@ where
             let mut dst = witness.get_mut_as(self.dst)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
-            let mut src1_val_packed = witness.get_mut_as(self.src1_val_packed)?;
-            let mut src2_val_packed = witness.get_mut_as(self.src2_val_packed)?;
+            // let mut src1_val_packed = witness.get_mut_as(self.src1_val_packed)?;
+            // let mut src2_val_packed = witness.get_mut_as(self.src2_val_packed)?;
 
             for (i, event) in rows.enumerate() {
                 pc[i] = event.pc.into();
@@ -203,8 +180,8 @@ where
                 dst[i] = event.dst;
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
-                src1_val_packed[i] = event.src1_val;
-                src2_val_packed[i] = event.src2_val;
+                // src1_val_packed[i] = event.src1_val;
+                // src2_val_packed[i] = event.src2_val;
             }
         }
         self.u32_add.populate(witness);
@@ -462,7 +439,7 @@ fn test_addi() {
         .build_witness::<OptimalUnderlier128b>(&allocator, &statement)
         .unwrap();
 
-    zcray_table.populate(trace, &mut witness);
+    zcray_table.populate(trace, &mut witness).unwrap();
 
     let compiled_cs = cs.compile(&statement).unwrap();
     let witness = witness.into_multilinear_extension_index(&statement);

@@ -61,7 +61,7 @@ impl CpuColumns {
         // TODO: Whye opcode - options.opcode doesn't work?
         table.assert_zero(
             "opcode_is_correct",
-            opcode.into(),
+            opcode - B16::new(options.opcode as u16),
         );
 
         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.

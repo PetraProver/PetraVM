@@ -26,7 +26,7 @@ pub mod arithmetization {
             let prom_channel = cs.add_channel("prom_channel");
             let vrom_channel = cs.add_channel("vrom_channel");
             Self {
-                add_table: AddTable::new(cs, state_channel, prom_channel, vrom_channel),
+                add_table: AddTable::new(cs, state_channel, vrom_channel, prom_channel),
                 ret_table: RetTable::new(cs, state_channel, vrom_channel, prom_channel),
                 state_channel,
                 prom_channel,
