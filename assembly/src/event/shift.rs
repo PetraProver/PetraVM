@@ -2,8 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
-    ZCrayTrace,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    fire_non_jump_event, ZCrayTrace,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -271,25 +271,17 @@ impl ArithmeticShiftEvent {
     }
 }
 
+// Using the fire_non_jump_event macro to simplify the Event implementation for
+// both types
 impl Event for LogicalShiftEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+        fire_non_jump_event!(self, channels);
     }
 }
 
 impl Event for ArithmeticShiftEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.pc * G, self.fp, self.timestamp + 1));
+        fire_non_jump_event!(self, channels);
     }
 }
 
