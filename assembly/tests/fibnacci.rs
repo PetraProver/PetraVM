@@ -24,7 +24,7 @@ fn test_fibonacci_integration() {
 
     // Set initial value
     let init_val = 4;
-    let initial_value = G.pow(&[init_val as u64]).val();
+    let initial_value = G.pow([init_val as u64]).val();
 
     // Initialize memory with return PC = 0, return FP = 0, and the argument
     let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
