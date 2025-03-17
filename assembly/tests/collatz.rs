@@ -1,7 +1,7 @@
 use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom, ZCrayTrace};
 
 #[test]
-fn test_collatz_validation() {
+fn test_collatz_integration() {
     // Parse the Collatz program
     let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
