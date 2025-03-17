@@ -2,12 +2,13 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
-    event::Event,
+    event::model::Event,
     ZCrayTrace,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum ShiftKind {
+    #[default]
     Left,
     Right,
 }
@@ -20,7 +21,7 @@ pub enum ShiftKind {
 /// Logic:
 ///   1. SLLI: FP[dst] = FP[src] << imm
 ///   1. SRLI: FP[dst] = FP[src] >> imm
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct SliEvent {
     pc: BinaryField32b,
     fp: u32,

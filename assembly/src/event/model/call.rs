@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    event::Event,
+    event::model::Event,
     ZCrayTrace,
 };
 
@@ -15,7 +15,7 @@ use crate::{
 ///   2. [FP[next_fp] + 1] = FP[1] (old frame pointer)
 ///   3. FP = FP[next_fp]
 ///   4. PC = target
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct TailiEvent {
     pc: BinaryField32b,
     fp: u32,
@@ -110,7 +110,7 @@ impl Event for TailiEvent {
 ///   2. [FP[next_fp] + 1] = FP[1] (old frame pointer)
 ///   3. FP = FP[next_fp]
 ///   4. PC = FP[offset]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct TailVEvent {
     pc: BinaryField32b,
     fp: u32,

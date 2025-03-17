@@ -58,9 +58,10 @@ impl CpuColumns {
         let arg1 = table.add_committed("arg1");
         let arg2 = table.add_committed("arg2");
         // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
+        // TODO: Whye opcode - options.opcode doesn't work?
         table.assert_zero(
             "opcode_is_correct",
-            opcode - B16::new(options.opcode as u16),
+            opcode.into(),
         );
 
         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.

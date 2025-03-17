@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    event::Event,
+    event::model::Event,
     fire_non_jump_event,
     opcodes::Opcode,
     ZCrayTrace,
@@ -124,7 +124,7 @@ impl MVEventOutput {
 ///
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = FP[src]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct MVVWEvent {
     pc: BinaryField32b,
     fp: u32,
@@ -264,7 +264,7 @@ impl_mv_fire!(MVVWEvent);
 ///
 /// Logic:
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct MVVLEvent {
     pc: BinaryField32b,
     fp: u32,
@@ -400,7 +400,7 @@ impl_mv_fire!(MVVLEvent);
 ///
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct MVIHEvent {
     pc: BinaryField32b,
     fp: u32,
@@ -512,7 +512,7 @@ impl MVIHEvent {
 impl_mv_fire!(MVIHEvent);
 
 // Event for LDI.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct LDIEvent {
     pc: BinaryField32b,
     fp: u32,

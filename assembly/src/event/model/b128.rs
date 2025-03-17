@@ -3,7 +3,7 @@ use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 use super::Event;
 use crate::{
     emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    event::BinaryOperation,
+    event::model::BinaryOperation,
     fire_non_jump_event, ZCrayTrace, G,
 };
 
@@ -13,7 +13,7 @@ use crate::{
 ///
 /// Logic:
 ///   1. FP[dst] = __b128_add(FP[src1], FP[src2])
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct B128AddEvent {
     timestamp: u32,
     pc: BinaryField32b,
@@ -124,7 +124,7 @@ impl Event for B128AddEvent {
 ///
 /// Logic:
 ///   1. FP[dst] = __b128_mul(FP[src1], FP[src2])
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct B128MulEvent {
     timestamp: u32,
     pc: BinaryField32b,

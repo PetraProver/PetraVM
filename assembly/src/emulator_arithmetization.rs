@@ -7,7 +7,7 @@ pub mod arithmetization {
     use bytemuck::Pod;
 
     use crate::{
-        event::{integer_ops::arithmetization::AddTable, ret::arithmetization::RetTable},
+        event::arithmetization::{integer_ops::AddTable, ret::RetTable},
         vrom, ZCrayTrace,
     };
 
@@ -39,6 +39,8 @@ pub mod arithmetization {
             trace: ZCrayTrace,
             witness: &mut WitnessIndex<U>,
         ) -> Result<(), anyhow::Error> {
+            println!( "add: {:?}", trace.add);
+            println!("ret:{:?}", trace.ret);  
             witness.fill_table_sequential(&self.add_table, &trace.add)?;
             witness.fill_table_sequential(&self.ret_table, &trace.ret)?;
             Ok(())

@@ -14,14 +14,14 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
 
 use crate::{
-    event::{
+    event::model::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
-        integer_ops::model::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
@@ -992,6 +992,8 @@ impl StateChannel {
     }
 }
 
+const MIN_TRACE_LEN: usize = 8;
+
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     bnz: Vec<BnzEvent>,
@@ -1074,6 +1076,7 @@ impl ZCrayTrace {
         let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, pc_field_to_int);
 
         let mut trace = interpreter.run()?;
+        trace.pad();
         trace.vrom = interpreter.vrom;
 
         let final_pc = if interpreter.pc == 0 {
@@ -1131,6 +1134,34 @@ impl ZCrayTrace {
         fire_events!(self.b128_mul, &mut channels, &tables);
 
         assert!(channels.state_channel.is_balanced());
+    }
+
+    pub(crate) fn pad(&mut self) {
+        Event::pad(&mut self.bnz);
+        Event::pad(&mut self.xor);
+        Event::pad(&mut self.bz);
+        Event::pad(&mut self.or);
+        Event::pad(&mut self.ori);
+        Event::pad(&mut self.xori);
+        Event::pad(&mut self.and);
+        Event::pad(&mut self.andi);
+        Event::pad(&mut self.shift);
+        Event::pad(&mut self.add);
+        Event::pad(&mut self.addi);
+        Event::pad(&mut self.add32);
+        Event::pad(&mut self.add64);
+        Event::pad(&mut self.muli);
+        Event::pad(&mut self.taili);
+        Event::pad(&mut self.tailv);
+        Event::pad(&mut self.ret);
+        Event::pad(&mut self.mvih);
+        Event::pad(&mut self.mvvw);
+        Event::pad(&mut self.mvvl);
+        Event::pad(&mut self.ldi);
+        Event::pad(&mut self.b32_mul);
+        Event::pad(&mut self.b32_muli);
+        Event::pad(&mut self.b128_add);
+        Event::pad(&mut self.b128_mul);
     }
 }
 
