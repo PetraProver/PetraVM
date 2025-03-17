@@ -77,13 +77,7 @@ impl ShiftEvent {
         }
         if shift_amount >= 32 {
             return match op {
-                ShiftOperation::ArithmeticRight => {
-                    if (src_val & 0x80000000) != 0 {
-                        0xFFFFFFFF
-                    } else {
-                        0
-                    }
-                }
+                ShiftOperation::ArithmeticRight => ((src_val as i32) >> 31) as u32,
                 _ => 0,
             };
         }
@@ -142,9 +136,8 @@ impl ShiftEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let shift_vrom_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let shift_amount = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
         let src2_offset = src2.val();
-        let shift_amount = shift_vrom_val & 0x1F;
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
@@ -158,7 +151,7 @@ impl ShiftEvent {
             new_val,
             src1.val(),
             src_val,
-            ShiftSource::VromOffset(src2_offset, shift_vrom_val),
+            ShiftSource::VromOffset(src2_offset, shift_amount),
             op,
         ))
     }
