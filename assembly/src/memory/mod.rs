@@ -25,7 +25,7 @@ pub enum MemoryError {
 pub type ProgramRom = Vec<InterpreterInstruction>;
 
 /// The `Memory` for an execution contains an *immutable* Program ROM,
-/// a *mutable* Value ROM, and a *mutable* RAM.
+/// and a *mutable* Value ROM.
 #[derive(Debug, Default)]
 pub struct Memory {
     prom: ProgramRom,
@@ -35,7 +35,7 @@ pub struct Memory {
 
 impl Memory {
     /// Initializes a new `Memory` instance.
-    pub fn new(prom: ProgramRom, vrom: ValueRom) -> Self {
+    pub const fn new(prom: ProgramRom, vrom: ValueRom) -> Self {
         Self { prom, vrom }
     }
 
