@@ -81,18 +81,18 @@ impl LogicalShiftEvent {
         }
     }
 
-    /// Calculate the result of a logical shift
+    /// Calculate the result of a logical shift.
+    ///
+    /// If `shift_amount` is 0, returns `src_val`. If greater than or equal to
+    /// 32, returns 0 (all bits shifted out). Otherwise, shifts left or
+    /// right based on the provided `kind`.
     pub fn calculate_result(src_val: u32, shift_amount: u32, kind: &LogicalShiftKind) -> u32 {
         if shift_amount == 0 {
-            // No shift - return original value
             return src_val;
         }
-
         if shift_amount >= 32 {
-            // Shift out all bits
             return 0;
         }
-
         match kind {
             LogicalShiftKind::Left => src_val << shift_amount,
             LogicalShiftKind::Right => src_val >> shift_amount,
@@ -112,11 +112,10 @@ impl LogicalShiftEvent {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let imm_val = imm.val(); // u16 immediate value from instruction
 
-        // For the calculation, convert to u32 for consistency
+        // For consistency, use u32 for shift calculations.
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount, &kind);
 
-        let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
@@ -129,7 +128,7 @@ impl LogicalShiftEvent {
             new_val,
             src.val(),
             src_val,
-            ShiftSource::Immediate(imm_val), // Store original u16 immediate
+            ShiftSource::Immediate(imm_val),
             kind,
         ))
     }
@@ -148,12 +147,10 @@ impl LogicalShiftEvent {
         let shift_vrom_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
         let src2_offset = src2.val(); // 16-bit VROM offset
 
-        // Extract the shift amount (lower 5 bits only, as per standard behavior)
-        let shift_amount = shift_vrom_val & 0x1F; // u32 value with only lower 5 bits set
-
+        // Use lower 5 bits to extract the shift amount.
+        let shift_amount = shift_vrom_val & 0x1F;
         let new_val = Self::calculate_result(src_val, shift_amount, &kind);
 
-        let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
@@ -166,7 +163,7 @@ impl LogicalShiftEvent {
             new_val,
             src1.val(),
             src_val,
-            ShiftSource::VromOffset(src2_offset, shift_vrom_val), // 16-bit offset, 32-bit value
+            ShiftSource::VromOffset(src2_offset, shift_vrom_val),
             kind,
         ))
     }
@@ -196,27 +193,27 @@ impl ArithmeticShiftEvent {
         }
     }
 
-    /// Calculate the result of an arithmetic right shift
+    /// Calculate the result of an arithmetic right shift.
+    ///
+    /// If `shift_amount` is 0, returns `src_val`. If `shift_amount` is 32 or
+    /// more, returns all ones if the sign bit is set or zero otherwise.
+    /// Otherwise, performs an arithmetic right shift.
     pub fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
         if shift_amount == 0 {
-            // No shift - return original value
             return src_val;
         }
-
         if shift_amount >= 32 {
-            // For arithmetic shift, fill with sign bit
             if (src_val & 0x80000000) != 0 {
-                return 0xFFFFFFFF; // All ones if sign bit is set
+                return 0xFFFFFFFF;
             } else {
-                return 0; // All zeros if sign bit is clear
+                return 0;
             }
         }
-
-        // Perform arithmetic right shift
+        // Arithmetic right shift: cast to i32 to preserve sign, then back to u32.
         ((src_val as i32) >> shift_amount) as u32
     }
 
-    /// Generate an ArithmeticShiftEvent for immediate shift operation (SRAI)
+    /// Generate an ArithmeticShiftEvent for immediate shift operations (SRAI)
     pub fn generate_immediate_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -226,13 +223,11 @@ impl ArithmeticShiftEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
-        let imm_val = imm.val(); // u16 immediate value from instruction
+        let imm_val = imm.val();
 
-        // For the calculation, convert to u32 for consistency
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount);
 
-        let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
@@ -245,11 +240,11 @@ impl ArithmeticShiftEvent {
             new_val,
             src.val(),
             src_val,
-            ShiftSource::Immediate(imm_val), // Store original u16 immediate
+            ShiftSource::Immediate(imm_val),
         ))
     }
 
-    /// Generate an ArithmeticShiftEvent for VROM-based shift operation (SRA)
+    /// Generate an ArithmeticShiftEvent for VROM-based shift operations (SRA)
     pub fn generate_vrom_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -260,14 +255,11 @@ impl ArithmeticShiftEvent {
     ) -> Result<Self, InterpreterError> {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
         let shift_vrom_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
-        let src2_offset = src2.val(); // 16-bit VROM offset
+        let src2_offset = src2.val();
 
-        // Extract the shift amount (lower 5 bits only, as per standard behavior)
-        let shift_amount = shift_vrom_val & 0x1F; // u32 value with only lower 5 bits set
-
+        let shift_amount = shift_vrom_val & 0x1F;
         let new_val = Self::calculate_result(src_val, shift_amount);
 
-        let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
         interpreter.incr_pc();
@@ -280,8 +272,16 @@ impl ArithmeticShiftEvent {
             new_val,
             src1.val(),
             src_val,
-            ShiftSource::VromOffset(src2_offset, shift_vrom_val), // 16-bit offset, 32-bit value
+            ShiftSource::VromOffset(src2_offset, shift_vrom_val),
         ))
+    }
+}
+
+// Implement the ShiftOperation trait for arithmetic shifts since they have a
+// fixed behavior.
+impl ShiftOperation for ArithmeticShiftEvent {
+    fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
+        Self::calculate_result(src_val, shift_amount)
     }
 }
 
@@ -321,26 +321,21 @@ mod test {
         // Test left shift
         let src_val = 0x00000001;
         let shift_amount = 4u32;
-
-        // Test with explicit kind parameter
         let left_result =
             LogicalShiftEvent::calculate_result(src_val, shift_amount, &LogicalShiftKind::Left);
         assert_eq!(left_result, 0x00000010);
 
-        // Right shift
+        // Test right shift
         let src_val = 0x00000010;
         let right_result =
             LogicalShiftEvent::calculate_result(src_val, shift_amount, &LogicalShiftKind::Right);
         assert_eq!(right_result, 0x00000001);
 
         // Edge cases
-        // Shift by 0
         assert_eq!(
             LogicalShiftEvent::calculate_result(src_val, 0, &LogicalShiftKind::Left),
             src_val
         );
-
-        // Shift by 32 or more
         assert_eq!(
             LogicalShiftEvent::calculate_result(src_val, 32, &LogicalShiftKind::Left),
             0
@@ -352,24 +347,17 @@ mod test {
         // Test arithmetic right shift with sign bit set
         let src_val = 0x80000008; // Negative number
         let shift_amount = 3u32;
-
-        // Using direct calculation method
         let result = ArithmeticShiftEvent::calculate_result(src_val, shift_amount);
-        assert_eq!(result, 0xF0000001); // Sign bit extended
+        assert_eq!(result, 0xF0000001);
 
         // Test with sign bit clear
         let src_val = 0x00000008; // Positive number
         let result = ArithmeticShiftEvent::calculate_result(src_val, shift_amount);
-        assert_eq!(result, 0x00000001); // No sign extension
+        assert_eq!(result, 0x00000001);
 
         // Edge cases
-        // Shift by 0
         assert_eq!(ArithmeticShiftEvent::calculate_result(src_val, 0), src_val);
-
-        // Shift by 32 or more - positive number
         assert_eq!(ArithmeticShiftEvent::calculate_result(0x70000000, 32), 0);
-
-        // Shift by 32 or more - negative number
         assert_eq!(
             ArithmeticShiftEvent::calculate_result(0x80000000, 32),
             0xFFFFFFFF
@@ -399,27 +387,19 @@ mod test {
         frames.insert(BinaryField32b::ONE, 5);
 
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
-
         let mut vrom = ValueRom::default();
         vrom.set_u32(0, 0);
         vrom.set_u32(1, 0);
         vrom.set_u32(2, 0x00000002); // Initial value
 
         let memory = Memory::new(prom, vrom);
-
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
         // Check the results
         assert_eq!(trace.logical_shifts.len(), 2);
-
-        // First shift: 0x00000002 << 4 = 0x00000020
         assert_eq!(trace.logical_shifts[0].dst_val, 0x00000020);
-
-        // Second shift: 0x00000020 >> 2 = 0x00000008
         assert_eq!(trace.logical_shifts[1].dst_val, 0x00000008);
-
-        // Check the values in VROM
         assert_eq!(trace.get_vrom_u32(3).unwrap(), 0x00000020);
         assert_eq!(trace.get_vrom_u32(4).unwrap(), 0x00000008);
     }
@@ -442,24 +422,18 @@ mod test {
         frames.insert(BinaryField32b::ONE, 4);
 
         let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
-
         let mut vrom = ValueRom::default();
         vrom.set_u32(0, 0);
         vrom.set_u32(1, 0);
         vrom.set_u32(2, 0xF0000000); // Negative number
 
         let memory = Memory::new(prom, vrom);
-
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
         // Check the result
         assert_eq!(trace.arithmetic_shifts.len(), 1);
-
-        // Arithmetic shift: 0xF0000000 >> 2 = 0xFC000000 (sign-extended)
         assert_eq!(trace.arithmetic_shifts[0].dst_val, 0xFC000000);
-
-        // Check the value in VROM
         assert_eq!(trace.get_vrom_u32(3).unwrap(), 0xFC000000);
     }
 }
