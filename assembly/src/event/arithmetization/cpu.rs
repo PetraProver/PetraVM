@@ -74,14 +74,14 @@ impl CpuColumns {
             next_pc = target;
         } else {
             next_pc = table
-                .add_linear_combination("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into());
+                .add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into());
         }
 
         // Read instruction
         table.push(
             prom_channel,
             [
-                upcast_col(pc),
+                pc,
                 upcast_col(opcode),
                 upcast_col(arg0),
                 upcast_col(arg1),
@@ -92,24 +92,24 @@ impl CpuColumns {
         // Flushing rules for the state channel
         table.push(
             state_channel,
-            [upcast_col(pc), upcast_col(fp), upcast_col(timestamp)],
+            [pc, fp, timestamp],
         );
         if let Some(next_fp) = options.next_fp {
             table.pull(
                 state_channel,
                 [
-                    upcast_col(next_pc),
-                    upcast_col(next_fp),
-                    upcast_col(next_timestamp),
+                    next_pc,
+                    next_fp,
+                    next_timestamp,
                 ],
             );
         } else {
             table.pull(
                 state_channel,
                 [
-                    upcast_col(next_pc),
-                    upcast_col(fp),
-                    upcast_col(next_timestamp),
+                    next_pc,
+                    fp,
+                    next_timestamp,
                 ],
             );
         }

@@ -43,19 +43,19 @@
             );
 
             let fp0 = cpu_cols.fp;
-            let fp1 = table.add_linear_combination("fp1", fp0 + B32::ONE);
+            let fp1 = table.add_computed("fp1", fp0 + B32::ONE);
             let timestamp = cpu_cols.timestamp;
 
             // Read the next_pc
             table.push(
                 vrom_channel,
-                [upcast_col(fp0), upcast_col(fp0_val), upcast_col(timestamp)],
+                [fp0, fp0_val, timestamp],
             );
 
             //Read the next_fp
             table.push(
                 vrom_channel,
-                [upcast_col(fp1), upcast_col(fp1_val), upcast_col(timestamp)],
+                [fp1, fp1_val, timestamp],
             );
 
             Self {
