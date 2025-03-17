@@ -6,12 +6,6 @@ use crate::{
     ZCrayTrace,
 };
 
-/// Common trait for shift operations with parameterized calculation
-pub(crate) trait ShiftOperation {
-    /// Calculate the result of a shift operation
-    fn calculate_result(src_val: u32, shift_amount: u32) -> u32;
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum LogicalShiftKind {
     Left,
@@ -83,9 +77,8 @@ impl LogicalShiftEvent {
 
     /// Calculate the result of a logical shift.
     ///
-    /// If `shift_amount` is 0, returns `src_val`. If greater than or equal to
-    /// 32, returns 0 (all bits shifted out). Otherwise, shifts left or
-    /// right based on the provided `kind`.
+    /// Returns the original value if `shift_amount` is 0, or 0 if the amount is
+    /// ≥ 32. Otherwise, performs a left or right shift based on `kind`.
     pub fn calculate_result(src_val: u32, shift_amount: u32, kind: &LogicalShiftKind) -> u32 {
         if shift_amount == 0 {
             return src_val;
@@ -109,10 +102,11 @@ impl LogicalShiftEvent {
         kind: LogicalShiftKind,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
+        // Using XOR for address calculation is by design for mapping the FP and VROM
+        // offset.
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let imm_val = imm.val(); // u16 immediate value from instruction
 
-        // For consistency, use u32 for shift calculations.
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount, &kind);
 
@@ -143,11 +137,11 @@ impl LogicalShiftEvent {
         kind: LogicalShiftKind,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
+        // The XOR between FP and VROM offset derives a unique VROM address.
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
         let shift_vrom_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
-        let src2_offset = src2.val(); // 16-bit VROM offset
+        let src2_offset = src2.val();
 
-        // Use lower 5 bits to extract the shift amount.
         let shift_amount = shift_vrom_val & 0x1F;
         let new_val = Self::calculate_result(src_val, shift_amount, &kind);
 
@@ -195,21 +189,21 @@ impl ArithmeticShiftEvent {
 
     /// Calculate the result of an arithmetic right shift.
     ///
-    /// If `shift_amount` is 0, returns `src_val`. If `shift_amount` is 32 or
-    /// more, returns all ones if the sign bit is set or zero otherwise.
-    /// Otherwise, performs an arithmetic right shift.
+    /// Returns the original value if `shift_amount` is 0, or all ones/zeros if
+    /// ≥ 32, depending on the sign bit. Otherwise, performs an arithmetic
+    /// right shift.
     pub fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
         if shift_amount == 0 {
             return src_val;
         }
         if shift_amount >= 32 {
-            if (src_val & 0x80000000) != 0 {
-                return 0xFFFFFFFF;
+            return if (src_val & 0x80000000) != 0 {
+                0xFFFFFFFF
             } else {
-                return 0;
-            }
+                0
+            };
         }
-        // Arithmetic right shift: cast to i32 to preserve sign, then back to u32.
+        // Cast to i32 for arithmetic shift (to preserve sign) then back to u32.
         ((src_val as i32) >> shift_amount) as u32
     }
 
@@ -277,14 +271,6 @@ impl ArithmeticShiftEvent {
     }
 }
 
-// Implement the ShiftOperation trait for arithmetic shifts since they have a
-// fixed behavior.
-impl ShiftOperation for ArithmeticShiftEvent {
-    fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
-        Self::calculate_result(src_val, shift_amount)
-    }
-}
-
 impl Event for LogicalShiftEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
@@ -331,7 +317,7 @@ mod test {
             LogicalShiftEvent::calculate_result(src_val, shift_amount, &LogicalShiftKind::Right);
         assert_eq!(right_result, 0x00000001);
 
-        // Edge cases
+        // Edge cases: shift by 0 and shift by 32 or more
         assert_eq!(
             LogicalShiftEvent::calculate_result(src_val, 0, &LogicalShiftKind::Left),
             src_val
@@ -350,7 +336,7 @@ mod test {
         let result = ArithmeticShiftEvent::calculate_result(src_val, shift_amount);
         assert_eq!(result, 0xF0000001);
 
-        // Test with sign bit clear
+        // Test arithmetic right shift with sign bit clear
         let src_val = 0x00000008; // Positive number
         let result = ArithmeticShiftEvent::calculate_result(src_val, shift_amount);
         assert_eq!(result, 0x00000001);
@@ -366,7 +352,7 @@ mod test {
 
     #[test]
     fn test_logical_shift_integration() {
-        // Setup a simple program with logical shifts
+        // Setup a simple program with logical shifts.
         let zero = BinaryField16b::zero();
         let dst1 = BinaryField16b::new(3);
         let src1 = BinaryField16b::new(2);
@@ -396,7 +382,7 @@ mod test {
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
-        // Check the results
+        // Check the results: first shift left, then shift right.
         assert_eq!(trace.logical_shifts.len(), 2);
         assert_eq!(trace.logical_shifts[0].dst_val, 0x00000020);
         assert_eq!(trace.logical_shifts[1].dst_val, 0x00000008);
@@ -406,7 +392,7 @@ mod test {
 
     #[test]
     fn test_arithmetic_shift_integration() {
-        // Setup a simple program with arithmetic shift
+        // Setup a simple program with arithmetic shift.
         let zero = BinaryField16b::zero();
         let dst = BinaryField16b::new(3);
         let src = BinaryField16b::new(2);
@@ -431,7 +417,7 @@ mod test {
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
-        // Check the result
+        // Check the arithmetic shift result.
         assert_eq!(trace.arithmetic_shifts.len(), 1);
         assert_eq!(trace.arithmetic_shifts[0].dst_val, 0xFC000000);
         assert_eq!(trace.get_vrom_u32(3).unwrap(), 0xFC000000);
