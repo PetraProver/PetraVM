@@ -2,9 +2,9 @@ mod ram;
 mod vrom;
 mod vrom_allocator;
 
-pub use vrom::ValueRom;
 use binius_field::BinaryField32b;
 pub(crate) use ram::{AccessSize, Ram};
+pub use vrom::ValueRom;
 pub(crate) use vrom::{VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
@@ -36,10 +36,7 @@ pub struct Memory {
 impl Memory {
     /// Initializes a new `Memory` instance.
     pub fn new(prom: ProgramRom, vrom: ValueRom) -> Self {
-        Self {
-            prom,
-            vrom,
-        }
+        Self { prom, vrom }
     }
 
     /// Returns a reference to the PROM.
