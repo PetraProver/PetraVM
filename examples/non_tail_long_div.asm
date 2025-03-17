@@ -1,3 +1,4 @@
+#[framesize(0xf)]
 div:
     ;; Frame:
     ;; Slot 0: Return PC
@@ -15,12 +16,12 @@ div:
     ;; Slot 12: Local: (2*r1) + (a&1)
     ;; Slot 13: Local: (2*r1) + (a&1) < b
     ;; Slot 14: Local: 2*q1
-    BNZ @2, div_else1
+    BNZ div_else1, @2
     LDI.W @4, #0
     LDI.W @5, #0
     RET
 div_else1:
-    SRAI @7, @2, 1
+    SRAI @7, @2, #1
     MVV.W @6[2], @7
     MVV.W @6[3], @3
     MVV.W @6[4], @8
@@ -31,7 +32,7 @@ div_else1:
     ADD @12, @11, @10
     SLTU @13, @12, @3
     SLLI @14, @8, #1
-    BNZ @13, div_else2
+    BNZ div_else2, @13
     ADDI @4, @14, #1
     SUB @5, @12, @3
     RET

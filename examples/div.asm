@@ -14,7 +14,7 @@ div:
     SLTU @7, @2, @3
     BNZ div_consequent, @7
     SUB @8, @2, @3
-    MVV.W @6[2], @7
+    MVV.W @6[2], @8
     MVV.W @6[3], @3
     MVV.W @6[4], @9
     MVV.W @6[5], @5

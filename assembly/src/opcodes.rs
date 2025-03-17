@@ -24,15 +24,14 @@ pub enum Opcode {
     // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
-    // Srai, // TODO
     // Slti, // TODO
-    // Sltiu, // TODO
     // Slt, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
     Sub = 0x019,
     Sltu = 0x20,
+    Sltiu = 0x25,
     // Sll, // TODO
     // Srl, // TODO
     // Sra, // TODO
@@ -47,8 +46,8 @@ pub enum Opcode {
     MVVL = 0x11,
 
     // Jump instructions
-    // Jumpi, // TODO
-    // JumpV, // TODO
+    Jumpi = 0x23,
+    Jumpv = 0x24,
     // CallV, // TODO,
     Taili = 0x0c,
     TailV = 0x12,

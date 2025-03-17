@@ -435,9 +435,9 @@ pub(crate) struct SltuEvent {
     dst: u16,
     dst_val: u32,
     src1: u16,
-    pub(crate) src1_val: u32,
+    src1_val: u32,
     src2: u16,
-    pub(crate) src2_val: u32,
+    src2_val: u32,
 }
 
 impl BinaryOperation for SltuEvent {
@@ -450,6 +450,34 @@ impl BinaryOperation for SltuEvent {
 // Note: The addition is checked thanks to the ADD32 table.
 impl_binary_operation!(SltuEvent);
 impl_event_for_binary_operation!(SltuEvent);
+
+/// Event for SLTIU.
+///
+/// Performs an SLTIU between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] < FP[src2]
+#[derive(Debug, Clone)]
+pub(crate) struct SltiuEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u32,
+    src: u16,
+    src_val: u32,
+    imm: u16,
+}
+
+impl BinaryOperation for SltiuEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField16b) -> BinaryField32b {
+        // LT is checked using a SUB gadget.
+        BinaryField32b::new((val1.val() < val2.val() as u32) as u32)
+    }
+}
+
+impl_immediate_binary_operation!(SltiuEvent);
+impl_event_for_binary_operation!(SltiuEvent);
 
 // Event for SUB.
 ///

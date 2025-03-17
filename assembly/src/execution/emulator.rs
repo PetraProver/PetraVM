@@ -18,8 +18,10 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
+            SltuEvent, SubEvent,
         },
+        jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::{ShiftKind, SliEvent},
@@ -263,6 +265,12 @@ impl Interpreter {
             Opcode::Bnz => {
                 self.generate_bnz(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::Jumpi => {
+                self.generate_jumpi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Jumpv => {
+                self.generate_jumpv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::Xori => {
                 self.generate_xori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
@@ -289,6 +297,9 @@ impl Interpreter {
             }
             Opcode::Sltu => {
                 self.generate_sltu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sltiu => {
+                self.generate_sltiu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
             Opcode::Muli => {
                 self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
@@ -366,6 +377,38 @@ impl Interpreter {
             let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bz.push(new_bz_event);
         }
+
+        Ok(())
+    }
+
+    fn generate_jumpi(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_jumpi_event = JumpiEvent::generate_event(self, trace, target, field_pc)?;
+        trace.jumpi.push(new_jumpi_event);
+
+        Ok(())
+    }
+
+    fn generate_jumpv(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        offset: BinaryField16b,
+        _: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_jumpv_event = JumpvEvent::generate_event(self, trace, offset, field_pc)?;
+        trace.jumpv.push(new_jumpv_event);
 
         Ok(())
     }
@@ -578,6 +621,21 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_sltu_event = SltuEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.sltu.push(new_sltu_event);
+
+        Ok(())
+    }
+
+    fn generate_sltiu(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sltiu_event = SltiuEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.sltiu.push(new_sltiu_event);
 
         Ok(())
     }
@@ -1167,8 +1225,6 @@ mod tests {
             get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
                 .expect("Instructions were not formatted properly.");
 
-        println!("frame sizes {:?}", frame_sizes);
-
         let a = rand::random();
         let b = rand::random();
         let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
@@ -1271,7 +1327,6 @@ mod tests {
 
     #[test]
     fn test_bezout() {
-        init_logger();
         let kernel_files = [
             include_str!("../../../examples/bezout.asm"),
             include_str!("../../../examples/div.asm"),
@@ -1294,8 +1349,6 @@ mod tests {
         let (prom, labels, pc_field_to_int, frame_sizes) =
             get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
                 .expect("Instructions were not formatted properly.");
-
-        println!("frame sizes {:?}", frame_sizes);
 
         let a = 12;
         let b = 3;
@@ -1332,6 +1385,97 @@ mod tests {
                 .get_vrom_u32(6)
                 .expect("Return value for remainder not set."),
             1
+        );
+    }
+
+    #[test]
+    fn test_non_tail_long_div() {
+        let kernel_file = include_str!("../../../examples/non_tail_long_div.asm");
+
+        let instructions = parse_program(kernel_file).unwrap();
+        let indices_is_call_procedure_hints = [7, 8, 9, 10];
+
+        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
+        for idx in indices_is_call_procedure_hints {
+            is_call_procedure_hints_with_labels[idx] = true;
+        }
+
+        let (prom, labels, _, frame_sizes) =
+            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
+                .expect("Instructions were not formatted properly.");
+
+        let mut pc = BinaryField32b::ONE;
+        let mut pc_field_to_int = HashMap::new();
+        for i in 0..prom.len() {
+            pc_field_to_int.insert(pc, i as u32 + 1);
+            pc *= G;
+        }
+        let a = 54820;
+        let b = 65;
+
+        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
+
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
+            .expect("Trace generation should not fail.");
+
+        assert_eq!(
+            trace
+                .get_vrom_u32(4)
+                .expect("Return value for quotient not set."),
+            a / b
+        );
+        assert_eq!(
+            trace
+                .get_vrom_u32(5)
+                .expect("Return value for remainder not set."),
+            a % b
+        );
+    }
+
+    #[test]
+    fn test_tail_long_div() {
+        let kernel_file = include_str!("../../../examples/tail_long_div.asm");
+
+        let instructions = parse_program(kernel_file).unwrap();
+        let indices_is_call_procedure_hints = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+        ];
+
+        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
+        for idx in indices_is_call_procedure_hints {
+            is_call_procedure_hints_with_labels[idx] = true;
+        }
+
+        let (prom, labels, _, frame_sizes) =
+            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
+                .expect("Instructions were not formatted properly.");
+
+        let mut pc = BinaryField32b::ONE;
+        let mut pc_field_to_int = HashMap::new();
+        for i in 0..prom.len() {
+            pc_field_to_int.insert(pc, i as u32 + 1);
+            pc *= G;
+        }
+        let a = rand::random();
+        let b = rand::random();
+        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
+
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
+            .expect("Trace generation should not fail.");
+
+        assert_eq!(
+            trace
+                .get_vrom_u32(4)
+                .expect("Return value for quotient not set."),
+            a / b
+        );
+        assert_eq!(
+            trace
+                .get_vrom_u32(5)
+                .expect("Return value for remainder not set."),
+            a % b
         );
     }
 }

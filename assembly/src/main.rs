@@ -63,8 +63,6 @@ fn main() {
         get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
             .expect("Instructions were not formatted properly.");
 
-    println!("frame sizes {:?}", frame_sizes);
-
     let a = 12;
     let b = 3;
     let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);

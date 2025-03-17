@@ -40,6 +40,12 @@ pub enum InstructionsWithLabels {
         offset: Slot,
         arg: Slot,
     },
+    Jumpi {
+        label: String,
+    },
+    Jumpv {
+        offset: Slot,
+    },
     Ldi {
         dst: Slot,
         imm: Immediate,
@@ -78,10 +84,20 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Sltiu {
+        dst: Slot,
+        src: Slot,
+        imm: Immediate,
+    },
     AndI {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
+    },
+    And {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
     },
     MulI {
         dst: Slot,
@@ -194,12 +210,43 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Sltiu { dst, src, imm } => {
+            let instruction = [
+                Opcode::Sltiu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::AndI { dst, src1, imm } => {
             let instruction = [
                 Opcode::Andi.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::And { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::And.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
             ];
 
             prom.push(InterpreterInstruction::new(
@@ -249,6 +296,43 @@ pub fn get_prom_inst_from_inst_with_label(
                     src.get_16bfield_val(),
                     targets_16b[0],
                     targets_16b[1],
+                ];
+
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    is_call_hint,
+                ));
+            } else {
+                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
+            }
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Jumpv { offset } => {
+            let instruction = [
+                Opcode::Jumpv.get_field_elt(),
+                offset.get_16bfield_val(),
+                BinaryField16b::zero(),
+                BinaryField16b::zero(),
+            ];
+
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                is_call_hint,
+            ));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Jumpi { label } => {
+            if let Some(target) = labels.get(label) {
+                let targets_16b =
+                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let instruction = [
+                    Opcode::Jumpi.get_field_elt(),
+                    targets_16b[0],
+                    targets_16b[1],
+                    BinaryField16b::zero(),
                 ];
 
                 prom.push(InterpreterInstruction::new(
@@ -589,11 +673,19 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
             InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
+            InstructionsWithLabels::Jumpv { offset } => write!(f, "JUMPV {offset}"),
+            InstructionsWithLabels::Jumpi { label } => write!(f, "JUMPI {label}"),
             InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
+            InstructionsWithLabels::And { dst, src1, src2 } => {
+                write!(f, "ANDI {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
             InstructionsWithLabels::Sltu { dst, src1, src2 } => {
                 write!(f, "SLTU {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Sltiu { dst, src, imm } => {
+                write!(f, "SLTIU {dst} {src} {imm}")
             }
             InstructionsWithLabels::AddI { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
             InstructionsWithLabels::AndI { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),

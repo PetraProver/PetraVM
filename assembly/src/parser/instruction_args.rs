@@ -71,7 +71,9 @@ impl std::str::FromStr for Immediate {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let is_field = s.ends_with('G');
         let s = s.trim_start_matches('#').trim_end_matches("G");
-        let int_val = i16::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))?;
+
+        let int_val =
+            i64::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))? as i32;
         if is_field {
             let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.unsigned_abs() as u64);
             if int_val < 0 {

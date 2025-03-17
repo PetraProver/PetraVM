@@ -14,8 +14,10 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
+            SltuEvent, SubEvent,
         },
+        jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         sli::SliEvent,
@@ -30,6 +32,8 @@ use crate::{
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     pub(crate) bnz: Vec<BnzEvent>,
+    pub(crate) jumpi: Vec<JumpiEvent>,
+    pub(crate) jumpv: Vec<JumpvEvent>,
     pub(crate) xor: Vec<XorEvent>,
     pub(crate) bz: Vec<BzEvent>,
     pub(crate) or: Vec<OrEvent>,
@@ -39,6 +43,7 @@ pub(crate) struct ZCrayTrace {
     pub(crate) andi: Vec<AndiEvent>,
     pub(crate) sub: Vec<SubEvent>,
     pub(crate) sltu: Vec<SltuEvent>,
+    pub(crate) sltiu: Vec<SltiuEvent>,
     pub(crate) shift: Vec<SliEvent>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,

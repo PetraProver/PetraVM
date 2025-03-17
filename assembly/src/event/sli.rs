@@ -70,13 +70,13 @@ impl SliEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
-        let new_val = if imm == BinaryField16b::ZERO || imm >= BinaryField16b::new(32) {
+        let new_val = if imm == BinaryField16b::ZERO {
             0
         } else {
             match kind {
                 ShiftKind::Left => src_val << imm.val(),
                 ShiftKind::Right => src_val >> imm.val(),
-                ShiftKind::ArithmeticRight => ((src_val as i32) << imm.val()) as u32,
+                ShiftKind::ArithmeticRight => ((src_val as i32) >> imm.val()) as u32,
             }
         };
 
