@@ -14,6 +14,7 @@ pub enum Opcode {
     Andi = 0x04,
     Srli = 0x05,
     Slli = 0x06,
+    Srai = 0x18,
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,
@@ -22,7 +23,6 @@ pub enum Opcode {
     // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
-    // Srai, // TODO
     // Slti, // TODO
     // Sltiu, // TODO
     // Sub, // TODO
@@ -31,9 +31,9 @@ pub enum Opcode {
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
-    // Sll, // TODO
-    // Srl, // TODO
-    // Sra, // TODO
+    Sll = 0x19,
+    Srl = 0x1A,
+    Sra = 0x1B,
     // Mul, // TODO
     // Mulu, // TODO
     // Mulsu, // TODO

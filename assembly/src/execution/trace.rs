@@ -16,7 +16,7 @@ use crate::{
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        sli::SliEvent,
+        shift::{ArithmeticShiftEvent, LogicalShiftEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
@@ -35,7 +35,8 @@ pub(crate) struct ZCrayTrace {
     pub(crate) xori: Vec<XoriEvent>,
     pub(crate) and: Vec<AndEvent>,
     pub(crate) andi: Vec<AndiEvent>,
-    pub(crate) shift: Vec<SliEvent>,
+    pub(crate) logical_shifts: Vec<LogicalShiftEvent>, // For SLLI, SRLI, SLL, SRL
+    pub(crate) arithmetic_shifts: Vec<ArithmeticShiftEvent>, // For SRAI, SRA
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
     pub(crate) add32: Vec<Add32Event>,
@@ -130,7 +131,8 @@ impl ZCrayTrace {
         fire_events!(self.xori, &mut channels, &tables);
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
-        fire_events!(self.shift, &mut channels, &tables);
+        fire_events!(self.logical_shifts, &mut channels, &tables);
+        fire_events!(self.arithmetic_shifts, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
