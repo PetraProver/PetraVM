@@ -2,9 +2,10 @@ mod ram;
 mod vrom;
 mod vrom_allocator;
 
+pub use vrom::ValueRom;
 use binius_field::BinaryField32b;
 pub(crate) use ram::{AccessSize, Ram};
-pub(crate) use vrom::{ValueRom, VromPendingUpdates, VromUpdate};
+pub(crate) use vrom::{VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
 use crate::execution::InterpreterInstruction;
@@ -29,7 +30,7 @@ pub type ProgramRom = Vec<InterpreterInstruction>;
 pub struct Memory {
     prom: ProgramRom,
     vrom: ValueRom,
-    ram: Ram,
+    // TODO: We won't need to implement RAM ops at all for the first version.
 }
 
 impl Memory {
@@ -38,7 +39,6 @@ impl Memory {
         Self {
             prom,
             vrom,
-            ram: Ram::default(),
         }
     }
 
@@ -55,16 +55,6 @@ impl Memory {
     /// Returns a mutable reference to the VROM.
     pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
         &mut self.vrom
-    }
-
-    /// Returns a reference to the RAM.
-    pub fn ram(&self) -> &Ram {
-        &self.ram
-    }
-
-    /// Returns a mutable reference to the RAM.
-    pub(crate) fn ram_mut(&mut self) -> &mut Ram {
-        &mut self.ram
     }
 
     // ValueROM access methods
@@ -132,70 +122,5 @@ impl Memory {
         pending_update: VromUpdate,
     ) -> Result<(), MemoryError> {
         self.vrom.insert_pending(dst, pending_update)
-    }
-
-    // RAM access methods
-
-    /// Reads a u8 value from RAM at the provided address.
-    pub(crate) fn read_ram_u8(
-        &mut self,
-        addr: u32,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<u8, MemoryError> {
-        self.ram.read(addr, timestamp, pc)
-    }
-
-    /// Reads a u16 value from RAM at the provided address.
-    pub(crate) fn read_ram_u16(
-        &mut self,
-        addr: u32,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<u16, MemoryError> {
-        self.ram.read(addr, timestamp, pc)
-    }
-
-    /// Reads a u32 value from RAM at the provided address.
-    pub(crate) fn read_ram_u32(
-        &mut self,
-        addr: u32,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<u32, MemoryError> {
-        self.ram.read(addr, timestamp, pc)
-    }
-
-    /// Writes a u8 value to RAM at the provided address.
-    pub(crate) fn write_ram_u8(
-        &mut self,
-        addr: u32,
-        value: u8,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<(), MemoryError> {
-        self.ram.write(addr, value, timestamp, pc)
-    }
-
-    /// Writes a u16 value to RAM at the provided address.
-    pub(crate) fn write_ram_u16(
-        &mut self,
-        addr: u32,
-        value: u16,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<(), MemoryError> {
-        self.ram.write(addr, value, timestamp, pc)
-    }
-
-    /// Writes a u32 value to RAM at the provided address.
-    pub(crate) fn write_ram_u32(
-        &mut self,
-        addr: u32,
-        value: u32,
-        timestamp: u32,
-        pc: BinaryField32b,
-    ) -> Result<(), MemoryError> {
-        self.ram.write(addr, value, timestamp, pc)
     }
 }
