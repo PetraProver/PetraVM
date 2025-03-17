@@ -20,12 +20,11 @@ use crate::{
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::{ArithmeticShiftEvent, LogicalShiftEvent, LogicalShiftKind},
+        shift::{ShiftEvent, ShiftOperation},
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
-    execution::StateChannel,
-    execution::ZCrayTrace,
+    execution::{StateChannel, ZCrayTrace},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
@@ -419,17 +418,16 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = LogicalShiftEvent::generate_immediate_event(
+        let new_shift_event = ShiftEvent::generate_immediate_event(
             self,
             trace,
             dst,
             src,
             imm,
-            LogicalShiftKind::Left,
+            ShiftOperation::LogicalLeft,
             field_pc,
         )?;
-        trace.logical_shifts.push(new_shift_event);
-
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -442,17 +440,16 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = LogicalShiftEvent::generate_immediate_event(
+        let new_shift_event = ShiftEvent::generate_immediate_event(
             self,
             trace,
             dst,
             src,
             imm,
-            LogicalShiftKind::Right,
+            ShiftOperation::LogicalRight,
             field_pc,
         )?;
-        trace.logical_shifts.push(new_shift_event);
-
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -465,10 +462,16 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ArithmeticShiftEvent::generate_immediate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.arithmetic_shifts.push(new_shift_event);
-
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::ArithmeticRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -481,17 +484,16 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = LogicalShiftEvent::generate_vrom_event(
+        let new_shift_event = ShiftEvent::generate_vrom_event(
             self,
             trace,
             dst,
             src1,
             src2,
-            LogicalShiftKind::Left,
+            ShiftOperation::LogicalLeft,
             field_pc,
         )?;
-        trace.logical_shifts.push(new_shift_event);
-
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -504,17 +506,16 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = LogicalShiftEvent::generate_vrom_event(
+        let new_shift_event = ShiftEvent::generate_vrom_event(
             self,
             trace,
             dst,
             src1,
             src2,
-            LogicalShiftKind::Right,
+            ShiftOperation::LogicalRight,
             field_pc,
         )?;
-        trace.logical_shifts.push(new_shift_event);
-
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -527,10 +528,16 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ArithmeticShiftEvent::generate_vrom_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.arithmetic_shifts.push(new_shift_event);
-
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::ArithmeticRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -1077,12 +1084,12 @@ mod tests {
         traces.validate(boundary_values);
 
         assert!(
-            traces.logical_shifts.len() == expected_evens.len(),
+            traces.shifts.len() == expected_evens.len(),
             "Generated an incorrect number of even cases."
         );
         for (i, &even) in expected_evens.iter().enumerate() {
             assert!(
-                traces.logical_shifts[i].src_val == even,
+                traces.shifts[i].src_val == even,
                 "Incorrect input to an even case."
             );
         }
