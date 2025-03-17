@@ -292,7 +292,9 @@ mod test {
     use binius_field::PackedField;
 
     use super::*;
-    use crate::{code_to_prom, event::ret::RetEvent, memory::Memory, opcodes::Opcode, ValueRom};
+    use crate::{
+        event::ret::RetEvent, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom,
+    };
 
     #[test]
     fn test_logical_shift_events() {
