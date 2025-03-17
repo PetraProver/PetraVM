@@ -3,8 +3,9 @@ use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 use super::Event;
 use crate::{
     event::BinaryOperation,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    fire_non_jump_event, ZCrayTrace, G,
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+    },
 };
 
 /// Event for B128_ADD.
@@ -238,7 +239,11 @@ mod tests {
     use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{code_to_prom, memory::Memory, opcodes::Opcode, ValueRom};
+    use crate::{
+        memory::{Memory, ValueRom},
+        opcodes::Opcode,
+        util::code_to_prom,
+    };
 
     #[test]
     fn test_b128_add_operation() {

@@ -7,11 +7,11 @@ pub(crate) use ram::{AccessSize, Ram};
 pub(crate) use vrom::{ValueRom, VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
-use crate::InterpreterInstruction;
+use crate::execution::InterpreterInstruction;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
-pub(crate) enum MemoryError {
+pub enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),

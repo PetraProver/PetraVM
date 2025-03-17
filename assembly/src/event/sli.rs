@@ -2,8 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
-    ZCrayTrace,
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -115,7 +116,12 @@ mod test {
     use binius_field::PackedField;
 
     use super::*;
-    use crate::{code_to_prom, event::ret::RetEvent, memory::Memory, opcodes::Opcode, ValueRom};
+    use crate::{
+        event::ret::RetEvent,
+        memory::{Memory, ValueRom},
+        opcodes::Opcode,
+        util::code_to_prom,
+    };
 
     #[test]
     fn test_program_with_sli_ops() {

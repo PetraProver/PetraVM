@@ -4,7 +4,8 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
-use crate::{execution::InterpreterInstruction, opcodes::Opcode, ProgramRom, G};
+use crate::memory::ProgramRom;
+use crate::{execution::InterpreterInstruction, execution::G, opcodes::Opcode};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added
@@ -370,7 +371,7 @@ pub fn get_prom_inst_from_inst_with_label(
 // Labels hold the labels in the code, with their associated binary field PCs.
 type Labels = HashMap<String, BinaryField32b>;
 // Binary field PC as the key. Values are: frame size.
-pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
+pub type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
@@ -409,7 +410,7 @@ fn get_labels(
     Ok((labels, pc_field_to_int, frame_sizes))
 }
 
-pub(crate) fn get_full_prom_and_labels(
+pub fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
 ) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
