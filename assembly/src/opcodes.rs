@@ -57,14 +57,17 @@ pub enum Opcode {
     #[default]
     Bnz = 0x01,
     // Memory Access (RAM) instructions
-    // LW, // TODO
-    // SW, // TODO
-    // LB, // TODO, low-priority, see specs
-    // LBU, // TODO, low-priority, see specs
-    // LH, // TODO, low-priority, see specs
-    // LHU, // TODO, low-priority, see specs
-    // SB, // TODO, low-priority, see specs
-    // SU, // TODO, low-priority, see specs
+    // TODO: optional ISA extension for future implementation
+    // Not needed for recursion program or first version of zCrayVM
+    // Design note: Considering 32-bit word-sized memory instead of byte-addressed memory
+    // LW,
+    // SW,
+    // LB,
+    // LBU,
+    // LH,
+    // LHU,
+    // SB,
+    // SH,
 }
 
 impl Opcode {

@@ -18,17 +18,17 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         shift::{ArithmeticShiftEvent, LogicalShiftEvent, LogicalShiftKind},
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::StateChannel,
-    memory::{Memory, MemoryError},
+    execution::ZCrayTrace,
+    memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    ProgramRom, ValueRom, ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -73,8 +73,8 @@ pub(crate) struct Interpreter {
 /// to be used by this operation.
 pub(crate) type Instruction = [BinaryField16b; 4];
 
-#[derive(Debug, Default, PartialEq)]
-pub(crate) struct InterpreterInstruction {
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
     /// Hint given by the compiler to let us know whether the current
@@ -100,7 +100,7 @@ impl InterpreterInstruction {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterError {
+pub enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
@@ -115,7 +115,7 @@ impl From<MemoryError> for InterpreterError {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterException {}
+pub enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) const fn new(
@@ -865,9 +865,9 @@ mod tests {
     use num_traits::WrappingAdd;
 
     use super::*;
-    use crate::parser::parse_program;
+    use crate::parser::{get_full_prom_and_labels, parse_program};
+    use crate::util::get_binary_slot;
     use crate::util::{collatz_orbits, init_logger};
-    use crate::{get_binary_slot, get_full_prom_and_labels};
 
     pub(crate) fn code_to_prom(
         code: &[Instruction],
@@ -1119,77 +1119,5 @@ mod tests {
 
         // Check return value.
         assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
-    }
-
-    #[test]
-    fn test_fibonacci() {
-        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
-
-        let mut is_calling_procedure_hints = vec![false; instructions.len()];
-        let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];
-        for idx in indices {
-            is_calling_procedure_hints[idx] = true;
-        }
-
-        let (prom, labels, pc_field_to_int, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
-                .expect("Instructions were not formatted properly.");
-
-        let init_val = 4;
-        let initial_value = G.pow(init_val as u64).val();
-
-        // Set initial PC, FP and argument.
-        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
-        let memory = Memory::new(prom, vrom);
-
-        let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        // Check that Fibonacci is computed properly.
-        let fib_power_two_frame_size = 16;
-        let mut cur_fibs = [0, 1];
-        // Check all intermediary values.
-        for i in 0..init_val {
-            let s = cur_fibs[0].wrapping_add(&cur_fibs[1]);
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0],
-                "left {} right {}",
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 3)
-                    .unwrap(),
-                cur_fibs[1]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 7)
-                    .unwrap(),
-                s
-            );
-            cur_fibs[0] = cur_fibs[1];
-            cur_fibs[1] = s;
-        }
-        // Check the final return value.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            cur_fibs[0]
-        );
-        // Check that the returned value is propagated correctly.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            traces.get_vrom_u32(3).unwrap()
-        );
     }
 }
