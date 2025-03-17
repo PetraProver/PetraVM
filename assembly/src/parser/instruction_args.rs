@@ -107,4 +107,7 @@ pub enum BadArgumentError {
 
     #[error("Bad immediate argument: {0}")]
     Immediate(String),
+
+    #[error("Bad frame size argument: {0}")]
+    FrameSize(String),
 }

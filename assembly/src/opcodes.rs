@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use binius_field::BinaryField16b;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 

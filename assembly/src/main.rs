@@ -4,32 +4,31 @@
 
 // TODO: Add doc
 
-mod emulator;
 mod event;
-mod instruction_args;
-mod instructions_with_labels;
+mod execution;
+mod memory;
 mod opcodes;
 mod parser;
-mod vrom_allocator;
+mod util;
 
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
-use emulator::{Instruction, InterpreterInstruction, ProgramRom, ValueRom, ZCrayTrace, G};
-use instructions_with_labels::{get_frame_sizes_all_labels, get_full_prom_and_labels};
+use execution::ZCrayTrace;
+use execution::{Instruction, InterpreterInstruction, G};
+use memory::{Memory, ProgramRom, ValueRom};
 use opcodes::Opcode;
+use parser::get_full_prom_and_labels;
 use parser::parse_program;
-
-#[inline(always)]
-pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
-    BinaryField16b::new(i)
-}
+use util::get_binary_slot;
 
 pub(crate) fn code_to_prom(
     code: &[Instruction],
     is_calling_procedure_hints: &[bool],
 ) -> ProgramRom {
     let mut prom = ProgramRom::new();
+    // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
+    // `*G`.
     let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
     for (i, &instruction) in code.iter().enumerate() {
         let interp_inst =
@@ -60,16 +59,15 @@ fn main() {
     for idx in indices_to_set_with_labels {
         is_call_procedure_hints_with_labels[idx] = true;
     }
-    let (prom, labels, pc_field_to_int) =
+    let (prom, labels, pc_field_to_int, frame_sizes) =
         get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
             .expect("Instructions were not formatted properly.");
 
-    let frame_sizes = get_frame_sizes_all_labels(&prom, labels, &pc_field_to_int);
     println!("frame sizes {:?}", frame_sizes);
 
     let a = 12;
     let b = 3;
-    let mut vrom = ValueRom::new_from_vec_u32(vec![0, 0, a, b]);
+    let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let mut pc = BinaryField32b::ONE;
     let mut pc_field_to_int = HashMap::new();
@@ -77,30 +75,29 @@ fn main() {
         pc_field_to_int.insert(pc, i as u32 + 1);
         pc *= G;
     }
-    let (trace, _) = ZCrayTrace::generate_with_vrom(prom, vrom, frame_sizes, pc_field_to_int)
+
+    let memory = Memory::new(prom, vrom);
+    let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail.");
 
     // gcd
     assert_eq!(
         trace
-            .vrom
-            .get_u32(16)
+            .get_vrom_u32(4)
             .expect("Return value for quotient not set."),
         3
     );
     // a's coefficient
     assert_eq!(
         trace
-            .vrom
-            .get_u32(20)
+            .get_vrom_u32(5)
             .expect("Return value for remainder not set."),
         0
     );
     // b's coefficient
     assert_eq!(
         trace
-            .vrom
-            .get_u32(24)
+            .get_vrom_u32(6)
             .expect("Return value for remainder not set."),
         1
     );

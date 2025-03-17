@@ -1,14 +1,10 @@
-use std::{cmp::max, collections::HashMap};
+use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 use thiserror::Error;
 
-use crate::{
-    emulator::{InterpreterInstruction, ProgramRom},
-    instruction_args::{Immediate, Slot, SlotWithOffset},
-    opcodes::Opcode,
-    G,
-};
+use super::instruction_args::{Immediate, Slot, SlotWithOffset};
+use crate::{execution::InterpreterInstruction, opcodes::Opcode, ProgramRom, G};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added
@@ -18,7 +14,7 @@ use crate::{
 /// to.
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
-    Label(String),
+    Label(String, Option<u16>),
     B32Muli {
         dst: Slot,
         src1: Slot,
@@ -116,7 +112,7 @@ pub enum InstructionsWithLabels {
     // Add more instructions as needed
 }
 
-fn incr_pc(pc: u32) -> u32 {
+const fn incr_pc(pc: u32) -> u32 {
     if pc == u32::MAX {
         // We skip over 0, as it is inaccessible in the multiplicative group.
         return 1;
@@ -133,7 +129,7 @@ pub fn get_prom_inst_from_inst_with_label(
     is_call_hint: bool,
 ) -> Result<(), String> {
     match instruction {
-        InstructionsWithLabels::Label(s) => {
+        InstructionsWithLabels::Label(s, _) => {
             if labels.get(s).is_none() {
                 return Err(format!("Label {} not found in the HashMap of labels.", s));
             }
@@ -500,145 +496,37 @@ pub fn get_prom_inst_from_inst_with_label(
     Ok(())
 }
 
-// Labels hold the labels in the code, with their associated integer and binary
-// field PCs.
+// Labels hold the labels in the code, with their associated binary field PCs.
 type Labels = HashMap<String, BinaryField32b>;
-// Binary field PC as the key. Values are: (Frame size, size of args
-// and return values).
+// Binary field PC as the key. Values are: frame size.
 pub(crate) type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
-// Gives the field PC associated to an integer PC. Only conatins the PCs that
+// Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
 
-pub fn get_frame_size_for_label(
-    prom: &ProgramRom,
-    label_pc: u32,
-    labels_fps: &mut LabelsFrameSizes,
-    pc_field_to_int: &PCFieldToInt,
-) -> u16 {
-    let mut cur_pc = label_pc;
-    let mut interp_instruction = &prom[cur_pc as usize - 1];
-    let mut instruction = interp_instruction.instruction;
-    let field_pc = interp_instruction.field_pc;
-    if let Some(frame_size) = labels_fps.get(&field_pc) {
-        return *frame_size;
-    }
-
-    let mut cur_offset = 0;
-    let mut opcode =
-        Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
-
-    let call_and_ret_opcodes = [Opcode::Taili, Opcode::TailV, Opcode::Calli, Opcode::Ret];
-    while !call_and_ret_opcodes.contains(&opcode) {
-        match opcode {
-            Opcode::Bnz => {
-                let [op, src, target_low, target_high] = instruction;
-                let target = BinaryField32b::from_bases([target_low, target_high]).unwrap();
-                let int_target = pc_field_to_int.get(&target).unwrap_or_else(|| {
-                    panic!(
-                        "The provided field PC to PC mapping is incomplete. PC {:?} not found.",
-                        target
-                    )
-                });
-                let sub_offset =
-                    get_frame_size_for_label(prom, *int_target, labels_fps, pc_field_to_int);
-                let max_accessed_addr = max(sub_offset, src.val());
-                cur_offset = max(cur_offset, max_accessed_addr);
-            }
-            Opcode::Addi
-            | Opcode::Andi
-            | Opcode::Muli
-            | Opcode::Slli
-            | Opcode::Srli
-            | Opcode::Srai
-            | Opcode::Ori
-            | Opcode::Xori => {
-                let [_, dst, src, _] = instruction;
-                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
-                cur_offset = max(max_accessed_addr, cur_offset);
-            }
-            Opcode::B32Muli => {
-                let [_, dst, src, _] = instruction;
-                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
-                cur_offset = max(max_accessed_addr, cur_offset);
-                // B32Muli needs two rows.
-                cur_pc = incr_pc(cur_pc);
-            }
-            Opcode::Add
-            | Opcode::And
-            | Opcode::Sub
-            | Opcode::Sltu
-            | Opcode::Or
-            | Opcode::Xor
-            | Opcode::Mul
-            | Opcode::B32Mul => {
-                let [_, dst, src1, src2] = instruction;
-                let max_accessed_addr = max(dst.val() + 4, src1.val() + 4);
-                let max_accessed_addr = max(max_accessed_addr, src2.val() + 4);
-                cur_offset = max(max_accessed_addr, cur_offset);
-            }
-            Opcode::B128Add | Opcode::B128Mul => {
-                let [_, dst, src1, src2] = instruction;
-                let max_accessed_addr = max(dst.val() + 16, src1.val() + 16);
-                let max_accessed_addr = max(max_accessed_addr, src2.val() + 16);
-                cur_offset = max(max_accessed_addr, cur_offset);
-            }
-            Opcode::MVVW | Opcode::MVVL => {
-                let [_, dst, _, src] = instruction;
-                let max_accessed_addr = max(dst.val() + 4, src.val() + 4);
-                cur_offset = max(max_accessed_addr, cur_offset);
-            }
-            Opcode::LDI | Opcode::MVIH => {
-                let [_, dst, _, _] = instruction;
-                cur_offset = max(dst.val() + 4, cur_offset);
-            }
-            op if call_and_ret_opcodes.contains(&op) => {
-                unreachable!("This is explicitely skipped.")
-            }
-            _ => panic!("Unknown opcode."),
-        }
-
-        cur_pc = incr_pc(cur_pc);
-        instruction = prom[cur_pc as usize - 1].instruction;
-
-        opcode =
-            Opcode::try_from(instruction[0].val()).expect("PROM should be correct at this point");
-    }
-
-    // We know that there was no key `label_pc` before, since it was the first thing
-    // we checked in this method.
-    let field_pc = prom[label_pc as usize - 1].field_pc;
-    labels_fps.insert(field_pc, cur_offset);
-
-    cur_offset
-}
-
-pub fn get_frame_sizes_all_labels(
-    prom: &ProgramRom,
-    labels: Labels,
-    pc_field_to_int: &PCFieldToInt,
-) -> LabelsFrameSizes {
-    let mut labels_frame_sizes = HashMap::new();
-    for (_, field_pc) in labels {
-        let &pc = pc_field_to_int.get(&field_pc).unwrap();
-        let _ = get_frame_size_for_label(prom, pc, &mut labels_frame_sizes, pc_field_to_int);
-    }
-    labels_frame_sizes
-}
-
-fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFieldToInt), String> {
+fn get_labels(
+    instructions: &[InstructionsWithLabels],
+) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), String> {
     let mut labels = HashMap::new();
     let mut pc_field_to_int = HashMap::new();
+    let mut frame_sizes = HashMap::new();
     let mut field_pc = BinaryField32b::ONE;
     let mut pc = 1;
+
     for instruction in instructions {
         match instruction {
-            InstructionsWithLabels::Label(s) => {
+            InstructionsWithLabels::Label(s, frame_size) => {
                 if labels.insert(s.clone(), field_pc).is_some()
                     || pc_field_to_int.insert(field_pc, pc).is_some()
                 {
                     return Err(format!("Label {} already exists.", s));
                 }
+
+                // If we have a frame size for this label, add it to our frame_sizes map
+                if let Some(size) = frame_size {
+                    frame_sizes.insert(field_pc, *size);
+                }
+
                 // We do not increment the PC if we found a label.
             }
             _ => {
@@ -647,16 +535,17 @@ fn get_labels(instructions: &[InstructionsWithLabels]) -> Result<(Labels, PCFiel
             }
         }
     }
-    Ok((labels, pc_field_to_int))
+    Ok((labels, pc_field_to_int, frame_sizes))
 }
 
 pub(crate) fn get_full_prom_and_labels(
     instructions: &[InstructionsWithLabels],
     is_call_procedure_hints: &[bool],
-) -> Result<(ProgramRom, Labels, PCFieldToInt), String> {
-    let (labels, pc_field_to_int) = get_labels(instructions)?;
+) -> Result<(ProgramRom, Labels, PCFieldToInt, LabelsFrameSizes), String> {
+    let (labels, pc_field_to_int, frame_sizes) = get_labels(instructions)?;
     let mut prom = ProgramRom::new();
     let mut field_pc = BinaryField32b::ONE;
+
     assert_eq!(
         instructions.len(),
         is_call_procedure_hints.len(),
@@ -664,6 +553,7 @@ pub(crate) fn get_full_prom_and_labels(
         instructions.len(),
         is_call_procedure_hints.len()
     );
+
     for (instruction, &is_call_procedure) in instructions.iter().zip(is_call_procedure_hints) {
         get_prom_inst_from_inst_with_label(
             &mut prom,
@@ -673,13 +563,20 @@ pub(crate) fn get_full_prom_and_labels(
             is_call_procedure,
         )?;
     }
-    Ok((prom, labels, pc_field_to_int))
+
+    Ok((prom, labels, pc_field_to_int, frame_sizes))
 }
 
 impl std::fmt::Display for InstructionsWithLabels {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InstructionsWithLabels::Label(label) => write!(f, "{}:", label),
+            InstructionsWithLabels::Label(label, frame_size) => {
+                if let Some(size) = frame_size {
+                    write!(f, "#[framesize(0x{:x})]\n{}:", size, label)
+                } else {
+                    write!(f, "{}:", label)
+                }
+            }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
                 write!(f, "B32_MULI {dst} {src1} {imm}")
             }
@@ -724,7 +621,7 @@ pub enum Error {
     },
 
     #[error("Bad argument: {0}")]
-    BadArgument(#[from] crate::instruction_args::BadArgumentError),
+    BadArgument(#[from] super::instruction_args::BadArgumentError),
 
     #[error("You must have at least one label and one instruction")]
     NoStartLabelOrInstructionFound,

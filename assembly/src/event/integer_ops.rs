@@ -5,8 +5,8 @@ use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use super::BinaryOperation;
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::Event,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation, ZCrayTrace,
 };
@@ -100,12 +100,10 @@ impl AddiEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
+        let src_val = trace.get_vrom_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src_val + imm.val() as u32;
-        interpreter
-            .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, dst_val)?;
+        let dst_val = src_val.wrapping_add(imm.val() as u32);
+        trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -215,14 +213,12 @@ impl MuliEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src_val = interpreter.vrom.get_u32(fp ^ src.val() as u32)?;
+        let src_val = trace.get_vrom_u32(fp ^ src.val() as u32)?;
 
         let imm_val = imm.val();
         let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
 
-        interpreter
-            .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, dst_val)?;
+        trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let (aux, sums, _) =
             schoolbook_multiplication_intermediate_sums::<u16>(src_val, imm_val, dst_val);
@@ -317,14 +313,12 @@ impl MulEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let src1_val = interpreter.vrom.get_u32(fp ^ src1.val() as u32)?;
-        let src2_val = interpreter.vrom.get_u32(fp ^ src2.val() as u32)?;
+        let src1_val = trace.get_vrom_u32(fp ^ src1.val() as u32)?;
+        let src2_val = trace.get_vrom_u32(fp ^ src2.val() as u32)?;
 
         let dst_val = src1_val * src2_val; // TODO: shouldn't the result be u64, stored over two slots?
 
-        interpreter
-            .vrom
-            .set_u32(trace, fp ^ dst.val() as u32, dst_val)?;
+        trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);

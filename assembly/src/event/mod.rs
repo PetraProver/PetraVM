@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{InterpreterChannels, InterpreterError, InterpreterTables},
     ZCrayTrace,
 };
 
@@ -66,16 +66,14 @@ pub(crate) trait ImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -87,9 +85,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        interpreter
-            .vrom
-            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }
@@ -112,19 +108,15 @@ pub(crate) trait NonImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ src1.val() as u32)?;
-        let src2_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src1_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
+        let src2_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             interpreter.timestamp,
@@ -137,9 +129,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        interpreter
-            .vrom
-            .set_u32(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }
@@ -322,8 +312,8 @@ macro_rules! impl_event_for_binary_operation {
         impl $crate::event::Event for $ty {
             fn fire(
                 &self,
-                channels: &mut $crate::emulator::InterpreterChannels,
-                _tables: &$crate::emulator::InterpreterTables,
+                channels: &mut $crate::execution::InterpreterChannels,
+                _tables: &$crate::execution::InterpreterTables,
             ) {
                 use $crate::event::{LeftOp, OutputOp, RigthOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
@@ -340,7 +330,7 @@ macro_rules! fire_non_jump_event {
             .state_channel
             .pull(($intrp.pc, $intrp.fp, $intrp.timestamp));
         $channels.state_channel.push((
-            $intrp.pc * $crate::emulator::G,
+            $intrp.pc * $crate::execution::G,
             $intrp.fp,
             $intrp.timestamp + 1,
         ));

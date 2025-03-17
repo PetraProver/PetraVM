@@ -1,26 +1,27 @@
+#[framesize(0xa)]
 div:
     ;; Frame:
     ;; Slot 0: Return PC
-    ;; Slot 4: Return FP
-    ;; Slot 8: Arg a
-    ;; Slot 12: Arg b
-    ;; Slot 16: Return value q
-    ;; Slot 20: Return value r
-    ;; Slot 24: Non-deterministic local: Next FP
-    ;; Slot 28: Local: a < b
-    ;; Slot 32: Local: a-b
-    ;; Slot 36: Local: q1
-    SLTU @28, @8, @12
-    BNZ div_consequent, @28
-    SUB @32, @8, @12
-    MVV.W @24[8], @32
-    MVV.W @24[12], @12
-    MVV.W @24[16], @36
-    MVV.W @24[20], @20
-    CALLI div, @24
-    ADDI @16, @36, #1
+    ;; Slot 1: Return FP
+    ;; Slot 2: Arg a
+    ;; Slot 3: Arg b
+    ;; Slot 4: Return value q
+    ;; Slot 5: Return value r
+    ;; Slot 6: Non-deterministic local: Next FP
+    ;; Slot 7: Local: a<b
+    ;; Slot 8: Local: a-b
+    ;; Slot 9: Local: q1
+    SLTU @7, @2, @3
+    BNZ div_consequent, @7
+    SUB @8, @2, @3
+    MVV.W @6[2], @7
+    MVV.W @6[3], @3
+    MVV.W @6[4], @9
+    MVV.W @6[5], @5
+    CALLI div, @6
+    ADDI @4, @9, #1
     RET
 div_consequent:
-    LDI.W @16, #0
-    XORI @20, @8, #0
+    LDI.W @4, #0
+    XORI @5, @2, #0
     RET

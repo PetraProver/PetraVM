@@ -2,8 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::Event;
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    fire_non_jump_event,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    fire_non_jump_event, ZCrayTrace,
 };
 
 /// Event for BNZ.
@@ -38,13 +38,12 @@ impl Event for BnzEvent {
 impl BnzEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         cond: BinaryField16b,
         target: BinaryField32b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let cond_val = interpreter
-            .vrom
-            .get_u32(interpreter.fp ^ cond.val() as u32)?;
+        let cond_val = trace.get_vrom_u32(interpreter.fp ^ cond.val() as u32)?;
 
         if interpreter.pc == 0 {
             return Err(InterpreterError::BadPc);
@@ -84,12 +83,13 @@ impl Event for BzEvent {
 impl BzEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
         cond: BinaryField16b,
         target: BinaryField32b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-        let cond_val = interpreter.vrom.get_u32(fp ^ cond.val() as u32)?;
+        let cond_val = trace.get_vrom_u32(fp ^ cond.val() as u32)?;
         let event = BzEvent {
             timestamp: interpreter.timestamp,
             pc: field_pc,
