@@ -24,12 +24,12 @@ pub enum Opcode {
     // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
-    // Slti, // TODO
-    // Slt, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
     Sub = 0x19,
+    Slt = 0x23,
+    Slti = 0x24,
     Sltu = 0x1a,
     Sltiu = 0x1b,
     Sll = 0x1c,

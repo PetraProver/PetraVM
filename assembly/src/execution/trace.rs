@@ -16,8 +16,8 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
-            SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltEvent, SltiEvent,
+            SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
@@ -42,6 +42,8 @@ pub struct ZCrayTrace {
     pub(crate) and: Vec<AndEvent>,
     pub(crate) andi: Vec<AndiEvent>,
     pub(crate) sub: Vec<SubEvent>,
+    pub(crate) slt: Vec<SltEvent>,
+    pub(crate) slti: Vec<SltiEvent>,
     pub(crate) sltu: Vec<SltuEvent>,
     pub(crate) sltiu: Vec<SltiuEvent>,
     pub(crate) shifts: Vec<ShiftEvent>,
@@ -144,6 +146,8 @@ impl ZCrayTrace {
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
         fire_events!(self.sub, &mut channels, &tables);
+        fire_events!(self.slt, &mut channels, &tables);
+        fire_events!(self.slti, &mut channels, &tables);
         fire_events!(self.sltu, &mut channels, &tables);
         fire_events!(self.sltiu, &mut channels, &tables);
         fire_events!(self.shifts, &mut channels, &tables);

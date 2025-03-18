@@ -18,8 +18,8 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
-            SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltEvent, SltiEvent,
+            SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -264,6 +264,8 @@ impl Interpreter {
             Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sub => self.generate_sub(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Slt => self.generate_slt(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Slti => self.generate_slti(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sltu => self.generate_sltu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sltiu => self.generate_sltiu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
@@ -598,6 +600,34 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_sub_event = SubEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.sub.push(new_sub_event);
+
+        Ok(())
+    }
+
+    fn generate_slt(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_slt_event = SltEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.slt.push(new_slt_event);
+
+        Ok(())
+    }
+
+    fn generate_slti(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_slti_event = SltiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.slti.push(new_slti_event);
 
         Ok(())
     }

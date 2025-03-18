@@ -80,6 +80,16 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Slt {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Slti {
+        dst: Slot,
+        src: Slot,
+        imm: Immediate,
+    },
     Sltu {
         dst: Slot,
         src1: Slot,
@@ -178,6 +188,28 @@ pub fn get_prom_inst_from_inst_with_label(
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Slt { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Slt.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Slti { dst, src, imm } => {
+            let instruction = [
+                Opcode::Slti.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
@@ -603,6 +635,12 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
+            InstructionsWithLabels::Slt { dst, src1, src2 } => {
+                write!(f, "SLT {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Slti { dst, src, imm } => {
+                write!(f, "SLTI {dst} {src} {imm}")
+            }
             InstructionsWithLabels::Sltu { dst, src1, src2 } => {
                 write!(f, "SLTU {dst} {src1} {src2}")
             }

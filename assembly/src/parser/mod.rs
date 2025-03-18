@@ -112,6 +112,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SLTI_instr => {
+                                instrs.push(InstructionsWithLabels::Slti {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::SLTIU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltiu {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -119,7 +126,6 @@ fn parse_line(
                                     imm,
                                 });
                             }
-
                             Rule::MULI_instr => {
                                 instrs.push(InstructionsWithLabels::MulI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -255,6 +261,9 @@ fn parse_line(
                             }
                             Rule::AND_instr => {
                                 instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
+                            }
+                            Rule::SLT_instr => {
+                                instrs.push(InstructionsWithLabels::Slt { dst, src1, src2 });
                             }
                             Rule::SLTU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
