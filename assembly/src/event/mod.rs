@@ -14,6 +14,7 @@ pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod integer_ops;
+pub(crate) mod jump;
 pub(crate) mod mv;
 pub(crate) mod ret;
 pub(crate) mod shift;
