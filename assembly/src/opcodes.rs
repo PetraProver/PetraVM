@@ -18,6 +18,8 @@ pub enum Opcode {
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,
+    Mulu = 0x23,
+    Mulsu = 0x24,
     Mul = 0x1f,
     B32Muli = 0x0a,
     B32Mul = 0x10,
@@ -35,8 +37,6 @@ pub enum Opcode {
     Sll = 0x1c,
     Srl = 0x1d,
     Sra = 0x1e,
-    // Mulu, // TODO
-    // Mulsu, // TODO
 
     // Move instructions
     MVVW = 0x0d,

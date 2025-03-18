@@ -1,4 +1,4 @@
-#[framesize(0x9)]
+#[framesize(0xa)]
 collatz:
     ;; Frame:
     ;; Slot @0: Return PC
@@ -8,8 +8,9 @@ collatz:
     ;; Slot @4: ND Local: Next FP
     ;; Slot @5: Local: n == 1
     ;; Slot @6: Local: n % 2
-    ;; Slot @7: Local: 3*n
-    ;; Slot @8: Local: n >> 1 or 3*n + 1
+    ;; Slot @7: Local: n >> 1 or 3*n + 1
+    ;; Slot @8: Local: 3*n (lower bits)
+    ;; Slot @9: Local: 3*n (higher bits, unused)
 
     ;; Branch to recursion label if value in slot 2 is not 1
     XORI @5, @2, #1
@@ -23,14 +24,14 @@ case_recurse:
 
     ;; case even
     ;; n >> 1
-    SRLI @8, @2, #1
-    MVV.W @4[2], @8
+    SRLI @7, @2, #1
+    MVV.W @4[2], @7
     MVV.W @4[3], @3
     TAILI collatz, @4
 
 case_odd:
-    MULI @7, @2, #3
-    ADDI @8, @7, #1
-    MVV.W @4[2], @8
+    MULI @8, @2, #3
+    ADDI @7, @8, #1
+    MVV.W @4[2], @7
     MVV.W @4[3], @3
     TAILI collatz, @4
