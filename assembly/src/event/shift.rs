@@ -262,12 +262,12 @@ mod test {
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 5);
 
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+        let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0);
-        vrom.set_u32(1, 0);
-        vrom.set_u32(2, 0x00000002);
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(2, 0x00000002).unwrap();
 
         let memory = Memory::new(prom, vrom);
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
@@ -297,13 +297,13 @@ mod test {
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 4);
 
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+        let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value (a negative number) at
         // offset 2.
-        vrom.set_u32(0, 0);
-        vrom.set_u32(1, 0);
-        vrom.set_u32(2, 0xF0000000);
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(2, 0xF0000000).unwrap();
 
         let memory = Memory::new(prom, vrom);
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())

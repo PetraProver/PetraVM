@@ -49,7 +49,7 @@ impl ValueRom {
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
         let mut vrom = Self::default();
         for (i, &value) in init_values.iter().enumerate() {
-            vrom.set_u32(i as u32, value);
+            vrom.set_u32(i as u32, value).unwrap();
         }
 
         vrom
@@ -91,7 +91,7 @@ impl ValueRom {
     /// Gets a u32 value from the specified index.
     ///
     /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
+    /// instead of `get_opt_u32` everywhere outside of CALL procedures.
     pub(crate) fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
         match self.vrom.get(&index) {
             Some(&value) => Ok(value),
@@ -103,14 +103,14 @@ impl ValueRom {
     ///
     /// Used for MOVE operations that are part of a CALL procedure, since the
     /// value to move may not yet be known.
-    pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
+    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         Ok(self.vrom.get(&index).copied())
     }
 
     /// Gets a u128 value from the specified index.
     ///
     /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
+    /// instead of `get_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.check_alignment(index, 4)?;
 
@@ -131,12 +131,12 @@ impl ValueRom {
     ///
     /// Used for MOVE operations that are part of a CALL procedure, since the
     /// value to move may not yet be known.
-    pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
+    pub(crate) fn get_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
         // We need to read four words.
         self.check_alignment(index, 4)?;
 
         let opt_words = (0..4)
-            .map(|i| self.get_vrom_opt_u32(index).unwrap())
+            .map(|i| self.get_opt_u32(index + i).unwrap())
             .collect::<Vec<_>>();
         if opt_words.iter().any(|v| v.is_none()) {
             Ok(None)

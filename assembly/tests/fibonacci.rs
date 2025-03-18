@@ -10,17 +10,9 @@ fn test_fibonacci_integration() {
     // Parse the Fibonacci program
     let instructions = parse_program(include_str!("../../examples/fib.asm")).unwrap();
 
-    // Set up the call procedure hints for the program
-    let mut is_calling_procedure_hints = vec![false; instructions.len()];
-    let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];
-    for idx in indices {
-        is_calling_procedure_hints[idx] = true;
-    }
-
     // Generate the program ROM and associated data
     let (prom, _, pc_field_to_int, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
-            .expect("Failed to process instructions");
+        get_full_prom_and_labels(&instructions).expect("Failed to process instructions");
 
     // Set initial value
     let init_val = 4;

@@ -69,7 +69,7 @@ impl Memory {
     /// Used for MOVE operations that are part of a CALL procedure, since the
     /// value to move may not yet be known.
     pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
-        self.vrom.get_vrom_opt_u32(index)
+        self.vrom.get_opt_u32(index)
     }
 
     /// Reads a 128-bit value in VROM at the provided index.
@@ -85,7 +85,7 @@ impl Memory {
     /// Used for MOVE operations that are part of a CALL procedure, since the
     /// value to move may not yet be known.
     pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
-        self.vrom.get_vrom_opt_u128(index)
+        self.vrom.get_opt_u128(index)
     }
 
     /// Sets a 32-bit value in VROM at the provided index.

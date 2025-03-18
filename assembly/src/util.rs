@@ -48,17 +48,13 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 }
 
 /// Helper method to convert Instructions to a program ROM.
-pub(crate) fn code_to_prom(
-    code: &[Instruction],
-    is_calling_procedure_hints: &[bool],
-) -> ProgramRom {
+pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
     let mut prom = ProgramRom::new();
     // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
     // `*G`.
     let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
     for (i, &instruction) in code.iter().enumerate() {
-        let interp_inst =
-            InterpreterInstruction::new(instruction, pc, is_calling_procedure_hints[i]);
+        let interp_inst = InterpreterInstruction::new(instruction, pc);
         prom.push(interp_inst);
         pc *= G;
     }

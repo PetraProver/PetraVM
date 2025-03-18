@@ -5,17 +5,9 @@ fn test_collatz_integration() {
     // Parse the Collatz program
     let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
-    // Set up the call procedure hints for the program
-    let mut is_call_procedure_hints = vec![false; instructions.len()];
-    let indices = vec![9, 10, 11, 15, 16, 17];
-    for idx in indices {
-        is_call_procedure_hints[idx] = true;
-    }
-
     // Generate the program ROM and associated data
     let (prom, _, pc_field_to_int, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints)
-            .expect("Failed to process instructions");
+        get_full_prom_and_labels(&instructions).expect("Failed to process instructions");
 
     // Test with multiple initial values
     for &initial_value in &[5, 27, 3999] {

@@ -316,7 +316,7 @@ mod tests {
         ];
 
         // Create the PROM
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+        let prom = code_to_prom(&instructions);
 
         // Test values
         let a_val = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);

@@ -161,16 +161,8 @@ mod test_parser {
 
         let instructions = parse_program(include_str!("../../../examples/collatz.asm")).unwrap();
 
-        // Sets the call procedure hints to true for the returned PROM (where
-        // instructions are given with the labels).
-        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-        let indices_to_set_with_labels = vec![9, 10, 11, 15, 16, 17];
-        for idx in indices_to_set_with_labels {
-            is_call_procedure_hints_with_labels[idx] = true;
-        }
-        let (prom, labels, pc_field_to_int, _) =
-            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-                .expect("Instructions were not formatted properly.");
+        let (prom, labels, pc_field_to_int, _) = get_full_prom_and_labels(&instructions)
+            .expect("Instructions were not formatted properly.");
 
         let zero = BinaryField16b::zero();
 
@@ -267,14 +259,7 @@ mod test_parser {
             ], //  14G: TAILI collatz 4
         ];
 
-        // Sets the call procedure hints to true for the expected PROM (where
-        // instructions are given without the labels).
-        let mut is_call_procedure_hints = vec![false; instructions.len()];
-        let indices_to_set = vec![7, 8, 9, 12, 13, 14];
-        for idx in indices_to_set {
-            is_call_procedure_hints[idx] = true;
-        }
-        let expected_prom = code_to_prom(&expected_prom, &is_call_procedure_hints);
+        let expected_prom = code_to_prom(&expected_prom);
 
         assert!(
             prom.len() == expected_prom.len(),
