@@ -35,42 +35,31 @@
 
 #[framesize(0x20)]
 _start: 
-    ;; Initialize success counter
-    LDI.W @20, #0    ;; success counter
-    
-    ;; Call binary field test
-    LDI.W @3, #0     ;; initialize next FP
+    ;; Call each test group and collect results in separate registers
     CALLI test_binary_field, @3
-    MVV.W @5, @3[2]  ;; Get success flag
-    ADDI @20, @20, @5
+    MVV.W @5, @3[2]  ;; Get success flag (0 or 1)
 
-    ;; Call integer ops test
-    LDI.W @4, #0     ;; initialize next FP
     CALLI test_integer_ops, @4
-    MVV.W @5, @4[2]  ;; Get success flag
-    ADDI @20, @20, @5
+    MVV.W @6, @4[2]  ;; Get success flag
 
-    ;; Call move ops test
-    LDI.W @5, #0     ;; initialize next FP
-    CALLI test_move_ops, @5
-    MVV.W @6, @5[2]  ;; Get success flag
-    ADDI @20, @20, @6
-
-    ;; Call jumps & branches test
-    LDI.W @6, #0     ;; initialize next FP
-    CALLI test_jumps_branches, @6
-    MVV.W @7, @6[2]  ;; Get success flag
-    ADDI @20, @20, @7
-
-    ;; Call jump ops test
-    LDI.W @7, #0     ;; initialize next FP
-    CALLI test_jump_ops, @7
+    CALLI test_move_ops, @7
     MVV.W @8, @7[2]  ;; Get success flag
-    ADDI @20, @20, @8
+
+    CALLI test_jumps_branches, @9
+    MVV.W @10, @9[2]  ;; Get success flag
+
+    CALLI test_jump_ops, @11
+    MVV.W @12, @11[2]  ;; Get success flag
+    
+    ;; Compute total successes in a sequence of new registers
+    ADD @13, @5, @6       ;; Binary field + Integer ops
+    ADD @14, @13, @8      ;; + Move ops
+    ADD @15, @14, @10     ;; + Jumps & branches
+    ADD @16, @15, @12     ;; + Jump ops - holds total success count
 
     ;; Expecting 5 successful test groups
-    XORI @21, @20, #5
-    BNZ test_failed, @21
+    XORI @17, @16, #5
+    BNZ test_failed, @17
 test_passed:
     LDI.W @2, #1    ;; overall success flag
     RET
@@ -565,12 +554,7 @@ jump_target:
     ;;   FP = FP[next_fp]
     ;;   PC = target
     ;; ------------------------------------------------------------
-    ;; Set up frame for jump_return
-    LDI.W @21, #0
-    MVV.W @21[0], @0          ;; Copy current return PC
-    MVV.W @21[1], @1          ;; Copy current return FP
-    
-    TAILI jump_return, @21
+    CALLI jump_return, @21
 fail_return:
     JUMPI jump_fail
 jump_return:
@@ -632,9 +616,6 @@ jumpv_target:
     ;;   FP = FP[next_fp]
     ;;   PC = target
     ;; ------------------------------------------------------------
-    ;; Set up frame for calli_function
-    LDI.W @20, #0
-    
     CALLI calli_function, @20
     MVV.W @11, @20[2]          ;; Get return value
     XORI @12, @11, #1
@@ -655,9 +636,6 @@ jumpv_target:
     ;;   FP = FP[next_fp]
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
-    ;; Set up frame for callv_function
-    LDI.W @20, #0
-    
     LDI.W @13, callv_function
     CALLV @13, @20
     MVV.W @14, @20[2]          ;; Get return value
@@ -679,11 +657,6 @@ jumpv_target:
     ;;   FP = FP[next_fp]
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
-    ;; Set up frame for tailv_function
-    LDI.W @20, #0
-    MVV.W @20[0], @0           ;; Copy current return PC
-    MVV.W @20[1], @1           ;; Copy current return FP
-    
     LDI.W @16, tailv_function
     TAILV @16, @20
     LDI.W @2, #0               ;; Should not reach here
