@@ -11,14 +11,21 @@
 ;; 4. Control Flow - Jumps, branches, and function calls
 ;;
 ;; REGISTER CONVENTIONS:
-;; - @0-@31: General purpose frame slots
-;; - PC: Program Counter (multiplicative addressing)
-;; - FP: Frame Pointer
+;; - FP: Frame Pointer (points to current function frame in VROM)
+;; - PC: Program Counter (multiplicative addressing using field's cyclic group)
+;; - TS: Timestamp for RAM operations
+;;
+;; NOTATION:
+;; - @N: Refers to frame offset N from the frame pointer (FP)
+;; - All values in VROM are accessed via offsets from the frame pointer
 ;;
 ;; MEMORY MODEL:
 ;; - Harvard architecture with separate instruction and data memory
-;; - PROM: Program ROM (immutable)
+;; - PROM: Program ROM (immutable instruction memory)
 ;; - VROM: Value ROM (write-once, non-deterministic allocation)
+;;   * All temporary values and function frames are in VROM
+;;   * Values are accessed via offsets from the frame pointer (FP)
+;; - RAM: Read-write memory (byte-addressable, optional)
 ;; ============================================================================
 
 #[framesize(0x20)]
