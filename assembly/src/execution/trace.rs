@@ -133,6 +133,8 @@ impl ZCrayTrace {
         ));
 
         fire_events!(self.bnz, &mut channels, &tables);
+        fire_events!(self.jumpi, &mut channels, &tables);
+        fire_events!(self.jumpv, &mut channels, &tables);
         fire_events!(self.xor, &mut channels, &tables);
         fire_events!(self.bz, &mut channels, &tables);
         fire_events!(self.or, &mut channels, &tables);
@@ -140,14 +142,19 @@ impl ZCrayTrace {
         fire_events!(self.xori, &mut channels, &tables);
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
+        fire_events!(self.sub, &mut channels, &tables);
+        fire_events!(self.sltu, &mut channels, &tables);
+        fire_events!(self.sltiu, &mut channels, &tables);
         fire_events!(self.shifts, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
+        fire_events!(self.mul, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
+        fire_events!(self.calli, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
         fire_events!(self.mvih, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);

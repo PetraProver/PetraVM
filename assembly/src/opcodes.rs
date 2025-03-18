@@ -35,7 +35,6 @@ pub enum Opcode {
     Sll = 0x1c,
     Srl = 0x1d,
     Sra = 0x1e,
-    // Mul, // TODO
     // Mulu, // TODO
     // Mulsu, // TODO
 

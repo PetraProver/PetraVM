@@ -22,7 +22,6 @@ pub(crate) struct JumpvEvent {
 }
 
 impl JumpvEvent {
-    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
         fp: u32,
@@ -91,7 +90,6 @@ pub(crate) struct JumpiEvent {
 }
 
 impl JumpiEvent {
-    #[allow(clippy::too_many_arguments)]
     pub const fn new(pc: BinaryField32b, fp: u32, timestamp: u32, target: BinaryField32b) -> Self {
         Self {
             pc,
