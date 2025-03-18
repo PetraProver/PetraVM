@@ -213,3 +213,58 @@ impl Event for TailVEvent {
         ));
     }
 }
+
+mod tests {
+    use std::collections::HashMap;
+
+    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+
+    use crate::{execution::G, opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+
+    #[test]
+    fn test_tailv() {
+        let zero = BinaryField16b::zero();
+
+        // Frame:
+        // Slot 0: FP
+        // Slot 1: PC
+        // Slot 2: Target
+        // Slot 3: Next_fp
+
+        let ret_pc = 2;
+        let target = G.pow(ret_pc - 1);
+        let target_addr = 2.into();
+        let next_fp_addr = 3.into();
+
+        let instructions = vec![
+            [
+                Opcode::Tailv.get_field_elt(),
+                target_addr,
+                next_fp_addr,
+                zero,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 4);
+        frames.insert(target, 2);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Initialize VROM values: offsets 0, 1, and source value at offset 2.
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(target_addr.val() as u32, target.val())
+            .unwrap();
+
+        let mut pc_field_to_int = HashMap::new();
+        pc_field_to_int.insert(target, ret_pc as u32);
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
+            .expect("Trace generation should not fail.");
+
+        assert!(trace.pending_updates().is_empty());
+        assert_eq!(trace.get_vrom_u32(3).unwrap(), 4u32);
+    }
+}
