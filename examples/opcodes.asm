@@ -5,7 +5,7 @@
 ;; and a test suite to verify correct implementation of each instruction.
 ;;
 ;; INSTRUCTION CATEGORIES:
-;; 1. Binary Field Operations - Field-specific arithmetic (B32_ADD, B32_MUL, etc.)
+;; 1. Binary Field Operations - Field-specific arithmetic
 ;; 2. Integer Operations - Standard integer arithmetic and logic
 ;; 3. Move Operations - Data movement between registers and memory
 ;; 4. Control Flow - Jumps, branches, and function calls
