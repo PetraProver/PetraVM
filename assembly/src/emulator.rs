@@ -1076,7 +1076,7 @@ impl ZCrayTrace {
         let mut interpreter = Interpreter::new_with_vrom(prom, vrom, frames, pc_field_to_int);
 
         let mut trace = interpreter.run()?;
-        trace.pad();
+        // trace.pad();
         trace.vrom = interpreter.vrom;
 
         let final_pc = if interpreter.pc == 0 {

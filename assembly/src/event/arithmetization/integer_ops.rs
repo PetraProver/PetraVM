@@ -35,6 +35,7 @@ pub struct AddTable {
     id: TableId,
     // TODO: Use the cpu gadget
     pc: Col<B32>,
+    next_pc: Col<B32>, // Virtual
     fp: Col<B32>,
     opcode: Col<B16>, // This should be a transparent column
     timestamp: Col<B32>,
@@ -98,28 +99,20 @@ impl AddTable {
         );
 
         // Read src1
-        table.push(
-            vrom_channel,
-            [timestamp, upcast_col(src1), src1_val_packed],
-        );
+        table.push(vrom_channel, [timestamp, upcast_col(src1), src1_val_packed]);
         // Read src2
-        table.push(
-            vrom_channel,
-            [timestamp, upcast_col(src2), src2_val_packed],
-        );
+        table.push(vrom_channel, [timestamp, upcast_col(src2), src2_val_packed]);
         // Write dst
-        table.push(
-            vrom_channel,
-            [timestamp, upcast_col(dst), dst_val_packed],
-        );
+        table.push(vrom_channel, [next_timestamp, upcast_col(dst), dst_val_packed]);
 
         // Flushing rules for the state channel
-        table.push(state_channel, [pc, fp, timestamp]);
-        table.pull(state_channel, [next_pc, fp, next_timestamp]);
+        table.pull(state_channel, [pc, fp, timestamp]);
+        table.push(state_channel, [next_pc, fp, next_timestamp]);
 
         Self {
             id: table.id(),
             pc,
+            next_pc,
             fp,
             opcode,
             timestamp,
@@ -154,6 +147,7 @@ where
     ) -> Result<(), anyhow::Error> {
         {
             let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
+            let mut next_pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.next_pc)?;
             let mut fp = witness.get_mut_as(self.fp)?;
             let mut timestamp = witness.get_mut_as(self.timestamp)?;
 
@@ -170,6 +164,7 @@ where
 
             for (i, event) in rows.enumerate() {
                 pc[i] = event.pc.into();
+                next_pc[i] = (event.pc * B32::MULTIPLICATIVE_GENERATOR).into();
                 fp[i] = event.fp;
                 timestamp[i] = event.timestamp;
                 next_timestamp[i] = event.timestamp + 1u32;
@@ -192,6 +187,7 @@ where
 pub struct AddiTable {
     id: TableId,
     pc: Col<B32>,
+    next_pc: Col<B32>, // Virtual
     fp: Col<B32>,
     timestamp: Col<B32>,
     next_timestamp: Col<B32>, // TODO: This is currently unconstrained
@@ -236,6 +232,7 @@ impl AddiTable {
         Self {
             id: table.id(),
             pc,
+            next_pc,
             fp,
             timestamp,
             next_timestamp,
@@ -267,6 +264,7 @@ where
     ) -> Result<(), anyhow::Error> {
         {
             let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
+            let mut next_pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.next_pc)?;
             let mut fp = witness.get_mut_as(self.fp)?;
             let mut timestamp = witness.get_mut_as(self.timestamp)?;
 
@@ -279,6 +277,7 @@ where
 
             for (i, event) in rows.enumerate() {
                 pc[i] = event.pc.into();
+                next_pc[i] = (event.pc * B32::MULTIPLICATIVE_GENERATOR).into();
                 fp[i] = event.fp;
                 timestamp[i] = event.timestamp;
                 next_timestamp[i] = event.timestamp + 1u32;
@@ -288,6 +287,11 @@ where
                 dst[i] = event.dst;
                 imm[i] = event.imm;
             }
+            println!("Addi Table:");
+            println!("pc = {:?}", pc);
+            println!("next_pc = {:?}", next_pc);
+            println!("fp = {:?}", fp);
+            println!("timestamp = {:?}", timestamp);
         }
         Ok(())
     }
@@ -413,10 +417,10 @@ fn test_addi() {
     let statement = Statement {
         boundaries: vec![
             Boundary {
-                values: vec![B128::new(0), B128::new(0), B128::new(0)], /* inital_pc = 0,
-                                                                         * inital_fp = 0,
-                                                                         * initial_timestamp
-                                                                         * = 0 */
+                values: vec![B128::ONE, B128::new(0), B128::new(0)], /* inital_pc = 0,
+                                                                      * inital_fp = 0,
+                                                                      * initial_timestamp
+                                                                      * = 0 */
                 channel_id: zcray_table.state_channel,
                 direction: FlushDirection::Push,
                 multiplicity: 1,
@@ -431,6 +435,79 @@ fn test_addi() {
                 direction: FlushDirection::Pull,
                 multiplicity: 1,
             },
+            // For now we add the prom here
+            Boundary {
+                values: vec![
+                    B128::ONE,
+                    B128::new((Opcode::Add as u16).into()),
+                    0.into(),
+                    0.into(),
+                    0.into(),
+                ],
+                channel_id: zcray_table.prom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 1,
+            },
+            Boundary {
+                values: vec![
+                    B32::MULTIPLICATIVE_GENERATOR.into(),
+                    B128::new((Opcode::Ret as u16).into()),
+                    0.into(),
+                    0.into(),
+                    0.into(),
+                ],
+                channel_id: zcray_table.prom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 1,
+            },
+            // For now we add the vrom here
+            // Read src1 and src2 from ADD
+            Boundary {
+                values: vec![
+                    B128::ZERO,
+                    B128::ZERO,
+                    B128::ZERO
+                ],
+                channel_id: zcray_table.vrom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 2,
+            },
+            // Write dst from ADD
+            // table.push(vrom_channel, [timestamp, upcast_col(dst), dst_val_packed]);
+            Boundary {
+                values: vec![
+                    B128::ONE,
+                    B128::ZERO,
+                    B128::ZERO
+                ],
+                channel_id: zcray_table.vrom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 1,
+            },
+            // Read the next_pc from RET
+            Boundary {
+                values: vec![
+                    B128::ONE,
+                    B128::ZERO,
+                    B128::ZERO
+                ],
+                channel_id: zcray_table.vrom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 1,
+            },
+
+            //Read the next_fp
+            Boundary {
+                values: vec![
+                    B128::ONE,
+                    B128::ONE,
+                    B128::ZERO
+                ],
+                channel_id: zcray_table.vrom_channel,
+                direction: FlushDirection::Pull,
+                multiplicity: 1,
+            },
+
         ],
         table_sizes: vec![trace.add.len(), trace.ret.len()], // TODO: What should be here?
     };

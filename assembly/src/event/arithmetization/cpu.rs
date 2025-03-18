@@ -31,6 +31,7 @@ pub(crate) struct CpuColumnsOptions {
 pub(crate) struct CpuRow {
     pub(crate) index: usize,
     pub(crate) pc: u32,
+    pub(crate) next_pc: u32,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) instruction: Instruction,
@@ -73,8 +74,7 @@ impl CpuColumns {
             // TODO: Add jumps
             next_pc = target;
         } else {
-            next_pc = table
-                .add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into());
+            next_pc = table.add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into());
         }
 
         // Read instruction
@@ -90,28 +90,11 @@ impl CpuColumns {
         );
 
         // Flushing rules for the state channel
-        table.push(
-            state_channel,
-            [pc, fp, timestamp],
-        );
+        table.pull(state_channel, [pc, fp, timestamp]);
         if let Some(next_fp) = options.next_fp {
-            table.pull(
-                state_channel,
-                [
-                    next_pc,
-                    next_fp,
-                    next_timestamp,
-                ],
-            );
+            table.push(state_channel, [next_pc, next_fp, next_timestamp]);
         } else {
-            table.pull(
-                state_channel,
-                [
-                    next_pc,
-                    fp,
-                    next_timestamp,
-                ],
-            );
+            table.push(state_channel, [next_pc, fp, next_timestamp]);
         }
         Self {
             pc,
@@ -148,6 +131,7 @@ impl CpuColumns {
         let CpuRow {
             index,
             pc,
+            next_pc,
             fp,
             timestamp,
             instruction:
@@ -166,7 +150,8 @@ impl CpuColumns {
         arg1_col[index] = arg1;
         arg2_col[index] = arg2;
 
-        next_pc_col[index] = (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val();
+        println!("next_pc = {:?}", next_pc);
+        next_pc_col[index] = next_pc;
         next_timestamp_col[index] = timestamp + 1u32;
 
         Ok(())

@@ -49,13 +49,13 @@
             // Read the next_pc
             table.push(
                 vrom_channel,
-                [fp0, fp0_val, timestamp],
+                [timestamp, fp0, fp0_val],
             );
 
             //Read the next_fp
             table.push(
                 vrom_channel,
-                [fp1, fp1_val, timestamp],
+                [timestamp, fp1, fp1_val],
             );
 
             Self {
@@ -89,6 +89,7 @@
                     CpuRow {
                         index: i,
                         pc: event.pc.val(),
+                        next_pc: event.fp_0_val,
                         fp: event.fp,
                         timestamp: event.timestamp,
                         instruction: Instruction {
