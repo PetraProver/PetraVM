@@ -80,24 +80,13 @@ pub(crate) type Instruction = [BinaryField16b; 4];
 pub struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
-    /// Hint given by the compiler to let us know whether the current
-    /// instruction is part of a CALL procedure. If so, all following
-    /// instructions are too, until we reach a CALL. Moreover, we assume all
-    /// instructions that are part of the call procedure to be MV instructions
-    /// used to populate the next frame.
-    is_call_procedure: bool,
 }
 
 impl InterpreterInstruction {
-    pub(crate) const fn new(
-        instruction: Instruction,
-        field_pc: BinaryField32b,
-        is_call_procedure: bool,
-    ) -> Self {
+    pub(crate) const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
         Self {
             instruction,
             field_pc,
-            is_call_procedure,
         }
     }
 }
@@ -154,6 +143,7 @@ impl Interpreter {
                 .pc_field_to_int
                 .get(&target)
                 .expect("This target should have been parsed.");
+            debug_assert!(G.pow(self.pc as u64 - 1) == target);
         }
     }
 
@@ -254,119 +244,48 @@ impl Interpreter {
         let instruction = &trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction.instruction;
         let field_pc = instruction.field_pc;
-        let is_call_procedure = instruction.is_call_procedure;
 
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
         match opcode {
-            Opcode::Bnz => {
-                self.generate_bnz(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Jumpi => {
-                self.generate_jumpi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Jumpv => {
-                self.generate_jumpv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Xori => {
-                self.generate_xori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Xor => {
-                self.generate_xor(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Slli => {
-                self.generate_slli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Srli => {
-                self.generate_srli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Srai => {
-                self.generate_srai(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Sll => {
-                self.generate_sll(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Srl => {
-                self.generate_srl(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Sra => {
-                self.generate_sra(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Addi => {
-                self.generate_addi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Add => {
-                self.generate_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Sub => {
-                self.generate_sub(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Sltu => {
-                self.generate_sltu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Sltiu => {
-                self.generate_sltiu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Muli => {
-                self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Mulu => {
-                self.generate_mulu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Mulsu => {
-                self.generate_mulsu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Mul => {
-                self.generate_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Ret => {
-                self.generate_ret(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Taili => {
-                self.generate_taili(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::TailV => {
-                self.generate_tailv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Calli => {
-                self.generate_calli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::And => {
-                self.generate_and(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Andi => {
-                self.generate_andi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::Or => self.generate_or(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?,
-            Opcode::Ori => {
-                self.generate_ori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::MVIH => {
-                self.generate_mvih(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::MVVW => {
-                self.generate_mvvw(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::MVVL => {
-                self.generate_mvvl(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::LDI => {
-                self.generate_ldi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::B32Mul => {
-                self.generate_b32_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::B32Muli => {
-                self.generate_b32_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::B128Add => {
-                self.generate_b128_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
-            Opcode::B128Mul => {
-                self.generate_b128_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
-            }
+            Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Jumpi => self.generate_jumpi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Jumpv => self.generate_jumpv(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Xori => self.generate_xori(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Xor => self.generate_xor(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Slli => self.generate_slli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Srli => self.generate_srli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Srai => self.generate_srai(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sll => self.generate_sll(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Srl => self.generate_srl(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sra => self.generate_sra(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sub => self.generate_sub(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sltu => self.generate_sltu(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sltiu => self.generate_sltiu(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mulu => self.generate_mulu(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mulsu => self.generate_mulsu(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mul => self.generate_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Ret => self.generate_ret(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Tailv => self.generate_tailv(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Calli => self.generate_calli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::And => self.generate_and(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Ori => self.generate_ori(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::MVIH => self.generate_mvih(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::MVVW => self.generate_mvvw(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::MVVL => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::LDI => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -376,7 +295,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         cond: BinaryField16b,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
@@ -399,7 +317,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         _: BinaryField16b,
@@ -416,7 +333,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         offset: BinaryField16b,
         _: BinaryField16b,
         _: BinaryField16b,
@@ -431,7 +347,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -446,7 +361,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -461,7 +375,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         _: BinaryField16b,
         _: BinaryField16b,
         _: BinaryField16b,
@@ -476,7 +389,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -498,7 +410,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -520,7 +431,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -542,7 +452,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -564,7 +473,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -586,7 +494,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -609,7 +516,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         _: BinaryField16b,
@@ -624,7 +530,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
@@ -643,7 +548,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
@@ -662,7 +566,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -677,7 +580,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -692,7 +594,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -707,7 +608,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -722,7 +622,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -737,7 +636,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -752,7 +650,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -767,7 +664,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -783,7 +679,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -830,7 +725,7 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
+
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -854,7 +749,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -878,7 +772,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -893,7 +786,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm_low: BinaryField16b,
@@ -921,7 +813,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -936,7 +827,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -951,7 +841,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -971,7 +860,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
@@ -991,13 +879,12 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let opt_new_mvvw_event =
-            MVVWEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure)?;
+            MVVWEvent::generate_event(self, trace, dst, offset, src, field_pc)?;
         if let Some(new_mvvw_event) = opt_new_mvvw_event {
             trace.mvvw.push(new_mvvw_event);
         }
@@ -1009,13 +896,12 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let opt_new_mvvl_event =
-            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc, is_call_procedure)?;
+            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc)?;
         if let Some(new_mvvl_event) = opt_new_mvvl_event {
             trace.mvvl.push(new_mvvl_event);
         }
@@ -1027,13 +913,12 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let opt_new_mvih_event =
-            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc, is_call_procedure)?;
+            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc)?;
         if let Some(new_mvih_event) = opt_new_mvih_event {
             trace.mvih.push(new_mvih_event);
         }
@@ -1045,7 +930,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-        _: bool,
         dst: BinaryField16b,
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
@@ -1080,15 +964,11 @@ mod tests {
     use crate::util::get_binary_slot;
     use crate::util::{collatz_orbits, init_logger};
 
-    pub(crate) fn code_to_prom(
-        code: &[Instruction],
-        is_calling_procedure_hints: &[bool],
-    ) -> ProgramRom {
+    pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
         let mut prom = ProgramRom::new();
         let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
         for (i, &instruction) in code.iter().enumerate() {
-            let interp_inst =
-                InterpreterInstruction::new(instruction, pc, is_calling_procedure_hints[i]);
+            let interp_inst = InterpreterInstruction::new(instruction, pc);
             prom.push(interp_inst);
             pc *= G;
         }
@@ -1100,7 +980,7 @@ mod tests {
     fn test_zcray() {
         let zero = BinaryField16b::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
-        let prom = code_to_prom(&code, &[false]);
+        let prom = code_to_prom(&code);
         let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
 
         let mut frames = HashMap::new();
@@ -1264,15 +1144,7 @@ mod tests {
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
 
-        // Set to `true` the move operations that are part of a CALL procedure in the
-        // Collatz code.
-        let mut is_calling_procedure_hints = vec![false; instructions.len()];
-        let indices = vec![7, 8, 9, 12, 13, 14];
-        for idx in indices {
-            is_calling_procedure_hints[idx] = true;
-        }
-
-        let prom = code_to_prom(&instructions, &is_calling_procedure_hints);
+        let prom = code_to_prom(&instructions);
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);
 

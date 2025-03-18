@@ -9,16 +9,8 @@ const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 fn test_naive_div() {
     let instructions = parse_program(include_str!("../../examples/div.asm")).unwrap();
 
-    // Sets the call procedure hints to true for the returned PROM (where
-    // instructions are given with the labels).
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    let indices_to_set_with_labels = vec![4, 5, 6, 7];
-    for idx in indices_to_set_with_labels {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
     let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let a = rand::random();
     let b = rand::random();
@@ -59,19 +51,8 @@ fn test_bezout() {
         .flat_map(|file| parse_program(file).unwrap())
         .collect::<Vec<_>>();
 
-    // Sets the call procedure hints to true for the returned PROM (where
-    // instructions are given with the labels).
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    let indices_to_set_with_labels = vec![
-        7, 8, 9, 10, 12, 13, 14, 15, 16, // Bezout
-        25, 26, 27, 28, // Div
-    ];
-    for idx in indices_to_set_with_labels {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
     let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let a = 12;
     let b = 3;
@@ -116,16 +97,9 @@ fn test_non_tail_long_div() {
     let kernel_file = include_str!("../../examples/non_tail_long_div.asm");
 
     let instructions = parse_program(kernel_file).unwrap();
-    let indices_is_call_procedure_hints = [7, 8, 9, 10];
-
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    for idx in indices_is_call_procedure_hints {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
 
     let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let mut pc = BinaryField32b::ONE;
     let mut pc_field_to_int = HashMap::new();
@@ -161,18 +135,9 @@ fn test_tail_long_div() {
     let kernel_file = include_str!("../../examples/tail_long_div.asm");
 
     let instructions = parse_program(kernel_file).unwrap();
-    let indices_is_call_procedure_hints = [
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-    ];
-
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    for idx in indices_is_call_procedure_hints {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
 
     let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let mut pc = BinaryField32b::ONE;
     let mut pc_field_to_int = HashMap::new();

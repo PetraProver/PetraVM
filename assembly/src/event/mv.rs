@@ -10,14 +10,14 @@ use crate::{
     opcodes::Opcode,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum MVKind {
     Mvvw,
     Mvvl,
     Mvih,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) struct MVInfo {
     pub(crate) mv_kind: MVKind,
     pub(crate) dst: BinaryField16b,
@@ -201,11 +201,11 @@ impl MVVWEvent {
         } else {
             // `src_val` is not yet known, which is means it's a return value from the
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
-            // in `pending_updates`. As soon as it is set in the called funciton, we can
+            // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::MVVW, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -218,13 +218,19 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let fp = interpreter.fp;
         let timestamp = interpreter.timestamp;
         let pc = interpreter.pc;
 
-        if is_call_procedure {
+        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = trace.get_vrom_opt_u32(src_addr)?;
+
+        // If the source value is missing or the destination address is still unknown,
+        // it means we are in a MOVE that precedes a CALL, and we have to handle the
+        // MOVE operation later.
+        if opt_dst_addr.is_none() || opt_src_val.is_none() {
             let new_mv_info = MVInfo {
                 mv_kind: MVKind::Mvvw,
                 dst,
@@ -239,11 +245,8 @@ impl MVVWEvent {
             return Ok(None);
         }
 
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let src_val = trace
-            .get_vrom_opt_u32(src_addr)?
-            .ok_or(MemoryError::VromMissingValue(src_addr))?;
+        let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
+        let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
         interpreter.incr_pc();
 
@@ -355,13 +358,19 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
         let fp = interpreter.fp;
 
-        if is_call_procedure {
+        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
+        let src_addr = fp ^ src.val() as u32;
+        let opt_src_val = trace.get_vrom_opt_u128(src_addr)?;
+
+        // If the source value is missing or the destination address is still unknown,
+        // it means we are in a MOVE that precedes a CALL, and we have to handle the
+        // MOVE operation later.
+        if opt_dst_addr.is_none() || opt_src_val.is_none() {
             let new_mv_info = MVInfo {
                 mv_kind: MVKind::Mvvl,
                 dst,
@@ -376,11 +385,8 @@ impl MVVLEvent {
             return Ok(None);
         }
 
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let src_val = trace
-            .get_vrom_opt_u128(src_addr)?
-            .ok_or(MemoryError::VromMissingValue(src_addr))?;
+        let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
+        let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
         trace.set_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
 
@@ -478,13 +484,29 @@ impl MVIHEvent {
         offset: BinaryField16b,
         imm: BinaryField16b,
         field_pc: BinaryField32b,
-        is_call_procedure: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let fp = interpreter.fp;
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
 
-        if is_call_procedure {
+        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
+
+        // If the destination address is still unknown, it means we are in a MOVE that
+        // precedes a CALL, and we have to handle the MOVE operation later.
+        if let Some(dst_addr) = opt_dst_addr {
+            trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+            interpreter.incr_pc();
+
+            Ok(Some(Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_addr,
+                imm: imm.val(),
+                offset: offset.val(),
+            }))
+        } else {
             let new_mv_info = MVInfo {
                 mv_kind: MVKind::Mvih,
                 dst,
@@ -496,22 +518,8 @@ impl MVIHEvent {
             // This move needs to be handled later, in the CALL.
             interpreter.moves_to_apply.push(new_mv_info);
             interpreter.incr_pc();
-            return Ok(None);
+            Ok(None)
         }
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
-
-        trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
-        interpreter.incr_pc();
-
-        Ok(Some(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_addr,
-            imm: imm.val(),
-            offset: offset.val(),
-        }))
     }
 }
 
@@ -563,3 +571,318 @@ impl LDIEvent {
 }
 
 impl_mv_fire!(LDIEvent);
+
+mod tests {
+    use std::collections::HashMap;
+
+    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+
+    use crate::{
+        event::mv::{MVInfo, MVKind},
+        execution::{Interpreter, G},
+        memory::{Memory, VromPendingUpdates, VromUpdate},
+        opcodes::Opcode,
+        util::code_to_prom,
+        ValueRom, ZCrayTrace,
+    };
+
+    #[test]
+    fn test_mv_no_src() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: dst_addr1 = 0
+        // Slot 3: dst_storage1
+        // Slot 4: src_val1: not written yet.
+        // Slot 5: dst_addr2 = 0
+        // Slot 6: dst_storage2
+        // Slot 7: padding for alignment.
+        // Slot 8: src_val2: not written yet.
+
+        let zero = BinaryField16b::zero();
+        let dst_addr1 = 2.into();
+        let offset1 = 3.into();
+        let src_addr1 = 4.into();
+        let dst_addr2 = 5.into();
+        let offset2 = 6.into();
+        let src_addr2 = 8.into();
+        // Do MVVW and MVVL with an unaccessible source value.
+        let instructions = vec![
+            [Opcode::MVVW.get_field_elt(), dst_addr1, offset1, src_addr1],
+            [Opcode::MVVL.get_field_elt(), dst_addr2, offset2, src_addr2],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::one(), 9);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(2, 0).unwrap();
+        vrom.set_u32(5, 0).unwrap();
+
+        let memory = Memory::new(prom, vrom);
+
+        let mut interpreter = Interpreter::new(frames, HashMap::new());
+
+        let _ = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        // Check that `moves_to_apply` contains the two MOVE events.
+        let first_move = MVInfo {
+            mv_kind: MVKind::Mvvw,
+            dst: dst_addr1,
+            offset: offset1,
+            src: src_addr1,
+            pc: BinaryField32b::ONE,
+            timestamp: 0,
+        };
+        let second_move = MVInfo {
+            mv_kind: MVKind::Mvvl,
+            dst: dst_addr2,
+            offset: offset2,
+            src: src_addr2,
+            pc: G,
+            timestamp: 1,
+        };
+
+        assert_eq!(interpreter.moves_to_apply, vec![first_move, second_move]);
+    }
+
+    #[test]
+    fn test_mv_no_dst() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: src_val1
+        // Slot 3: padding for alignment.
+        // Slot 4-7: src_val2
+        // Slot 8: target
+        // Slot 9: next_fp
+
+        let zero = BinaryField16b::zero();
+        let offset1 = 2.into();
+        let src_addr1 = 2.into();
+        let offset2 = 4.into();
+        let src_addr2 = 4.into();
+        let offset3 = 8.into();
+        let imm = 12.into();
+
+        let call_offset = 8.into();
+        let next_fp_offset = 9.into();
+
+        let target = G.pow(4);
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        let instructions = vec![
+            [
+                Opcode::MVVW.get_field_elt(),
+                next_fp_offset,
+                offset1,
+                src_addr1,
+            ],
+            [
+                Opcode::MVVL.get_field_elt(),
+                next_fp_offset,
+                offset2,
+                src_addr2,
+            ],
+            [Opcode::MVIH.get_field_elt(), next_fp_offset, offset3, imm],
+            [
+                Opcode::Tailv.get_field_elt(),
+                call_offset,
+                next_fp_offset,
+                0.into(),
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(target, 9);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+
+        // Set src vals.
+        let src_val1 = 1;
+        let src_val2 = 2;
+        vrom.set_u32(src_addr1.val() as u32, src_val1).unwrap();
+        vrom.set_u128(src_addr2.val() as u32, src_val2).unwrap();
+
+        // Set target
+        vrom.set_u32(call_offset.val() as u32, target.val())
+            .unwrap();
+
+        let memory = Memory::new(prom, vrom);
+
+        let mut pc_field_to_int = HashMap::new();
+        pc_field_to_int.insert(target, 5);
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        assert!(traces.vrom_pending_updates().is_empty());
+        assert!(interpreter.moves_to_apply.is_empty());
+
+        let next_fp = 16;
+        assert_eq!(
+            traces
+                .get_vrom_u32(next_fp as u32 + offset1.val() as u32)
+                .unwrap(),
+            src_val1
+        );
+        assert_eq!(
+            traces
+                .get_vrom_u128(next_fp as u32 + offset2.val() as u32)
+                .unwrap(),
+            src_val2
+        );
+        assert_eq!(
+            traces
+                .get_vrom_u32(next_fp as u32 + offset3.val() as u32)
+                .unwrap(),
+            imm.val() as u32
+        );
+    }
+
+    #[test]
+    fn test_mv_no_dst_no_src() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: Storage
+        // Slot 3: Padding for alignment
+        // Slot 4-7: Src_val
+        // Slot 8: Target
+        // Slot 9: Next_fp
+
+        let zero = BinaryField16b::zero();
+        let offset1 = 2.into();
+        let offset2 = 4.into();
+        let src_addr = 4.into();
+        let offset3 = 8.into();
+        let storage = 2.into();
+        let imm = 12.into();
+
+        let call_offset = 8.into();
+        let next_fp_offset = 9.into();
+
+        // In TAILV, we jump to the PC for RET.
+        let target_pc = 6u32;
+        let target = G.pow(target_pc as u64 - 1);
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        let instructions = vec![
+            [
+                Opcode::MVVW.get_field_elt(),
+                next_fp_offset,
+                offset1,
+                src_addr,
+            ],
+            [
+                Opcode::MVVL.get_field_elt(),
+                next_fp_offset,
+                offset2,
+                src_addr,
+            ],
+            // The following MOVE operation should be executed, since TAILV sets `next_fp`
+            // correctly.
+            [
+                Opcode::MVVW.get_field_elt(),
+                0.into(),
+                storage,
+                next_fp_offset,
+            ],
+            [Opcode::MVIH.get_field_elt(), next_fp_offset, offset3, imm],
+            [
+                Opcode::Tailv.get_field_elt(),
+                call_offset,
+                next_fp_offset,
+                0.into(),
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(target, 9);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+
+        // Set target
+        vrom.set_u32(call_offset.val() as u32, target.val())
+            .unwrap();
+
+        // We do not set the src_addr.
+        let memory = Memory::new(prom, vrom);
+
+        let mut pc_field_to_int = HashMap::new();
+        pc_field_to_int.insert(target, target_pc);
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        let mut pending_updates = HashMap::new();
+        let first_move = (
+            src_addr.val() as u32, // Address to set
+            Opcode::MVVW,          // Opcode
+            BinaryField32b::ONE,   // PC
+            0u32,                  // FP
+            0u32,                  // Timestamp
+            next_fp_offset,        // Dst
+            src_addr,              // Src
+            offset1,               // Offset
+        );
+        let second_move = (
+            src_addr.val() as u32, // Address to set
+            Opcode::MVVL,          // Opcode
+            G,                     // PC
+            0u32,                  // FP
+            1u32,                  // Timestamp
+            next_fp_offset,        // Dst
+            src_addr,              // Src
+            offset2,               // Offset
+        );
+
+        let next_fp = 16;
+        pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
+        pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
+
+        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.vrom_pending_updates().len(), pending_updates.len());
+        for (k, pending_update) in traces.vrom_pending_updates() {
+            let expected_update = pending_updates.get(k).unwrap_or_else(|| {
+                panic!("Missing expected update {:?} at addr {}", pending_update, k)
+            });
+            assert_eq!(
+                *expected_update, *pending_update,
+                "expected update {:?}, but got {:?}",
+                *expected_update, *pending_update
+            );
+        }
+        // Check that `next_fp` has been set and the third MOVE operation was carried
+        // out correctly,
+        assert_eq!(
+            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap(),
+            next_fp
+        );
+        assert_eq!(
+            traces.get_vrom_u32(storage.val() as u32).unwrap(),
+            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap()
+        );
+    }
+}

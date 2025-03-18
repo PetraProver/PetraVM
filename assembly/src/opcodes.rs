@@ -49,7 +49,7 @@ pub enum Opcode {
     Jumpv = 0x21,
     // CallV, // TODO,
     Taili = 0x0c,
-    TailV = 0x12,
+    Tailv = 0x12,
     Calli = 0x18,
     Ret = 0x0b,
 
