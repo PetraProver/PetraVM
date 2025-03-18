@@ -179,7 +179,7 @@ mod test_parser {
                 get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ case_recurse, @5
+            ], //  1G: BNZ @5, case_recurse
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
@@ -200,20 +200,20 @@ mod test_parser {
                 get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ case_odd, @6
+            ], //  5G: BNZ @6, case_odd
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI @8, @2, #1
+            ], //  6G: SRLI @7, @2, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  7G: MVV.W @4[2], @8
+            ], //  7G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
@@ -232,19 +232,19 @@ mod test_parser {
                 get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI @7, @2, #3
+            ], //  10G: MULI @8, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(8),
                 get_binary_slot(1),
-            ], //  11G: ADDI @8, @7, #1
+            ], //  11G: ADDI @7, @8, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  12G: MVV.W @4[2], @8
+            ], //  12G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
