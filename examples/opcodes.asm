@@ -26,43 +26,57 @@
 ;;   * All temporary values and function frames are in VROM
 ;;   * Values are accessed via offsets from the frame pointer (FP)
 ;; - RAM: Read-write memory (byte-addressable, optional)
+;;
+;; FRAME SLOT CONVENTIONS:
+;; - Slot 0: Return PC (set by CALL instructions)
+;; - Slot 1: Return FP (set by CALL instructions)
+;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;; ============================================================================
 
 #[framesize(0x20)]
-_start:
-    ;; Initialize a register to count passed test groups
+_start: 
+    ;; Initialize success counter
     LDI.W @20, #0    ;; success counter
+    
+    ;; Call binary field test
+    LDI.W @3, #0     ;; initialize next FP
+    CALLI test_binary_field, @3
+    MVV.W @5, @3[2]  ;; Get success flag
+    ADDI @20, @20, @5
 
-    ;; Test values for integer operations
-    LDI.W @2, #42    ;; test value A
-    LDI.W @3, #7     ;; test value B
-    LDI.W @4, #16    ;; shift amount
+    ;; Call integer ops test
+    LDI.W @4, #0     ;; initialize next FP
+    CALLI test_integer_ops, @4
+    MVV.W @5, @4[2]  ;; Get success flag
+    ADDI @20, @20, @5
 
-    ;; Call each test group (each returns success flag in @3)
-    CALLI test_binary_field, @5
-    ADDI @20, @20, @3
-
-    CALLI test_integer_ops, @5
-    ADDI @20, @20, @3
-
+    ;; Call move ops test
+    LDI.W @5, #0     ;; initialize next FP
     CALLI test_move_ops, @5
-    ADDI @20, @20, @3
+    MVV.W @6, @5[2]  ;; Get success flag
+    ADDI @20, @20, @6
 
-    CALLI test_jumps_branches, @5
-    ADDI @20, @20, @3
+    ;; Call jumps & branches test
+    LDI.W @6, #0     ;; initialize next FP
+    CALLI test_jumps_branches, @6
+    MVV.W @7, @6[2]  ;; Get success flag
+    ADDI @20, @20, @7
 
-    CALLI test_jump_ops, @5
-    ADDI @20, @20, @3
+    ;; Call jump ops test
+    LDI.W @7, #0     ;; initialize next FP
+    CALLI test_jump_ops, @7
+    MVV.W @8, @7[2]  ;; Get success flag
+    ADDI @20, @20, @8
 
     ;; Expecting 5 successful test groups
     XORI @21, @20, #5
     BNZ test_failed, @21
 test_passed:
-    LDI.W @1, #1    ;; overall success flag
+    LDI.W @2, #1    ;; overall success flag
     RET
 
 test_failed:
-    LDI.W @1, #0    ;; overall failure flag
+    LDI.W @2, #0    ;; overall failure flag
     RET
 
 ;; ============================================================================
@@ -75,53 +89,54 @@ test_failed:
 
 #[framesize(0x30)]
 test_binary_field:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
+    ;; Initialize test values directly in this function
+    LDI.W @3, #42    ;; test value A
+    LDI.W @4, #7     ;; test value B
+
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: XOR (Bitwise Exclusive OR)
+    ;; INSTRUCTION: XOR / XORI / B32_ADD
     ;; 
-    ;; FORMAT: XOR dst, src1, src2
+    ;; FORMAT: 
+    ;;   XOR dst, src1, src2     (Register variant)
+    ;;   XORI dst, src1, imm     (Immediate variant)
+    ;;   B32_ADD dst, src1, src2 (Binary field addition - alias for XOR)
     ;; 
     ;; DESCRIPTION:
-    ;;   Perform bitwise XOR between two 32-bit values.
-    ;;   This is also an alias for B32_ADD in binary field arithmetic.
+    ;;   Perform bitwise XOR between values.
+    ;;   In binary fields, XOR is equivalent to addition (B32_ADD).
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] ^ fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] ^ fp[src2]
+    ;;   fp[dst] = fp[src1] ^ imm
     ;; ------------------------------------------------------------
-test_binary_field:
-    ;; ------------------------------------------------------------
-    ;; INSTRUCTION: B32_ADD (alias for XOR)
-    ;; 
-    ;; FORMAT: B32_ADD dst, src1, src2
-    ;; 
-    ;; DESCRIPTION: 
-    ;;   Add two 32-bit binary field elements.
-    ;;   In binary fields, addition is equivalent to bitwise XOR.
-    ;;
-    ;; EFFECT: fp[dst] = fp[src1] ⊕ fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
-    ;; ------------------------------------------------------------
-    XOR @10, @2, @3      ;; 42 XOR 7 = 45
+    XOR @10, @3, @4      ;; 42 XOR 7 = 45
     XORI @11, @10, #45   ;; result should be 0 if correct
     BNZ bf_fail, @11
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: B32_MUL
+    ;; INSTRUCTION: B32_MUL / B32_MULI
     ;; 
-    ;; FORMAT: B32_MUL dst, src1, src2
+    ;; FORMAT: 
+    ;;   B32_MUL dst, src1, src2   (Register variant)
+    ;;   B32_MULI dst, src1, imm   (Immediate variant)
     ;; 
     ;; DESCRIPTION:
     ;;   Multiply two 32-bit binary field elements.
     ;;   Performs multiplication in the binary field GF(2^32).
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] * fp[src2] (in GF(2^32))
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] * fp[src2] (in GF(2^32))
+    ;;   fp[dst] = fp[src1] * imm (in GF(2^32))
     ;; ------------------------------------------------------------
-    B32_MUL @12, @2, @3
-    B32_MULI @13, @2, #7   ;; Immediate variant
-    XOR @14, @12, @13      ;; Should produce identical results
+    B32_MUL @12, @3, @4
+    B32_MULI @13, @3, #7
+    XOR @14, @12, @13
     BNZ bf_fail, @14
 
     ;; ------------------------------------------------------------
@@ -134,15 +149,10 @@ test_binary_field:
     ;;   This is a component-wise XOR of four 32-bit words.
     ;;
     ;; EFFECT: fp[dst] = fp[src1] ⊕ fp[src2] (128-bit operation)
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 16-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @15, #1
     LDI.W @16, #2
-    MVV.W @6[0], @15
-    MVV.W @7[0], @16
-    B128_ADD @8, @6, @7
-    MVV.W @17, @8[0]
+    B128_ADD @17, @15, @16
     XORI @18, @17, #3    ;; expecting 1 XOR 2 = 3 (for binary addition)
     BNZ bf_fail, @18
 
@@ -156,35 +166,25 @@ test_binary_field:
     ;;   Performs multiplication in the binary field GF(2^128).
     ;;
     ;; EFFECT: fp[dst] = fp[src1] * fp[src2] (in GF(2^128))
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 16-byte aligned
     ;; ------------------------------------------------------------
-    ;; Set up 128-bit value A = 1 and B = 3 (all other words are zero)
-    LDI.W @30, #1
-    LDI.W @31, #0
-    LDI.W @32, #0
-    LDI.W @33, #0
-    LDI.W @34, #3
-    LDI.W @35, #0
-    LDI.W @36, #0
-    LDI.W @37, #0
-    MVV.W @10[0], @30
-    MVV.W @10[1], @31
-    MVV.W @10[2], @32
-    MVV.W @10[3], @33
-    MVV.W @11[0], @34
-    MVV.W @11[1], @35
-    MVV.W @11[2], @36
-    MVV.W @11[3], @37
-    B128_MUL @12, @10, @11
-    MVV.W @38, @12[0]
-    XORI @39, @38, #3    ;; if 1 is multiplicative identity then 1 * 3 = 3
-    BNZ bf_fail, @39
+    ;; Set up 128-bit values by initializing words
+    LDI.W @20, #1
+    LDI.W @24, #3
+    LDI.W @21, #0
+    LDI.W @22, #0
+    LDI.W @23, #0
+    LDI.W @25, #0
+    LDI.W @26, #0
+    LDI.W @27, #0
+    ;; Perform 128-bit multiplication
+    B128_MUL @28, @20, @24
+    XORI @29, @28, #3    ;; if 1 is multiplicative identity then 1 * 3 = 3
+    BNZ bf_fail, @29
 
-    LDI.W @3, #1
+    LDI.W @2, #1         ;; Set success flag
     RET
 bf_fail:
-    LDI.W @3, #0
+    LDI.W @2, #0         ;; Set failure flag
     RET
 
 ;; ============================================================================
@@ -196,83 +196,100 @@ bf_fail:
 
 #[framesize(0x40)]
 test_integer_ops:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
+    ;; Initialize test values directly in this function
+    LDI.W @3, #42    ;; test value A
+    LDI.W @4, #7     ;; test value B
+    LDI.W @5, #16    ;; shift amount
+
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: ADD
+    ;; INSTRUCTION: ADD / ADDI
     ;; 
-    ;; FORMAT: ADD dst, src1, src2
+    ;; FORMAT: 
+    ;;   ADD dst, src1, src2   (Register variant)
+    ;;   ADDI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
-    ;;   Add two 32-bit integer values.
+    ;;   Add integer values.
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] + fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] + fp[src2]
+    ;;   fp[dst] = fp[src] + imm
     ;; ------------------------------------------------------------
-    ADD @10, @2, @3      ;; 42 + 7 = 49
-    ADDI @11, @2, #7     ;; Immediate variant: 42 + 7 = 49
+    ADD @10, @3, @4      ;; 42 + 7 = 49
+    ADDI @11, @3, #7     ;; 42 + 7 = 49
     XOR @12, @10, @11    ;; 0 if equal
     BNZ int_fail, @12
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: AND
+    ;; INSTRUCTION: AND / ANDI
     ;; 
-    ;; FORMAT: AND dst, src1, src2
+    ;; FORMAT: 
+    ;;   AND dst, src1, src2   (Register variant)
+    ;;   ANDI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
-    ;;   Bitwise AND of two 32-bit values.
+    ;;   Bitwise AND of values.
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] & fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] & fp[src2]
+    ;;   fp[dst] = fp[src] & imm
     ;; ------------------------------------------------------------
-    AND @13, @2, @3      ;; 42 & 7 = 2
-    ANDI @14, @2, #7     ;; Immediate variant
+    AND @13, @3, @4
+    ANDI @14, @3, #7
     XORI @15, @13, #2
     BNZ int_fail, @15
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: OR
+    ;; INSTRUCTION: OR / ORI
     ;; 
-    ;; FORMAT: OR dst, src1, src2
+    ;; FORMAT: 
+    ;;   OR dst, src1, src2   (Register variant)
+    ;;   ORI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
-    ;;   Bitwise OR of two 32-bit values.
+    ;;   Bitwise OR of values.
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] | fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] | fp[src2]
+    ;;   fp[dst] = fp[src] | imm
     ;; ------------------------------------------------------------
-    OR @16, @2, @3       ;; 42 | 7 = 47
-    ORI @17, @2, #7      ;; Immediate variant
+    OR @16, @3, @4
+    ORI @17, @3, #7
     XORI @18, @16, #47
     BNZ int_fail, @18
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTIONS: SLLI, SRLI, SRAI (Immediate Shifts)
+    ;; INSTRUCTIONS: Shift Operations
     ;; 
     ;; FORMAT: 
     ;;   SLLI dst, src, imm   (Shift Left Logical Immediate)
     ;;   SRLI dst, src, imm   (Shift Right Logical Immediate)
     ;;   SRAI dst, src, imm   (Shift Right Arithmetic Immediate)
+    ;;   SLL dst, src, shift  (Shift Left Logical - register)
+    ;;   SRL dst, src, shift  (Shift Right Logical - register)
+    ;;   SRA dst, src, shift  (Shift Right Arithmetic - register)
     ;; 
     ;; DESCRIPTION:
-    ;;   Perform shift operations with immediate shift amount.
-    ;;   SLLI: Logical left shift (fill with zeros)
-    ;;   SRLI: Logical right shift (fill with zeros)
-    ;;   SRAI: Arithmetic right shift (sign-extend)
+    ;;   Perform shift operations with immediate or register shift amount.
+    ;;   - Logical shifts fill with zeros
+    ;;   - Arithmetic right shifts preserve the sign bit
     ;;
     ;; EFFECT: 
-    ;;   SLLI: fp[dst] = fp[src] << imm
-    ;;   SRLI: fp[dst] = fp[src] >> imm  (zero-extended)
-    ;;   SRAI: fp[dst] = fp[src] >> imm  (sign-extended)
-    ;; 
-    ;; ALIGNMENT: dst and src must be 4-byte aligned
+    ;;   SLLI/SLL: fp[dst] = fp[src] << imm/fp[shift]
+    ;;   SRLI/SRL: fp[dst] = fp[src] >> imm/fp[shift] (zero-extended)
+    ;;   SRAI/SRA: fp[dst] = fp[src] >> imm/fp[shift] (sign-extended)
     ;; ------------------------------------------------------------
-    SLLI @19, @3, #2     ;; 7 << 2 = 28
+    SLLI @19, @4, #2        ;; 7 << 2 = 28
     XORI @20, @19, #28
     BNZ int_fail, @20
 
-    SRLI @21, @2, #2     ;; 42 >> 2 = 10
+    SRLI @21, @3, #2        ;; 42 >> 2 = 10
     XORI @22, @21, #10
     BNZ int_fail, @22
 
@@ -281,74 +298,34 @@ test_integer_ops:
     XORI @25, @24, #4294967232
     BNZ int_fail, @25
 
-    ;; ------------------------------------------------------------
-    ;; INSTRUCTIONS: SLL, SRL, SRA (Variable Shifts)
-    ;; 
-    ;; FORMAT: 
-    ;;   SLL dst, src, shift   (Shift Left Logical)
-    ;;   SRL dst, src, shift   (Shift Right Logical)
-    ;;   SRA dst, src, shift   (Shift Right Arithmetic)
-    ;; 
-    ;; DESCRIPTION:
-    ;;   Perform shift operations with shift amount in register.
-    ;;   SLL: Logical left shift (fill with zeros)
-    ;;   SRL: Logical right shift (fill with zeros)
-    ;;   SRA: Arithmetic right shift (sign-extend)
-    ;;
-    ;; EFFECT: 
-    ;;   SLL: fp[dst] = fp[src] << fp[shift]
-    ;;   SRL: fp[dst] = fp[src] >> fp[shift]  (zero-extended)
-    ;;   SRA: fp[dst] = fp[src] >> fp[shift]  (sign-extended)
-    ;; 
-    ;; ALIGNMENT: dst, src, and shift must be 4-byte aligned
-    ;; ------------------------------------------------------------
-    SLL @26, @3, @4      ;; 7 << 16 = 458752
+    SLL @26, @4, @5         ;; 7 << 16 = 458752
     XORI @27, @26, #458752
     BNZ int_fail, @27
 
-    SRL @28, @2, @3      ;; 42 >> 7 = 0
+    SRL @28, @3, @4         ;; 42 >> 7 = 0
     XORI @29, @28, #0
     BNZ int_fail, @29
 
-    SRA @30, @23, @3     ;; -128 >> 7 = -1 (4294967295)
+    SRA @30, @23, @4        ;; -128 >> 7 = -1 (4294967295)
     XORI @31, @30, #4294967295
     BNZ int_fail, @31
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: MULI (Multiply Immediate)
+    ;; INSTRUCTION: MULI (Integer Multiplication Immediate)
     ;; 
     ;; FORMAT: MULI dst, src, imm
     ;; 
     ;; DESCRIPTION:
-    ;;   Multiply a 32-bit integer by an immediate value.
+    ;;   Multiply source value by an immediate value.
     ;;
     ;; EFFECT: fp[dst] = fp[src] * imm
-    ;; 
-    ;; ALIGNMENT: dst and src must be 4-byte aligned
     ;; ------------------------------------------------------------
-    MULI @32, @2, #3     ;; 42 * 3 = 126
+    MULI @32, @3, #3
     XORI @33, @32, #126
     BNZ int_fail, @33
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: XORI (XOR Immediate)
-    ;; 
-    ;; FORMAT: XORI dst, src, imm
-    ;; 
-    ;; DESCRIPTION:
-    ;;   Bitwise XOR with immediate value.
-    ;;   Also an alias for B32_ADDI (binary field add immediate).
-    ;;
-    ;; EFFECT: fp[dst] = fp[src] ^ imm
-    ;; 
-    ;; ALIGNMENT: dst and src must be 4-byte aligned
-    ;; ------------------------------------------------------------
-    XORI @51, @2, #7     ;; 42 XOR 7 = 45
-    XORI @52, @51, #45   ;; Should be 0 if correct
-    BNZ int_fail, @52
-
-    ;; ------------------------------------------------------------
-    ;; INSTRUCTION: SUB (Subtract)
+    ;; INSTRUCTION: SUB
     ;; 
     ;; FORMAT: SUB dst, src1, src2
     ;; 
@@ -356,66 +333,47 @@ test_integer_ops:
     ;;   Subtract the second value from the first.
     ;;
     ;; EFFECT: fp[dst] = fp[src1] - fp[src2]
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
     ;; ------------------------------------------------------------
-    SUB @34, @2, @3      ;; 42 - 7 = 35
-    XORI @35, @34, #35
-    BNZ int_fail, @35
+    SUB @36, @3, @4
+    XORI @37, @36, #35
+    BNZ int_fail, @37
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: SLT, SLTI (Set Less Than)
+    ;; INSTRUCTION: SLT / SLTI / SLTU / SLTIU (Set Less Than)
     ;; 
     ;; FORMAT: 
-    ;;   SLT dst, src1, src2
-    ;;   SLTI dst, src1, imm
+    ;;   SLT dst, src1, src2     (Set if Less Than, signed)
+    ;;   SLTI dst, src1, imm     (Set if Less Than Immediate, signed)
+    ;;   SLTU dst, src1, src2    (Set if Less Than, unsigned)
+    ;;   SLTIU dst, src1, imm    (Set if Less Than Immediate, unsigned)
     ;; 
     ;; DESCRIPTION:
-    ;;   Set destination to 1 if first source is less than second (signed),
-    ;;   otherwise set to 0.
+    ;;   Set destination to 1 if first source is less than second,
+    ;;   otherwise set to 0. Handles both signed and unsigned variants.
     ;;
     ;; EFFECT: 
-    ;;   fp[dst] = (fp[src1] < fp[src2]) ? 1 : 0
-    ;;   fp[dst] = (fp[src1] < imm) ? 1 : 0
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;;   SLT/SLTI:   fp[dst] = (fp[src1] < src2/imm) ? 1 : 0   (signed)
+    ;;   SLTU/SLTIU: fp[dst] = (fp[src1] < src2/imm) ? 1 : 0   (unsigned)
     ;; ------------------------------------------------------------
-    SLT @36, @3, @2      ;; 7 < 42 should yield 1
-    LDI.W @37, #1
-    XOR @38, @36, @37
-    BNZ int_fail, @38
+    SLT @38, @4, @3
+    LDI.W @39, #1
+    XOR @6, @38, @39
+    BNZ int_fail, @6
 
-    SLTI @39, @3, #42    ;; 7 < 42 yields 1
-    XORI @40, @39, #1
-    BNZ int_fail, @40
+    SLTI @7, @4, #42
+    XORI @8, @7, #1
+    BNZ int_fail, @8
 
-    ;; ------------------------------------------------------------
-    ;; INSTRUCTION: SLTU, SLTIU (Set Less Than Unsigned)
-    ;; 
-    ;; FORMAT: 
-    ;;   SLTU dst, src1, src2
-    ;;   SLTIU dst, src1, imm
-    ;; 
-    ;; DESCRIPTION:
-    ;;   Set destination to 1 if first source is less than second (unsigned),
-    ;;   otherwise set to 0.
-    ;;
-    ;; EFFECT: 
-    ;;   fp[dst] = (fp[src1] <u fp[src2]) ? 1 : 0
-    ;;   fp[dst] = (fp[src1] <u imm) ? 1 : 0
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
-    ;; ------------------------------------------------------------
-    SLTU @41, @3, @2     ;; 7 < 42 yields 1
-    XORI @42, @41, #1
-    BNZ int_fail, @42
+    SLTU @9, @4, @3
+    XORI @10, @9, #1
+    BNZ int_fail, @10
 
-    SLTIU @43, @3, #42   ;; 7 < 42 yields 1
-    XORI @44, @43, #1
-    BNZ int_fail, @44
+    SLTIU @11, @4, #42
+    XORI @12, @11, #1
+    BNZ int_fail, @12
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTIONS: MUL, MULU, MULSU (Multiplication Variants)
+    ;; INSTRUCTIONS: MUL / MULU / MULSU (Multiplication)
     ;; 
     ;; FORMAT: 
     ;;   MUL dst, src1, src2    (Signed multiplication)
@@ -423,33 +381,31 @@ test_integer_ops:
     ;;   MULSU dst, src1, src2  (Signed*Unsigned multiplication)
     ;; 
     ;; DESCRIPTION:
-    ;;   Multiply two 32-bit integers with different signedness.
+    ;;   Multiply integer values with different signedness.
     ;;   Returns a 64-bit result (unlike RISC-V which has separate 
     ;;   instructions for high and low parts).
     ;;
     ;; EFFECT: 
-    ;;   MUL: fp[dst] = fp[src1] * fp[src2]    (signed)
-    ;;   MULU: fp[dst] = fp[src1] * fp[src2]   (unsigned)
-    ;;   MULSU: fp[dst] = fp[src1] * fp[src2]  (src1 signed, src2 unsigned)
-    ;; 
-    ;; ALIGNMENT: dst, src1, and src2 must be 4-byte aligned
+    ;;   MUL:   fp[dst] = fp[src1] * fp[src2]    (signed)
+    ;;   MULU:  fp[dst] = fp[src1] * fp[src2]    (unsigned)
+    ;;   MULSU: fp[dst] = fp[src1] * fp[src2]    (src1 signed, src2 unsigned)
     ;; ------------------------------------------------------------
-    MUL @45, @2, @3      ;; 42 * 7 = 294
-    XORI @46, @45, #294
-    BNZ int_fail, @46
+    MUL @13, @3, @4
+    XORI @14, @13, #294
+    BNZ int_fail, @14
 
-    MULU @47, @2, @3     ;; 42 * 7 = 294 (unsigned)
-    XORI @48, @47, #294
-    BNZ int_fail, @48
+    MULU @15, @3, @4
+    XORI @16, @15, #294
+    BNZ int_fail, @16
 
-    MULSU @49, @2, @3    ;; 42 * 7 = 294 (mixed signedness)
-    XORI @50, @49, #294
-    BNZ int_fail, @50
+    MULSU @17, @3, @4
+    XORI @18, @17, #294
+    BNZ int_fail, @18
 
-    LDI.W @3, #1
+    LDI.W @2, #1            ;; Set success flag
     RET
 int_fail:
-    LDI.W @3, #0
+    LDI.W @2, #0            ;; Set failure flag
     RET
 
 ;; ============================================================================
@@ -461,6 +417,12 @@ int_fail:
 
 #[framesize(0x30)]
 test_move_ops:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: LDI.W (Load Immediate Word)
     ;; 
@@ -470,8 +432,6 @@ test_move_ops:
     ;;   Load a 32-bit immediate value into a destination.
     ;;
     ;; EFFECT: fp[dst] = imm
-    ;; 
-    ;; ALIGNMENT: dst must be 4-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @10, #12345
     XORI @11, @10, #12345
@@ -487,8 +447,6 @@ test_move_ops:
     ;;   zero-extending to 32 bits.
     ;;
     ;; EFFECT: VROM[fp[dst] + off] = ZeroExtend(imm)
-    ;; 
-    ;; ALIGNMENT: dst must be 4-byte aligned
     ;; ------------------------------------------------------------
     MVI.H @12[0], #255
     XORI @13, @12, #255
@@ -503,8 +461,6 @@ test_move_ops:
     ;;   Move a 32-bit value between VROM addresses.
     ;;
     ;; EFFECT: VROM[fp[dst] + off] = fp[src]
-    ;; 
-    ;; ALIGNMENT: dst and src must be 4-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @14, #9876
     MVV.W @15[0], @14
@@ -520,8 +476,6 @@ test_move_ops:
     ;;   Move a 128-bit value between VROM addresses.
     ;;
     ;; EFFECT: VROM128[fp[dst] + off] = fp128[src]
-    ;; 
-    ;; ALIGNMENT: dst and src must be 16-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @17, #1111
     LDI.W @18, #2222
@@ -539,10 +493,10 @@ test_move_ops:
     XORI @27, @26, #4444
     BNZ move_fail, @27
 
-    LDI.W @3, #1
+    LDI.W @2, #1            ;; Set success flag
     RET
 move_fail:
-    LDI.W @3, #0
+    LDI.W @2, #0            ;; Set failure flag
     RET
 
 ;; ============================================================================
@@ -555,6 +509,12 @@ move_fail:
 
 #[framesize(0x30)]
 test_jumps_branches:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: BNZ (Branch If Not Zero)
     ;; 
@@ -566,8 +526,6 @@ test_jumps_branches:
     ;; EFFECT: 
     ;;   if fp[cond] != 0 then PC = target
     ;;   else PC = PC * G (next instruction)
-    ;; 
-    ;; ALIGNMENT: cond must be 4-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @10, #0
     BNZ branch_target, @10    ;; Should not branch since @10 is 0.
@@ -578,6 +536,17 @@ test_jumps_branches:
 branch_target:
     XORI @12, @10, #1         ;; @10 should be 1.
     BNZ jump_fail, @12
+    
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: JUMPI (Jump Immediate)
+    ;; 
+    ;; FORMAT: JUMPI target
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Jump to a target address unconditionally.
+    ;;
+    ;; EFFECT: PC = target
+    ;; ------------------------------------------------------------
     JUMPI jump_target
     JUMPI jump_fail           ;; Should not reach here.
 jump_target:
@@ -587,7 +556,7 @@ jump_target:
     ;; FORMAT: TAILI target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Tail call to the target address, with a new frame pointer.
+    ;;   Tail call to a target address, with a new frame pointer.
     ;;   Preserves the original return address and frame.
     ;;
     ;; EFFECT: 
@@ -596,34 +565,41 @@ jump_target:
     ;;   FP = FP[next_fp]
     ;;   PC = target
     ;; ------------------------------------------------------------
-    TAILI jump_return, @5
+    ;; Set up frame for jump_return
+    LDI.W @21, #0
+    MVV.W @21[0], @0          ;; Copy current return PC
+    MVV.W @21[1], @1          ;; Copy current return FP
+    
+    TAILI jump_return, @21
 fail_return:
     JUMPI jump_fail
 jump_return:
-    LDI.W @3, #1
+    LDI.W @2, #1              ;; Set success flag
     RET
 jump_fail:
-    LDI.W @3, #0
+    LDI.W @2, #0              ;; Set failure flag
     RET
-
-;; ============================================================================
-;; ADDITIONAL CONTROL FLOW OPERATIONS
-;; ============================================================================
 
 #[framesize(0x30)]
 test_jump_ops:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests and frames
+
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: JUMPI (Jump Immediate)
     ;; 
     ;; FORMAT: JUMPI target
     ;; 
     ;; DESCRIPTION:
-    ;;   Jump to the target address given as an immediate.
+    ;;   Jump to a target address unconditionally.
     ;;
     ;; EFFECT: PC = target
     ;; ------------------------------------------------------------
     JUMPI jumpi_target
-    LDI.W @3, #0
+    LDI.W @2, #0
     RET
 jumpi_target:
     ;; ------------------------------------------------------------
@@ -632,15 +608,13 @@ jumpi_target:
     ;; FORMAT: JUMPV target, unused
     ;; 
     ;; DESCRIPTION:
-    ;;   Indirect jump to the target address read from VROM.
+    ;;   Jump to a target address stored in a register.
     ;;
     ;; EFFECT: PC = fp[target]
-    ;; 
-    ;; ALIGNMENT: target must be 4-byte aligned
     ;; ------------------------------------------------------------
     LDI.W @10, jumpv_target    ;; load immediate address for jump.
     JUMPV @10, @0
-    LDI.W @3, #0
+    LDI.W @2, #0
     RET
 jumpv_target:
     ;; ------------------------------------------------------------
@@ -649,7 +623,7 @@ jumpv_target:
     ;; FORMAT: CALLI target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Function call to the target address given by an immediate.
+    ;;   Function call to a target address.
     ;;   Sets up a new frame with the return address and old FP.
     ;;
     ;; EFFECT: 
@@ -658,9 +632,13 @@ jumpv_target:
     ;;   FP = FP[next_fp]
     ;;   PC = target
     ;; ------------------------------------------------------------
+    ;; Set up frame for calli_function
+    LDI.W @20, #0
+    
     CALLI calli_function, @20
-    XORI @11, @3, #1
-    BNZ jumpops_fail, @11
+    MVV.W @11, @20[2]          ;; Get return value
+    XORI @12, @11, #1
+    BNZ jumpops_fail, @12
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: CALLV (Call Variable)
@@ -668,19 +646,23 @@ jumpv_target:
     ;; FORMAT: CALLV target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Function call to the indirect target address read from VROM.
+    ;;   Function call to a target address stored in a register.
     ;;   Sets up a new frame with the return address and old FP.
     ;;
     ;; EFFECT: 
     ;;   [FP[next_fp] + 0] = PC * G (return address)
     ;;   [FP[next_fp] + 1] = FP (old frame pointer)
     ;;   FP = FP[next_fp]
-    ;;   PC = FP[target]
+    ;;   PC = fp[target]
     ;; ------------------------------------------------------------
-    LDI.W @12, callv_function
-    CALLV @12, @20
-    XORI @13, @3, #1
-    BNZ jumpops_fail, @13
+    ;; Set up frame for callv_function
+    LDI.W @20, #0
+    
+    LDI.W @13, callv_function
+    CALLV @13, @20
+    MVV.W @14, @20[2]          ;; Get return value
+    XORI @15, @14, #1
+    BNZ jumpops_fail, @15
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: TAILV (Tail Call Variable)
@@ -688,35 +670,32 @@ jumpv_target:
     ;; FORMAT: TAILV target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Tail call to the indirect target address read from VROM.
+    ;;   Tail call to a target address stored in a register.
     ;;   Preserves the original return address and frame.
     ;;
     ;; EFFECT: 
     ;;   [FP[next_fp] + 0] = FP[0] (return address)
     ;;   [FP[next_fp] + 1] = FP[1] (old frame pointer)
     ;;   FP = FP[next_fp]
-    ;;   PC = FP[target]
+    ;;   PC = fp[target]
     ;; ------------------------------------------------------------
-    LDI.W @14, tailv_function
-    TAILV @14, @20
-    LDI.W @3, #0
+    ;; Set up frame for tailv_function
+    LDI.W @20, #0
+    MVV.W @20[0], @0           ;; Copy current return PC
+    MVV.W @20[1], @1           ;; Copy current return FP
+    
+    LDI.W @16, tailv_function
+    TAILV @16, @20
+    LDI.W @2, #0               ;; Should not reach here
     RET
+
+#[framesize(0x3)]
 calli_function:
-    LDI.W @3, #1
-    RET
-
-callv_function:
-    LDI.W @3, #1
-    RET
-
-tailv_function:
-    LDI.W @3, #1
-    RET
-
-jumpops_fail:
-    LDI.W @3, #0
-    RET
-
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value
+    
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: RET (Return)
     ;; 
@@ -730,6 +709,32 @@ jumpops_fail:
     ;;   PC = FP[0]  (Return to caller address)
     ;;   FP = FP[1]  (Restore caller's frame)
     ;; ------------------------------------------------------------
+    LDI.W @2, #1               ;; Set success value
+    RET
+
+#[framesize(0x3)]
+callv_function:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value
+    
+    LDI.W @2, #1               ;; Set success value
+    RET
+
+#[framesize(0x3)]
+tailv_function:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value
+    
+    LDI.W @2, #1               ;; Set success value
+    RET
+
+jumpops_fail:
+    LDI.W @2, #0               ;; Set failure flag
+    RET
 
 ;; ============================================================================
 ;; END OF INSTRUCTION SET SPECIFICATION
