@@ -31,6 +31,10 @@ use crate::{
     ValueRom, ZCrayTrace,
 };
 
+use groestl_crypto::Groestl256;
+use binius_math::DefaultEvaluationDomainFactory;
+use binius_hash::compress::Groestl256ByteCompression;
+
 pub struct AddTable {
     id: TableId,
     // TODO: Use the cpu gadget
@@ -103,7 +107,10 @@ impl AddTable {
         // Read src2
         table.push(vrom_channel, [timestamp, upcast_col(src2), src2_val_packed]);
         // Write dst
-        table.push(vrom_channel, [next_timestamp, upcast_col(dst), dst_val_packed]);
+        table.push(
+            vrom_channel,
+            [next_timestamp, upcast_col(dst), dst_val_packed],
+        );
 
         // Flushing rules for the state channel
         table.pull(state_channel, [pc, fp, timestamp]);
@@ -463,11 +470,7 @@ fn test_addi() {
             // For now we add the vrom here
             // Read src1 and src2 from ADD
             Boundary {
-                values: vec![
-                    B128::ZERO,
-                    B128::ZERO,
-                    B128::ZERO
-                ],
+                values: vec![B128::ZERO, B128::ZERO, B128::ZERO],
                 channel_id: zcray_table.vrom_channel,
                 direction: FlushDirection::Pull,
                 multiplicity: 2,
@@ -475,39 +478,25 @@ fn test_addi() {
             // Write dst from ADD
             // table.push(vrom_channel, [timestamp, upcast_col(dst), dst_val_packed]);
             Boundary {
-                values: vec![
-                    B128::ONE,
-                    B128::ZERO,
-                    B128::ZERO
-                ],
+                values: vec![B128::ONE, B128::ZERO, B128::ZERO],
                 channel_id: zcray_table.vrom_channel,
                 direction: FlushDirection::Pull,
                 multiplicity: 1,
             },
             // Read the next_pc from RET
             Boundary {
-                values: vec![
-                    B128::ONE,
-                    B128::ZERO,
-                    B128::ZERO
-                ],
+                values: vec![B128::ONE, B128::ZERO, B128::ZERO],
                 channel_id: zcray_table.vrom_channel,
                 direction: FlushDirection::Pull,
                 multiplicity: 1,
             },
-
             //Read the next_fp
             Boundary {
-                values: vec![
-                    B128::ONE,
-                    B128::ONE,
-                    B128::ZERO
-                ],
+                values: vec![B128::ONE, B128::ONE, B128::ZERO],
                 channel_id: zcray_table.vrom_channel,
                 direction: FlushDirection::Pull,
                 multiplicity: 1,
             },
-
         ],
         table_sizes: vec![trace.add.len(), trace.ret.len()], // TODO: What should be here?
     };
@@ -525,6 +514,43 @@ fn test_addi() {
         &compiled_cs,
         &statement.boundaries,
         &witness,
+    )
+    .unwrap();
+
+    const LOG_INV_RATE: usize = 1;
+    const SECURITY_BITS: usize = 100;
+
+    let proof = binius_core::constraint_system::prove::<
+        _,
+        CanonicalTowerFamily,
+        _,
+        Groestl256,
+        Groestl256ByteCompression,
+        HasherChallenger<Groestl256>,
+        _,
+    >(
+        &compiled_cs,
+        LOG_INV_RATE,
+        SECURITY_BITS,
+        &statement.boundaries,
+        witness,
+        &DefaultEvaluationDomainFactory::default(),
+        &binius_hal::make_portable_backend(),
+    )
+    .unwrap();
+
+    binius_core::constraint_system::verify::<
+        OptimalUnderlier128b,
+        CanonicalTowerFamily,
+        Groestl256,
+        Groestl256ByteCompression,
+        HasherChallenger<Groestl256>,
+    >(
+        &compiled_cs,
+        LOG_INV_RATE,
+        SECURITY_BITS,
+        &statement.boundaries,
+        proof,
     )
     .unwrap();
 }
