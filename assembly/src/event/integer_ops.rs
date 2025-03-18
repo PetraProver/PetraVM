@@ -601,6 +601,7 @@ impl BinaryOperation for SubEvent {
 impl_binary_operation!(SubEvent);
 impl_event_for_binary_operation!(SubEvent);
 
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 

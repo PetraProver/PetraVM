@@ -133,7 +133,7 @@ impl ValueRom {
     pub(crate) fn get_u64(&self, index: u32) -> Result<u64, MemoryError> {
         self.check_alignment(index, 2)?;
 
-        // For u128, we need to read from multiple u32 slots (4 slots)
+        // For u64, we need to read from multiple u32 slots (2 slots)
         let mut result: u64 = 0;
         for i in 0..2 {
             let idx = index + i; // Read from consecutive slots
