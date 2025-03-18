@@ -2,11 +2,12 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+    },
     fire_non_jump_event,
     memory::MemoryError,
     opcodes::Opcode,
-    ZCrayTrace,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -580,12 +581,12 @@ mod tests {
     use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
     use crate::{
-        code_to_prom,
         event::mv::{MVInfo, MVKind},
-        execution::Interpreter,
+        execution::{Interpreter, G},
         memory::{Memory, VromPendingUpdates, VromUpdate},
         opcodes::Opcode,
-        ValueRom, ZCrayTrace, G,
+        util::code_to_prom,
+        ValueRom, ZCrayTrace,
     };
 
     #[test]
@@ -867,10 +868,9 @@ mod tests {
 
         assert_eq!(traces.pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.pending_updates().len(), pending_updates.len());
         for (k, pending_update) in traces.pending_updates() {
-            let expected_update = pending_updates.get(k).expect(&format!(
-                "Missing expected update {:?} at addr {}",
-                pending_update, k,
-            ));
+            let expected_update = pending_updates.get(k).unwrap_or_else(|| {
+                panic!("Missing expected update {:?} at addr {}", pending_update, k)
+            });
             assert_eq!(
                 *expected_update, *pending_update,
                 "expected update {:?}, but got {:?}",

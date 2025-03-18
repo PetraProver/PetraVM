@@ -18,16 +18,15 @@ use crate::{
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        sli::SliEvent,
+        shift::ShiftEvent,
         Event,
     },
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    memory::{Memory, MemoryError, VromUpdate},
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
     parser::LabelsFrameSizes,
-    ProgramRom, ValueRom, G,
 };
 #[derive(Debug, Default)]
-pub(crate) struct ZCrayTrace {
+pub struct ZCrayTrace {
     pub(crate) bnz: Vec<BnzEvent>,
     pub(crate) xor: Vec<XorEvent>,
     pub(crate) bz: Vec<BzEvent>,
@@ -36,7 +35,7 @@ pub(crate) struct ZCrayTrace {
     pub(crate) xori: Vec<XoriEvent>,
     pub(crate) and: Vec<AndEvent>,
     pub(crate) andi: Vec<AndiEvent>,
-    pub(crate) shift: Vec<SliEvent>,
+    pub(crate) shifts: Vec<ShiftEvent>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
     pub(crate) add32: Vec<Add32Event>,
@@ -57,7 +56,7 @@ pub(crate) struct ZCrayTrace {
     memory: Memory,
 }
 
-pub(crate) struct BoundaryValues {
+pub struct BoundaryValues {
     pub(crate) final_pc: BinaryField32b,
     pub(crate) final_fp: u32,
     pub(crate) timestamp: u32,
@@ -82,11 +81,11 @@ impl ZCrayTrace {
         }
     }
 
-    pub const fn prom(&self) -> &ProgramRom {
+    pub(crate) const fn prom(&self) -> &ProgramRom {
         self.memory.prom()
     }
 
-    pub(crate) fn generate(
+    pub fn generate(
         memory: Memory,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<BinaryField32b, u32>,
@@ -109,7 +108,7 @@ impl ZCrayTrace {
         Ok((trace, boundary_values))
     }
 
-    pub(crate) fn validate(&self, boundary_values: BoundaryValues) {
+    pub fn validate(&self, boundary_values: BoundaryValues) {
         let mut channels = InterpreterChannels::default();
 
         let tables = InterpreterTables::default();
@@ -131,7 +130,7 @@ impl ZCrayTrace {
         fire_events!(self.xori, &mut channels, &tables);
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
-        fire_events!(self.shift, &mut channels, &tables);
+        fire_events!(self.shifts, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
@@ -200,7 +199,7 @@ impl ZCrayTrace {
     ///
     /// Returns an error if the value is not found. This method should be used
     /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
+    pub fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
         self.memory.get_vrom_u32(index)
     }
 

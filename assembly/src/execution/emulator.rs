@@ -18,17 +18,16 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{TailVEvent, TailiEvent},
         integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        sli::{ShiftKind, SliEvent},
+        shift::{ShiftEvent, ShiftOperation},
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
-    execution::StateChannel,
-    memory::{Memory, MemoryError},
+    execution::{StateChannel, ZCrayTrace},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    ProgramRom, ValueRom, ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -73,8 +72,8 @@ pub(crate) struct Interpreter {
 /// to be used by this operation.
 pub(crate) type Instruction = [BinaryField16b; 4];
 
-#[derive(Debug, Default, PartialEq)]
-pub(crate) struct InterpreterInstruction {
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
 }
@@ -89,7 +88,7 @@ impl InterpreterInstruction {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterError {
+pub enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
@@ -104,7 +103,7 @@ impl From<MemoryError> for InterpreterError {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterException {}
+pub enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) const fn new(
@@ -252,6 +251,10 @@ impl Interpreter {
             Opcode::Xor => self.generate_xor(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Slli => self.generate_slli(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Srli => self.generate_srli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Srai => self.generate_srai(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sll => self.generate_sll(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Srl => self.generate_srl(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Sra => self.generate_sra(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
@@ -347,12 +350,19 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Left, field_pc)?;
-        trace.shift.push(new_shift_event);
-
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::LogicalLeft,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
+
     fn generate_srli(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -361,10 +371,100 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Right, field_pc)?;
-        trace.shift.push(new_shift_event);
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::LogicalRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
 
+    fn generate_srai(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::ArithmeticRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_sll(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::LogicalLeft,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_srl(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::LogicalRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_sra(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::ArithmeticRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -682,9 +782,9 @@ mod tests {
     use num_traits::WrappingAdd;
 
     use super::*;
-    use crate::parser::parse_program;
+    use crate::parser::{get_full_prom_and_labels, parse_program};
+    use crate::util::get_binary_slot;
     use crate::util::{collatz_orbits, init_logger};
-    use crate::{get_binary_slot, get_full_prom_and_labels};
 
     pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
         let mut prom = ProgramRom::new();
@@ -882,12 +982,12 @@ mod tests {
         traces.validate(boundary_values);
 
         assert!(
-            traces.shift.len() == expected_evens.len(),
+            traces.shifts.len() == expected_evens.len(),
             "Generated an incorrect number of even cases."
         );
         for (i, &even) in expected_evens.iter().enumerate() {
             assert!(
-                traces.shift[i].src_val == even,
+                traces.shifts[i].src_val == even,
                 "Incorrect input to an even case."
             );
         }
@@ -924,70 +1024,5 @@ mod tests {
 
         // Check return value.
         assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
-    }
-
-    #[test]
-    fn test_fibonacci() {
-        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
-
-        let (prom, labels, pc_field_to_int, frame_sizes) = get_full_prom_and_labels(&instructions)
-            .expect("Instructions were not formatted properly.");
-
-        let init_val = 4;
-        let initial_value = G.pow(init_val as u64).val();
-
-        // Set initial PC, FP and argument.
-        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
-        let memory = Memory::new(prom, vrom);
-
-        let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        // Check that Fibonacci is computed properly.
-        let fib_power_two_frame_size = 16;
-        let mut cur_fibs = [0, 1];
-        // Check all intermediary values.
-        for i in 0..init_val {
-            let s = cur_fibs[0].wrapping_add(&cur_fibs[1]);
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0],
-                "left {} right {}",
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 3)
-                    .unwrap(),
-                cur_fibs[1]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 7)
-                    .unwrap(),
-                s
-            );
-            cur_fibs[0] = cur_fibs[1];
-            cur_fibs[1] = s;
-        }
-        // Check the final return value.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            cur_fibs[0]
-        );
-        // Check that the returned value is propagated correctly.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            traces.get_vrom_u32(3).unwrap()
-        );
     }
 }
