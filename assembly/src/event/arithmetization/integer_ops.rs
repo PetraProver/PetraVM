@@ -13,6 +13,7 @@ use binius_field::{
     underlier::UnderlierType,
     BinaryField, Field, PackedField,
 };
+use binius_hash::compress::Groestl256ByteCompression;
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId,
@@ -20,9 +21,12 @@ use binius_m3::{
     },
     gadgets::u32::{U32Add, U32AddFlags},
 };
+use binius_math::DefaultEvaluationDomainFactory;
 use bumpalo::Bump;
 use bytemuck::Pod;
+use groestl_crypto::Groestl256;
 
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction};
 use crate::{
     code_to_prom,
     emulator::{BoundaryValues, InterpreterChannels},
@@ -31,22 +35,10 @@ use crate::{
     ValueRom, ZCrayTrace,
 };
 
-use groestl_crypto::Groestl256;
-use binius_math::DefaultEvaluationDomainFactory;
-use binius_hash::compress::Groestl256ByteCompression;
-
 pub struct AddTable {
     id: TableId,
     // TODO: Use the cpu gadget
-    pc: Col<B32>,
-    next_pc: Col<B32>, // Virtual
-    fp: Col<B32>,
-    opcode: Col<B16>, // This should be a transparent column
-    timestamp: Col<B32>,
-    next_timestamp: Col<B32>, // TODO: This is currently unconstrained
-    src1: Col<B16>,
-    src2: Col<B16>,
-    dst: Col<B16>,
+    cpu_cols: CpuColumns,
     dst_val_packed: Col<B32>,
     src1_val: Col<B1, 32>,
     src1_val_packed: Col<B32>,
@@ -64,17 +56,20 @@ impl AddTable {
     ) -> Self {
         let mut table = cs.add_table("add");
 
-        let pc = table.add_committed("pc");
-        let fp = table.add_committed("fp");
-        let timestamp = table.add_committed("timestamp");
-        let opcode = table.add_committed("opcode"); //TODO: opcode must be transparent
-                                                    // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
-                                                    // TODO: Why opcode - B16::new(Opcode::Add as u16) doesn't work?
-        table.assert_zero("opcode_is_correcto", opcode - B16::new(Opcode::Add as u16));
+        let cpu = CpuColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            CpuColumnsOptions {
+                jumps: None,
+                next_fp: None,
+                opcode: Opcode::Add,
+            },
+        );
 
-        let src1 = table.add_committed("src1");
-        let src2 = table.add_committed("src2");
-        let dst = table.add_committed("dst");
+        let dst = cpu.arg0;
+        let src1 = cpu.arg1;
+        let src2 = cpu.arg2;
 
         let src1_val = table.add_committed("src1_val");
         let src2_val = table.add_committed("src2_val");
@@ -82,51 +77,28 @@ impl AddTable {
         let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
         let src2_val_packed = table.add_packed("src2_val_packed", src1_val);
 
-        let next_pc = table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
-
-        // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
-        let next_timestamp = table.add_committed("next_timestamp");
-
         let u32_add = U32Add::new(&mut table, src1_val, src2_val, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
-        // Reado opcode
-        table.push(
-            prom_channel,
-            [
-                pc,
-                upcast_col(opcode),
-                upcast_col(dst),
-                upcast_col(src1),
-                upcast_col(src2),
-            ],
-        );
-
         // Read src1
-        table.push(vrom_channel, [timestamp, upcast_col(src1), src1_val_packed]);
+        table.push(
+            vrom_channel,
+            [cpu.timestamp, upcast_col(src1), src1_val_packed],
+        );
         // Read src2
-        table.push(vrom_channel, [timestamp, upcast_col(src2), src2_val_packed]);
+        table.push(
+            vrom_channel,
+            [cpu.timestamp, upcast_col(src2), src2_val_packed],
+        );
         // Write dst
         table.push(
             vrom_channel,
-            [next_timestamp, upcast_col(dst), dst_val_packed],
+            [cpu.next_timestamp, upcast_col(dst), dst_val_packed],
         );
-
-        // Flushing rules for the state channel
-        table.pull(state_channel, [pc, fp, timestamp]);
-        table.push(state_channel, [next_pc, fp, next_timestamp]);
 
         Self {
             id: table.id(),
-            pc,
-            next_pc,
-            fp,
-            opcode,
-            timestamp,
-            next_timestamp,
-            src1,
-            src2,
-            dst,
+            cpu_cols: cpu,
             src1_val,
             src2_val,
             src1_val_packed,
@@ -153,37 +125,28 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
-            let mut next_pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.next_pc)?;
-            let mut fp = witness.get_mut_as(self.fp)?;
-            let mut timestamp = witness.get_mut_as(self.timestamp)?;
-
-            let mut next_timestamp = witness.get_mut_as(self.next_timestamp)?;
-
-            let mut opcode = witness.get_mut_as(self.opcode)?;
-            let mut src1 = witness.get_mut_as(self.src1)?;
-            let mut src2 = witness.get_mut_as(self.src2)?;
-            let mut dst = witness.get_mut_as(self.dst)?;
-            let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_val = witness.get_mut_as(self.src2_val)?;
-            // let mut src1_val_packed = witness.get_mut_as(self.src1_val_packed)?;
-            // let mut src2_val_packed = witness.get_mut_as(self.src2_val_packed)?;
-
             for (i, event) in rows.enumerate() {
-                pc[i] = event.pc.into();
-                next_pc[i] = (event.pc * B32::MULTIPLICATIVE_GENERATOR).into();
-                fp[i] = event.fp;
-                timestamp[i] = event.timestamp;
-                next_timestamp[i] = event.timestamp + 1u32;
-
-                opcode[i] = Opcode::Add as u16;
-                src1[i] = event.src1;
-                src2[i] = event.src2;
-                dst[i] = event.dst;
+                self.cpu_cols.fill_row(
+                    witness,
+                    CpuRow {
+                        index: i,
+                        pc: event.pc.into(),
+                        next_pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).into(),
+                        fp: event.fp,
+                        timestamp: event.timestamp,
+                        instruction: Instruction {
+                            opcode: Opcode::Add,
+                            arg0: event.dst,
+                            arg1: event.src1,
+                            arg2: event.src2,
+                        },
+                    },
+                );
+                // TODO: Move this outside the loop
+                let mut src1_val = witness.get_mut_as(self.src1_val)?;
+                let mut src2_val = witness.get_mut_as(self.src2_val)?;
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
-                // src1_val_packed[i] = event.src1_val;
-                // src2_val_packed[i] = event.src2_val;
             }
         }
         self.u32_add.populate(witness);
@@ -193,64 +156,51 @@ where
 
 pub struct AddiTable {
     id: TableId,
-    pc: Col<B32>,
-    next_pc: Col<B32>, // Virtual
-    fp: Col<B32>,
-    timestamp: Col<B32>,
-    next_timestamp: Col<B32>, // TODO: This is currently unconstrained
-    dst: Col<B16>,
-    src: Col<B16>,
+    cpu_cols: CpuColumns,
     src_val: Col<B1, 32>,
     src_val_packed: Col<B32>,
-    imm: Col<B1, 32>, // TODO: Should only use 16 columns
     imm_packed: Col<B16>,
     u32_add: U32Add,
 }
 
 impl AddiTable {
-    pub fn new(cs: &mut ConstraintSystem, state_channel: ChannelId) -> Self {
+    pub fn new(
+        cs: &mut ConstraintSystem,
+        state_channel: ChannelId,
+        prom_channel: ChannelId,
+        vrom_channel: ChannelId,
+    ) -> Self {
         let mut table = cs.add_table("addi");
 
-        let pc = table.add_committed("pc");
-        let fp = table.add_committed("fp");
-        let timestamp = table.add_committed("timestamp");
-
-        let src = table.add_committed("src1");
-        let src_val = table.add_committed("src1_val");
-        let src_val_packed = table.add_packed("src_val_packed", src_val);
-        let imm = table.add_committed("imm");
-        let imm_packed = table.add_packed("imm_packed", imm);
-
-        let dst = table.add_committed("dst");
-
-        let next_pc = table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
-
-        // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
-        let next_timestamp = table.add_committed("next_timestamp");
-
-        let u32_add = U32Add::new(&mut table, src_val, imm, U32AddFlags::default());
-
-        table.push(state_channel, [pc, upcast_col(fp), timestamp]);
-        table.pull(
+        let cpu_cols = CpuColumns::new(
+            &mut table,
             state_channel,
-            [next_pc, upcast_col(fp), upcast_col(next_timestamp)],
+            prom_channel,
+            CpuColumnsOptions {
+                jumps: None,
+                next_fp: None,
+                opcode: Opcode::Addi,
+            },
         );
+        
+        // TODO: We need a U32AddU16 gadget or otherwise we will be wasting cols with only 0s
 
-        Self {
-            id: table.id(),
-            pc,
-            next_pc,
-            fp,
-            timestamp,
-            next_timestamp,
-            src,
-            src_val,
-            src_val_packed,
-            dst,
-            imm,
-            imm_packed,
-            u32_add,
-        }
+        // let src_val = table.add_committed("src1_val");
+        // let src_val_packed = table.add_packed("src_val_packed", src_val);
+        // let imm_unpacked = cpu_cols.arg2_unpacked;
+        // let imm_packed = table.add_packed("imm_packed", imm_unpacked);
+
+        unimplemented!()
+        // let u32_add = U32Add::new(&mut table, src_val, upcast_col(imm_unpacked), U32AddFlags::default());
+
+        // Self {
+        //     id: table.id(),
+        //     cpu_cols,
+        //     src_val,
+        //     src_val_packed,
+        //     imm_packed,
+        //     u32_add,
+        // }
     }
 }
 
@@ -270,35 +220,28 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.pc)?;
-            let mut next_pc: std::cell::RefMut<'_, [u32]> = witness.get_mut_as(self.next_pc)?;
-            let mut fp = witness.get_mut_as(self.fp)?;
-            let mut timestamp = witness.get_mut_as(self.timestamp)?;
-
-            let mut next_timestamp = witness.get_mut_as(self.next_timestamp)?;
-
-            let mut src1 = witness.get_mut_as(self.src)?;
-            let mut src1_val = witness.get_mut_as(self.src_val)?;
-            let mut dst = witness.get_mut_as(self.dst)?;
-            let mut imm = witness.get_mut_as(self.imm)?;
-
             for (i, event) in rows.enumerate() {
-                pc[i] = event.pc.into();
-                next_pc[i] = (event.pc * B32::MULTIPLICATIVE_GENERATOR).into();
-                fp[i] = event.fp;
-                timestamp[i] = event.timestamp;
-                next_timestamp[i] = event.timestamp + 1u32;
-
-                src1[i] = event.src;
+                self.cpu_cols.fill_row(
+                    witness,
+                    CpuRow {
+                        index: i,
+                        pc: event.pc.into(),
+                        next_pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).into(),
+                        fp: event.fp,
+                        timestamp: event.timestamp,
+                        instruction: Instruction {
+                            opcode: Opcode::Addi,
+                            arg0: event.dst,
+                            arg1: event.src,
+                            arg2: event.imm,
+                        },
+                    },
+                );
+                let mut src1_val = witness.get_mut_as(self.src_val)?;
+                // let mut imm = witness.get_mut_as(self.imm)?;
                 src1_val[i] = event.src_val;
-                dst[i] = event.dst;
-                imm[i] = event.imm;
+                // imm[i] = event.imm;
             }
-            println!("Addi Table:");
-            println!("pc = {:?}", pc);
-            println!("next_pc = {:?}", next_pc);
-            println!("fp = {:?}", fp);
-            println!("timestamp = {:?}", timestamp);
         }
         Ok(())
     }
@@ -396,161 +339,3 @@ where
 //         }
 //     }
 // }
-
-#[test]
-fn test_addi() {
-    let mut cs = ConstraintSystem::new();
-    let zcray_table = ZCrayTable::new(&mut cs);
-
-    let zero = B16::zero();
-    // TODO: This is a Ret!!!
-    let code = vec![
-        [Opcode::Add.get_field_elt(), zero, zero, zero],
-        [Opcode::Ret.get_field_elt(), zero, zero, zero],
-    ];
-    let prom = code_to_prom(&code, &[false; 2]);
-    let vrom = ValueRom::new();
-    let mut frames = HashMap::new();
-    frames.insert(B32::ONE, 12);
-
-    let (
-        trace,
-        BoundaryValues {
-            final_pc,
-            final_fp,
-            timestamp: final_timestamp,
-        },
-    ) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
-    let statement = Statement {
-        boundaries: vec![
-            Boundary {
-                values: vec![B128::ONE, B128::new(0), B128::new(0)], /* inital_pc = 0,
-                                                                      * inital_fp = 0,
-                                                                      * initial_timestamp
-                                                                      * = 0 */
-                channel_id: zcray_table.state_channel,
-                direction: FlushDirection::Push,
-                multiplicity: 1,
-            },
-            Boundary {
-                values: vec![
-                    B128::new(final_pc.val() as u128),
-                    B128::new(final_fp as u128),
-                    B128::new(final_timestamp as u128),
-                ],
-                channel_id: zcray_table.state_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-            // For now we add the prom here
-            Boundary {
-                values: vec![
-                    B128::ONE,
-                    B128::new((Opcode::Add as u16).into()),
-                    0.into(),
-                    0.into(),
-                    0.into(),
-                ],
-                channel_id: zcray_table.prom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-            Boundary {
-                values: vec![
-                    B32::MULTIPLICATIVE_GENERATOR.into(),
-                    B128::new((Opcode::Ret as u16).into()),
-                    0.into(),
-                    0.into(),
-                    0.into(),
-                ],
-                channel_id: zcray_table.prom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-            // For now we add the vrom here
-            // Read src1 and src2 from ADD
-            Boundary {
-                values: vec![B128::ZERO, B128::ZERO, B128::ZERO],
-                channel_id: zcray_table.vrom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 2,
-            },
-            // Write dst from ADD
-            // table.push(vrom_channel, [timestamp, upcast_col(dst), dst_val_packed]);
-            Boundary {
-                values: vec![B128::ONE, B128::ZERO, B128::ZERO],
-                channel_id: zcray_table.vrom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-            // Read the next_pc from RET
-            Boundary {
-                values: vec![B128::ONE, B128::ZERO, B128::ZERO],
-                channel_id: zcray_table.vrom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-            //Read the next_fp
-            Boundary {
-                values: vec![B128::ONE, B128::ONE, B128::ZERO],
-                channel_id: zcray_table.vrom_channel,
-                direction: FlushDirection::Pull,
-                multiplicity: 1,
-            },
-        ],
-        table_sizes: vec![trace.add.len(), trace.ret.len()], // TODO: What should be here?
-    };
-    let allocator = Bump::new();
-    let mut witness = cs
-        .build_witness::<OptimalUnderlier128b>(&allocator, &statement)
-        .unwrap();
-
-    zcray_table.populate(trace, &mut witness).unwrap();
-
-    let compiled_cs = cs.compile(&statement).unwrap();
-    let witness = witness.into_multilinear_extension_index(&statement);
-
-    binius_core::constraint_system::validate::validate_witness(
-        &compiled_cs,
-        &statement.boundaries,
-        &witness,
-    )
-    .unwrap();
-
-    const LOG_INV_RATE: usize = 1;
-    const SECURITY_BITS: usize = 100;
-
-    let proof = binius_core::constraint_system::prove::<
-        _,
-        CanonicalTowerFamily,
-        _,
-        Groestl256,
-        Groestl256ByteCompression,
-        HasherChallenger<Groestl256>,
-        _,
-    >(
-        &compiled_cs,
-        LOG_INV_RATE,
-        SECURITY_BITS,
-        &statement.boundaries,
-        witness,
-        &DefaultEvaluationDomainFactory::default(),
-        &binius_hal::make_portable_backend(),
-    )
-    .unwrap();
-
-    binius_core::constraint_system::verify::<
-        OptimalUnderlier128b,
-        CanonicalTowerFamily,
-        Groestl256,
-        Groestl256ByteCompression,
-        HasherChallenger<Groestl256>,
-    >(
-        &compiled_cs,
-        LOG_INV_RATE,
-        SECURITY_BITS,
-        &statement.boundaries,
-        proof,
-    )
-    .unwrap();
-}

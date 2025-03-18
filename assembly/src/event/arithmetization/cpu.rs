@@ -14,10 +14,11 @@ pub(crate) struct CpuColumns {
     pub(crate) next_pc: Col<B32>, // Virtual
     pub(crate) fp: Col<B32>,
     pub(crate) timestamp: Col<B32>,
-    next_timestamp: Col<B32>, // Virtual?
-    opcode: Col<B16>,         // Should be virtual
+    pub(crate) next_timestamp: Col<B32>, // Virtual?
+    pub(crate) opcode: Col<B16>,         // Should be virtual
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
+    pub(crate) arg2_unpacked: Col<B1, 16>,
     pub(crate) arg2: Col<B16>,
 }
 
@@ -57,7 +58,8 @@ impl CpuColumns {
         let opcode = table.add_committed("opcode"); //TODO: opcode is a constant
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
-        let arg2 = table.add_committed("arg2");
+        let arg2_unpacked = table.add_committed("arg2_unpacked");
+        let arg2 = table.add_packed("arg2", arg2_unpacked);
         // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
         // TODO: Whye opcode - options.opcode doesn't work?
         table.assert_zero(
@@ -105,6 +107,7 @@ impl CpuColumns {
             opcode,
             arg0,
             arg1,
+            arg2_unpacked,
             arg2,
         }
     }
