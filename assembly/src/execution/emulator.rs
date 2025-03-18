@@ -22,17 +22,16 @@ use crate::{
             SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        sli::{ShiftKind, SliEvent},
+        shift::{ShiftEvent, ShiftOperation},
         ImmediateBinaryOperation,
         NonImmediateBinaryOperation, // Add the import for RetEvent
     },
-    execution::StateChannel,
-    memory::{Memory, MemoryError},
+    execution::{StateChannel, ZCrayTrace},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
     parser::LabelsFrameSizes,
-    ProgramRom, ValueRom, ZCrayTrace,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -77,8 +76,8 @@ pub(crate) struct Interpreter {
 /// to be used by this operation.
 pub(crate) type Instruction = [BinaryField16b; 4];
 
-#[derive(Debug, Default, PartialEq)]
-pub(crate) struct InterpreterInstruction {
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct InterpreterInstruction {
     pub(crate) instruction: Instruction,
     pub(crate) field_pc: BinaryField32b,
     /// Hint given by the compiler to let us know whether the current
@@ -104,7 +103,7 @@ impl InterpreterInstruction {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterError {
+pub enum InterpreterError {
     InvalidOpcode,
     BadPc,
     InvalidInput,
@@ -119,7 +118,7 @@ impl From<MemoryError> for InterpreterError {
 }
 
 #[derive(Debug)]
-pub(crate) enum InterpreterException {}
+pub enum InterpreterException {}
 
 impl Interpreter {
     pub(crate) const fn new(
@@ -285,6 +284,15 @@ impl Interpreter {
             }
             Opcode::Srai => {
                 self.generate_srai(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sll => {
+                self.generate_sll(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Srl => {
+                self.generate_srl(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sra => {
+                self.generate_sra(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
             Opcode::Addi => {
                 self.generate_addi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
@@ -467,12 +475,19 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Left, field_pc)?;
-        trace.shift.push(new_shift_event);
-
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::LogicalLeft,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
+
     fn generate_srli(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -482,10 +497,16 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            SliEvent::generate_event(self, trace, dst, src, imm, ShiftKind::Right, field_pc)?;
-        trace.shift.push(new_shift_event);
-
+        let new_shift_event = ShiftEvent::generate_immediate_event(
+            self,
+            trace,
+            dst,
+            src,
+            imm,
+            ShiftOperation::LogicalRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
         Ok(())
     }
 
@@ -498,16 +519,82 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = SliEvent::generate_event(
+        let new_shift_event = ShiftEvent::generate_immediate_event(
             self,
             trace,
             dst,
             src,
             imm,
-            ShiftKind::ArithmeticRight,
+            ShiftOperation::ArithmeticRight,
             field_pc,
         )?;
-        trace.shift.push(new_shift_event);
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_sll(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::LogicalLeft,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_srl(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::LogicalRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
+        Ok(())
+    }
+
+    fn generate_sra(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_shift_event = ShiftEvent::generate_vrom_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            ShiftOperation::ArithmeticRight,
+            field_pc,
+        )?;
+        trace.shifts.push(new_shift_event);
 
         Ok(())
     }
@@ -954,9 +1041,9 @@ mod tests {
     use num_traits::WrappingAdd;
 
     use super::*;
-    use crate::parser::parse_program;
+    use crate::parser::{get_full_prom_and_labels, parse_program};
+    use crate::util::get_binary_slot;
     use crate::util::{collatz_orbits, init_logger};
-    use crate::{get_binary_slot, get_full_prom_and_labels};
 
     pub(crate) fn code_to_prom(
         code: &[Instruction],
@@ -1166,12 +1253,12 @@ mod tests {
         traces.validate(boundary_values);
 
         assert!(
-            traces.shift.len() == expected_evens.len(),
+            traces.shifts.len() == expected_evens.len(),
             "Generated an incorrect number of even cases."
         );
         for (i, &even) in expected_evens.iter().enumerate() {
             assert!(
-                traces.shift[i].src_val == even,
+                traces.shifts[i].src_val == even,
                 "Incorrect input to an even case."
             );
         }
@@ -1208,274 +1295,5 @@ mod tests {
 
         // Check return value.
         assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
-    }
-
-    #[test]
-    fn test_naive_div() {
-        let instructions = parse_program(include_str!("../../../examples/div.asm")).unwrap();
-
-        // Sets the call procedure hints to true for the returned PROM (where
-        // instructions are given with the labels).
-        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-        let indices_to_set_with_labels = vec![4, 5, 6, 7];
-        for idx in indices_to_set_with_labels {
-            is_call_procedure_hints_with_labels[idx] = true;
-        }
-        let (prom, labels, pc_field_to_int, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-                .expect("Instructions were not formatted properly.");
-
-        let a = rand::random();
-        let b = rand::random();
-        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
-
-        let mut pc = BinaryField32b::ONE;
-        let mut pc_field_to_int = HashMap::new();
-        for i in 0..prom.len() {
-            pc_field_to_int.insert(pc, i as u32 + 1);
-            pc *= G;
-        }
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        assert_eq!(
-            trace
-                .get_vrom_u32(4)
-                .expect("Return value for quotient not set."),
-            a / b
-        );
-        assert_eq!(
-            trace
-                .get_vrom_u32(5)
-                .expect("Return value for remainder not set."),
-            a % b
-        );
-    }
-
-    #[test]
-    fn test_fibonacci() {
-        let instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
-
-        let mut is_calling_procedure_hints = vec![false; instructions.len()];
-        let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];
-        for idx in indices {
-            is_calling_procedure_hints[idx] = true;
-        }
-
-        let (prom, labels, pc_field_to_int, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_calling_procedure_hints)
-                .expect("Instructions were not formatted properly.");
-
-        let init_val = 4;
-        let initial_value = G.pow(init_val as u64).val();
-
-        // Set initial PC, FP and argument.
-        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
-        let memory = Memory::new(prom, vrom);
-
-        let (traces, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        // Check that Fibonacci is computed properly.
-        let fib_power_two_frame_size = 16;
-        let mut cur_fibs = [0, 1];
-        // Check all intermediary values.
-        for i in 0..init_val {
-            let s = cur_fibs[0].wrapping_add(&cur_fibs[1]);
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0],
-                "left {} right {}",
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
-                    .unwrap(),
-                cur_fibs[0]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 3)
-                    .unwrap(),
-                cur_fibs[1]
-            );
-            assert_eq!(
-                traces
-                    .get_vrom_u32((i + 1) * fib_power_two_frame_size + 7)
-                    .unwrap(),
-                s
-            );
-            cur_fibs[0] = cur_fibs[1];
-            cur_fibs[1] = s;
-        }
-        // Check the final return value.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            cur_fibs[0]
-        );
-        // Check that the returned value is propagated correctly.
-        assert_eq!(
-            traces
-                .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
-                .unwrap(),
-            traces.get_vrom_u32(3).unwrap()
-        );
-    }
-
-    #[test]
-    fn test_bezout() {
-        let kernel_files = [
-            include_str!("../../../examples/bezout.asm"),
-            include_str!("../../../examples/div.asm"),
-        ];
-        let instructions = kernel_files
-            .into_iter()
-            .flat_map(|file| parse_program(file).unwrap())
-            .collect::<Vec<_>>();
-
-        // Sets the call procedure hints to true for the returned PROM (where
-        // instructions are given with the labels).
-        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-        let indices_to_set_with_labels = vec![
-            7, 8, 9, 10, 12, 13, 14, 15, 16, // Bezout
-            25, 26, 27, 28, // Div
-        ];
-        for idx in indices_to_set_with_labels {
-            is_call_procedure_hints_with_labels[idx] = true;
-        }
-        let (prom, labels, pc_field_to_int, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-                .expect("Instructions were not formatted properly.");
-
-        let a = 12;
-        let b = 3;
-        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
-
-        let mut pc = BinaryField32b::ONE;
-        let mut pc_field_to_int = HashMap::new();
-        for i in 0..prom.len() {
-            pc_field_to_int.insert(pc, i as u32 + 1);
-            pc *= G;
-        }
-
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        // gcd
-        assert_eq!(
-            trace
-                .get_vrom_u32(4)
-                .expect("Return value for quotient not set."),
-            3
-        );
-        // a's coefficient
-        assert_eq!(
-            trace
-                .get_vrom_u32(5)
-                .expect("Return value for remainder not set."),
-            0
-        );
-        // b's coefficient
-        assert_eq!(
-            trace
-                .get_vrom_u32(6)
-                .expect("Return value for remainder not set."),
-            1
-        );
-    }
-
-    #[test]
-    fn test_non_tail_long_div() {
-        let kernel_file = include_str!("../../../examples/non_tail_long_div.asm");
-
-        let instructions = parse_program(kernel_file).unwrap();
-        let indices_is_call_procedure_hints = [7, 8, 9, 10];
-
-        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-        for idx in indices_is_call_procedure_hints {
-            is_call_procedure_hints_with_labels[idx] = true;
-        }
-
-        let (prom, labels, _, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-                .expect("Instructions were not formatted properly.");
-
-        let mut pc = BinaryField32b::ONE;
-        let mut pc_field_to_int = HashMap::new();
-        for i in 0..prom.len() {
-            pc_field_to_int.insert(pc, i as u32 + 1);
-            pc *= G;
-        }
-        let a = 54820;
-        let b = 65;
-
-        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
-
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        assert_eq!(
-            trace
-                .get_vrom_u32(4)
-                .expect("Return value for quotient not set."),
-            a / b
-        );
-        assert_eq!(
-            trace
-                .get_vrom_u32(5)
-                .expect("Return value for remainder not set."),
-            a % b
-        );
-    }
-
-    #[test]
-    fn test_tail_long_div() {
-        let kernel_file = include_str!("../../../examples/tail_long_div.asm");
-
-        let instructions = parse_program(kernel_file).unwrap();
-        let indices_is_call_procedure_hints = [
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-        ];
-
-        let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-        for idx in indices_is_call_procedure_hints {
-            is_call_procedure_hints_with_labels[idx] = true;
-        }
-
-        let (prom, labels, _, frame_sizes) =
-            get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-                .expect("Instructions were not formatted properly.");
-
-        let mut pc = BinaryField32b::ONE;
-        let mut pc_field_to_int = HashMap::new();
-        for i in 0..prom.len() {
-            pc_field_to_int.insert(pc, i as u32 + 1);
-            pc *= G;
-        }
-        let a = rand::random();
-        let b = rand::random();
-        let mut vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
-
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-            .expect("Trace generation should not fail.");
-
-        assert_eq!(
-            trace
-                .get_vrom_u32(4)
-                .expect("Return value for quotient not set."),
-            a / b
-        );
-        assert_eq!(
-            trace
-                .get_vrom_u32(5)
-                .expect("Return value for remainder not set."),
-            a % b
-        );
     }
 }

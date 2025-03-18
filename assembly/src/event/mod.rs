@@ -7,10 +7,7 @@ use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{
-    execution::{InterpreterChannels, InterpreterError, InterpreterTables},
-    ZCrayTrace,
-};
+use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
 
 pub(crate) mod b128;
 pub(crate) mod b32;
@@ -20,7 +17,7 @@ pub(crate) mod integer_ops;
 pub(crate) mod jump;
 pub(crate) mod mv;
 pub(crate) mod ret;
-pub(crate) mod sli;
+pub(crate) mod shift;
 
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
@@ -318,7 +315,7 @@ macro_rules! impl_event_for_binary_operation {
             ) {
                 use $crate::event::{LeftOp, OutputOp, RigthOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
-                fire_non_jump_event!(self, channels);
+                $crate::fire_non_jump_event!(self, channels);
             }
         }
     };

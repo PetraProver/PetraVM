@@ -2,14 +2,17 @@ mod ram;
 mod vrom;
 mod vrom_allocator;
 
-pub(crate) use vrom::{ValueRom, VromPendingUpdates, VromUpdate};
+use binius_field::BinaryField32b;
+pub(crate) use ram::{AccessSize, Ram};
+pub use vrom::ValueRom;
+pub(crate) use vrom::{VromPendingUpdates, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
-use crate::InterpreterInstruction;
+use crate::execution::InterpreterInstruction;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
-pub(crate) enum MemoryError {
+pub enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),
@@ -21,13 +24,13 @@ pub(crate) enum MemoryError {
 /// loaded. It maps every PC to a specific instruction to execute.
 pub type ProgramRom = Vec<InterpreterInstruction>;
 
-/// The `Memory` for an execution contains an *immutable* Program ROM and a
-/// *mutable* Value ROM.
+/// The `Memory` for an execution contains an *immutable* Program ROM,
+/// and a *mutable* Value ROM.
 #[derive(Debug, Default)]
 pub struct Memory {
     prom: ProgramRom,
     vrom: ValueRom,
-    // TODO: Add RAM
+    // TODO: We won't need to implement RAM ops at all for the first version.
 }
 
 impl Memory {
@@ -36,7 +39,7 @@ impl Memory {
         Self { prom, vrom }
     }
 
-    /// Returns a reference to the VROM.
+    /// Returns a reference to the PROM.
     pub const fn prom(&self) -> &ProgramRom {
         &self.prom
     }
@@ -50,6 +53,8 @@ impl Memory {
     pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
         &mut self.vrom
     }
+
+    // ValueROM access methods
 
     /// Reads a 32-bit value in VROM at the provided index.
     ///

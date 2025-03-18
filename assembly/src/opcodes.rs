@@ -18,7 +18,7 @@ pub enum Opcode {
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,
-    Mul = 0x21,
+    Mul = 0x1f,
     B32Muli = 0x0a,
     B32Mul = 0x10,
     // B32Add, // TODO
@@ -29,12 +29,12 @@ pub enum Opcode {
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
-    Sub = 0x019,
-    Sltu = 0x20,
-    Sltiu = 0x25,
-    // Sll, // TODO
-    // Srl, // TODO
-    // Sra, // TODO
+    Sub = 0x19,
+    Sltu = 0x1a,
+    Sltiu = 0x1b,
+    Sll = 0x1c,
+    Srl = 0x1d,
+    Sra = 0x1e,
     // Mul, // TODO
     // Mulu, // TODO
     // Mulsu, // TODO
@@ -46,8 +46,8 @@ pub enum Opcode {
     MVVL = 0x11,
 
     // Jump instructions
-    Jumpi = 0x23,
-    Jumpv = 0x24,
+    Jumpi = 0x20,
+    Jumpv = 0x21,
     // CallV, // TODO,
     Taili = 0x0c,
     TailV = 0x12,
@@ -58,14 +58,17 @@ pub enum Opcode {
     #[default]
     Bnz = 0x01,
     // Memory Access (RAM) instructions
-    // LW, // TODO
-    // SW, // TODO
-    // LB, // TODO, low-priority, see specs
-    // LBU, // TODO, low-priority, see specs
-    // LH, // TODO, low-priority, see specs
-    // LHU, // TODO, low-priority, see specs
-    // SB, // TODO, low-priority, see specs
-    // SU, // TODO, low-priority, see specs
+    // TODO: optional ISA extension for future implementation
+    // Not needed for recursion program or first version of zCrayVM
+    // Design note: Considering 32-bit word-sized memory instead of byte-addressed memory
+    // LW,
+    // SW,
+    // LB,
+    // LBU,
+    // LH,
+    // LHU,
+    // SB,
+    // SH,
 }
 
 impl Opcode {

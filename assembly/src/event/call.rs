@@ -2,8 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    ZCrayTrace, G,
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+    },
 };
 
 /// Event for TAILI.

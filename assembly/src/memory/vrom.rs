@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::MemoryError;
-use crate::{
-    event::mv::MVEventOutput, execution::InterpreterError, memory::vrom_allocator::VromAllocator,
-    opcodes::Opcode, ZCrayTrace,
-};
+use crate::{execution::ZCrayTrace, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -24,7 +21,7 @@ pub(crate) type VromUpdate = (
 
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ValueRom {
+pub struct ValueRom {
     /// Storage for values, each slot is a u32
     vrom: HashMap<u32, u32>,
     /// Allocator for new frames

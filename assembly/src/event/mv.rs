@@ -2,11 +2,12 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+    },
     fire_non_jump_event,
     memory::MemoryError,
     opcodes::Opcode,
-    ZCrayTrace,
 };
 
 #[derive(Debug, Clone)]
