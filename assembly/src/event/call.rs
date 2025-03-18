@@ -157,12 +157,16 @@ impl TailVEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let return_addr = trace.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 4)?;
+        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
 
-        let next_fp_addr = interpreter.fp ^ offset.val() as u32;
-        let target = trace.get_vrom_u32(next_fp_addr)?;
+        // Address where the value of the next frame pointer is stored.
+        let next_fp_addr = interpreter.fp ^ next_fp.val() as u32;
 
-        // We allocate a frame for the call.
+        // Get the target address, to which we should jump.
+        let target_addr = interpreter.fp ^ offset.val() as u32;
+        let target = trace.get_vrom_u32(target_addr)?;
+
+        // Allocate a frame for the call and set the value of the next frame pointer.
         let next_fp_val = interpreter.allocate_new_frame(trace, target.into())?;
         trace.set_vrom_u32(next_fp_addr, next_fp_val)?;
 
@@ -176,7 +180,8 @@ impl TailVEvent {
         let timestamp = interpreter.timestamp;
 
         interpreter.fp = next_fp_val;
-        interpreter.jump_to(BinaryField32b::new(interpreter.fp ^ offset.val() as u32));
+        // Jump to the target,
+        interpreter.jump_to(BinaryField32b::new(target));
 
         trace.set_vrom_u32(next_fp_val, return_addr)?;
         trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;

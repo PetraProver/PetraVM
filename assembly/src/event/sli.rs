@@ -136,7 +136,7 @@ mod test {
         let mut frames = HashMap::new();
         frames.insert(BinaryField32b::ONE, 6);
 
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+        let prom = code_to_prom(&instructions);
 
         //  ;; Frame:
         // 	;; Slot @0: Return PC
@@ -146,10 +146,10 @@ mod test {
         // 	;; Slot @4: Local: src2
         //  ;; Slot @5: Local: dst2
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0);
-        vrom.set_u32(1, 0);
-        vrom.set_u32(2, 2u32);
-        vrom.set_u32(4, 3u32);
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(2, 2u32).unwrap();
+        vrom.set_u32(4, 3u32).unwrap();
 
         let memory = Memory::new(prom, vrom);
 

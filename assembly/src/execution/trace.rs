@@ -5,6 +5,8 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField32b, Field, PackedField};
 
+#[cfg(test)]
+use crate::memory::VromPendingUpdates;
 use crate::{
     event::{
         b128::{B128AddEvent, B128MulEvent},
@@ -24,7 +26,6 @@ use crate::{
     parser::LabelsFrameSizes,
     ProgramRom, ValueRom, G,
 };
-
 #[derive(Debug, Default)]
 pub(crate) struct ZCrayTrace {
     pub(crate) bnz: Vec<BnzEvent>,
@@ -244,5 +245,10 @@ impl ZCrayTrace {
     /// Returns a mutable reference to the VROM.
     pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
         self.memory.vrom_mut()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn pending_updates(&self) -> &VromPendingUpdates {
+        self.memory.vrom_pending_updates()
     }
 }

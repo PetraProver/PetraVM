@@ -22,17 +22,13 @@ use parser::get_full_prom_and_labels;
 use parser::parse_program;
 use util::get_binary_slot;
 
-pub(crate) fn code_to_prom(
-    code: &[Instruction],
-    is_calling_procedure_hints: &[bool],
-) -> ProgramRom {
+pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
     let mut prom = ProgramRom::new();
     // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
     // `*G`.
     let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
     for (i, &instruction) in code.iter().enumerate() {
-        let interp_inst =
-            InterpreterInstruction::new(instruction, pc, is_calling_procedure_hints[i]);
+        let interp_inst = InterpreterInstruction::new(instruction, pc);
         prom.push(interp_inst);
         pc *= G;
     }
@@ -49,16 +45,8 @@ fn main() {
 
     let instructions = parse_program(include_str!("../../examples/collatz.asm")).unwrap();
 
-    // Sets the call procedure hints to true for the returned PROM (where
-    // instructions are given with the labels).
-    let mut is_call_procedure_hints_with_labels = vec![false; instructions.len()];
-    let indices_to_set_with_labels = vec![9, 10, 11, 15, 16, 17];
-    for idx in indices_to_set_with_labels {
-        is_call_procedure_hints_with_labels[idx] = true;
-    }
     let (prom, labels, pc_field_to_int, frame_sizes) =
-        get_full_prom_and_labels(&instructions, &is_call_procedure_hints_with_labels)
-            .expect("Instructions were not formatted properly.");
+        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
 
     let zero = BinaryField16b::zero();
 
@@ -155,14 +143,7 @@ fn main() {
         ], //  14G: TAILI collatz 4
     ];
 
-    // Sets the call procedure hints to true for the expected PROM (where
-    // instructions are given without the labels).
-    let mut is_call_procedure_hints = vec![false; instructions.len()];
-    let indices_to_set = vec![7, 8, 9, 12, 13, 14];
-    for idx in indices_to_set {
-        is_call_procedure_hints[idx] = true;
-    }
-    let expected_prom = code_to_prom(&expected_prom, &is_call_procedure_hints);
+    let expected_prom = code_to_prom(&expected_prom);
 
     assert!(
         prom.len() == expected_prom.len(),
