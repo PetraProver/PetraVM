@@ -262,11 +262,7 @@ pub fn get_prom_inst_from_inst_with_label(
                     targets_16b[1],
                 ];
 
-                prom.push(InterpreterInstruction::new(
-                    instruction,
-                    *field_pc,
-                    is_call_hint,
-                ));
+                prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
                 return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
             }
@@ -280,11 +276,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 BinaryField16b::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(
-                instruction,
-                *field_pc,
-                is_call_hint,
-            ));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
         }
@@ -313,11 +305,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 BinaryField16b::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(
-                instruction,
-                *field_pc,
-                is_call_hint,
-            ));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
         }
@@ -356,11 +344,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(
-                instruction,
-                *field_pc,
-                is_call_hint,
-            ));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
         }
@@ -404,11 +388,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(
-                instruction,
-                *field_pc,
-                is_call_hint,
-            ));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
         }
@@ -455,11 +435,7 @@ pub fn get_prom_inst_from_inst_with_label(
                     arg.get_16bfield_val(),
                 ];
 
-                prom.push(InterpreterInstruction::new(
-                    instruction,
-                    *field_pc,
-                    is_call_hint,
-                ));
+                prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
                 return Err(format!(
                     "Label in Taili instruction, {}, nonexistent.",
@@ -471,17 +447,13 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Tailv { offset, arg } => {
             let instruction = [
-                Opcode::TailV.get_field_elt(),
+                Opcode::Tailv.get_field_elt(),
                 offset.get_16bfield_val(),
                 arg.get_16bfield_val(),
                 BinaryField16b::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(
-                instruction,
-                *field_pc,
-                is_call_hint,
-            ));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
         }

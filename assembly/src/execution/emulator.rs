@@ -341,37 +341,6 @@ impl Interpreter {
         Ok(())
     }
 
-    fn generate_jumpi(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        _: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        let target = (BinaryField32b::from_bases([target_low, target_high]))
-            .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_jumpi_event = JumpiEvent::generate_event(self, trace, target, field_pc)?;
-        trace.jumpi.push(new_jumpi_event);
-
-        Ok(())
-    }
-
-    fn generate_jumpv(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
-        _: bool,
-        offset: BinaryField16b,
-        _: BinaryField16b,
-        _: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        let new_jumpv_event = JumpvEvent::generate_event(self, trace, offset, field_pc)?;
-        trace.jumpv.push(new_jumpv_event);
-
-        Ok(())
-    }
-
     fn generate_xori(
         &mut self,
         trace: &mut ZCrayTrace,
