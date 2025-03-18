@@ -674,7 +674,7 @@ mod tests {
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
 
-        let prom = code_to_prom(&instructions, &vec![false; instructions.len()]);
+        let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
         vrom.set_u32(0, 0);
