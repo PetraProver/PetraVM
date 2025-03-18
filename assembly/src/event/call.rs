@@ -305,6 +305,7 @@ impl Event for CalliEvent {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
@@ -355,7 +356,7 @@ mod tests {
         let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
-        assert!(trace.pending_updates().is_empty());
+        assert!(trace.vrom_pending_updates().is_empty());
         assert_eq!(trace.get_vrom_u32(3).unwrap(), 4u32);
     }
 }

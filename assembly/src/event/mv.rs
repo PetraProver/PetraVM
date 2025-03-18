@@ -201,7 +201,7 @@ impl MVVWEvent {
         } else {
             // `src_val` is not yet known, which is means it's a return value from the
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
-            // in `pending_updates`. As soon as it is set in the called funciton, we can
+            // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
@@ -493,35 +493,32 @@ impl MVIHEvent {
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
-        match opt_dst_addr {
-            Some(dst_addr) => {
-                trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
-                interpreter.incr_pc();
+        if let Some(dst_addr) = opt_dst_addr {
+            trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+            interpreter.incr_pc();
 
-                Ok(Some(Self {
-                    pc: field_pc,
-                    fp,
-                    timestamp,
-                    dst: dst.val(),
-                    dst_addr,
-                    imm: imm.val(),
-                    offset: offset.val(),
-                }))
-            }
-            None => {
-                let new_mv_info = MVInfo {
-                    mv_kind: MVKind::Mvih,
-                    dst,
-                    offset,
-                    src: imm,
-                    pc: field_pc,
-                    timestamp,
-                };
-                // This move needs to be handled later, in the CALL.
-                interpreter.moves_to_apply.push(new_mv_info);
-                interpreter.incr_pc();
-                Ok(None)
-            }
+            Ok(Some(Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_addr,
+                imm: imm.val(),
+                offset: offset.val(),
+            }))
+        } else {
+            let new_mv_info = MVInfo {
+                mv_kind: MVKind::Mvih,
+                dst,
+                offset,
+                src: imm,
+                pc: field_pc,
+                timestamp,
+            };
+            // This move needs to be handled later, in the CALL.
+            interpreter.moves_to_apply.push(new_mv_info);
+            interpreter.incr_pc();
+            Ok(None)
         }
     }
 }
@@ -733,7 +730,7 @@ mod tests {
             .run(memory)
             .expect("The interpreter should run smoothly.");
 
-        assert!(traces.pending_updates().is_empty());
+        assert!(traces.vrom_pending_updates().is_empty());
         assert!(interpreter.moves_to_apply.is_empty());
 
         let next_fp = 16;
@@ -866,8 +863,8 @@ mod tests {
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
         pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
 
-        assert_eq!(traces.pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.pending_updates().len(), pending_updates.len());
-        for (k, pending_update) in traces.pending_updates() {
+        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.vrom_pending_updates().len(), pending_updates.len());
+        for (k, pending_update) in traces.vrom_pending_updates() {
             let expected_update = pending_updates.get(k).unwrap_or_else(|| {
                 panic!("Missing expected update {:?} at addr {}", pending_update, k)
             });

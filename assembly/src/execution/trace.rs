@@ -265,7 +265,7 @@ impl ZCrayTrace {
     }
 
     #[cfg(test)]
-    pub(crate) fn pending_updates(&self) -> &VromPendingUpdates {
+    pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
     }
 }
