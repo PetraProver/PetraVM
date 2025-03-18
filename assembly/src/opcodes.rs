@@ -14,27 +14,27 @@ pub enum Opcode {
     Andi = 0x04,
     Srli = 0x05,
     Slli = 0x06,
-    Srai = 0x18,
+    Srai = 0x22,
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,
+    Mul = 0x1f,
     B32Muli = 0x0a,
     B32Mul = 0x10,
     // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
     // Slti, // TODO
-    // Sltiu, // TODO
-    // Sub, // TODO
     // Slt, // TODO
-    // Sltu, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
-    Sll = 0x19,
-    Srl = 0x1A,
-    Sra = 0x1B,
-    // Mul, // TODO
+    Sub = 0x19,
+    Sltu = 0x1a,
+    Sltiu = 0x1b,
+    Sll = 0x1c,
+    Srl = 0x1d,
+    Sra = 0x1e,
     // Mulu, // TODO
     // Mulsu, // TODO
 
@@ -45,12 +45,12 @@ pub enum Opcode {
     MVVL = 0x11,
 
     // Jump instructions
-    // Jumpi, // TODO
-    // JumpV, // TODO
-    // Calli, // TODO,
+    Jumpi = 0x20,
+    Jumpv = 0x21,
     // CallV, // TODO,
     Taili = 0x0c,
     TailV = 0x12,
+    Calli = 0x18,
     Ret = 0x0b,
 
     // Branch instructions

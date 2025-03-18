@@ -16,8 +16,12 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{TailVEvent, TailiEvent},
-        integer_ops::{Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent},
+        call::{CalliEvent, TailVEvent, TailiEvent},
+        integer_ops::{
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
+            SltuEvent, SubEvent,
+        },
+        jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         shift::{ShiftEvent, ShiftOperation},
@@ -260,6 +264,12 @@ impl Interpreter {
             Opcode::Bnz => {
                 self.generate_bnz(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::Jumpi => {
+                self.generate_jumpi(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Jumpv => {
+                self.generate_jumpv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::Xori => {
                 self.generate_xori(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
@@ -290,8 +300,20 @@ impl Interpreter {
             Opcode::Add => {
                 self.generate_add(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
+            Opcode::Sub => {
+                self.generate_sub(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sltu => {
+                self.generate_sltu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Sltiu => {
+                self.generate_sltiu(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
             Opcode::Muli => {
                 self.generate_muli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Mul => {
+                self.generate_mul(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
             Opcode::Ret => {
                 self.generate_ret(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
@@ -301,6 +323,9 @@ impl Interpreter {
             }
             Opcode::TailV => {
                 self.generate_tailv(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
+            }
+            Opcode::Calli => {
+                self.generate_calli(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
             }
             Opcode::And => {
                 self.generate_and(trace, field_pc, is_call_procedure, arg0, arg1, arg2)?
@@ -360,6 +385,38 @@ impl Interpreter {
             let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
             trace.bz.push(new_bz_event);
         }
+
+        Ok(())
+    }
+
+    fn generate_jumpi(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_jumpi_event = JumpiEvent::generate_event(self, trace, target, field_pc)?;
+        trace.jumpi.push(new_jumpi_event);
+
+        Ok(())
+    }
+
+    fn generate_jumpv(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        offset: BinaryField16b,
+        _: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_jumpv_event = JumpvEvent::generate_event(self, trace, offset, field_pc)?;
+        trace.jumpv.push(new_jumpv_event);
 
         Ok(())
     }
@@ -538,6 +595,7 @@ impl Interpreter {
             field_pc,
         )?;
         trace.shifts.push(new_shift_event);
+
         Ok(())
     }
 
@@ -575,6 +633,25 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_calli(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        next_fp: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let target = BinaryField32b::from_bases([target_low, target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let next_fp_val = self.allocate_new_frame(trace, target)?;
+        let new_calli_event =
+            CalliEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
+        trace.calli.push(new_calli_event);
+
+        Ok(())
+    }
+
     fn generate_and(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -601,6 +678,51 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_andi_event = AndiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
         trace.andi.push(new_andi_event);
+
+        Ok(())
+    }
+
+    fn generate_sub(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sub_event = SubEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.sub.push(new_sub_event);
+
+        Ok(())
+    }
+
+    fn generate_sltu(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sltu_event = SltuEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.sltu.push(new_sltu_event);
+
+        Ok(())
+    }
+
+    fn generate_sltiu(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_sltiu_event = SltiuEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.sltiu.push(new_sltiu_event);
 
         Ok(())
     }
@@ -666,6 +788,53 @@ impl Interpreter {
             .add64
             .push(Add64Event::generate_event(self, sum0, sum1 << 8));
         trace.muli.push(new_muli_event);
+
+        Ok(())
+    }
+
+    fn generate_mul(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        _: bool,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_mul_event = MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        let aux = new_mul_event.aux;
+        let aux_sums = new_mul_event.aux_sums;
+        let cum_sums = new_mul_event.cum_sums;
+
+        // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
+        for i in 0..aux.len() / 2 {
+            trace.add64.push(Add64Event::generate_event(
+                self,
+                aux[2 * i] as u64,
+                (aux[2 * i + 1] as u64) << 8,
+            ));
+        }
+        // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
+        // Check the first element.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            aux_sums[0],
+            aux_sums[1] << 8,
+        ));
+        // CHeck the second element.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            cum_sums[0],
+            aux_sums[2] << 16,
+        ));
+
+        // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
+        trace.add64.push(Add64Event::generate_event(
+            self,
+            cum_sums[1],
+            aux_sums[3] << 24,
+        ));
+        trace.mul.push(new_mul_event);
 
         Ok(())
     }

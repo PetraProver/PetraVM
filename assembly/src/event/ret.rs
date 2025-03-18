@@ -43,10 +43,9 @@ impl RetEvent {
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
-
         let ret_event = RetEvent::new(interpreter, trace, field_pc);
         interpreter.jump_to(BinaryField32b::new(trace.get_vrom_u32(fp)?));
-        interpreter.fp = trace.get_vrom_u32(fp + 1)?;
+        interpreter.fp = trace.get_vrom_u32(fp ^ 1)?;
 
         ret_event
     }

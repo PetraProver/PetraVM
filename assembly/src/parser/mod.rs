@@ -112,6 +112,14 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SLTIU_instr => {
+                                instrs.push(InstructionsWithLabels::Sltiu {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
+
                             Rule::MULI_instr => {
                                 instrs.push(InstructionsWithLabels::MulI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -128,6 +136,13 @@ fn parse_line(
                             }
                             Rule::SLLI_instr => {
                                 instrs.push(InstructionsWithLabels::SllI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
+                            Rule::SRAI_instr => {
+                                instrs.push(InstructionsWithLabels::SraI {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
@@ -182,6 +197,12 @@ fn parse_line(
                                     arg: Slot::from_str(imm.as_str())?,
                                 });
                             }
+                            Rule::CALLI_instr => {
+                                instrs.push(InstructionsWithLabels::Calli {
+                                    label: dst.as_str().to_string(),
+                                    arg: Slot::from_str(imm.as_str())?,
+                                });
+                            }
                             Rule::BNZ_instr => {
                                 instrs.push(InstructionsWithLabels::Bnz {
                                     label: dst.as_str().to_string(),
@@ -232,6 +253,18 @@ fn parse_line(
                             Rule::ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Add { dst, src1, src2 });
                             }
+                            Rule::AND_instr => {
+                                instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
+                            }
+                            Rule::SLTU_instr => {
+                                instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
+                            }
+                            Rule::SUB_instr => {
+                                instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
+                            }
+                            Rule::MUL_instr => {
+                                instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
                             }
@@ -245,6 +278,30 @@ fn parse_line(
                         match rule {
                             Rule::RET_instr => {
                                 instrs.push(InstructionsWithLabels::Ret);
+                            }
+                            _ => unreachable!("All nullary instructions are implemented"),
+                        }
+                    }
+                    Rule::simple_jump => {
+                        let mut simple_jump = instruction.into_inner();
+                        let rule =
+                            get_first_inner(simple_jump.next().unwrap(), "jump has instruction")
+                                .as_rule();
+                        let dst = simple_jump.next().expect("jump_with_op_instrs_imm has dst");
+
+                        match rule {
+                            Rule::J_instr => {
+                                let first_char =
+                                    dst.as_str().chars().next().expect("simple jump as target");
+                                if first_char == '_' || first_char.is_ascii() {
+                                    instrs.push(InstructionsWithLabels::Jumpi {
+                                        label: dst.as_str().to_string(),
+                                    });
+                                } else {
+                                    instrs.push(InstructionsWithLabels::Jumpv {
+                                        offset: Slot::from_str(dst.as_str())?,
+                                    })
+                                }
                             }
                             _ => unreachable!("All nullary instructions are implemented"),
                         }
