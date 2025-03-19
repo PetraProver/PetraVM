@@ -10,9 +10,7 @@ use crate::memory::VromPendingUpdates;
 use crate::{
     event::{
         b128::{B128AddEvent, B128MulEvent},
-        b32::{
-            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
-        },
+        b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
@@ -64,7 +62,6 @@ pub struct ZCrayTrace {
     pub(crate) mvvl: Vec<MVVLEvent>,
     pub(crate) ldi: Vec<LDIEvent>,
     pub(crate) b32_mul: Vec<B32MulEvent>,
-    pub(crate) b32_muli: Vec<B32MuliEvent>,
     pub(crate) b128_add: Vec<B128AddEvent>,
     pub(crate) b128_mul: Vec<B128MulEvent>,
 
@@ -170,7 +167,6 @@ impl ZCrayTrace {
         fire_events!(self.mvvl, &mut channels, &tables);
         fire_events!(self.ldi, &mut channels, &tables);
         fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
         fire_events!(self.b128_add, &mut channels, &tables);
         fire_events!(self.b128_mul, &mut channels, &tables);
 

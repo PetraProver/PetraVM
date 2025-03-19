@@ -115,7 +115,6 @@ mod test_parser {
             "MULSU @3, @2, @1",
             "XORI @3, @2, #1",
             "B32_ADDI @3, @2, #1",
-            "B32_MULI @3, @2, #1",
             "ADDI @3, @2, #1",
             "SLTI @3, @2, #1",
             "SLTIU @3, @2, #1",

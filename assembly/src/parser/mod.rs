@@ -84,13 +84,6 @@ fn parse_line(
                             binary_imm.next().expect("binary_imm has imm").as_str(),
                         )?;
                         match rule {
-                            Rule::B32_MULI_instr => {
-                                instrs.push(InstructionsWithLabels::B32Muli {
-                                    dst: Slot::from_str(dst.as_str())?,
-                                    src1: Slot::from_str(src1.as_str())?,
-                                    imm,
-                                });
-                            }
                             // B32_ADDI is an alias for XORI.
                             Rule::B32_ADDI_instr => {
                                 instrs.push(InstructionsWithLabels::XorI {
