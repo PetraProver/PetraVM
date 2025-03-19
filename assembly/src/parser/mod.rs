@@ -265,9 +265,6 @@ fn parse_line(
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
                             }
-                            Rule::B32_ADD_instr => {
-                                instrs.push(InstructionsWithLabels::B32Add { dst, src1, src2 });
-                            }
                             Rule::B32_MUL_instr => {
                                 instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
                             }
