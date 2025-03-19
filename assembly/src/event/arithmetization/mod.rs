@@ -19,9 +19,13 @@ pub mod test {
     use groestl_crypto::Groestl256;
 
     use crate::{
-        code_to_prom, emulator::BoundaryValues,
-        emulator_arithmetization::arithmetization::ZCrayTable, opcodes::Opcode, ValueRom,
-        ZCrayTrace,
+        code_to_prom,
+        execution::{
+            emulator::BoundaryValues,
+            emulator_arithmetization::arithmetization::ZCrayTable,
+        },
+        opcodes::Opcode,
+        ValueRom, ZCrayTrace,
     };
 
     #[test]
@@ -73,27 +77,27 @@ pub mod test {
         )
         .unwrap();
 
-        // const LOG_INV_RATE: usize = 1;
-        // const SECURITY_BITS: usize = 100;
+        const LOG_INV_RATE: usize = 1;
+        const SECURITY_BITS: usize = 100;
 
-        // let proof = binius_core::constraint_system::prove::<
-        //     _,
-        //     CanonicalTowerFamily,
-        //     _,
-        //     Groestl256,
-        //     Groestl256ByteCompression,
-        //     HasherChallenger<Groestl256>,
-        //     _,
-        // >(
-        //     &compiled_cs,
-        //     LOG_INV_RATE,
-        //     SECURITY_BITS,
-        //     &statement.boundaries,
-        //     witness,
-        //     &DefaultEvaluationDomainFactory::default(),
-        //     &binius_hal::make_portable_backend(),
-        // )
-        // .unwrap();
+        let proof = binius_core::constraint_system::prove::<
+            _,
+            CanonicalTowerFamily,
+            _,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+            _,
+        >(
+            &compiled_cs,
+            LOG_INV_RATE,
+            SECURITY_BITS,
+            &statement.boundaries,
+            witness,
+            &DefaultEvaluationDomainFactory::default(),
+            &binius_hal::make_portable_backend(),
+        )
+        .unwrap();
 
         // binius_core::constraint_system::verify::<
         //     OptimalUnderlier128b,

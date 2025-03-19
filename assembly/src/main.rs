@@ -4,8 +4,7 @@
 
 // TODO: Add doc
 
-mod emulator;
-mod emulator_arithmetization;
+mod execution;
 mod event;
 mod instruction_args;
 mod instructions_with_labels;
@@ -17,7 +16,7 @@ mod vrom_allocator;
 use std::collections::HashMap;
 
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
-use emulator::{Instruction, InterpreterInstruction, ProgramRom, ZCrayTrace, G};
+use execution::emulator::{Instruction, InterpreterInstruction, ProgramRom, ZCrayTrace, G};
 use instructions_with_labels::get_full_prom_and_labels;
 use opcodes::Opcode;
 use parser::parse_program;

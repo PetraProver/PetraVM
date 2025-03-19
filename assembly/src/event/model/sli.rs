@@ -1,7 +1,7 @@
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
-    emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
+    execution::emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
     event::model::Event,
     ZCrayTrace,
 };

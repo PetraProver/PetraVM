@@ -8,7 +8,7 @@ use std::{cmp::{max, min}, fmt::Debug};
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    emulator::{InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::emulator::{InterpreterChannels, InterpreterError, InterpreterTables},
     ZCrayTrace,
 };
 
@@ -76,7 +76,7 @@ pub(crate) trait ImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::emulator::Interpreter,
+        interpreter: &mut crate::execution::emulator::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
@@ -118,7 +118,7 @@ pub(crate) trait NonImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::emulator::Interpreter,
+        interpreter: &mut crate::execution::emulator::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src1: BinaryField16b,
@@ -322,8 +322,8 @@ macro_rules! impl_event_for_binary_operation {
         impl $crate::event::model::Event for $ty {
             fn fire(
                 &self,
-                channels: &mut $crate::emulator::InterpreterChannels,
-                _tables: &$crate::emulator::InterpreterTables,
+                channels: &mut $crate::execution::emulator::InterpreterChannels,
+                _tables: &$crate::execution::emulator::InterpreterTables,
             ) {
                 use $crate::event::model::{LeftOp, OutputOp, RigthOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
@@ -340,7 +340,7 @@ macro_rules! fire_non_jump_event {
             .state_channel
             .pull(($intrp.pc, $intrp.fp, $intrp.timestamp));
         $channels.state_channel.push((
-            $intrp.pc * $crate::emulator::G,
+            $intrp.pc * $crate::execution::emulator::G,
             $intrp.fp,
             $intrp.timestamp + 1,
         ));

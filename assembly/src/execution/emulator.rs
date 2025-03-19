@@ -1503,7 +1503,7 @@ mod tests {
 
     #[test]
     fn test_fibonacci() {
-        let mut instructions = parse_program(include_str!("../../examples/fib.asm")).unwrap();
+        let mut instructions = parse_program(include_str!("../../../examples/fib.asm")).unwrap();
 
         let mut is_calling_procedure_hints = vec![false; instructions.len()];
         let indices = vec![1, 2, 3, 4, 5, 15, 16, 17, 18, 19];

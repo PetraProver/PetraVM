@@ -29,8 +29,10 @@ use groestl_crypto::Groestl256;
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction};
 use crate::{
     code_to_prom,
-    emulator::{BoundaryValues, InterpreterChannels},
-    emulator_arithmetization::arithmetization::ZCrayTable,
+    execution::{
+        emulator::{BoundaryValues, InterpreterChannels},
+        emulator_arithmetization::arithmetization::ZCrayTable,
+    },
     opcodes::Opcode,
     ValueRom, ZCrayTrace,
 };
@@ -56,7 +58,7 @@ impl AddTable {
     ) -> Self {
         let mut table = cs.add_table("add");
 
-        let cpu = CpuColumns::new::<{Opcode::Add as u32}>(
+        let cpu = CpuColumns::new::<{ Opcode::Add as u32 }>(
             &mut table,
             state_channel,
             prom_channel,
@@ -171,7 +173,7 @@ impl AddiTable {
     ) -> Self {
         let mut table = cs.add_table("addi");
 
-        let cpu_cols = CpuColumns::new::<{Opcode::Addi as u32}>(
+        let cpu_cols = CpuColumns::new::<{ Opcode::Addi as u32 }>(
             &mut table,
             state_channel,
             prom_channel,
@@ -180,8 +182,9 @@ impl AddiTable {
                 next_fp: None,
             },
         );
-        
-        // TODO: We need a U32AddU16 gadget or otherwise we will be wasting cols with only 0s
+
+        // TODO: We need a U32AddU16 gadget or otherwise we will be wasting cols with
+        // only 0s
 
         // let src_val = table.add_committed("src1_val");
         // let src_val_packed = table.add_packed("src_val_packed", src_val);
@@ -189,7 +192,8 @@ impl AddiTable {
         // let imm_packed = table.add_packed("imm_packed", imm_unpacked);
 
         unimplemented!()
-        // let u32_add = U32Add::new(&mut table, src_val, upcast_col(imm_unpacked), U32AddFlags::default());
+        // let u32_add = U32Add::new(&mut table, src_val,
+        // upcast_col(imm_unpacked), U32AddFlags::default());
 
         // Self {
         //     id: table.id(),

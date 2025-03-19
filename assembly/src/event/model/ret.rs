@@ -2,7 +2,7 @@ use binius_field::BinaryField32b;
 use binius_m3::builder::TableFiller;
 
 use super::Event;
-use crate::emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables};
+use crate::execution::emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables};
 
 /// Event for RET.
 ///
