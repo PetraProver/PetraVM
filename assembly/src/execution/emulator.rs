@@ -2,7 +2,12 @@
 //! Instruction Memory (PROM). It processes events and updates the machine state
 //! accordingly.
 
-use std::{array::from_fn, collections::{binary_heap::Iter, HashMap}, fmt::Debug, hash::Hash};
+use std::{
+    array::from_fn,
+    collections::{binary_heap::Iter, HashMap},
+    fmt::Debug,
+    hash::Hash,
+};
 
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{

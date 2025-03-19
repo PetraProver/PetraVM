@@ -22,7 +22,10 @@ pub mod test {
         execution::{
             emulator_arithmetization::arithmetization::ZCrayTable,
             trace::{BoundaryValues, ZCrayTrace},
-        }, opcodes::Opcode, util::code_to_prom, Memory, ValueRom
+        },
+        opcodes::Opcode,
+        util::code_to_prom,
+        Memory, ValueRom,
     };
 
     #[test]

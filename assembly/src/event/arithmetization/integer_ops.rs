@@ -29,7 +29,8 @@ use groestl_crypto::Groestl256;
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction};
 use crate::{
     execution::{
-        emulator::InterpreterChannels, emulator_arithmetization::arithmetization::ZCrayTable,
+        emulator::InterpreterChannels,
+        emulator_arithmetization::arithmetization::ZCrayTable,
         trace::{BoundaryValues, ZCrayTrace},
     },
     opcodes::Opcode,

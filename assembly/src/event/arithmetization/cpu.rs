@@ -15,7 +15,7 @@ pub(crate) struct CpuColumns {
     pub(crate) fp: Col<B32>,
     pub(crate) timestamp: Col<B32>,
     pub(crate) next_timestamp: Col<B32>, // Virtual?
-    pub(crate) opcode: Col<B32>, // Constant
+    pub(crate) opcode: Col<B32>,         // Constant
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
     pub(crate) arg2_unpacked: Col<B1, 16>,
@@ -54,7 +54,7 @@ impl CpuColumns {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
         let timestamp = table.add_committed("timestamp");
-        let opcode = table.add_constant("opcode", [B32::new(OPCODE)]);//add_committed("opcode"); //TODO: opcode is a constant
+        let opcode = table.add_constant("opcode", [B32::new(OPCODE)]); //add_committed("opcode"); //TODO: opcode is a constant
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
         let arg2_unpacked = table.add_committed("arg2_unpacked");
