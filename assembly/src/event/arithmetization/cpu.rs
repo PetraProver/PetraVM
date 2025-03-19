@@ -15,7 +15,7 @@ pub(crate) struct CpuColumns {
     pub(crate) fp: Col<B32>,
     pub(crate) timestamp: Col<B32>,
     pub(crate) next_timestamp: Col<B32>, // Virtual?
-    pub(crate) opcode: Col<B16>,         // Should be virtual
+    pub(crate) opcode: Col<B32>, // Constant
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
     pub(crate) arg2_unpacked: Col<B1, 16>,
@@ -25,7 +25,6 @@ pub(crate) struct CpuColumns {
 pub(crate) struct CpuColumnsOptions {
     pub(crate) jumps: Option<Col<B32>>,
     pub(crate) next_fp: Option<Col<B32>>,
-    pub(crate) opcode: Opcode,
     // TODO: Maybe add options for reading/writng from/to to the args
 }
 
@@ -46,7 +45,7 @@ pub(crate) struct Instruction {
 }
 
 impl CpuColumns {
-    pub fn new(
+    pub fn new<const OPCODE: u32>(
         table: &mut TableBuilder,
         state_channel: ChannelId,
         prom_channel: ChannelId,
@@ -55,17 +54,11 @@ impl CpuColumns {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
         let timestamp = table.add_committed("timestamp");
-        let opcode = table.add_committed("opcode"); //TODO: opcode is a constant
+        let opcode = table.add_constant("opcode", [B32::new(OPCODE)]);//add_committed("opcode"); //TODO: opcode is a constant
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
         let arg2_unpacked = table.add_committed("arg2_unpacked");
         let arg2 = table.add_packed("arg2", arg2_unpacked);
-        // let a = table.add_linear_combination("opcode", B16::new(Opcode::Add as u16));
-        // TODO: Whye opcode - options.opcode doesn't work?
-        table.assert_zero(
-            "opcode_is_correct",
-            opcode - B16::new(options.opcode as u16),
-        );
 
         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
         // For now it's unconstrained.

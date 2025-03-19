@@ -31,14 +31,13 @@
             let fp0_val = table.add_committed("fp0_val");
             let fp1_val = table.add_committed("fp1_val");
 
-            let cpu_cols = CpuColumns::new(
+            let cpu_cols = CpuColumns::new::<{Opcode::Ret as u32}>(
                 &mut table,
                 state_channel,
                 prom_channel,
                 CpuColumnsOptions {
                     jumps: Some(fp0_val),
                     next_fp: Some(fp1_val),
-                    opcode: Opcode::Ret,
                 },
             );
 

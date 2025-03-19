@@ -56,14 +56,13 @@ impl AddTable {
     ) -> Self {
         let mut table = cs.add_table("add");
 
-        let cpu = CpuColumns::new(
+        let cpu = CpuColumns::new::<{Opcode::Add as u32}>(
             &mut table,
             state_channel,
             prom_channel,
             CpuColumnsOptions {
                 jumps: None,
                 next_fp: None,
-                opcode: Opcode::Add,
             },
         );
 
@@ -172,14 +171,13 @@ impl AddiTable {
     ) -> Self {
         let mut table = cs.add_table("addi");
 
-        let cpu_cols = CpuColumns::new(
+        let cpu_cols = CpuColumns::new::<{Opcode::Addi as u32}>(
             &mut table,
             state_channel,
             prom_channel,
             CpuColumnsOptions {
                 jumps: None,
                 next_fp: None,
-                opcode: Opcode::Addi,
             },
         );
         
