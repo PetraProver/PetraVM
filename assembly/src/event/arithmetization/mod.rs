@@ -5,8 +5,11 @@ pub(crate) mod ret;
 pub mod test {
     use std::collections::HashMap;
 
-    use binius_core::{fiat_shamir::HasherChallenger, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex};
-    use binius_field::{arch::{OptimalUnderlier128b}, BinaryField, Field};
+    use binius_core::{
+        fiat_shamir::HasherChallenger, tower::CanonicalTowerFamily,
+        witness::MultilinearExtensionIndex,
+    };
+    use binius_field::{arch::OptimalUnderlier128b, BinaryField, Field};
     use binius_hash::compress::Groestl256ByteCompression;
     use binius_m3::builder::{
         Boundary, ConstraintSystem, FlushDirection, Statement, B128, B16, B32,
@@ -45,7 +48,80 @@ pub mod test {
                 timestamp: final_timestamp,
             },
         ) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
-        let statement = Statement {
+        let statement = get_test_addi_statement(
+            &zcray_table,
+            final_pc,
+            final_fp,
+            final_timestamp,
+            vec![trace.add.len(), trace.ret.len()],
+        );
+
+        let allocator = Bump::new();
+        let mut witness = cs
+            .build_witness::<OptimalUnderlier128b>(&allocator, &statement)
+            .unwrap();
+
+        zcray_table.populate(trace, &mut witness).unwrap();
+
+        let compiled_cs = cs.compile(&statement).unwrap();
+        let witness = witness.into_multilinear_extension_index(&statement);
+
+        binius_core::constraint_system::validate::validate_witness(
+            &compiled_cs,
+            &statement.boundaries,
+            &witness,
+        )
+        .unwrap();
+
+        // const LOG_INV_RATE: usize = 1;
+        // const SECURITY_BITS: usize = 100;
+
+        // let proof = binius_core::constraint_system::prove::<
+        //     _,
+        //     CanonicalTowerFamily,
+        //     _,
+        //     Groestl256,
+        //     Groestl256ByteCompression,
+        //     HasherChallenger<Groestl256>,
+        //     _,
+        // >(
+        //     &compiled_cs,
+        //     LOG_INV_RATE,
+        //     SECURITY_BITS,
+        //     &statement.boundaries,
+        //     witness,
+        //     &DefaultEvaluationDomainFactory::default(),
+        //     &binius_hal::make_portable_backend(),
+        // )
+        // .unwrap();
+
+        // binius_core::constraint_system::verify::<
+        //     OptimalUnderlier128b,
+        //     CanonicalTowerFamily,
+        //     Groestl256,
+        //     Groestl256ByteCompression,
+        //     HasherChallenger<Groestl256>,
+        // >(
+        //     &compiled_cs,
+        //     LOG_INV_RATE,
+        //     SECURITY_BITS,
+        //     &statement.boundaries,
+        //     proof,
+        // )
+        // .unwrap();
+    }
+
+    // Since we still don't have tables implementing the lookups, We balance the
+    // prom and vrom channels by just pulling the expected values in the
+    // execution.
+    fn get_test_addi_statement(
+        zcray_table: &ZCrayTable,
+        final_pc: B32,
+        final_fp: u32,
+        final_timestamp: u32,
+        table_sizes: Vec<usize>,
+    ) -> Statement {
+        Statement {
             boundaries: vec![
                 Boundary {
                     values: vec![B128::ONE, B128::new(0), B128::new(0)], /* inital_pc = 0,
@@ -122,60 +198,7 @@ pub mod test {
                     multiplicity: 1,
                 },
             ],
-            table_sizes: vec![trace.add.len(), trace.ret.len()], // TODO: What should be here?
-        };
-        let allocator = Bump::new();
-        let mut witness = cs
-            .build_witness::<OptimalUnderlier128b>(&allocator, &statement)
-            .unwrap();
-
-        zcray_table.populate(trace, &mut witness).unwrap();
-
-        let compiled_cs = cs.compile(&statement).unwrap();
-        let witness = witness.into_multilinear_extension_index(&statement);
-
-        binius_core::constraint_system::validate::validate_witness(
-            &compiled_cs,
-            &statement.boundaries,
-            &witness,
-        )
-        .unwrap();
-
-        const LOG_INV_RATE: usize = 1;
-        const SECURITY_BITS: usize = 100;
-
-        // let proof = binius_core::constraint_system::prove::<
-        //     _,
-        //     CanonicalTowerFamily,
-        //     _,
-        //     Groestl256,
-        //     Groestl256ByteCompression,
-        //     HasherChallenger<Groestl256>,
-        //     _,
-        // >(
-        //     &compiled_cs,
-        //     LOG_INV_RATE,
-        //     SECURITY_BITS,
-        //     &statement.boundaries,
-        //     witness,
-        //     &DefaultEvaluationDomainFactory::default(),
-        //     &binius_hal::make_portable_backend(),
-        // )
-        // .unwrap();
-
-        // binius_core::constraint_system::verify::<
-        //     OptimalUnderlier128b,
-        //     CanonicalTowerFamily,
-        //     Groestl256,
-        //     Groestl256ByteCompression,
-        //     HasherChallenger<Groestl256>,
-        // >(
-        //     &compiled_cs,
-        //     LOG_INV_RATE,
-        //     SECURITY_BITS,
-        //     &statement.boundaries,
-        //     proof,
-        // )
-        // .unwrap();
+            table_sizes, // TODO: What should be here?
+        }
     }
 }
