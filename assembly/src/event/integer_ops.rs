@@ -646,8 +646,7 @@ mod tests {
         // Initialize inputs.
         vrom.set_u32(input1_addr.val() as u32, input1 as u32)
             .unwrap();
-        vrom.set_u32(input2_addr.val() as u32, input2 as u32)
-            .unwrap();
+        vrom.set_u32(input2_addr.val() as u32, input2).unwrap();
 
         let memory = Memory::new(prom, vrom);
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())

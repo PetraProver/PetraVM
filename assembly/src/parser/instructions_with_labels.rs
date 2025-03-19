@@ -21,6 +21,11 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         imm: Immediate,
     },
+    B32Mul {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     MviH {
         dst: SlotWithOffset,
         imm: Immediate,
@@ -252,6 +257,18 @@ pub fn get_prom_inst_from_inst_with_label(
         InstructionsWithLabels::And { dst, src1, src2 } => {
             let instruction = [
                 Opcode::And.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B32Mul.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
@@ -614,6 +631,9 @@ impl std::fmt::Display for InstructionsWithLabels {
                 } else {
                     write!(f, "{}:", label)
                 }
+            }
+            InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+                write!(f, "B32_MUL {dst} {src1} {src2}")
             }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
                 write!(f, "B32_MULI {dst} {src1} {imm}")

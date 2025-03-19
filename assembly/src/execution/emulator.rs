@@ -16,7 +16,7 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
             Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
@@ -274,6 +274,7 @@ impl Interpreter {
             Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Tailv => self.generate_tailv(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Calli => self.generate_calli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Callv => self.generate_callv(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::And => self.generate_and(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
@@ -558,6 +559,20 @@ impl Interpreter {
         let new_calli_event =
             CalliEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
         trace.calli.push(new_calli_event);
+
+        Ok(())
+    }
+
+    fn generate_callv(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        offset: BinaryField16b,
+        next_fp: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_callv_event = CallvEvent::generate_event(self, trace, offset, next_fp, field_pc)?;
+        trace.callv.push(new_callv_event);
 
         Ok(())
     }

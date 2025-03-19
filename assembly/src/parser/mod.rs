@@ -91,6 +91,14 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            // B32_ADDI is an alias for XORI.
+                            Rule::B32_ADDI_instr => {
+                                instrs.push(InstructionsWithLabels::XorI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::XORI_instr => {
                                 instrs.push(InstructionsWithLabels::XorI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -256,6 +264,10 @@ fn parse_line(
                             Rule::XOR_instr => {
                                 instrs.push(InstructionsWithLabels::Xor { dst, src1, src2 });
                             }
+                            // B32_ADD is an alias for XOR.
+                            Rule::B32_ADD_instr => {
+                                instrs.push(InstructionsWithLabels::Xor { dst, src1, src2 });
+                            }
                             Rule::ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Add { dst, src1, src2 });
                             }
@@ -270,6 +282,9 @@ fn parse_line(
                             }
                             Rule::SUB_instr => {
                                 instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
+                            }
+                            Rule::B32_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
                             }
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
