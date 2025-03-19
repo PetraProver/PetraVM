@@ -106,6 +106,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::ORI_instr => {
+                                instrs.push(InstructionsWithLabels::OrI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::SLTI_instr => {
                                 instrs.push(InstructionsWithLabels::Slti {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -257,6 +264,18 @@ fn parse_line(
                             Rule::AND_instr => {
                                 instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
                             }
+                            Rule::OR_instr => {
+                                instrs.push(InstructionsWithLabels::Or { dst, src1, src2 });
+                            }
+                            Rule::SLL_instr => {
+                                instrs.push(InstructionsWithLabels::Sll { dst, src1, src2 });
+                            }
+                            Rule::SRL_instr => {
+                                instrs.push(InstructionsWithLabels::Srl { dst, src1, src2 });
+                            }
+                            Rule::SRA_instr => {
+                                instrs.push(InstructionsWithLabels::Sra { dst, src1, src2 });
+                            }
                             Rule::SLT_instr => {
                                 instrs.push(InstructionsWithLabels::Slt { dst, src1, src2 });
                             }
@@ -271,6 +290,15 @@ fn parse_line(
                             }
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
+                            }
+                            Rule::B32_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
+                            }
+                            Rule::B128_ADD_instr => {
+                                instrs.push(InstructionsWithLabels::B128Add { dst, src1, src2 });
+                            }
+                            Rule::B128_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B128Mul { dst, src1, src2 });
                             }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
