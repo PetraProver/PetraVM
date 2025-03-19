@@ -8,7 +8,7 @@ use bytemuck::Pod;
 use crate::opcodes::Opcode;
 
 /// A gadget for reading the instruction from the prom and
-/// setting the next program counter
+/// setting the next program counter and timestamp
 pub(crate) struct CpuColumns {
     pub(crate) pc: Col<B32>,
     pub(crate) next_pc: Col<B32>, // Virtual
