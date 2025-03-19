@@ -273,11 +273,7 @@ impl CalliEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(target);
 
-        let return_pc = if pc == u32::MAX {
-            1
-        } else {
-            (field_pc * G).val()
-        };
+        let return_pc = (field_pc * G).val();
         trace.set_vrom_u32(next_fp_val, return_pc)?;
         trace.set_vrom_u32(next_fp_val + 1, fp)?;
 
@@ -378,11 +374,7 @@ impl CallvEvent {
         // Jump to the target,
         interpreter.jump_to(BinaryField32b::new(target));
 
-        let return_pc = if pc == u32::MAX {
-            1
-        } else {
-            (field_pc * G).val()
-        };
+        let return_pc = (field_pc * G).val();
         trace.set_vrom_u32(next_fp_val, return_pc)?;
         trace.set_vrom_u32(next_fp_val ^ 1, fp)?;
 
@@ -428,11 +420,15 @@ mod tests {
         // Slot 1: PC
         // Slot 2: Target
         // Slot 3: Next_fp
+        // Slot 4: unused_dst_addr (should never be written)
 
-        let ret_pc = 2;
+        let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
         let target_addr = 2.into();
         let next_fp_addr = 3.into();
+
+        let unaccessed_dst_addr = 4.into();
+        let unused_imm = 10.into();
 
         let instructions = vec![
             [
@@ -441,11 +437,18 @@ mod tests {
                 next_fp_addr,
                 zero,
             ],
+            // Code that should not be accessed.
+            [
+                Opcode::LDI.get_field_elt(),
+                unaccessed_dst_addr,
+                unused_imm,
+                zero,
+            ],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 4);
+        frames.insert(BinaryField32b::ONE, 5);
         frames.insert(target, 2);
 
         let prom = code_to_prom(&instructions);
@@ -462,8 +465,14 @@ mod tests {
         let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
+        // Check that there are no MOVE events that have yet to be executed.
         assert!(trace.vrom_pending_updates().is_empty());
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 4u32);
+        // Check that the next frame pointer was set correctly.
+        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        // Check that the load instruction was not executed.
+        assert!(trace
+            .get_vrom_u32(unaccessed_dst_addr.val() as u32)
+            .is_err());
     }
 
     #[test]
@@ -475,14 +484,20 @@ mod tests {
         // Slot 1: PC
         // Slot 2: Target
         // Slot 3: Next_fp
+        // Slot 4: dst
 
-        let ret_pc = 2;
+        let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
+        let ldi_pc = 2;
+        let ldi = G.pow(ldi_pc - 1);
         let target_addr = 2.into();
         let next_fp_addr = 3.into();
 
+        let dst_addr = 4.into();
+        let imm = 10.into();
+
         // CALLV jumps into a new frame at the RET opcode level. Then we return to the
-        // initial frame, at the RET opcode level.
+        // initial frame, at the LDI opcode level.
         let instructions = vec![
             [
                 Opcode::Callv.get_field_elt(),
@@ -490,11 +505,12 @@ mod tests {
                 next_fp_addr,
                 zero,
             ],
+            [Opcode::LDI.get_field_elt(), dst_addr, imm, zero],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 4);
+        frames.insert(BinaryField32b::ONE, 5);
         frames.insert(target, 2);
 
         let prom = code_to_prom(&instructions);
@@ -507,11 +523,17 @@ mod tests {
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
+        pc_field_to_int.insert(ldi, ldi_pc as u32);
         let memory = Memory::new(prom, vrom);
         let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
             .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 4u32);
+        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        // Check that the load instruction was executed.
+        assert_eq!(
+            trace.get_vrom_u32(dst_addr.val() as u32).unwrap(),
+            imm.val() as u32
+        );
     }
 }
