@@ -39,6 +39,10 @@ pub enum InstructionsWithLabels {
         dst: SlotWithOffset,
         src: Slot,
     },
+    MvvL {
+        dst: SlotWithOffset,
+        src: Slot,
+    },
     Taili {
         label: String,
         arg: Slot,
@@ -555,6 +559,17 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::MvvL { dst, src } => {
+            let instruction = [
+                Opcode::MVVL.get_field_elt(),
+                dst.get_slot_16bfield_val(),
+                dst.get_offset_field_val(),
+                src.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::SllI { dst, src1, imm } => {
             let instruction = [
                 Opcode::Slli.get_field_elt(),
@@ -790,6 +805,7 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
+            InstructionsWithLabels::MvvL { dst, src } => write!(f, "MVV.L {dst} {src}"),
             InstructionsWithLabels::Taili { label, arg } => write!(f, "TAILI {label} {arg}"),
             InstructionsWithLabels::Calli { label, arg } => write!(f, "CALLI {label} {arg}"),
             InstructionsWithLabels::Tailv { offset, arg } => write!(f, "TAILV {offset} {arg}"),

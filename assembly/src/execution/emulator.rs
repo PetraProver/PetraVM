@@ -353,6 +353,10 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_xori_event = XoriEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        if new_xori_event.imm != new_xori_event.src_val as u16 {
+            dbg!(new_xori_event.imm);
+            dbg!(new_xori_event.src_val);
+        }
         trace.xori.push(new_xori_event);
 
         Ok(())

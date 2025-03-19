@@ -177,7 +177,10 @@ fn parse_line(
                                 });
                             }
                             Rule::MVV_L_instr => {
-                                unimplemented!("MVV_L_instr not implemented");
+                                instrs.push(InstructionsWithLabels::MvvL {
+                                    dst: SlotWithOffset::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src.as_str())?,
+                                });
                             }
                             _ => {
                                 unimplemented!("mov_non_imm: {:?} not implemented", rule);

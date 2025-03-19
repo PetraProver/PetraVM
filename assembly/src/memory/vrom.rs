@@ -62,6 +62,7 @@ impl ValueRom {
     pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         if let Some(prev_val) = self.vrom.insert(index, value) {
             if prev_val != value {
+                dbg!(prev_val, value);
                 return Err(MemoryError::VromRewrite(index));
             }
         }

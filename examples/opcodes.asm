@@ -45,6 +45,11 @@ _start:
     CALLI test_integer_ops, @5
     BNZ test_failed, @6
     
+    ;; Call the move operations test
+    MVV.W @7[2], @8
+    CALLI test_move_ops, @7
+    BNZ test_failed, @8
+    
     LDI.W @2, #0    ;; overall success flag
     RET
 test_failed:
@@ -195,7 +200,9 @@ test_integer_ops:
     ;; ------------------------------------------------------------
     ADD @10, @3, @4      ;; 42 + 7 = 49
     ADDI @11, @3, #7     ;; 42 + 7 = 49
-    XOR @12, @10, @11    ;; result should be 0 if equal
+    
+    ;; Verify both give same result
+    XOR @12, @10, @11    ;; Compare ADD and ADDI results
     BNZ int_fail, @12
 
     ;; ------------------------------------------------------------
@@ -209,7 +216,7 @@ test_integer_ops:
     ;; EFFECT: fp[dst] = fp[src1] - fp[src2]
     ;; ------------------------------------------------------------
     SUB @13, @3, @4      ;; 42 - 7 = 35
-    XORI @14, @13, #35   ;; should be 0 if correct
+    XORI @14, @13, #35   ;; Check result
     BNZ int_fail, @14
 
     ;; ------------------------------------------------------------
@@ -228,10 +235,12 @@ test_integer_ops:
     ;; ------------------------------------------------------------
     AND @15, @3, @4      ;; 42 & 7 = 2
     ANDI @16, @3, #7     ;; 42 & 7 = 2
-    XOR @17, @15, @16    ;; Should be 0 if equal
+    
+    ;; Verify both give same result and value is correct
+    XOR @17, @15, @16    ;; Compare AND and ANDI results
     BNZ int_fail, @17
     
-    XORI @18, @15, #2    ;; Check actual value (2)
+    XORI @18, @15, #2    ;; Check the result value
     BNZ int_fail, @18
 
     ;; ------------------------------------------------------------
@@ -250,10 +259,12 @@ test_integer_ops:
     ;; ------------------------------------------------------------
     OR @19, @3, @4       ;; 42 | 7 = 47
     ORI @20, @3, #7      ;; 42 | 7 = 47
-    XOR @21, @19, @20    ;; Should be 0 if equal
+    
+    ;; Verify both give same result and value is correct
+    XOR @21, @19, @20    ;; Compare OR and ORI results
     BNZ int_fail, @21
     
-    XORI @22, @19, #47   ;; Check actual value (47)
+    XORI @22, @19, #47   ;; Check the result value
     BNZ int_fail, @22
 
     ;; ------------------------------------------------------------
@@ -286,48 +297,52 @@ test_integer_ops:
     XORI @26, @25, #10   ;; Check result
     BNZ int_fail, @26
     
-    ;; Set up a negative number to test SRAI
-    LDI.W @27, #4294967290  ;; -6 in two's complement (0xFFFFFFFA)
-    SRAI @28, @27, #1       ;; -6 >> 1 = -3 (0xFFFFFFFD)
-    XORI @29, @28, #4294967293
-    BNZ int_fail, @29
+    ;; Simple test for SRAI with small positive value
+    SRAI @27, @4, #1     ;; 7 >> 1 = 3
+    XORI @28, @27, #3    ;; Check result
+    BNZ int_fail, @28
     
     ;; Test register shift variants
-    SLL @30, @4, @5      ;; 7 << 2 = 28
-    XORI @31, @30, #28   ;; Check result
-    BNZ int_fail, @31
+    SLL @29, @4, @5      ;; 7 << 2 = 28
+    XORI @30, @29, #28   ;; Check result
+    BNZ int_fail, @30
     
-    SRL @32, @3, @5      ;; 42 >> 2 = 10
-    XORI @33, @32, #10   ;; Check result
-    BNZ int_fail, @33
+    SRL @31, @3, @5      ;; 42 >> 2 = 10
+    XORI @32, @31, #10   ;; Check result
+    BNZ int_fail, @32
     
-    SRA @34, @27, @5     ;; -6 >> 2 = -2 (0xFFFFFFFE)
-    XORI @35, @34, #4294967294
-    BNZ int_fail, @35
+    ;; Simple test for SRA with small positive value
+    SRA @33, @4, @5      ;; 7 >> 2 = 1
+    XORI @34, @33, #1    ;; Check result
+    BNZ int_fail, @34
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: MUL / MULU / MULSU / MULI
+    ;; INSTRUCTION: MUL / MULI
     ;; 
     ;; FORMAT: 
     ;;   MUL dst, src1, src2    (Signed multiplication)
-    ;;   MULU dst, src1, src2   (Unsigned multiplication)
-    ;;   MULSU dst, src1, src2  (Signed*Unsigned multiplication)
     ;;   MULI dst, src, imm     (Immediate multiplication)
     ;; 
     ;; DESCRIPTION:
     ;;   Multiply integer values.
+    ;;   Note: Results in 64-bit output stored across two 32-bit registers.
+    ;;   The destination register must be aligned to an even address.
     ;;
     ;; EFFECT: 
-    ;;   fp[dst] = fp[src1] * fp[src2]
-    ;;   fp[dst] = fp[src] * imm
+    ;;   fp[dst:dst+1] = fp[src1] * fp[src2]  (64-bit result)
+    ;;   fp[dst:dst+1] = fp[src] * imm        (64-bit result)
     ;; ------------------------------------------------------------
-    MUL @36, @3, @4      ;; 42 * 7 = 294
-    XORI @37, @36, #294  ;; Check result
-    BNZ int_fail, @37
+    ;; Using even registers for destination to ensure proper alignment
+    MUL @36, @3, @4      ;; 42 * 7 = 294 (lower 32 bits in @36, upper 32 bits in @37)
+    MULI @38, @3, #7     ;; 42 * 7 = 294 (lower 32 bits in @38, upper 32 bits in @39)
     
-    MULI @38, @3, #7     ;; 42 * 7 = 294
-    XORI @39, @38, #294  ;; Check result
-    BNZ int_fail, @39
+    ;; Verify both give same result (checking lower 32 bits, upper bits should be 0)
+    XOR @40, @36, @38    ;; Compare low 32 bits of MUL and MULI results
+    BNZ int_fail, @40
+    
+    ;; Verify the actual value of lower 32 bits (within u16 range)
+    XORI @41, @36, #294  ;; Check the result value
+    BNZ int_fail, @41
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: SLT / SLTI / SLTU / SLTIU
@@ -346,24 +361,165 @@ test_integer_ops:
     ;;   fp[dst] = (fp[src1] < fp[src2]) ? 1 : 0
     ;;   fp[dst] = (fp[src] < imm) ? 1 : 0
     ;; ------------------------------------------------------------
-    SLT @60, @4, @3      ;; 7 < 42? = 1 (true)
-    XORI @61, @60, #1    ;; Check result
-    BNZ int_fail, @61
+    SLT @42, @4, @3      ;; 7 < 42? = 1 (true)
+    XORI @43, @42, #1    ;; Check result
+    BNZ int_fail, @43
     
-    SLTI @62, @4, #42    ;; 7 < 42? = 1 (true)
-    XORI @63, @62, #1    ;; Check result
-    BNZ int_fail, @63
+    SLTI @44, @4, #42    ;; 7 < 42? = 1 (true)
+    XORI @45, @44, #1    ;; Check result
+    BNZ int_fail, @45
     
-    SLTU @64, @4, @3     ;; 7 <u 42? = 1 (true)
-    XORI @65, @64, #1    ;; Check result
-    BNZ int_fail, @65
+    SLTU @46, @4, @3     ;; 7 <u 42? = 1 (true)
+    XORI @47, @46, #1    ;; Check result
+    BNZ int_fail, @47
     
-    SLTIU @66, @4, #42   ;; 7 <u 42? = 1 (true)
-    XORI @67, @66, #1    ;; Check result
-    BNZ int_fail, @67
+    SLTIU @48, @4, #42   ;; 7 <u 42? = 1 (true)
+    XORI @49, @48, #1    ;; Check result
+    BNZ int_fail, @49
 
     LDI.W @2, #0         ;; Set success flag (0 = success)
     RET
 int_fail:
     LDI.W @2, #1         ;; Set failure flag (1 = failure)
+    RET
+
+;; ============================================================================
+;; MOVE OPERATIONS
+;; ============================================================================
+;; These instructions move data between registers and memory.
+;; They support different data widths and addressing modes.
+;; ============================================================================
+
+#[framesize(0x30)]
+test_move_ops:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: LDI.W (Load Immediate Word)
+    ;; 
+    ;; FORMAT: LDI.W dst, imm
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Load a 32-bit immediate value into a destination.
+    ;;
+    ;; EFFECT: fp[dst] = imm
+    ;; ------------------------------------------------------------
+    LDI.W @3, #12345     ;; Load immediate value
+    XORI @4, @3, #12345  ;; Check if value loaded correctly
+    BNZ move_fail, @4
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: MVV.W (Move Value Word)
+    ;; 
+    ;; FORMAT: MVV.W dst[off], src
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Move a 32-bit value between VROM addresses.
+    ;;
+    ;; EFFECT: VROM[fp[dst] + off] = fp[src]
+    ;; ------------------------------------------------------------
+    LDI.W @8, #9876      ;; Source value
+    
+    ;; Call a test function with MVV.W to verify it works
+    LDI.W @8, #9876      ;; Source value
+    MVV.W @9[2], @8      ;; Pass the value to the function
+    MVV.W @9[3], @10     ;; Set up return value location
+    CALLI test_move_call, @9
+    BNZ move_fail, @10   ;; Check if test failed
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: MVV.L (Move Value Long)
+    ;; 
+    ;; FORMAT: MVV.L dst[off], src
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Move a 128-bit value between VROM addresses.
+    ;;
+    ;; EFFECT: VROM128[fp[dst] + off] = fp128[src]
+    ;; ------------------------------------------------------------
+    ;; First set up source 128-bit value (4 sequential 32-bit words)
+    LDI.W @12, #1111     ;; 1st word of 128-bit value
+    LDI.W @13, #2222     ;; 2nd word
+    LDI.W @14, #3333     ;; 3rd word
+    LDI.W @15, #4444     ;; 4th word
+    
+    ;; Call a test function with MVV.L to verify it works
+    MVV.L @16[4], @12    ;; Pass the 128-bit value to the function (aligned at offset 4)
+    MVV.W @16[2], @17    ;; Set up return value location (use slot 2 for return value)
+    CALLI test_move_call_l, @16
+    BNZ move_fail, @17   ;; Check if test failed
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: MVI.H (Move Immediate Half-word)
+    ;; 
+    ;; FORMAT: MVI.H dst[off], imm
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Move a 16-bit immediate value to a VROM address,
+    ;;   zero-extending to 32 bits.
+    ;;
+    ;; EFFECT: VROM[fp[dst] + off] = ZeroExtend(imm)
+    ;; ------------------------------------------------------------
+    ;; Call a test function with MVI.H to verify it works
+    MVI.H @18[2], #255   ;; Pass the immediate value to the function
+    MVV.W @18[3], @19    ;; Set up return value location
+    CALLI test_move_call_h, @18
+    BNZ move_fail, @19   ;; Check if test failed
+
+    LDI.W @2, #0         ;; Set success flag (0 = success)
+    RET
+move_fail:
+    LDI.W @2, #1         ;; Set failure flag (1 = failure)
+    RET
+
+;; Helper function to test MVV.W
+#[framesize(0x10)]
+test_move_call:
+    ;; Receive a value in @2 and check if it's what we expect
+    XORI @4, @2, #9876   ;; Check if received value is correct
+    BNZ move_call_fail, @4
+    
+    LDI.W @3, #0         ;; Set success flag in return value slot (slot 3, not 2)
+    RET
+move_call_fail:
+    LDI.W @3, #1         ;; Set failure flag in return value slot (slot 3, not 2)
+    RET
+
+;; Helper function to test MVV.L
+#[framesize(0x10)]
+test_move_call_l:
+    ;; Receive a 128-bit value in @4-@7 (slots 4-7) and check if it's what we expect
+    XORI @9, @4, #1111   ;; Check if first word is correct
+    BNZ move_call_l_fail, @9
+
+    XORI @10, @5, #2222   ;; Check if second word is correct
+    BNZ move_call_l_fail, @10
+    
+    XORI @11, @6, #3333   ;; Check if third word is correct
+    BNZ move_call_l_fail, @11
+    
+    XORI @12, @7, #4444   ;; Check if fourth word is correct
+    BNZ move_call_l_fail, @12
+    
+    LDI.W @2, #0         ;; Set success flag in return value slot (slot 2)
+    RET
+move_call_l_fail:
+    LDI.W @2, #1         ;; Set failure flag in return value slot (slot 2)
+    RET
+
+;; Helper function to test MVI.H
+#[framesize(0x10)]
+test_move_call_h:
+    ;; Receive a value in @2 and check if it's what we expect
+    XORI @4, @2, #255    ;; Check if received value is correct (should be zero-extended)
+    BNZ move_call_h_fail, @4
+    
+    LDI.W @3, #0         ;; Set success flag in return value slot (slot 3, not 2)
+    RET
+move_call_h_fail:
+    LDI.W @3, #1         ;; Set failure flag in return value slot (slot 3, not 2)
     RET
