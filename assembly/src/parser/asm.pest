@@ -1,5 +1,5 @@
 spaces     = _{ " " | "\t" }
-seperator  = _{ spaces* ~ "," ~ spaces* }
+separator  = _{ spaces* ~ "," ~ spaces* }
 WHITESPACE = _{ spaces | NEWLINE }
 
 XOR_instr      = { "XOR" }
@@ -39,7 +39,6 @@ LH_instr       = { "LH" }
 LHU_instr      = { "LHU" }
 SB_instr       = { "SB" }
 SH_instr       = { "SH" }
-MVV_B_instr    = { "MVV.B" }
 MVV_W_instr    = { "MVV.W" }
 MVV_L_instr    = { "MVV.L" }
 MVI_H_instr    = { "MVI.H" }
@@ -61,24 +60,24 @@ binary_non_imm_instrs = ${
   | B128_MUL_instr
   | ADD_instr
   | SUB_instr
-  | SLT_instr
   | SLTU_instr
+  | SLT_instr
   | AND_instr
   | OR_instr
   | SLL_instr
   | SRL_instr
   | SRA_instr
-  | MUL_instr
-  | MULU_instr
   | MULSU_instr
+  | MULU_instr
+  | MUL_instr
 }
 binary_imm_instrs     = ${
     XORI_instr
   | B32_ADDI_instr
   | B32_MULI_instr
   | ADDI_instr
-  | SLTI_instr
   | SLTIU_instr
+  | SLTI_instr
   | ANDI_instr
   | ORI_instr
   | SLLI_instr
@@ -86,8 +85,8 @@ binary_imm_instrs     = ${
   | SRAI_instr
   | MULI_instr
 }
-load_store_instrs     = ${ LW_instr | SW_instr | LB_instr | LBU_instr | LH_instr | LHU_instr | SB_instr | SH_instr }
-mov_non_imm_instrs    = ${ MVV_B_instr | MVV_W_instr | MVV_L_instr }
+load_store_instrs     = ${ LW_instr | SW_instr | LBU_instr | LB_instr | LHU_instr | LH_instr | SB_instr | SH_instr }
+mov_non_imm_instrs    = ${ MVV_W_instr | MVV_L_instr }
 mov_imm_instr         = ${ MVI_H_instr }
 load_imm_instr        = ${ LDI_W_instr }
 nullary_instrs        = ${ RET_instr }
@@ -100,6 +99,9 @@ jump_with_op_instrs_non_imm = ${ CALLV_instr | TAILV_instr }
 
 label_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHA | "_" | ASCII_DIGIT)* }
 label      = ${ label_name ~ ":" }
+
+frame_size = @{ "0x" ~ (ASCII_HEX_DIGIT)+ }
+frame_size_annotation = { "#[framesize(" ~ frame_size ~ ")]" }
 
 COMMENT = _{ ";;" ~ (!NEWLINE ~ ANY)* }
 
@@ -114,14 +116,14 @@ slot_with_offset = @{ slot ~ "[" ~ slot_or_offset ~ "]" }
 
 nullary              = ${ nullary_instrs }
 simple_jump          = ${ simple_jump_instr ~ spaces+ ~ (label_name | slot) }
-jump_with_op_imm     = ${ jump_with_op_instrs_imm ~ spaces+ ~ label_name ~ seperator ~ slot }
-jump_with_op_non_imm = ${ jump_with_op_instrs_non_imm ~ spaces+ ~ slot ~ seperator ~ slot }
-binary_imm           = ${ binary_imm_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ immediate }
-binary_non_imm       = ${ binary_non_imm_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ slot }
-mov_imm              = ${ mov_imm_instr ~ spaces+ ~ slot_with_offset ~ seperator ~ immediate }
-mov_non_imm          = ${ mov_non_imm_instrs ~ spaces+ ~ slot_with_offset ~ seperator ~ slot }
-load_imm             = ${ load_imm_instr ~ spaces+ ~ slot ~ seperator ~ immediate }
-load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ seperator ~ slot ~ seperator ~ immediate }
+jump_with_op_imm     = ${ jump_with_op_instrs_imm ~ spaces+ ~ label_name ~ separator ~ slot }
+jump_with_op_non_imm = ${ jump_with_op_instrs_non_imm ~ spaces+ ~ slot ~ separator ~ slot }
+binary_imm           = ${ binary_imm_instrs ~ spaces+ ~ slot ~ separator ~ slot ~ separator ~ immediate }
+binary_non_imm       = ${ binary_non_imm_instrs ~ spaces+ ~ slot ~ separator ~ slot ~ separator ~ slot }
+mov_imm              = ${ mov_imm_instr ~ spaces+ ~ slot_with_offset ~ separator ~ immediate }
+mov_non_imm          = ${ mov_non_imm_instrs ~ spaces+ ~ slot_with_offset ~ separator ~ slot }
+load_imm             = ${ load_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
+load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ separator ~ slot ~ separator ~ immediate }
 
 instruction = {
     nullary
@@ -136,11 +138,11 @@ instruction = {
   | load_store
 }
 
-line = { (((label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }
+line = { (((frame_size_annotation? ~ label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }
 
-start_label = { label ~ instruction ~ COMMENT? }
+start_label = { frame_size_annotation? ~ label ~ instruction ~ COMMENT? }
 
-// Program must have atleast one label and an instruction
+// Program must have at least one label and an instruction
 program = {
     SOI ~ start_label ~ line* ~ EOI
 }

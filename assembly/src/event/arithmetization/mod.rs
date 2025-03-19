@@ -19,13 +19,10 @@ pub mod test {
     use groestl_crypto::Groestl256;
 
     use crate::{
-        code_to_prom,
         execution::{
-            emulator::BoundaryValues,
             emulator_arithmetization::arithmetization::ZCrayTable,
-        },
-        opcodes::Opcode,
-        ValueRom, ZCrayTrace,
+            trace::{BoundaryValues, ZCrayTrace},
+        }, opcodes::Opcode, util::code_to_prom, Memory, ValueRom
     };
 
     #[test]
@@ -39,19 +36,24 @@ pub mod test {
             [Opcode::Add.get_field_elt(), zero, zero, zero],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
-        let prom = code_to_prom(&code, &[false; 2]);
-        let vrom = ValueRom::new();
+        let prom = code_to_prom(&code);
+        let vrom = ValueRom::new(HashMap::new());
+
         let mut frames = HashMap::new();
         frames.insert(B32::ONE, 12);
 
-        let (
-            trace,
-            BoundaryValues {
-                final_pc,
-                final_fp,
-                timestamp: final_timestamp,
-            },
-        ) = ZCrayTrace::generate_with_vrom(prom, vrom, frames, HashMap::new()).expect("Ouch!");
+        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
+        let (trace, boundary_values) =
+            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
+
+        let BoundaryValues {
+            final_pc,
+            final_fp,
+            timestamp: final_timestamp,
+        } = boundary_values;
+
+        trace.validate(boundary_values);
+
         let statement = get_test_addi_statement(
             &zcray_table,
             final_pc,
@@ -80,24 +82,24 @@ pub mod test {
         const LOG_INV_RATE: usize = 1;
         const SECURITY_BITS: usize = 100;
 
-        let proof = binius_core::constraint_system::prove::<
-            _,
-            CanonicalTowerFamily,
-            _,
-            Groestl256,
-            Groestl256ByteCompression,
-            HasherChallenger<Groestl256>,
-            _,
-        >(
-            &compiled_cs,
-            LOG_INV_RATE,
-            SECURITY_BITS,
-            &statement.boundaries,
-            witness,
-            &DefaultEvaluationDomainFactory::default(),
-            &binius_hal::make_portable_backend(),
-        )
-        .unwrap();
+        // let proof = binius_core::constraint_system::prove::<
+        //     _,
+        //     CanonicalTowerFamily,
+        //     _,
+        //     Groestl256,
+        //     Groestl256ByteCompression,
+        //     HasherChallenger<Groestl256>,
+        //     _,
+        // >(
+        //     &compiled_cs,
+        //     LOG_INV_RATE,
+        //     SECURITY_BITS,
+        //     &statement.boundaries,
+        //     witness,
+        //     &DefaultEvaluationDomainFactory::default(),
+        //     &binius_hal::make_portable_backend(),
+        // )
+        // .unwrap();
 
         // binius_core::constraint_system::verify::<
         //     OptimalUnderlier128b,

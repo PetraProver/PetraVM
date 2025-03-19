@@ -3,39 +3,27 @@
 //! Each event represents an instruction executed by the VM, such as arithmetic
 //! operations, branching, or function calls.
 
-use std::{cmp::{max, min}, fmt::Debug};
+use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{
-    execution::emulator::{InterpreterChannels, InterpreterError, InterpreterTables},
-    ZCrayTrace,
-};
+use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
 
 pub(crate) mod b128;
 pub(crate) mod b32;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod integer_ops;
+pub(crate) mod jump;
 pub(crate) mod mv;
 pub(crate) mod ret;
-pub(crate) mod sli;
+pub(crate) mod shift;
 
 /// An `Event` represents an instruction that can be executed by the VM.
-pub trait Event: Sized + Default + Clone {
-    const MIN_TRACE_LEN: usize = 8;
+pub trait Event {
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
-
-    /// Pads a vec of events to the next power of two.
-    fn pad(col: &mut Vec<Self>) {
-        let len = col.len();
-        let next_power_of_two = max(len.next_power_of_two(), Self::MIN_TRACE_LEN);
-        let padding_rows = next_power_of_two - len;
-        col.append(&mut vec![Self::default(); padding_rows]);
-
-    }
 }
 pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
     fn operation(left: Self::Left, right: Self::Right) -> Self::Output;
@@ -76,14 +64,14 @@ pub(crate) trait ImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::execution::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             interpreter.timestamp,
@@ -95,7 +83,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }
@@ -118,15 +106,15 @@ pub(crate) trait NonImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::execution::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = interpreter.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let src2_val = interpreter.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src1_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
+        let src2_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             interpreter.timestamp,
@@ -139,7 +127,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         interpreter.incr_pc();
         Ok(event)
     }
@@ -322,12 +310,12 @@ macro_rules! impl_event_for_binary_operation {
         impl $crate::event::model::Event for $ty {
             fn fire(
                 &self,
-                channels: &mut $crate::execution::emulator::InterpreterChannels,
-                _tables: &$crate::execution::emulator::InterpreterTables,
+                channels: &mut $crate::execution::InterpreterChannels,
+                _tables: &$crate::execution::InterpreterTables,
             ) {
                 use $crate::event::model::{LeftOp, OutputOp, RigthOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
-                fire_non_jump_event!(self, channels);
+                $crate::fire_non_jump_event!(self, channels);
             }
         }
     };
@@ -340,7 +328,7 @@ macro_rules! fire_non_jump_event {
             .state_channel
             .pull(($intrp.pc, $intrp.fp, $intrp.timestamp));
         $channels.state_channel.push((
-            $intrp.pc * $crate::execution::emulator::G,
+            $intrp.pc * $crate::execution::G,
             $intrp.fp,
             $intrp.timestamp + 1,
         ));

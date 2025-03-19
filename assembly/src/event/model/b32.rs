@@ -2,9 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::{BinaryOperation, Event};
 use crate::{
-    execution::emulator::InterpreterError, fire_non_jump_event, impl_32b_immediate_binary_operation,
-    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
-    ZCrayTrace, G,
+    execution::{InterpreterError, ZCrayTrace, G},
+    impl_32b_immediate_binary_operation, impl_binary_operation, impl_event_for_binary_operation,
+    impl_immediate_binary_operation,
 };
 
 /// Event for XOR.
@@ -224,14 +224,14 @@ pub(crate) struct B32MuliEvent {
 
 impl B32MuliEvent {
     pub fn generate_event(
-        interpreter: &mut crate::execution::emulator::Interpreter,
+        interpreter: &mut crate::execution::Interpreter,
         trace: &mut ZCrayTrace,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField32b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = interpreter.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         debug_assert!(field_pc == G.pow(interpreter.pc as u64 - 1));
         let event = Self::new(
@@ -244,7 +244,7 @@ impl B32MuliEvent {
             src_val,
             imm.val(),
         );
-        interpreter.set_vrom(trace, interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
         // The instruction is over two rows in the PROM.
         interpreter.incr_pc();
         interpreter.incr_pc();
@@ -262,8 +262,8 @@ impl BinaryOperation for B32MuliEvent {
 impl Event for B32MuliEvent {
     fn fire(
         &self,
-        channels: &mut crate::execution::emulator::InterpreterChannels,
-        _tables: &crate::execution::emulator::InterpreterTables,
+        channels: &mut crate::execution::InterpreterChannels,
+        _tables: &crate::execution::InterpreterTables,
     ) {
         assert_eq!(
             self.dst_val,

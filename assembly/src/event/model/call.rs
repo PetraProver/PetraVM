@@ -1,9 +1,10 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use crate::{
-    execution::emulator::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     event::model::Event,
-    ZCrayTrace,
+    execution::{
+        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+    },
 };
 
 /// Event for TAILI.
@@ -59,9 +60,9 @@ impl TailiEvent {
         next_fp_val: u32,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 1)?;
-        interpreter.set_vrom(trace, interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
+        trace.set_vrom_u32(interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
 
         interpreter.handles_call_moves(trace)?;
 
@@ -72,8 +73,8 @@ impl TailiEvent {
         interpreter.fp = next_fp_val;
         interpreter.jump_to(target);
 
-        interpreter.set_vrom(trace, next_fp_val, return_addr)?;
-        interpreter.set_vrom(trace, next_fp_val + 1, old_fp_val)?;
+        trace.set_vrom_u32(next_fp_val, return_addr)?;
+        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,
@@ -156,15 +157,19 @@ impl TailVEvent {
         next_fp: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = interpreter.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = interpreter.get_vrom_u32(interpreter.fp ^ 4)?;
+        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
+        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
 
-        let next_fp_addr = interpreter.fp ^ offset.val() as u32;
-        let target = interpreter.get_vrom_u32(next_fp_addr)?;
+        // Address where the value of the next frame pointer is stored.
+        let next_fp_addr = interpreter.fp ^ next_fp.val() as u32;
 
-        // We allocate a frame for the call.
-        let next_fp_val = interpreter.allocate_new_frame(target.into())?;
-        interpreter.set_vrom(trace, next_fp_addr, next_fp_val)?;
+        // Get the target address, to which we should jump.
+        let target_addr = interpreter.fp ^ offset.val() as u32;
+        let target = trace.get_vrom_u32(target_addr)?;
+
+        // Allocate a frame for the call and set the value of the next frame pointer.
+        let next_fp_val = interpreter.allocate_new_frame(trace, target.into())?;
+        trace.set_vrom_u32(next_fp_addr, next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
@@ -176,10 +181,11 @@ impl TailVEvent {
         let timestamp = interpreter.timestamp;
 
         interpreter.fp = next_fp_val;
-        interpreter.jump_to(BinaryField32b::new(interpreter.fp ^ offset.val() as u32));
+        // Jump to the target,
+        interpreter.jump_to(BinaryField32b::new(target));
 
-        interpreter.set_vrom(trace, next_fp_val, return_addr)?;
-        interpreter.set_vrom(trace, next_fp_val + 1, old_fp_val)?;
+        trace.set_vrom_u32(next_fp_val, return_addr)?;
+        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
 
         Ok(Self {
             pc: field_pc,
@@ -205,5 +211,152 @@ impl Event for TailVEvent {
             self.next_fp_val,
             self.timestamp + 1,
         ));
+    }
+}
+
+/// Event for CALLI.
+///
+/// Performs a function call to the target address given by an immediate.
+///
+/// Logic:
+///   1. [FP[next_fp] + 0] = PC + 1 (return address)
+///   2. [FP[next_fp] + 1] = FP (old frame pointer)
+///   3. FP = FP[next_fp]
+///   4. PC = target
+
+#[derive(Debug, Clone)]
+pub(crate) struct CalliEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    target: u32,
+    next_fp: u16,
+    next_fp_val: u32,
+}
+
+impl CalliEvent {
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        pc: BinaryField32b,
+        fp: u32,
+        timestamp: u32,
+        target: u32,
+        next_fp: u16,
+        next_fp_val: u32,
+    ) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            target,
+            next_fp,
+            next_fp_val,
+        }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        target: BinaryField32b,
+        next_fp: BinaryField16b,
+        next_fp_val: u32,
+        field_pc: BinaryField32b,
+    ) -> Result<Self, InterpreterError> {
+        trace.set_vrom_u32(interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+
+        interpreter.handles_call_moves(trace)?;
+
+        let pc = interpreter.pc;
+        let fp = interpreter.fp;
+        let timestamp = interpreter.timestamp;
+
+        interpreter.fp = next_fp_val;
+        interpreter.jump_to(target);
+
+        let return_pc = if pc == u32::MAX {
+            1
+        } else {
+            (field_pc * G).val()
+        };
+        trace.set_vrom_u32(next_fp_val, return_pc)?;
+        trace.set_vrom_u32(next_fp_val + 1, fp)?;
+
+        Ok(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            target: target.val(),
+            next_fp: next_fp.val(),
+            next_fp_val,
+        })
+    }
+}
+
+impl Event for CalliEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels.state_channel.push((
+            BinaryField32b::new(self.target),
+            self.next_fp_val,
+            self.timestamp + 1,
+        ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+
+    use crate::{execution::G, opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+
+    #[test]
+    fn test_tailv() {
+        let zero = BinaryField16b::zero();
+
+        // Frame:
+        // Slot 0: FP
+        // Slot 1: PC
+        // Slot 2: Target
+        // Slot 3: Next_fp
+
+        let ret_pc = 2;
+        let target = G.pow(ret_pc - 1);
+        let target_addr = 2.into();
+        let next_fp_addr = 3.into();
+
+        let instructions = vec![
+            [
+                Opcode::Tailv.get_field_elt(),
+                target_addr,
+                next_fp_addr,
+                zero,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 4);
+        frames.insert(target, 2);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Initialize VROM values: offsets 0, 1, and source value at offset 2.
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        vrom.set_u32(target_addr.val() as u32, target.val())
+            .unwrap();
+
+        let mut pc_field_to_int = HashMap::new();
+        pc_field_to_int.insert(target, ret_pc as u32);
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
+            .expect("Trace generation should not fail.");
+
+        assert!(trace.vrom_pending_updates().is_empty());
+        assert_eq!(trace.get_vrom_u32(3).unwrap(), 4u32);
     }
 }

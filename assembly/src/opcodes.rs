@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use binius_field::BinaryField16b;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
@@ -16,29 +14,29 @@ pub enum Opcode {
     Andi = 0x04,
     Srli = 0x05,
     Slli = 0x06,
+    Srai = 0x22,
     Addi = 0x07,
     Add = 0x08,
     Muli = 0x09,
+    Mulu = 0x23,
+    Mulsu = 0x24,
+    Mul = 0x1f,
     B32Muli = 0x0a,
     B32Mul = 0x10,
     // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
-    // Srai, // TODO
     // Slti, // TODO
-    // Sltiu, // TODO
-    // Sub, // TODO
     // Slt, // TODO
-    // Sltu, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
-    // Sll, // TODO
-    // Srl, // TODO
-    // Sra, // TODO
-    // Mul, // TODO
-    // Mulu, // TODO
-    // Mulsu, // TODO
+    Sub = 0x19,
+    Sltu = 0x1a,
+    Sltiu = 0x1b,
+    Sll = 0x1c,
+    Srl = 0x1d,
+    Sra = 0x1e,
 
     // Move instructions
     MVVW = 0x0d,
@@ -47,26 +45,29 @@ pub enum Opcode {
     MVVL = 0x11,
 
     // Jump instructions
-    // Jumpi, // TODO
-    // JumpV, // TODO
-    // Calli, // TODO,
+    Jumpi = 0x20,
+    Jumpv = 0x21,
     // CallV, // TODO,
     Taili = 0x0c,
-    TailV = 0x12,
+    Tailv = 0x12,
+    Calli = 0x18,
     Ret = 0x0b,
 
     // Branch instructions
     #[default]
     Bnz = 0x01,
     // Memory Access (RAM) instructions
-    // LW, // TODO
-    // SW, // TODO
-    // LB, // TODO, low-priority, see specs
-    // LBU, // TODO, low-priority, see specs
-    // LH, // TODO, low-priority, see specs
-    // LHU, // TODO, low-priority, see specs
-    // SB, // TODO, low-priority, see specs
-    // SU, // TODO, low-priority, see specs
+    // TODO: optional ISA extension for future implementation
+    // Not needed for recursion program or first version of zCrayVM
+    // Design note: Considering 32-bit word-sized memory instead of byte-addressed memory
+    // LW,
+    // SW,
+    // LB,
+    // LBU,
+    // LH,
+    // LHU,
+    // SB,
+    // SH,
 }
 
 impl Opcode {

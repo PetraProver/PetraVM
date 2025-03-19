@@ -28,13 +28,12 @@ use groestl_crypto::Groestl256;
 
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction};
 use crate::{
-    code_to_prom,
     execution::{
-        emulator::{BoundaryValues, InterpreterChannels},
-        emulator_arithmetization::arithmetization::ZCrayTable,
+        emulator::InterpreterChannels, emulator_arithmetization::arithmetization::ZCrayTable,
+        trace::{BoundaryValues, ZCrayTrace},
     },
     opcodes::Opcode,
-    ValueRom, ZCrayTrace,
+    ValueRom,
 };
 
 pub struct AddTable {

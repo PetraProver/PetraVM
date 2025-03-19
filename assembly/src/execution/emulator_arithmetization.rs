@@ -8,7 +8,7 @@ pub mod arithmetization {
 
     use crate::{
         event::arithmetization::{integer_ops::AddTable, ret::RetTable},
-        vrom, ZCrayTrace,
+        ZCrayTrace,
     };
 
     pub struct ZCrayTable {
@@ -39,8 +39,8 @@ pub mod arithmetization {
             trace: ZCrayTrace,
             witness: &mut WitnessIndex<U>,
         ) -> Result<(), anyhow::Error> {
-            println!( "add: {:?}", trace.add);
-            println!("ret:{:?}", trace.ret);  
+            println!("add: {:?}", trace.add);
+            println!("ret:{:?}", trace.ret);
             witness.fill_table_sequential(&self.add_table, &trace.add)?;
             witness.fill_table_sequential(&self.ret_table, &trace.ret)?;
             Ok(())

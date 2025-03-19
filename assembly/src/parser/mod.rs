@@ -2,11 +2,13 @@ use std::str::FromStr;
 
 use pest::{iterators::Pair, iterators::Pairs, Parser};
 
-use crate::{
-    instruction_args::{Immediate, Slot, SlotWithOffset},
-    instructions_with_labels::{Error, InstructionsWithLabels},
-};
+mod instruction_args;
+mod instructions_with_labels;
 mod tests;
+
+use instruction_args::{Immediate, Slot, SlotWithOffset};
+pub use instructions_with_labels::get_full_prom_and_labels;
+pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels, LabelsFrameSizes};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]
@@ -17,18 +19,33 @@ fn get_first_inner<'a>(pair: Pair<'a, Rule>, msg: &str) -> Pair<'a, Rule> {
     pair.into_inner().next().expect(msg)
 }
 
-// A line may have a label and an instruction
+// A line may have a frame size annotation, a label and an instruction
 fn parse_line(
     instrs: &mut Vec<InstructionsWithLabels>,
     pairs: Pairs<'_, Rule>,
 ) -> Result<(), Error> {
+    let mut current_frame_size: Option<u16> = None;
+
     for instr_or_label in pairs {
         match instr_or_label.as_rule() {
+            Rule::frame_size_annotation => {
+                let frame_size_hex =
+                    get_first_inner(instr_or_label, "frame_size_annotation must have frame_size");
+                let hex_str = frame_size_hex.as_str().trim_start_matches("0x");
+                let frame_size = u16::from_str_radix(hex_str, 16).map_err(|_| {
+                    Error::BadArgument(instruction_args::BadArgumentError::FrameSize(
+                        hex_str.to_string(),
+                    ))
+                })?;
+                current_frame_size = Some(frame_size);
+            }
             Rule::label => {
                 let label_name = get_first_inner(instr_or_label, "label must have label_name");
                 instrs.push(InstructionsWithLabels::Label(
                     label_name.as_span().as_str().to_string(),
+                    current_frame_size, // Include the frame size with the label
                 ));
+                current_frame_size = None; // Reset after using it
             }
             Rule::instruction => {
                 let instruction = get_first_inner(instr_or_label, "Instruction has inner tokens");
@@ -95,6 +112,14 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SLTIU_instr => {
+                                instrs.push(InstructionsWithLabels::Sltiu {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
+
                             Rule::MULI_instr => {
                                 instrs.push(InstructionsWithLabels::MulI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -116,6 +141,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SRAI_instr => {
+                                instrs.push(InstructionsWithLabels::SraI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             _ => {
                                 unimplemented!("binary_imm: {:?} not implemented", rule);
                             }
@@ -131,9 +163,6 @@ fn parse_line(
                         let dst = mov_non_imm.next().expect("mov_non_imm has dst");
                         let src = mov_non_imm.next().expect("mov_non_imm has src");
                         match rule {
-                            Rule::MVV_B_instr => {
-                                unimplemented!("MVV_B_instr not implemented");
-                            }
                             Rule::MVV_W_instr => {
                                 instrs.push(InstructionsWithLabels::MvvW {
                                     dst: SlotWithOffset::from_str(dst.as_str())?,
@@ -164,6 +193,12 @@ fn parse_line(
                         match rule {
                             Rule::TAILI_instr => {
                                 instrs.push(InstructionsWithLabels::Taili {
+                                    label: dst.as_str().to_string(),
+                                    arg: Slot::from_str(imm.as_str())?,
+                                });
+                            }
+                            Rule::CALLI_instr => {
+                                instrs.push(InstructionsWithLabels::Calli {
                                     label: dst.as_str().to_string(),
                                     arg: Slot::from_str(imm.as_str())?,
                                 });
@@ -218,6 +253,18 @@ fn parse_line(
                             Rule::ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Add { dst, src1, src2 });
                             }
+                            Rule::AND_instr => {
+                                instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
+                            }
+                            Rule::SLTU_instr => {
+                                instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
+                            }
+                            Rule::SUB_instr => {
+                                instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
+                            }
+                            Rule::MUL_instr => {
+                                instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
                             }
@@ -231,6 +278,30 @@ fn parse_line(
                         match rule {
                             Rule::RET_instr => {
                                 instrs.push(InstructionsWithLabels::Ret);
+                            }
+                            _ => unreachable!("All nullary instructions are implemented"),
+                        }
+                    }
+                    Rule::simple_jump => {
+                        let mut simple_jump = instruction.into_inner();
+                        let rule =
+                            get_first_inner(simple_jump.next().unwrap(), "jump has instruction")
+                                .as_rule();
+                        let dst = simple_jump.next().expect("jump_with_op_instrs_imm has dst");
+
+                        match rule {
+                            Rule::J_instr => {
+                                let first_char =
+                                    dst.as_str().chars().next().expect("simple jump as target");
+                                if first_char == '_' || first_char.is_ascii() {
+                                    instrs.push(InstructionsWithLabels::Jumpi {
+                                        label: dst.as_str().to_string(),
+                                    });
+                                } else {
+                                    instrs.push(InstructionsWithLabels::Jumpv {
+                                        offset: Slot::from_str(dst.as_str())?,
+                                    })
+                                }
                             }
                             _ => unreachable!("All nullary instructions are implemented"),
                         }
