@@ -540,9 +540,6 @@ fn get_labels(
                 if labels.insert(s.clone(), field_pc).is_some() {
                     return Err(format!("Label {} already exists.", s));
                 }
-                pc_field_to_int.insert(field_pc, pc);
-                // We add next PC to the map, as it is also an address that can be jumped to.
-                pc_field_to_int.insert(field_pc * G, pc + 1);
 
                 // If we have a frame size for this label, add it to our frame_sizes map
                 if let Some(size) = frame_size {
@@ -556,6 +553,7 @@ fn get_labels(
                 pc = incr_pc(pc);
             }
         }
+        pc_field_to_int.insert(field_pc, pc);
     }
     Ok((labels, pc_field_to_int, frame_sizes))
 }
