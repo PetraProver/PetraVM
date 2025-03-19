@@ -173,20 +173,20 @@ mod test_parser {
                 get_binary_slot(5),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  0G: XORI 5 2 1
+            ], //  0G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
                 get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ 5 case_recurse
+            ], //  1G: BNZ @5, case_recurse
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
                 get_binary_slot(3),
                 get_binary_slot(2),
                 zero,
-            ], //  2G: XORI 3 2 zero
+            ], //  2G: XORI @3, @2, #0
             [Opcode::Ret.get_field_elt(), zero, zero, zero], //  3G: RET
             // case_recurse:
             [
@@ -194,26 +194,26 @@ mod test_parser {
                 get_binary_slot(6),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], // 4G: ANDI 6 2 1
+            ], // 4G: ANDI @6, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
                 get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ 6 case_odd
+            ], //  5G: BNZ @6, case_odd
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
-                get_binary_slot(8),
+                get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI 8 2 1
+            ], //  6G: SRLI @7, @2, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
-                get_binary_slot(8),
-            ], //  7G: MVV.W @4[2], @8
+                get_binary_slot(7),
+            ], //  7G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
@@ -225,26 +225,26 @@ mod test_parser {
                 collatz,
                 zero,
                 get_binary_slot(4),
-            ], // 9G: TAILI collatz 4
+            ], // 9G: TAILI collatz, @4
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
-                get_binary_slot(7),
+                get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI 7 2 3
+            ], //  10G: MULI @8, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
-                get_binary_slot(8),
                 get_binary_slot(7),
+                get_binary_slot(8),
                 get_binary_slot(1),
-            ], //  11G: ADDI 8 7 1
+            ], //  11G: ADDI @7, @8, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
-                get_binary_slot(8),
-            ], //  12G: MVV.W @4[2], @8
+                get_binary_slot(7),
+            ], //  12G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
@@ -256,7 +256,7 @@ mod test_parser {
                 collatz,
                 zero,
                 get_binary_slot(4),
-            ], //  14G: TAILI collatz 4
+            ], //  14G: TAILI collatz, @4
         ];
 
         let expected_prom = code_to_prom(&expected_prom);

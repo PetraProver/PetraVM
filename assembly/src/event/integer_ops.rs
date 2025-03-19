@@ -85,7 +85,7 @@ pub(crate) struct AddiEvent {
 
 impl BinaryOperation for AddiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new(val.val() + imm.val() as u32)
+        BinaryField32b::new((val.val() as i32).wrapping_add(imm.val() as i32) as u32)
     }
 }
 
@@ -104,7 +104,7 @@ impl AddiEvent {
         let fp = interpreter.fp;
         let src_val = trace.get_vrom_u32(fp ^ src.val() as u32)?;
         // The following addition is checked thanks to the ADD32 table.
-        let dst_val = src_val.wrapping_add(imm.val() as u32);
+        let dst_val = AddiEvent::operation(src_val.into(), imm).val();
         trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
@@ -145,7 +145,7 @@ pub(crate) struct AddEvent {
 
 impl BinaryOperation for AddEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val().wrapping_add(val2.val()))
+        BinaryField32b::new((val1.val() as i32).wrapping_add(val2.val() as i32) as u32)
     }
 }
 
@@ -162,18 +162,10 @@ pub(crate) struct MuliEvent {
     fp: u32,
     timestamp: u32,
     dst: u16,
-    dst_val: u32,
+    dst_val: u64,
     src: u16,
     pub(crate) src_val: u32,
     imm: u16,
-    // Auxiliary commitments
-    pub(crate) aux: [u32; 4],
-    // Stores aux[0] + aux[1] << 8.
-    pub(crate) sum0: u64,
-    // Stores aux[2] + aux[3] << 8.
-    // Note: we don't need the third  sum value (equal to sum0 + sum1 <<8) because it is equal to
-    // DST_VAL.
-    pub(crate) sum1: u64,
 }
 
 impl MuliEvent {
@@ -183,13 +175,10 @@ impl MuliEvent {
         fp: u32,
         timestamp: u32,
         dst: u16,
-        dst_val: u32,
+        dst_val: u64,
         src: u16,
         src_val: u32,
         imm: u16,
-        aux: [u32; 4],
-        sum0: u64,
-        sum1: u64,
     ) -> Self {
         Self {
             pc,
@@ -200,9 +189,6 @@ impl MuliEvent {
             src,
             src_val,
             imm,
-            aux,
-            sum0,
-            sum1,
         }
     }
 
@@ -218,12 +204,9 @@ impl MuliEvent {
         let src_val = trace.get_vrom_u32(fp ^ src.val() as u32)?;
 
         let imm_val = imm.val();
-        let dst_val = src_val * imm_val as u32; // TODO: shouldn't the result be u64, stored over two slots?
+        let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64; // TODO: shouldn't the result be u64, stored over two slots?
 
-        trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
-
-        let (aux, sums, _) =
-            schoolbook_multiplication_intermediate_sums::<u16>(src_val, imm_val, dst_val);
+        trace.set_vrom_u64(fp ^ dst.val() as u32, dst_val)?;
 
         let pc = interpreter.pc;
         let timestamp = interpreter.timestamp;
@@ -237,30 +220,31 @@ impl MuliEvent {
             src: src.val(),
             src_val,
             imm: imm_val,
-            aux: aux.try_into().unwrap(),
-            sum0: sums[0],
-            sum1: sums[1],
         })
     }
 }
 
 impl Event for MuliEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.dst_val, self.src_val * self.imm as u32);
+        assert_eq!(
+            self.dst_val,
+            (self.src_val as i32 as i64).wrapping_mul(self.imm as i16 as i64) as u64
+        );
         fire_non_jump_event!(self, channels);
     }
 }
 
-/// Event for MUL.
+/// Event for MULU.
 ///
-/// Performs a MUL between two signed 32-bit integers.
+/// Performs a MULU between two unsigned 32-bit integers. Returns a 64-bit
+/// result.
 #[derive(Debug, Clone)]
-pub(crate) struct MulEvent {
+pub(crate) struct MuluEvent {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
     dst: u16,
-    dst_val: u32,
+    dst_val: u64,
     src1: u16,
     pub(crate) src1_val: u32,
     src2: u16,
@@ -273,15 +257,14 @@ pub(crate) struct MulEvent {
     pub(crate) cum_sums: [u64; 2],
 }
 
-// TODO: add support for signed values.
-impl MulEvent {
+impl MuluEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
         fp: u32,
         timestamp: u32,
         dst: u16,
-        dst_val: u32,
+        dst_val: u64,
         src1: u16,
         src1_val: u32,
         src2: u16,
@@ -318,9 +301,9 @@ impl MulEvent {
         let src1_val = trace.get_vrom_u32(fp ^ src1.val() as u32)?;
         let src2_val = trace.get_vrom_u32(fp ^ src2.val() as u32)?;
 
-        let dst_val = src1_val * src2_val; // TODO: shouldn't the result be u64, stored over two slots?
+        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64); // TODO: shouldn't the result be u64, stored over two slots?
 
-        trace.set_vrom_u32(fp ^ dst.val() as u32, dst_val)?;
+        trace.set_vrom_u64(fp ^ dst.val() as u32, dst_val)?;
 
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
@@ -349,9 +332,12 @@ impl MulEvent {
     }
 }
 
-impl Event for MulEvent {
+impl Event for MuluEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.dst_val, self.src1_val * self.src2_val);
+        assert_eq!(
+            self.dst_val,
+            (self.src1_val as u64).wrapping_mul(self.src2_val as u64)
+        );
         fire_non_jump_event!(self, channels);
     }
 }
@@ -361,7 +347,7 @@ impl Event for MulEvent {
 fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
     src_val: u32,
     imm_val: T,
-    dst_val: u32,
+    dst_val: u64,
 ) -> (Vec<u32>, Vec<u64>, Vec<u64>) {
     let xs = src_val.to_le_bytes();
     let num_ys_bytes = std::mem::size_of::<T>();
@@ -407,20 +393,123 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
     if !cum_sums.is_empty() {
         assert_eq!(
-            (cum_sums[num_ys_bytes - 3] + (aux_sums[num_ys_bytes - 1] << (8 * (num_ys_bytes - 1))))
-                as u32,
+            cum_sums[num_ys_bytes - 3] + (aux_sums[num_ys_bytes - 1] << (8 * (num_ys_bytes - 1))),
             dst_val,
             "Incorrect cum_sums."
         );
     } else {
         assert_eq!(
-            (aux_sums[0] + (aux_sums[1] << 8)) as u32,
+            aux_sums[0] + (aux_sums[1] << 8),
             dst_val,
             "Incorrect aux_sums."
         );
     }
 
     (aux, aux_sums, cum_sums)
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum SignedMulKind {
+    Mulsu,
+    Mul,
+}
+/// Event for MUL or MULSU.
+///
+/// Performs a MUL between two signed 32-bit integers.
+#[derive(Debug, Clone)]
+pub(crate) struct SignedMulEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u64,
+    src1: u16,
+    pub(crate) src1_val: u32,
+    src2: u16,
+    src2_val: u32,
+    kind: SignedMulKind,
+}
+
+impl SignedMulEvent {
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        pc: BinaryField32b,
+        fp: u32,
+        timestamp: u32,
+        dst: u16,
+        dst_val: u64,
+        src1: u16,
+        src1_val: u32,
+        src2: u16,
+        src2_val: u32,
+        kind: SignedMulKind,
+    ) -> Self {
+        Self {
+            pc,
+            fp,
+            timestamp,
+            dst,
+            dst_val,
+            src1,
+            src1_val,
+            src2,
+            src2_val,
+            kind,
+        }
+    }
+
+    pub fn generate_event(
+        interpreter: &mut Interpreter,
+        trace: &mut ZCrayTrace,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+        field_pc: BinaryField32b,
+        kind: SignedMulKind,
+    ) -> Result<Self, InterpreterError> {
+        let fp = interpreter.fp;
+        let src1_val = trace.get_vrom_u32(fp ^ src1.val() as u32)?;
+        let src2_val = trace.get_vrom_u32(fp ^ src2.val() as u32)?;
+
+        let dst_val = Self::multiplication(src1_val, src2_val, &kind);
+
+        trace.set_vrom_u64(fp ^ dst.val() as u32, dst_val)?;
+
+        let pc = interpreter.pc;
+        let timestamp = interpreter.timestamp;
+        interpreter.incr_pc();
+        Ok(Self {
+            pc: field_pc,
+            fp,
+            timestamp,
+            dst: dst.val(),
+            dst_val,
+            src1: src1.val(),
+            src1_val,
+            src2: src1.val(),
+            src2_val,
+            kind,
+        })
+    }
+
+    pub fn multiplication(input1: u32, input2: u32, kind: &SignedMulKind) -> u64 {
+        match kind {
+            // If the value is signed, first turn into an i32 to get the sign, then into an i64 to
+            // get the 64-bit value. Otherwise, directly cast as an i64 for the multiplication.
+            SignedMulKind::Mul => (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64,
+            SignedMulKind::Mulsu => (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64,
+        }
+    }
+}
+
+impl Event for SignedMulEvent {
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_eq!(
+            self.dst_val,
+            SignedMulEvent::multiplication(self.src1_val, self.src2_val, &self.kind)
+        );
+        fire_non_jump_event!(self, channels);
+    }
 }
 
 /// Event for SLTU.
@@ -504,10 +593,138 @@ pub(crate) struct SubEvent {
 impl BinaryOperation for SubEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
         // SUB is checked using a specific gadget, similarly to ADD.
-        BinaryField32b::new(val1.val().wrapping_sub(val2.val()))
+        BinaryField32b::new(((val1.val() as i32).wrapping_sub(val2.val() as i32)) as u32)
     }
 }
 
 // Note: The addition is checked thanks to the ADD32 table.
 impl_binary_operation!(SubEvent);
 impl_event_for_binary_operation!(SubEvent);
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+
+    use crate::{opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+
+    #[test]
+    fn test_mul_ops() {
+        // Frame
+        // Slot 0: PC
+        // Slot 1: FP
+        // Slot 2: u32_max
+        // Slot 3: input2
+        // Slot 4: dst1_low
+        // Slot 5: dst1_high
+        // Slot 6: dst2_low
+        // Slot 7: dst2_high
+        // Slot 8: dst3_low
+        // Slot 9: dst3_high
+        // Slot 10: dst4_low
+        // Slot 11: dst4_high
+
+        let u32_max = u32::MAX;
+        let u32_max_addr = 2.into();
+
+        let input2 = -1000000000_i32;
+        let input2_addr = 3.into();
+
+        let dst1_addr = 4.into();
+        let dst2_addr = 6.into();
+        let dst3_addr = 8.into();
+        let dst4_addr = 10.into();
+
+        let imm = -2_i16 as u16;
+
+        let mut frame_sizes = HashMap::new();
+        frame_sizes.insert(BinaryField32b::ONE, 10);
+
+        let zero = BinaryField16b::zero();
+        let instructions = vec![
+            // Should compute u32_max * 3294967296
+            [
+                Opcode::Mulu.get_field_elt(),
+                dst1_addr,
+                u32_max_addr,
+                input2_addr,
+            ],
+            // Should compute -i32::MAX * 3294967296
+            [
+                Opcode::Mulsu.get_field_elt(),
+                dst2_addr,
+                u32_max_addr,
+                input2_addr,
+            ],
+            // Should compute -i32::MAX * -1000000000
+            [
+                Opcode::Mul.get_field_elt(),
+                dst3_addr,
+                u32_max_addr,
+                input2_addr,
+            ],
+            // Should compute -i32::MAX * -2
+            [
+                Opcode::Muli.get_field_elt(),
+                dst4_addr,
+                u32_max_addr,
+                imm.into(),
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Initialize VROM values: offsets 0, 1, and source value at offset 2.
+        vrom.set_u32(0, 0);
+        vrom.set_u32(1, 0);
+        vrom.set_u32(u32_max_addr.val() as u32, u32_max);
+        vrom.set_u32(input2_addr.val() as u32, input2 as u32);
+
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, HashMap::new())
+            .expect("Trace generation should not fail.");
+
+        // First, the inputs are turned into u32s.
+        let input2_u32 = input2 as u32;
+
+        // Compute expected outputs.
+        let mulu_expected_output = (u32_max as u64).wrapping_mul(input2_u32 as u64);
+        let mul_expected_output =
+            (u32_max as i32 as i64).wrapping_mul(input2_u32 as i32 as i64) as u64;
+        let muli_expected_output = (u32_max as i32 as i64).wrapping_mul(imm as i16 as i64) as u64;
+        let mulsu_expected_output = (u32_max as i32 as i64).wrapping_mul(input2_u32 as i64) as u64;
+
+        // Stored outputs
+        let mulu_output = trace.get_vrom_u64(dst1_addr.val() as u32).unwrap();
+        let mulsu_output = trace.get_vrom_u64(dst2_addr.val() as u32).unwrap();
+        let mul_output = trace.get_vrom_u64(dst3_addr.val() as u32).unwrap();
+        let muli_output = trace.get_vrom_u64(dst4_addr.val() as u32).unwrap();
+
+        // Check output of MULU.
+        assert_eq!(
+            mulu_output, mulu_expected_output,
+            "MULU is failing. Output should have been {} but is {}",
+            mulu_expected_output, mulu_output,
+        );
+        // Check output of MULSU.
+        assert_eq!(
+            mulsu_output, mulsu_expected_output,
+            "MULSU is failing. Output should have been {} but is {}",
+            mulsu_expected_output, mulsu_output,
+        );
+        // Check output of MUL.
+        assert_eq!(
+            mul_output, mul_expected_output,
+            "MULSU is failing. Output should have been {} but is {}",
+            mul_expected_output, mul_output,
+        );
+        // Check output of MULI.
+        assert_eq!(
+            muli_output, muli_expected_output,
+            "MULSU is failing. Output should have been {} but is {}",
+            muli_expected_output, muli_output,
+        );
+    }
+}

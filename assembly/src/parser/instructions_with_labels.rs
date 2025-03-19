@@ -618,6 +618,7 @@ fn get_labels(
                 pc_field_to_int.insert(field_pc, pc);
             }
         }
+        pc_field_to_int.insert(field_pc, pc);
     }
     Ok((labels, pc_field_to_int, frame_sizes))
 }

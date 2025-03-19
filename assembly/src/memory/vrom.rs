@@ -71,6 +71,25 @@ impl ValueRom {
 
     /// Used for memory initialization before the start of the trace generation.
     ///
+    /// Initializes a u64 value in the VROM without checking whether there are
+    /// associated values in `pending_updates`.
+    pub(crate) fn set_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
+        self.check_alignment(index, 2)?;
+
+        for i in 0..2 {
+            let cur_word = (value >> (32 * i)) as u32;
+            if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
+                if prev_val != cur_word {
+                    return Err(MemoryError::VromRewrite(index));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Used for memory initialization before the start of the trace generation.
+    ///
     /// Initializes a u32 value in the VROM without checking whether there are
     /// associated values in `pending_updates`.
     pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
@@ -105,6 +124,26 @@ impl ValueRom {
     /// value to move may not yet be known.
     pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         Ok(self.vrom.get(&index).copied())
+    }
+
+    /// Gets a u64 value from the specified index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
+    pub(crate) fn get_u64(&self, index: u32) -> Result<u64, MemoryError> {
+        self.check_alignment(index, 2)?;
+
+        // For u64, we need to read from multiple u32 slots (2 slots)
+        let mut result: u64 = 0;
+        for i in 0..2 {
+            let idx = index + i; // Read from consecutive slots
+
+            let word = self.get_u32(idx)?;
+            // Shift the value to its appropriate position and add to result
+            result += (u64::from(word) << (i * 32));
+        }
+
+        Ok(result)
     }
 
     /// Gets a u128 value from the specified index.

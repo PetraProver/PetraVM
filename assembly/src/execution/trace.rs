@@ -16,8 +16,8 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltiuEvent,
-            SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
+            SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
@@ -50,7 +50,8 @@ pub struct ZCrayTrace {
     pub(crate) add32: Vec<Add32Event>,
     pub(crate) add64: Vec<Add64Event>,
     pub(crate) muli: Vec<MuliEvent>,
-    pub(crate) mul: Vec<MulEvent>,
+    pub(crate) signed_mul: Vec<SignedMulEvent>,
+    pub(crate) mulu: Vec<MuluEvent>,
     pub(crate) taili: Vec<TailiEvent>,
     pub(crate) tailv: Vec<TailVEvent>,
     pub(crate) calli: Vec<CalliEvent>,
@@ -152,7 +153,8 @@ impl ZCrayTrace {
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
-        fire_events!(self.mul, &mut channels, &tables);
+        fire_events!(self.signed_mul, &mut channels, &tables);
+        fire_events!(self.mulu, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
         fire_events!(self.calli, &mut channels, &tables);
@@ -177,6 +179,32 @@ impl ZCrayTrace {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
                 self.set_vrom_u32(parent, value);
+                let event_out = MVEventOutput::new(
+                    parent,
+                    opcode,
+                    field_pc,
+                    fp,
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                    value as u128,
+                );
+                event_out.push_mv_event(self);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Sets a u64 value at the specified index.
+    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
+        self.memory.set_vrom_u64(index, value)?;
+
+        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
+            for pending_update in pending_updates {
+                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
+                self.set_vrom_u64(parent, value);
                 let event_out = MVEventOutput::new(
                     parent,
                     opcode,
@@ -235,6 +263,13 @@ impl ZCrayTrace {
     /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.memory.get_vrom_u128(index)
+    }
+
+    /// Reads a 64-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found.
+    pub(crate) fn get_vrom_u64(&self, index: u32) -> Result<u64, MemoryError> {
+        self.memory.get_vrom_u64(index)
     }
 
     /// Reads an optional 128-bit value in VROM at the provided index.
