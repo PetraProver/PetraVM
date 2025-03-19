@@ -25,6 +25,7 @@ fn test_opcodes() {
     let vrom = ValueRom::new_with_init_vals(&[0, 0]);
     let memory = Memory::new(prom, vrom);
 
+    dbg!(pc_field_to_int.clone());
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
         .expect("Trace generation should not fail");
