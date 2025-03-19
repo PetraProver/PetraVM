@@ -84,14 +84,8 @@ fn parse_line(
                             binary_imm.next().expect("binary_imm has imm").as_str(),
                         )?;
                         match rule {
-                            Rule::B32_MULI_instr => {
-                                instrs.push(InstructionsWithLabels::B32Muli {
-                                    dst: Slot::from_str(dst.as_str())?,
-                                    src1: Slot::from_str(src1.as_str())?,
-                                    imm,
-                                });
-                            }
-                            Rule::XORI_instr => {
+                            // B32_ADDI is an alias for XORI.
+                            Rule::XORI_instr | Rule::B32_ADDI_instr => {
                                 instrs.push(InstructionsWithLabels::XorI {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src: Slot::from_str(src1.as_str())?,
@@ -112,6 +106,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SLTI_instr => {
+                                instrs.push(InstructionsWithLabels::Slti {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::SLTIU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltiu {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -119,7 +120,6 @@ fn parse_line(
                                     imm,
                                 });
                             }
-
                             Rule::MULI_instr => {
                                 instrs.push(InstructionsWithLabels::MulI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -247,7 +247,8 @@ fn parse_line(
                         let src2 =
                             Slot::from_str(binary_op.next().expect("binary_op has src2").as_str())?;
                         match rule {
-                            Rule::XOR_instr => {
+                            // B32_ADD is an alias for XOR.
+                            Rule::XOR_instr | Rule::B32_ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Xor { dst, src1, src2 });
                             }
                             Rule::ADD_instr => {
@@ -256,11 +257,17 @@ fn parse_line(
                             Rule::AND_instr => {
                                 instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
                             }
+                            Rule::SLT_instr => {
+                                instrs.push(InstructionsWithLabels::Slt { dst, src1, src2 });
+                            }
                             Rule::SLTU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
                             }
                             Rule::SUB_instr => {
                                 instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
+                            }
+                            Rule::B32_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
                             }
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });

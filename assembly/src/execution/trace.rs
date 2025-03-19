@@ -10,14 +10,12 @@ use crate::memory::VromPendingUpdates;
 use crate::{
     event::{
         b128::{B128AddEvent, B128MulEvent},
-        b32::{
-            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
-        },
+        b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
             Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
-            SltiuEvent, SltuEvent, SubEvent,
+            SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
@@ -42,6 +40,8 @@ pub struct ZCrayTrace {
     pub(crate) and: Vec<AndEvent>,
     pub(crate) andi: Vec<AndiEvent>,
     pub(crate) sub: Vec<SubEvent>,
+    pub(crate) slt: Vec<SltEvent>,
+    pub(crate) slti: Vec<SltiEvent>,
     pub(crate) sltu: Vec<SltuEvent>,
     pub(crate) sltiu: Vec<SltiuEvent>,
     pub(crate) shifts: Vec<ShiftEvent>,
@@ -55,13 +55,13 @@ pub struct ZCrayTrace {
     pub(crate) taili: Vec<TailiEvent>,
     pub(crate) tailv: Vec<TailVEvent>,
     pub(crate) calli: Vec<CalliEvent>,
+    pub(crate) callv: Vec<CallvEvent>,
     pub(crate) ret: Vec<RetEvent>,
     pub(crate) mvih: Vec<MVIHEvent>,
     pub(crate) mvvw: Vec<MVVWEvent>,
     pub(crate) mvvl: Vec<MVVLEvent>,
     pub(crate) ldi: Vec<LDIEvent>,
     pub(crate) b32_mul: Vec<B32MulEvent>,
-    pub(crate) b32_muli: Vec<B32MuliEvent>,
     pub(crate) b128_add: Vec<B128AddEvent>,
     pub(crate) b128_mul: Vec<B128MulEvent>,
 
@@ -145,6 +145,8 @@ impl ZCrayTrace {
         fire_events!(self.and, &mut channels, &tables);
         fire_events!(self.andi, &mut channels, &tables);
         fire_events!(self.sub, &mut channels, &tables);
+        fire_events!(self.slt, &mut channels, &tables);
+        fire_events!(self.slti, &mut channels, &tables);
         fire_events!(self.sltu, &mut channels, &tables);
         fire_events!(self.sltiu, &mut channels, &tables);
         fire_events!(self.shifts, &mut channels, &tables);
@@ -158,13 +160,13 @@ impl ZCrayTrace {
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);
         fire_events!(self.calli, &mut channels, &tables);
+        fire_events!(self.callv, &mut channels, &tables);
         fire_events!(self.ret, &mut channels, &tables);
         fire_events!(self.mvih, &mut channels, &tables);
         fire_events!(self.mvvw, &mut channels, &tables);
         fire_events!(self.mvvl, &mut channels, &tables);
         fire_events!(self.ldi, &mut channels, &tables);
         fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
         fire_events!(self.b128_add, &mut channels, &tables);
         fire_events!(self.b128_mul, &mut channels, &tables);
 
