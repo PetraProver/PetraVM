@@ -72,6 +72,14 @@ impl Memory {
         self.vrom.get_opt_u32(index)
     }
 
+    /// Reads a 64-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found. This method should be used
+    /// instead of `get_vrom_opt_u64` everywhere outside of CALL procedures.
+    pub(crate) fn get_vrom_u64(&self, index: u32) -> Result<u64, MemoryError> {
+        self.vrom.get_u64(index)
+    }
+
     /// Reads a 128-bit value in VROM at the provided index.
     ///
     /// Returns an error if the value is not found. This method should be used
@@ -91,6 +99,11 @@ impl Memory {
     /// Sets a 32-bit value in VROM at the provided index.
     pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.vrom.set_u32(index, value)
+    }
+
+    /// Sets a 64-bit value in VROM at the provided index.
+    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
+        self.vrom.set_u64(index, value)
     }
 
     /// Sets a u128 value and handles pending entries.

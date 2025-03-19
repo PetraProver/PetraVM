@@ -18,8 +18,8 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulEvent, MuliEvent, SltEvent, SltiEvent,
-            SltiuEvent, SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
+            SignedMulKind, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -269,6 +269,8 @@ impl Interpreter {
             Opcode::Sltu => self.generate_sltu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sltiu => self.generate_sltiu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mulu => self.generate_mulu(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mulsu => self.generate_mulsu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Mul => self.generate_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Ret => self.generate_ret(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
@@ -712,32 +714,13 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_muli_event = MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        let aux = new_muli_event.aux;
-        let sum0 = new_muli_event.sum0;
-        let sum1 = new_muli_event.sum1;
 
-        // This is to check sum0 = aux[0] + aux[1] << 8.
-        trace.add64.push(Add64Event::generate_event(
-            self,
-            aux[0] as u64,
-            (aux[1] as u64) << 8,
-        ));
-        // This is to check sum1 = aux[2] + aux[3] << 8.
-        trace.add64.push(Add64Event::generate_event(
-            self,
-            aux[2] as u64,
-            (aux[3] as u64) << 8,
-        ));
-        // This is to check that dst_val = sum0 + sum1 << 8.
-        trace
-            .add64
-            .push(Add64Event::generate_event(self, sum0, sum1 << 8));
         trace.muli.push(new_muli_event);
 
         Ok(())
     }
 
-    fn generate_mul(
+    fn generate_mulu(
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
@@ -745,10 +728,10 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mul_event = MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        let aux = new_mul_event.aux;
-        let aux_sums = new_mul_event.aux_sums;
-        let cum_sums = new_mul_event.cum_sums;
+        let new_mulu_event = MuluEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        let aux = new_mulu_event.aux;
+        let aux_sums = new_mulu_event.aux_sums;
+        let cum_sums = new_mulu_event.cum_sums;
 
         // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
         for i in 0..aux.len() / 2 {
@@ -778,7 +761,54 @@ impl Interpreter {
             cum_sums[1],
             aux_sums[3] << 24,
         ));
-        trace.mul.push(new_mul_event);
+        trace.mulu.push(new_mulu_event);
+
+        Ok(())
+    }
+
+    fn generate_mul(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_mul_event = SignedMulEvent::generate_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            field_pc,
+            SignedMulKind::Mul,
+        )?;
+
+        trace.signed_mul.push(new_mul_event);
+
+        Ok(())
+    }
+
+    fn generate_mulsu(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_mulsu_event = SignedMulEvent::generate_event(
+            self,
+            trace,
+            dst,
+            src1,
+            src2,
+            field_pc,
+            SignedMulKind::Mulsu,
+        )?;
+
+        trace.signed_mul.push(new_mulsu_event);
 
         Ok(())
     }
@@ -1017,8 +1047,9 @@ mod tests {
         //     ;; Slot @4: ND Local: Next FP
         //     ;; Slot @5: Local: n == 1
         //     ;; Slot @6: Local: n % 2
-        //     ;; Slot @7: Local: 3*n
-        //     ;; Slot @8: Local: n >> 1 or 3*n + 1
+        //     ;; Slot @7: Local: n >> 1 or 3*n + 1
+        //     ;; Slot @8: Local: 3*n (lower 32bits)
+        //     ;; Slot @9: Local 3*n (higher 32bits, unused)
 
         //     ;; Branch to recursion label if value in slot 2 is not 1
         //     XORI @5, @2, #1
@@ -1032,15 +1063,15 @@ mod tests {
 
         //     ;; case even
         //     ;; n >> 1
-        //     SRLI @8, @2, #1
-        //     MVV.W @4[2], @8
+        //     SRLI @7, @2, #1
+        //     MVV.W @4[2], @7
         //     MVV.W @4[3], @3
         //     TAILI collatz, @4
 
         // case_odd:
-        //     MULI @7, @2, #3
-        //     ADDI @8, @7, #1
-        //     MVV.W @4[2], @8
+        //     MULI @8, @2, #3
+        //     ADDI @7, @8, #1
+        //     MVV.W @4[2], @7
         //     MVV.W @4[3], @3
         //     TAILI collatz, @4
 
@@ -1076,7 +1107,7 @@ mod tests {
                 get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ case_recurse, @5
+            ], //  1G: BNZ @5, case_recurse,
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
@@ -1097,20 +1128,20 @@ mod tests {
                 get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ case_odd, @6
+            ], //  5G: BNZ @6, case_odd
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
-                get_binary_slot(8),
+                get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI @8, @2, #1
+            ], //  6G: SRLI @7, @2, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
-                get_binary_slot(8),
-            ], //  7G: MVV.W @4[2], @8
+                get_binary_slot(7),
+            ], //  7G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
@@ -1126,22 +1157,22 @@ mod tests {
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
-                get_binary_slot(7),
+                get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI @7, @2, #3
+            ], //  10G: MULI @8, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
-                get_binary_slot(8),
                 get_binary_slot(7),
+                get_binary_slot(8),
                 get_binary_slot(1),
-            ], //  11G: ADDI @8, @7, #1
+            ], //  11G: ADDI @7, @8, #1
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
-                get_binary_slot(8),
-            ], //  12G: MVV.W @4[2], @8
+                get_binary_slot(7),
+            ], //  12G: MVV.W @4[2], @7
             [
                 Opcode::MVVW.get_field_elt(),
                 get_binary_slot(4),
@@ -1166,7 +1197,7 @@ mod tests {
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
-        frames_args_size.insert(BinaryField32b::ONE, 9);
+        frames_args_size.insert(BinaryField32b::ONE, 10);
 
         let (traces, boundary_values) =
             ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)
