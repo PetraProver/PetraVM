@@ -280,6 +280,7 @@ impl Interpreter {
             Opcode::MVVW => self.generate_mvvw(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::MVVL => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::LDI => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B32Add => self.generate_xor(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,

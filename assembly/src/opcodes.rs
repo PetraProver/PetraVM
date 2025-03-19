@@ -21,7 +21,7 @@ pub enum Opcode {
     Mul = 0x1f,
     B32Muli = 0x0a,
     B32Mul = 0x10,
-    // B32Add, // TODO
+    B32Add = 0x23,
     B128Add = 0x16,
     B128Mul = 0x17,
     // Slti, // TODO

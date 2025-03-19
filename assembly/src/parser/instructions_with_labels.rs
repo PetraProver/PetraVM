@@ -16,10 +16,30 @@ use crate::{execution::InterpreterInstruction, execution::G, opcodes::Opcode};
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
     Label(String, Option<u16>),
+    B32Add {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    B32Mul {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     B32Muli {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
+    },
+    B128Add {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    B128Mul {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
     },
     MviH {
         dst: SlotWithOffset,
@@ -246,6 +266,50 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_high_field_val(),
                 BinaryField16b::zero(),
                 BinaryField16b::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B32Add { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B32Add.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B32Mul.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B128Add { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B128Add.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B128Mul.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
             ];
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
@@ -583,8 +647,20 @@ impl std::fmt::Display for InstructionsWithLabels {
                     write!(f, "{}:", label)
                 }
             }
+            InstructionsWithLabels::B32Add { dst, src1, src2 } => {
+                write!(f, "B32_ADD {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
                 write!(f, "B32_MULI {dst} {src1} {imm}")
+            }
+            InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+                write!(f, "B32_MUL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::B128Add { dst, src1, src2 } => {
+                write!(f, "B128_ADD {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
+                write!(f, "B128_MUL {dst} {src1} {src2}")
             }
             InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),

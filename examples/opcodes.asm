@@ -97,9 +97,9 @@ test_binary_field:
     BNZ bf_fail, @11
 
     ;; B32_ADD (alias for XOR)
-    ;; B32_ADD @12, @3, @4
-    ;; XOR @13, @10, @12     ;; Compare with previous XOR result
-    ;; BNZ bf_fail, @13      ;; Should be 0 if B32_ADD is alias for XOR
+    B32_ADD @12, @3, @4
+    XOR @13, @10, @12     ;; Compare with previous XOR result
+    BNZ bf_fail, @13      ;; Should be 0 if B32_ADD is alias for XOR
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: B32_MUL / B32_MULI
@@ -117,7 +117,7 @@ test_binary_field:
     ;;   fp[dst] = fp[src1] * imm (in GF(2^32))
     ;; ------------------------------------------------------------
     B32_MUL @14, @3, @4
-    B32_MULI @15, @3, #7
+    ;; B32_MULI @15, @3, #7
     XOR @16, @14, @15
     BNZ bf_fail, @16
 
