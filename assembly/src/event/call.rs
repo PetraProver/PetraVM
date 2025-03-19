@@ -606,7 +606,7 @@ mod tests {
 
         // Check for actual execution rather than specific expected values
         assert!(
-            trace.calli.len() > 0,
+            !trace.calli.is_empty(),
             "CALLI event should have been generated"
         );
 
