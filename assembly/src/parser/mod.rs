@@ -224,6 +224,37 @@ fn parse_line(
                             }
                         };
                     }
+                    Rule::jump_with_op_non_imm => {
+                        let mut jump_non_imm = instruction.into_inner();
+                        let rule = get_first_inner(
+                            jump_non_imm.next().unwrap(),
+                            "jump_with_op_non_imm has instruction",
+                        )
+                        .as_rule();
+                        let op1 = jump_non_imm
+                            .next()
+                            .expect("jump_with_op_non_imm has first operand");
+                        let op2 = jump_non_imm
+                            .next()
+                            .expect("jump_with_op_non_imm has second operand");
+                        match rule {
+                            Rule::TAILV_instr => {
+                                instrs.push(InstructionsWithLabels::Tailv {
+                                    offset: Slot::from_str(op1.as_str())?,
+                                    arg: Slot::from_str(op2.as_str())?,
+                                });
+                            }
+                            Rule::CALLV_instr => {
+                                instrs.push(InstructionsWithLabels::Callv {
+                                    offset: Slot::from_str(op1.as_str())?,
+                                    arg: Slot::from_str(op2.as_str())?,
+                                });
+                            }
+                            _ => {
+                                unimplemented!("jump_with_op_non_imm: {:?} not implemented", rule);
+                            }
+                        }
+                    }
                     Rule::load_imm => {
                         let mut load_imm = instruction.into_inner();
                         let rule = get_first_inner(

@@ -51,6 +51,10 @@ pub enum InstructionsWithLabels {
         label: String,
         arg: Slot,
     },
+    Callv {
+        offset: Slot,
+        arg: Slot,
+    },
     Tailv {
         offset: Slot,
         arg: Slot,
@@ -668,16 +672,14 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Tailv { offset, arg } => {
+        InstructionsWithLabels::Callv { offset, arg } => {
             let instruction = [
-                Opcode::Tailv.get_field_elt(),
+                Opcode::Callv.get_field_elt(),
                 offset.get_16bfield_val(),
                 arg.get_16bfield_val(),
                 BinaryField16b::zero(),
             ];
-
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
-
             *field_pc *= G;
         }
         InstructionsWithLabels::XorI { dst, src, imm } => {
@@ -809,6 +811,7 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::Taili { label, arg } => write!(f, "TAILI {label} {arg}"),
             InstructionsWithLabels::Calli { label, arg } => write!(f, "CALLI {label} {arg}"),
             InstructionsWithLabels::Tailv { offset, arg } => write!(f, "TAILV {offset} {arg}"),
+            InstructionsWithLabels::Callv { offset, arg } => write!(f, "CALLV {offset} {arg}"),
             InstructionsWithLabels::Ldi { dst, imm } => write!(f, "LDI {dst} {imm}"),
             InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
