@@ -240,13 +240,13 @@ fn parse_line(
                             Rule::TAILV_instr => {
                                 instrs.push(InstructionsWithLabels::Tailv {
                                     offset: Slot::from_str(op1.as_str())?,
-                                    arg: Slot::from_str(op2.as_str())?,
+                                    next_fp: Slot::from_str(op2.as_str())?,
                                 });
                             }
                             Rule::CALLV_instr => {
                                 instrs.push(InstructionsWithLabels::Callv {
                                     offset: Slot::from_str(op1.as_str())?,
-                                    arg: Slot::from_str(op2.as_str())?,
+                                    next_fp: Slot::from_str(op2.as_str())?,
                                 });
                             }
                             _ => {

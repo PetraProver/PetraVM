@@ -57,10 +57,6 @@ pub enum InstructionsWithLabels {
     },
     Callv {
         offset: Slot,
-        arg: Slot,
-    },
-    Tailv {
-        offset: Slot,
         next_fp: Slot,
     },
     Jumpi {
