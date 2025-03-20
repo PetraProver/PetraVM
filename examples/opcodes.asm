@@ -31,6 +31,8 @@
 ;; - Slot 0: Return PC (set by CALL instructions)
 ;; - Slot 1: Return FP (set by CALL instructions)
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
+;;
+;; NOTE: All memory in VROM is write-once! We cannot write to the same VROM slot twice.
 ;; ============================================================================
 
 #[framesize(0x20)]
@@ -83,6 +85,20 @@ callv_target_fn:
 #[framesize(0x5)]
 tailv_target_fn:
     LDI.W @2, #0        ;; Set success flag (0 = success)
+    RET
+
+;; PC = 24G (we know this exact value for JUMPV tests)
+jumpv_destination:
+    LDI.W @15, #77       ;; Set special value to identify JUMPV worked
+    J jumpv_done        ;; Jump to continue testing
+    
+jumpv_done:
+    ;; Now, check if JUMPV worked correctly by checking the value set in jumpv_destination
+    XORI @16, @15, #77    ;; @15 should be 77 if JUMPV worked correctly
+    BNZ branch_fail, @16
+    
+    ;; All tests passed
+    LDI.W @2, #0           ;; Set success flag (0 = success)
     RET
 
 ;; ============================================================================
@@ -580,40 +596,43 @@ test_jumps_branches:
     ;;   else PC = PC * G (next instruction)
     ;; ------------------------------------------------------------
     ;; 1. Test branch NOT taken (condition is zero)
-    LDI.W @3, #0         ;; Set condition to 0
-    LDI.W @4, #0         ;; Initialize a counter
-    BNZ bnz_should_not_take, @3  ;; Should NOT branch since @3 is 0
-    ADDI @4, @4, #1      ;; Should execute this (increment counter)
-    J bnz_continue1      ;; Jump to continue testing
-
-bnz_should_not_take:
-    ;; We should NOT reach here in the first test
-    LDI.W @2, #1         ;; Set failure flag
-    RET
-
-bnz_continue1:
-    ;; Check if counter was incremented (branch not taken)
-    XORI @5, @4, #1      ;; Should be 1 if branch was not taken
-    BNZ branch_fail, @5
+    ;; Note: All VROM locations can only be written once, so we use separate locations
+    ;; to record program flow
+    LDI.W @3, #0           ;; Set condition to 0
+    BNZ bnz_path_1, @3     ;; Should NOT branch since @3 is 0
+    
+    ;; When branch not taken, we set @4 to 1 to indicate this path was followed
+    LDI.W @4, #1           ;; Record that branch was not taken
+    J bnz_check_path_1     ;; Jump to verify branch was not taken
+    
+bnz_path_1:
+    ;; When branch taken, we set @5 to 1 to indicate this path was followed
+    LDI.W @5, #1           ;; Record that branch was taken incorrectly
+    
+bnz_check_path_1:
+    ;; Verify @4 == 1 (branch was not taken) and @5 is undefined (branch path not taken)
+    XORI @6, @4, #1        ;; @4 should be 1 if branch was not taken
+    BNZ branch_fail, @6
     
     ;; 2. Test branch taken (condition is non-zero)
-    LDI.W @6, #42        ;; Set non-zero condition
-    LDI.W @7, #0         ;; Initialize a flag
-    BNZ bnz_should_take, @6  ;; Should branch since @6 is non-zero
-    ;; We should NOT reach here
-    LDI.W @2, #1         ;; Set failure flag
-    RET
+    LDI.W @7, #42          ;; Set non-zero condition
+    BNZ bnz_path_2, @7     ;; Should branch since @7 is non-zero
     
-bnz_should_take:
-    ;; We SHOULD reach here in the second test
-    LDI.W @7, #1         ;; Set flag to indicate we reached here
+    ;; When branch not taken, we set @8 to 1 to indicate this path was followed incorrectly
+    LDI.W @8, #1           ;; Record that branch was not taken incorrectly
+    J bnz_check_path_2
     
-    ;; Check if we successfully took the branch
-    XORI @8, @7, #1      ;; Should be 1 if branch was taken
-    BNZ branch_fail, @8
+bnz_path_2:
+    ;; When branch taken, we set @9 to 1 to indicate this path was followed
+    LDI.W @9, #1           ;; Record that branch was taken correctly
+    
+bnz_check_path_2:
+    ;; Verify @9 == 1 (branch was taken correctly) and @8 is undefined (other path not taken)
+    XORI @10, @9, #1       ;; @9 should be 1 if branch was taken
+    BNZ branch_fail, @10
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: J (Jump)
+    ;; INSTRUCTION: J (Jump to label)
     ;; 
     ;; FORMAT: J target
     ;; 
@@ -623,23 +642,36 @@ bnz_should_take:
     ;; EFFECT: PC = target
     ;; ------------------------------------------------------------
     ;; Test unconditional jump
-    LDI.W @9, #0         ;; Initialize a flag
-    J jumpi_target       ;; Should always jump
+    J jump_target           ;; Should always jump
+    
     ;; We should NOT reach here
-    LDI.W @2, #1         ;; Set failure flag
-    RET
+    LDI.W @11, #1          ;; This should not execute
+    J branch_fail
     
-jumpi_target:
+jump_target:
     ;; We SHOULD reach here
-    LDI.W @9, #1         ;; Set flag to indicate we reached here
-    
-    ;; Check if we successfully jumped
-    XORI @10, @9, #1     ;; Should be 1 if jump was taken
-    BNZ branch_fail, @10
+    LDI.W @12, #1          ;; Record that we reached the jump target
 
-    ;; All tests passed
-    LDI.W @2, #0         ;; Set success flag (0 = success)
-    RET
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: J (Jump to VROM address)
+    ;; 
+    ;; FORMAT: J @register
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Jump to a target address stored in VROM.
+    ;;
+    ;; EFFECT: PC = fp[register]
+    ;; ------------------------------------------------------------
+    ;; First, load the destination address into a VROM slot
+    ;; We use the PC value of jumpv_destination (at PC = 24G)
+    LDI.W @13, #11978041  ;; Actual field element value for 24G
+    
+    ;; Now jump to that address using J @register syntax
+    J @13               ;; Jump to the address in @13
+    
+    ;; We should NOT reach here
+    LDI.W @14, #1       ;; This should not execute
+    J branch_fail
     
 branch_fail:
     LDI.W @2, #1         ;; Set failure flag (1 = failure)
@@ -699,7 +731,7 @@ test_function_calls:
     ;; ------------------------------------------------------------
     ;; For CALLV, we need to use a known PC value
     ;; We placed callv_target_fn at PC = 20G (marked in comments above)
-    LDI.W @13, #20       ;; Load the PC value for callv_target_fn
+    LDI.W @13, #1443700361  ;; Actual field element value for 20G
     
     ;; Set up a call frame for CALLV
     MVV.W @14[2], @15    ;; Set up a slot to receive the return value
@@ -726,7 +758,7 @@ test_function_calls:
     ;; ------------------------------------------------------------
     ;; Test TAILV using a known PC value
     ;; We placed tailv_target_fn at PC = 22G (marked in comments above)
-    LDI.W @17, #22       ;; Load the PC value for tailv_target_fn
+    LDI.W @17, #481016549  ;; Actual field element value for 22G
     
     ;; Pass the final return value slot to the function
     MVV.W @18[2], @2     ;; Pass the final return value slot

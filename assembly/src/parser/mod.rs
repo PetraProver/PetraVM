@@ -356,23 +356,23 @@ fn parse_line(
                         let rule =
                             get_first_inner(simple_jump.next().unwrap(), "jump has instruction")
                                 .as_rule();
-                        let dst = simple_jump.next().expect("jump_with_op_instrs_imm has dst");
-
-                        match rule {
-                            Rule::J_instr => {
-                                let first_char =
-                                    dst.as_str().chars().next().expect("simple jump as target");
-                                if first_char == '_' || first_char.is_ascii() {
-                                    instrs.push(InstructionsWithLabels::Jumpi {
-                                        label: dst.as_str().to_string(),
-                                    });
-                                } else {
-                                    instrs.push(InstructionsWithLabels::Jumpv {
-                                        offset: Slot::from_str(dst.as_str())?,
-                                    })
-                                }
+                        let dst = simple_jump
+                            .next()
+                            .expect("simple_jump expects a destination operand");
+                        match dst.as_rule() {
+                            Rule::label_name => {
+                                // This is a jump to a label
+                                instrs.push(InstructionsWithLabels::Jumpi {
+                                    label: dst.as_str().to_string(),
+                                });
                             }
-                            _ => unreachable!("All nullary instructions are implemented"),
+                            Rule::slot => {
+                                // This is a jump with an offset (e.g. "J @13")
+                                instrs.push(InstructionsWithLabels::Jumpv {
+                                    offset: Slot::from_str(dst.as_str())?,
+                                });
+                            }
+                            _ => unreachable!("Unexpected token in simple_jump"),
                         }
                     }
                     _ => {

@@ -472,18 +472,6 @@ pub fn get_prom_inst_from_inst_with_label(
             }
             *field_pc *= G;
         }
-        InstructionsWithLabels::Jumpv { offset } => {
-            let instruction = [
-                Opcode::Jumpv.get_field_elt(),
-                offset.get_16bfield_val(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
-            ];
-
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
-
-            *field_pc *= G;
-        }
         InstructionsWithLabels::Jumpi { label } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
@@ -497,7 +485,10 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
+                return Err(format!(
+                    "Label in JUMPI instruction, {}, nonexistent.",
+                    label
+                ));
             }
             *field_pc *= G;
         }
@@ -511,23 +502,6 @@ pub fn get_prom_inst_from_inst_with_label(
 
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
-            *field_pc *= G;
-        }
-        InstructionsWithLabels::Jumpi { label } => {
-            if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
-                let instruction = [
-                    Opcode::Jumpi.get_field_elt(),
-                    targets_16b[0],
-                    targets_16b[1],
-                    BinaryField16b::zero(),
-                ];
-
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
-            } else {
-                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
-            }
             *field_pc *= G;
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => {
@@ -653,7 +627,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
                 return Err(format!(
-                    "Label in Taili instruction, {}, nonexistent.",
+                    "Label in Calli instruction, {}, nonexistent.",
                     label
                 ));
             }
@@ -768,6 +742,9 @@ fn get_labels(
             }
         }
         pc_field_to_int.insert(field_pc, pc);
+        if pc == 20 || pc == 22 || pc == 24 {
+            dbg!(pc, field_pc);
+        }
     }
     Ok((labels, pc_field_to_int, frame_sizes))
 }
