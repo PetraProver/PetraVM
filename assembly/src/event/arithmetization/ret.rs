@@ -4,7 +4,9 @@ use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32,
 };
 use bytemuck::Pod;
+use env_logger::Target;
 
+use super::cpu::NextPc;
 use crate::{
     event::arithmetization::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction},
     opcodes::Opcode,
@@ -34,7 +36,7 @@ impl RetTable {
             state_channel,
             prom_channel,
             CpuColumnsOptions {
-                jumps: Some(fp0_val),
+                next_pc: NextPc::Target(fp0_val),
                 next_fp: Some(fp1_val),
             },
         );
@@ -75,30 +77,31 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         for (i, event) in rows.enumerate() {
-            self.cpu_cols.fill_row(
-                witness,
-                CpuRow {
-                    index: i,
-                    pc: event.pc.val(),
-                    next_pc: event.fp_0_val,
-                    fp: event.fp,
-                    timestamp: event.timestamp,
-                    instruction: Instruction {
-                        opcode: Opcode::Ret,
-                        arg0: 0,
-                        arg1: 0,
-                        arg2: 0,
-                    },
-                },
-            );
+            {
+                // TODO: Move this outside the loop
+                let mut fp1 = witness.get_mut_as(self.fp1)?;
+                let mut fp0_val = witness.get_mut_as(self.fp0_val)?;
+                let mut fp1_val = witness.get_mut_as(self.fp1_val)?;
+                fp1[i] = event.fp ^ 1;
+                fp0_val[i] = event.fp_0_val;
+                fp1_val[i] = event.fp_1_val;
+            }
 
-            // TODO: Move this outside the loop
-            let mut fp1 = witness.get_mut_as(self.fp1)?;
-            let mut fp0_val = witness.get_mut_as(self.fp0_val)?;
-            let mut fp1_val = witness.get_mut_as(self.fp1_val)?;
-            fp1[i] = event.fp ^ 1;
-            fp0_val[i] = event.fp_0_val;
-            fp1_val[i] = event.fp_1_val;
+            let row = CpuRow {
+                index: i,
+                pc: event.pc.val(),
+                next_pc: Some(event.fp_0_val),
+                fp: event.fp,
+                timestamp: event.timestamp,
+                instruction: Instruction {
+                    opcode: Opcode::Ret,
+                    arg0: 0,
+                    arg1: 0,
+                    arg2: 0,
+                },
+            };
+            println!("Ret");
+            self.cpu_cols.fill_row(witness, row)?;
         }
 
         Ok(())

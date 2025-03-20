@@ -1,6 +1,7 @@
 pub(crate) mod cpu;
 pub(crate) mod integer_ops;
 pub(crate) mod ret;
+pub(crate) mod branch;
 
 pub mod test {
     use std::collections::HashMap;

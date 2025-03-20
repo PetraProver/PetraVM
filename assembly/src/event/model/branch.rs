@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::Event;
 use crate::{
@@ -17,12 +17,13 @@ use crate::{
 ///   2. if FP[cond] == 0, then increment PC
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BnzEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    cond: u16,
-    con_val: u32,
-    target: BinaryField32b,
+    pub(crate) timestamp: u32,
+    pub(crate) pc: BinaryField32b,
+    pub(crate) fp: u32,
+    pub(crate) cond: u16,
+    pub(crate) cond_val: u32,
+    pub(crate) target_low: BinaryField16b,
+    pub(crate) target_high: BinaryField16b,
 }
 
 impl Event for BnzEvent {
@@ -31,9 +32,11 @@ impl Event for BnzEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.target, self.fp, self.timestamp + 1));
+        channels.state_channel.push((
+            BinaryField32b::from_bases([self.target_low, self.target_high]).unwrap(),
+            self.fp,
+            self.timestamp + 1,
+        ));
     }
 }
 
@@ -42,7 +45,8 @@ impl BnzEvent {
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         cond: BinaryField16b,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let cond_val = trace.get_vrom_u32(interpreter.fp ^ cond.val() as u32)?;
@@ -56,10 +60,11 @@ impl BnzEvent {
             pc: field_pc,
             fp: interpreter.fp,
             cond: cond.val(),
-            con_val: cond_val,
-            target,
+            cond_val,
+            target_low,
+            target_high,
         };
-        interpreter.jump_to(target);
+        interpreter.jump_to(BinaryField32b::from_bases([target_low, target_high]).unwrap());
         Ok(event)
     }
 }
@@ -67,12 +72,11 @@ impl BnzEvent {
 // TODO: Maybe this could be just a NoopEvent?
 #[derive(Debug, Default, Clone)]
 pub(crate) struct BzEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    cond: u16,
-    cond_val: u32,
-    target: BinaryField32b,
+    pub(crate) timestamp: u32,
+    pub(crate) pc: BinaryField32b,
+    pub(crate) fp: u32,
+    pub(crate) cond: u16,
+    pub(crate) cond_val: u32,
 }
 
 impl Event for BzEvent {
@@ -87,7 +91,6 @@ impl BzEvent {
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         cond: BinaryField16b,
-        target: BinaryField32b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
@@ -98,7 +101,6 @@ impl BzEvent {
             fp,
             cond: cond.val(),
             cond_val,
-            target,
         };
         interpreter.incr_pc();
         Ok(event)

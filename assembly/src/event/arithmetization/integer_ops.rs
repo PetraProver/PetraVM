@@ -26,7 +26,7 @@ use bumpalo::Bump;
 use bytemuck::Pod;
 use groestl_crypto::Groestl256;
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction};
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction, NextPc};
 use crate::{
     execution::{
         emulator::InterpreterChannels,
@@ -63,7 +63,7 @@ impl AddTable {
             state_channel,
             prom_channel,
             CpuColumnsOptions {
-                jumps: None,
+                next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
@@ -127,12 +127,13 @@ where
     ) -> Result<(), anyhow::Error> {
         {
             for (i, event) in rows.enumerate() {
+                println!("Add");
                 self.cpu_cols.fill_row(
                     witness,
                     CpuRow {
                         index: i,
                         pc: event.pc.into(),
-                        next_pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).into(),
+                        next_pc: None,
                         fp: event.fp,
                         timestamp: event.timestamp,
                         instruction: Instruction {
@@ -178,7 +179,7 @@ impl AddiTable {
             state_channel,
             prom_channel,
             CpuColumnsOptions {
-                jumps: None,
+                next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
@@ -228,7 +229,7 @@ where
                     CpuRow {
                         index: i,
                         pc: event.pc.into(),
-                        next_pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).into(),
+                        next_pc: None,
                         fp: event.fp,
                         timestamp: event.timestamp,
                         instruction: Instruction {
