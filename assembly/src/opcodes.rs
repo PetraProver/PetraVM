@@ -54,7 +54,6 @@ pub enum Opcode {
     // Branch instructions
     #[default]
     Bnz = 0x01,
-    
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
     // Not needed for recursion program or first version of zCrayVM

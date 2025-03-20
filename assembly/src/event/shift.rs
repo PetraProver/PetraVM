@@ -287,7 +287,7 @@ mod test {
         let zero = BinaryField16b::zero();
         let dst = BinaryField16b::new(3);
         let src = BinaryField16b::new(2);
-        let imm = BinaryField16b::new(1); // shift right arithmetic by 2
+        let imm = BinaryField16b::new(2); // shift right arithmetic by 2
 
         let instructions = vec![
             [Opcode::Srai.get_field_elt(), dst, src, imm],
@@ -303,7 +303,7 @@ mod test {
         // offset 2.
         vrom.set_u32(0, 0).unwrap();
         vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(2, 4294967290).unwrap();
+        vrom.set_u32(2, 0xF0000000).unwrap();
 
         let memory = Memory::new(prom, vrom);
         let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
