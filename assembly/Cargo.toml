@@ -14,7 +14,6 @@ pest = "2.7.15"
 pest_derive = "2.7.15"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-log = "0.4.26"
 
 [dev-dependencies]
 rand = "0.8"

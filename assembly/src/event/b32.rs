@@ -47,10 +47,10 @@ pub(crate) struct XoriEvent {
     pc: BinaryField32b,
     fp: u32,
     dst: u16,
-    pub(crate) dst_val: u32,
+    dst_val: u32,
     src: u16,
-    pub(crate) src_val: u32,
-    pub(crate) imm: u16,
+    src_val: u32,
+    imm: u16,
 }
 
 impl BinaryOperation for XoriEvent {
