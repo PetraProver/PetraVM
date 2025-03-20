@@ -12,7 +12,7 @@ fib:
     MVV.W @4[5], @3      ;; Move return value
     TAILI fib_helper, @4 ;; Tail call to fib_helper (Slot 4 is the next FP)
 
-#[framesize(0xb)]
+#[framesize(0xc)]
 fib_helper:
     ;; Slot @0: Return PC
     ;; Slot @1: Return FP
@@ -25,9 +25,11 @@ fib_helper:
     ;; Slot @8: Local: n - 1
     ;; Slot @9: Local: n == 0G
     ;; Slot @10: Local: 0G constant
+    ;; Slot @11: Local: -1G constant
 
     ;; Branch to recursion label if value in slot 4 is not equal to G^0
     LDI.W @10, #0G
+    LDI.W @11, #-1G
     XOR @9, @4, @10     ;; XOR will put 0 in slot 9 if n == 0G
     BNZ case_recurse, @9 ;; branch if n != 0G
 
@@ -37,7 +39,7 @@ fib_helper:
     RET
 case_recurse:
     ADD @7, @2, @3
-    B32_MULI @8, @4, #-1G ;; TODO: B32_MULI is deprecated and will be removed
+    B32_MUL @8, @4, @11
 
     MVV.W @6[2], @3       ;; Move b into a argument
     MVV.W @6[3], @7       ;; Move a + b into b argument

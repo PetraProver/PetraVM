@@ -542,9 +542,39 @@ impl BinaryOperation for SltuEvent {
 impl_binary_operation!(SltuEvent);
 impl_event_for_binary_operation!(SltuEvent);
 
+/// Event for SLT.
+///
+/// Performs an SLT between two signed target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] < FP[src2]
+#[derive(Debug, Clone)]
+pub(crate) struct SltEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u32,
+    src1: u16,
+    src1_val: u32,
+    src2: u16,
+    src2_val: u32,
+}
+
+impl BinaryOperation for SltEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+        // LT is checked using a SUB gadget.
+        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i32)) as u32)
+    }
+}
+
+// Note: The addition is checked thanks to the ADD32 table.
+impl_binary_operation!(SltEvent);
+impl_event_for_binary_operation!(SltEvent);
+
 /// Event for SLTIU.
 ///
-/// Performs an SLTIU between two target addresses.
+/// Performs an SLTIU between an unsigned target address and immediate.
 ///
 /// Logic:
 ///   1. FP[dst] = FP[src1] < FP[src2]
@@ -569,6 +599,34 @@ impl BinaryOperation for SltiuEvent {
 
 impl_immediate_binary_operation!(SltiuEvent);
 impl_event_for_binary_operation!(SltiuEvent);
+
+/// Event for SLTI.
+///
+/// Performs an SLTI between two target addresses.
+///
+/// Logic:
+///   1. FP[dst] = FP[src1] < FP[src2]
+#[derive(Debug, Clone)]
+pub(crate) struct SltiEvent {
+    pc: BinaryField32b,
+    fp: u32,
+    timestamp: u32,
+    dst: u16,
+    dst_val: u32,
+    src: u16,
+    src_val: u32,
+    imm: u16,
+}
+
+impl BinaryOperation for SltiEvent {
+    fn operation(val1: BinaryField32b, val2: BinaryField16b) -> BinaryField32b {
+        // LT is checked using a SUB gadget.
+        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i32)) as u32)
+    }
+}
+
+impl_immediate_binary_operation!(SltiEvent);
+impl_event_for_binary_operation!(SltiEvent);
 
 // Event for SUB.
 ///
@@ -608,6 +666,87 @@ mod tests {
     use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
     use crate::{opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+
+    #[test]
+    fn test_slt_ops() {
+        // Frame
+        // Slot 0: PC
+        // Slot 1: FP
+        // Slot 2: Input1
+        // Slot 3: Input2
+        // Slot 4: SLT_output
+        // Slot 5: SLTI_output
+        // Slot 6: SLTU_output
+        // Slot 7: SLTIU_output
+
+        let slt_dst_addr = 4.into();
+        let slti_dst_addr = 5.into();
+        let sltu_dst_addr = 6.into();
+        let sltiu_dst_addr = 7.into();
+
+        let input1 = -5i32;
+        let input2 = 1u32;
+
+        let input1_addr = 2.into();
+        let input2_addr = 3.into();
+
+        let zero = BinaryField16b::zero();
+        let instructions = vec![
+            // Should return true.
+            [
+                Opcode::Slt.get_field_elt(),
+                slt_dst_addr,
+                input1_addr,
+                input2_addr,
+            ],
+            // Should return true.
+            [
+                Opcode::Slti.get_field_elt(),
+                slti_dst_addr,
+                input1_addr,
+                (input2 as u16).into(),
+            ],
+            // Should return false.
+            [
+                Opcode::Sltu.get_field_elt(),
+                sltu_dst_addr,
+                input1_addr,
+                input2_addr,
+            ],
+            // Should return false.
+            [
+                Opcode::Sltiu.get_field_elt(),
+                sltiu_dst_addr,
+                input1_addr,
+                (input2 as u16).into(),
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(BinaryField32b::ONE, 8);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Initialize PC and FP.
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+
+        // Initialize inputs.
+        vrom.set_u32(input1_addr.val() as u32, input1 as u32)
+            .unwrap();
+        vrom.set_u32(input2_addr.val() as u32, input2).unwrap();
+
+        let memory = Memory::new(prom, vrom);
+        let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
+            .expect("Trace generation should not fail.");
+
+        // Check outputs.
+        assert_eq!(trace.get_vrom_u32(slt_dst_addr.val() as u32).unwrap(), 1);
+        assert_eq!(trace.get_vrom_u32(slti_dst_addr.val() as u32).unwrap(), 1);
+        assert_eq!(trace.get_vrom_u32(sltu_dst_addr.val() as u32).unwrap(), 0);
+        assert_eq!(trace.get_vrom_u32(sltiu_dst_addr.val() as u32).unwrap(), 0);
+    }
 
     #[test]
     fn test_mul_ops() {

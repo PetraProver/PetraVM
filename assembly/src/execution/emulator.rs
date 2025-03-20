@@ -21,14 +21,12 @@ use tracing::{debug, trace};
 use crate::{
     event::model::{
         b128::{B128AddEvent, B128MulEvent},
-        b32::{
-            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
-        },
+        b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
             Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
-            SignedMulKind, SltiuEvent, SltuEvent, SubEvent,
+            SignedMulKind, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -273,6 +271,8 @@ impl Interpreter {
             Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sub => self.generate_sub(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Slt => self.generate_slt(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Slti => self.generate_slti(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sltu => self.generate_sltu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Sltiu => self.generate_sltiu(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
@@ -283,6 +283,7 @@ impl Interpreter {
             Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Tailv => self.generate_tailv(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Calli => self.generate_calli(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Callv => self.generate_callv(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::And => self.generate_and(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
@@ -292,7 +293,6 @@ impl Interpreter {
             Opcode::MVVL => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::LDI => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
         }
@@ -570,6 +570,20 @@ impl Interpreter {
         Ok(())
     }
 
+    fn generate_callv(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        offset: BinaryField16b,
+        next_fp: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_callv_event = CallvEvent::generate_event(self, trace, offset, next_fp, field_pc)?;
+        trace.callv.push(new_callv_event);
+
+        Ok(())
+    }
+
     fn generate_and(
         &mut self,
         trace: &mut ZCrayTrace,
@@ -608,6 +622,34 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_sub_event = SubEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.sub.push(new_sub_event);
+
+        Ok(())
+    }
+
+    fn generate_slt(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_slt_event = SltEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        trace.slt.push(new_slt_event);
+
+        Ok(())
+    }
+
+    fn generate_slti(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let new_slti_event = SltiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.slti.push(new_slti_event);
 
         Ok(())
     }
@@ -785,33 +827,6 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.b32_mul.push(new_b32mul_event);
-
-        Ok(())
-    }
-
-    fn generate_b32_muli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm_low: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        if self.pc as usize > trace.prom().len() {
-            return Err(InterpreterError::BadPc);
-        }
-        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
-
-        if second_opcode.val() != Opcode::B32Muli.into()
-            || third != BinaryField16b::ZERO
-            || fourth != BinaryField16b::ZERO
-        {
-            return Err(InterpreterError::BadPc);
-        }
-        let imm = BinaryField32b::from_bases([imm_low, imm_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
     }

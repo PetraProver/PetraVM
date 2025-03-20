@@ -16,10 +16,20 @@ use crate::{execution::InterpreterInstruction, execution::G, opcodes::Opcode};
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
     Label(String, Option<u16>),
-    B32Muli {
+    B32Mul {
         dst: Slot,
         src1: Slot,
-        imm: Immediate,
+        src2: Slot,
+    },
+    B128Add {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    B128Mul {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
     },
     MviH {
         dst: SlotWithOffset,
@@ -75,10 +85,30 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         imm: Immediate,
     },
+    Or {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    OrI {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
     Sub {
         dst: Slot,
         src1: Slot,
         src2: Slot,
+    },
+    Slt {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Slti {
+        dst: Slot,
+        src: Slot,
+        imm: Immediate,
     },
     Sltu {
         dst: Slot,
@@ -89,6 +119,21 @@ pub enum InstructionsWithLabels {
         dst: Slot,
         src: Slot,
         imm: Immediate,
+    },
+    Sll {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Srl {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Sra {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
     },
     AndI {
         dst: Slot,
@@ -172,12 +217,89 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::OrI { dst, src1, imm } => {
+            let instruction = [
+                Opcode::Ori.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Or { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Or.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sll { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sll.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Srl { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Srl.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sra { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sra.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::Sub { dst, src1, src2 } => {
             let instruction = [
                 Opcode::Sub.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Slt { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Slt.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Slti { dst, src, imm } => {
+            let instruction = [
+                Opcode::Slti.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
             ];
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
@@ -229,24 +351,98 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        // TODO: To change
-        InstructionsWithLabels::B32Muli { dst, src1, imm } => {
+        InstructionsWithLabels::Or { dst, src1, src2 } => {
             let instruction = [
-                Opcode::B32Muli.get_field_elt(),
+                Opcode::Or.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::OrI { dst, src1, imm } => {
+            let instruction = [
+                Opcode::Ori.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
+
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
-
+        }
+        InstructionsWithLabels::Sll { dst, src1, src2 } => {
             let instruction = [
-                Opcode::B32Muli.get_field_elt(),
-                imm.get_high_field_val(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
+                Opcode::Sll.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
             ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Srl { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Srl.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sra { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sra.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B32Mul.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B128Add { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B128Add.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::B128Mul.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
             *field_pc *= G;
@@ -537,9 +733,7 @@ fn get_labels(
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s, frame_size) => {
-                if labels.insert(s.clone(), field_pc).is_some()
-                    || pc_field_to_int.insert(field_pc, pc).is_some()
-                {
+                if labels.insert(s.clone(), field_pc).is_some() {
                     return Err(format!("Label {} already exists.", s));
                 }
 
@@ -553,8 +747,10 @@ fn get_labels(
             _ => {
                 field_pc *= G;
                 pc = incr_pc(pc);
+                pc_field_to_int.insert(field_pc, pc);
             }
         }
+        pc_field_to_int.insert(field_pc, pc);
     }
     Ok((labels, pc_field_to_int, frame_sizes))
 }
@@ -583,8 +779,14 @@ impl std::fmt::Display for InstructionsWithLabels {
                     write!(f, "{}:", label)
                 }
             }
-            InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-                write!(f, "B32_MULI {dst} {src1} {imm}")
+            InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
+                write!(f, "B32_MUL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::B128Add { dst, src1, src2 } => {
+                write!(f, "B128_ADD {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
+                write!(f, "B128_MUL {dst} {src1} {src2}")
             }
             InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
@@ -601,8 +803,27 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::And { dst, src1, src2 } => {
                 write!(f, "ANDI {dst} {src1} {src2}")
             }
+            InstructionsWithLabels::Or { dst, src1, src2 } => write!(f, "OR {dst} {src1} {src2}"),
+            InstructionsWithLabels::OrI { dst, src1, imm } => {
+                write!(f, "ORI {dst} {src1} {imm}")
+            }
+            InstructionsWithLabels::Sll { dst, src1, src2 } => {
+                write!(f, "SLL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Srl { dst, src1, src2 } => {
+                write!(f, "SRL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Sra { dst, src1, src2 } => {
+                write!(f, "SRA {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
+            InstructionsWithLabels::Slt { dst, src1, src2 } => {
+                write!(f, "SLT {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Slti { dst, src, imm } => {
+                write!(f, "SLTI {dst} {src} {imm}")
+            }
             InstructionsWithLabels::Sltu { dst, src1, src2 } => {
                 write!(f, "SLTU {dst} {src1} {src2}")
             }

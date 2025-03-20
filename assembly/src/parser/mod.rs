@@ -84,14 +84,8 @@ fn parse_line(
                             binary_imm.next().expect("binary_imm has imm").as_str(),
                         )?;
                         match rule {
-                            Rule::B32_MULI_instr => {
-                                instrs.push(InstructionsWithLabels::B32Muli {
-                                    dst: Slot::from_str(dst.as_str())?,
-                                    src1: Slot::from_str(src1.as_str())?,
-                                    imm,
-                                });
-                            }
-                            Rule::XORI_instr => {
+                            // B32_ADDI is an alias for XORI.
+                            Rule::XORI_instr | Rule::B32_ADDI_instr => {
                                 instrs.push(InstructionsWithLabels::XorI {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src: Slot::from_str(src1.as_str())?,
@@ -112,6 +106,20 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::ORI_instr => {
+                                instrs.push(InstructionsWithLabels::OrI {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
+                            Rule::SLTI_instr => {
+                                instrs.push(InstructionsWithLabels::Slti {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::SLTIU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltiu {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -119,7 +127,6 @@ fn parse_line(
                                     imm,
                                 });
                             }
-
                             Rule::MULI_instr => {
                                 instrs.push(InstructionsWithLabels::MulI {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -247,7 +254,8 @@ fn parse_line(
                         let src2 =
                             Slot::from_str(binary_op.next().expect("binary_op has src2").as_str())?;
                         match rule {
-                            Rule::XOR_instr => {
+                            // B32_ADD is an alias for XOR.
+                            Rule::XOR_instr | Rule::B32_ADD_instr => {
                                 instrs.push(InstructionsWithLabels::Xor { dst, src1, src2 });
                             }
                             Rule::ADD_instr => {
@@ -256,14 +264,41 @@ fn parse_line(
                             Rule::AND_instr => {
                                 instrs.push(InstructionsWithLabels::And { dst, src1, src2 });
                             }
+                            Rule::OR_instr => {
+                                instrs.push(InstructionsWithLabels::Or { dst, src1, src2 });
+                            }
+                            Rule::SLL_instr => {
+                                instrs.push(InstructionsWithLabels::Sll { dst, src1, src2 });
+                            }
+                            Rule::SRL_instr => {
+                                instrs.push(InstructionsWithLabels::Srl { dst, src1, src2 });
+                            }
+                            Rule::SRA_instr => {
+                                instrs.push(InstructionsWithLabels::Sra { dst, src1, src2 });
+                            }
+                            Rule::SLT_instr => {
+                                instrs.push(InstructionsWithLabels::Slt { dst, src1, src2 });
+                            }
                             Rule::SLTU_instr => {
                                 instrs.push(InstructionsWithLabels::Sltu { dst, src1, src2 });
                             }
                             Rule::SUB_instr => {
                                 instrs.push(InstructionsWithLabels::Sub { dst, src1, src2 });
                             }
+                            Rule::B32_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
+                            }
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
+                            }
+                            Rule::B32_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
+                            }
+                            Rule::B128_ADD_instr => {
+                                instrs.push(InstructionsWithLabels::B128Add { dst, src1, src2 });
+                            }
+                            Rule::B128_MUL_instr => {
+                                instrs.push(InstructionsWithLabels::B128Mul { dst, src1, src2 });
                             }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
@@ -287,23 +322,23 @@ fn parse_line(
                         let rule =
                             get_first_inner(simple_jump.next().unwrap(), "jump has instruction")
                                 .as_rule();
-                        let dst = simple_jump.next().expect("jump_with_op_instrs_imm has dst");
-
-                        match rule {
-                            Rule::J_instr => {
-                                let first_char =
-                                    dst.as_str().chars().next().expect("simple jump as target");
-                                if first_char == '_' || first_char.is_ascii() {
-                                    instrs.push(InstructionsWithLabels::Jumpi {
-                                        label: dst.as_str().to_string(),
-                                    });
-                                } else {
-                                    instrs.push(InstructionsWithLabels::Jumpv {
-                                        offset: Slot::from_str(dst.as_str())?,
-                                    })
-                                }
+                        let dst = simple_jump
+                            .next()
+                            .expect("simple_jump expects a destination operand");
+                        match dst.as_rule() {
+                            Rule::label_name => {
+                                // This is a jump to a label
+                                instrs.push(InstructionsWithLabels::Jumpi {
+                                    label: dst.as_str().to_string(),
+                                });
                             }
-                            _ => unreachable!("All nullary instructions are implemented"),
+                            Rule::slot => {
+                                // This is a jump with an offset (e.g. "J @13")
+                                instrs.push(InstructionsWithLabels::Jumpv {
+                                    offset: Slot::from_str(dst.as_str())?,
+                                });
+                            }
+                            _ => unreachable!("Unexpected token in simple_jump"),
                         }
                     }
                     _ => {

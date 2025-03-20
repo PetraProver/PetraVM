@@ -21,17 +21,15 @@ pub enum Opcode {
     Mulu = 0x23,
     Mulsu = 0x24,
     Mul = 0x1f,
-    B32Muli = 0x0a,
     B32Mul = 0x10,
-    // B32Add, // TODO
     B128Add = 0x16,
     B128Mul = 0x17,
-    // Slti, // TODO
-    // Slt, // TODO
     And = 0x13,
     Or = 0x14,
     Ori = 0x15,
     Sub = 0x19,
+    Slt = 0x25,
+    Slti = 0x26,
     Sltu = 0x1a,
     Sltiu = 0x1b,
     Sll = 0x1c,
@@ -51,6 +49,7 @@ pub enum Opcode {
     Taili = 0x0c,
     Tailv = 0x12,
     Calli = 0x18,
+    Callv = 0x0a,
     Ret = 0x0b,
 
     // Branch instructions
