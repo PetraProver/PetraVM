@@ -87,6 +87,9 @@ impl InterpreterInstruction {
             field_pc,
         }
     }
+    pub fn opcode(&self) -> Opcode {
+        Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
+    }
 }
 
 #[derive(Debug)]
@@ -286,6 +289,7 @@ impl Interpreter {
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
         self.timestamp += 1;
         Ok(Some(()))

@@ -8,10 +8,10 @@ fn test_opcodes() {
         Assembler::from_code(include_str!("../../examples/opcodes.asm")).unwrap();
 
     // Ensure all opcodes are present in the program
-    const TOTAL_OPS: usize = 39;
+    const TOTAL_OPS: usize = 38;
     let mut seen = HashSet::new();
-    for instr in &instructions {
-        seen.insert(mem::discriminant(instr));
+    for instr in &compiled_program.prom {
+        seen.insert(mem::discriminant(&instr.opcode()));
     }
     assert_eq!(seen.len(), TOTAL_OPS);
 
