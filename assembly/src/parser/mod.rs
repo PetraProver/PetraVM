@@ -7,8 +7,7 @@ mod instructions_with_labels;
 mod tests;
 
 use instruction_args::{Immediate, Slot, SlotWithOffset};
-pub use instructions_with_labels::get_full_prom_and_labels;
-pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels, LabelsFrameSizes};
+pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]
@@ -204,13 +203,13 @@ fn parse_line(
                             Rule::TAILI_instr => {
                                 instrs.push(InstructionsWithLabels::Taili {
                                     label: dst.as_str().to_string(),
-                                    arg: Slot::from_str(imm.as_str())?,
+                                    next_fp: Slot::from_str(imm.as_str())?,
                                 });
                             }
                             Rule::CALLI_instr => {
                                 instrs.push(InstructionsWithLabels::Calli {
                                     label: dst.as_str().to_string(),
-                                    arg: Slot::from_str(imm.as_str())?,
+                                    next_fp: Slot::from_str(imm.as_str())?,
                                 });
                             }
                             Rule::BNZ_instr => {
