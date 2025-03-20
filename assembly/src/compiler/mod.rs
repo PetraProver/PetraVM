@@ -257,7 +257,16 @@ pub fn get_prom_inst_from_inst_with_label(
             *field_pc *= G;
         }
         InstructionsWithLabels::Callv { offset, next_fp } => {
-            unimplemented!();
+            let instruction = [
+                Opcode::Callv.get_field_elt(),
+                offset.get_16bfield_val(),
+                next_fp.get_16bfield_val(),
+                BinaryField16b::zero(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
         }
         InstructionsWithLabels::Jumpi { label } => {
             if let Some(target) = labels.get(label) {
