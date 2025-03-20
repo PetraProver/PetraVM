@@ -8,6 +8,7 @@ use binius_field::{BinaryField32b, Field, PackedField};
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
 use crate::{
+    assembler::LabelsFrameSizes,
     event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
@@ -25,7 +26,6 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
     memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
-    parser::LabelsFrameSizes,
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {

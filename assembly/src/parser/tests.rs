@@ -1,15 +1,19 @@
 #[cfg(test)]
 mod test_parser {
+
+    use std::str::FromStr;
+
     use binius_field::{BinaryField16b, ExtensionField, Field, PackedField};
     use pest::Parser;
 
     use crate::execution::G;
-    use crate::get_full_prom_and_labels;
     use crate::opcodes::Opcode;
+    use crate::parser::instruction_args::Slot;
     use crate::parser::InstructionsWithLabels;
     use crate::parser::{parse_line, parse_program, AsmParser, Rule};
     use crate::util::code_to_prom;
     use crate::util::get_binary_slot;
+    use crate::Assembler;
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
@@ -60,6 +64,7 @@ mod test_parser {
             "_start: \n RET",
             "_start: BNZ case_recurse, @4 ;; branch if n == 1\n",
             "_start: ;; Some comment\n BNZ case_recurse, @4 ;; branch if n == 1\n",
+            "\n\t_start:\n\t\t\n RET",
         ];
         for asm in ok_programs {
             ensure_parser_succeeds(Rule::program, asm);
@@ -89,6 +94,16 @@ mod test_parser {
                 println!("    {instr}");
             }
         }
+    }
+
+    #[test]
+    fn test_simple_jump() {
+        let code = "_start: J label\nJ @4\n";
+        let instrs = parse_program(code).unwrap();
+        assert!(matches!(&instrs[1], InstructionsWithLabels::Jumpi { label } if label == "label"));
+        assert!(
+            matches!(&instrs[2], InstructionsWithLabels::Jumpv { offset } if offset.to_string() == "@4")
+        );
     }
 
     #[test]
@@ -158,10 +173,8 @@ mod test_parser {
         let case_odd = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10))
             .collect::<Vec<BinaryField16b>>();
 
-        let instructions = parse_program(include_str!("../../../examples/collatz.asm")).unwrap();
-
-        let (prom, labels, pc_field_to_int, _) = get_full_prom_and_labels(&instructions)
-            .expect("Instructions were not formatted properly.");
+        let compiled_program =
+            Assembler::from_code(include_str!("../../../examples/collatz.asm")).unwrap();
 
         let zero = BinaryField16b::zero();
 
@@ -261,13 +274,13 @@ mod test_parser {
         let expected_prom = code_to_prom(&expected_prom);
 
         assert!(
-            prom.len() == expected_prom.len(),
+            compiled_program.prom.len() == expected_prom.len(),
             "Not identical number of instructions in PROM ({:?}) and expected PROM ({:?})",
-            prom.len(),
+            compiled_program.prom.len(),
             expected_prom.len()
         );
 
-        for (i, inst) in prom.iter().enumerate() {
+        for (i, inst) in compiled_program.prom.iter().enumerate() {
             let expected_inst = &expected_prom[i];
             assert_eq!(
                 *inst, *expected_inst,

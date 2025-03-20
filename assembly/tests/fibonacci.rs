@@ -1,6 +1,6 @@
 use binius_field::{BinaryField, BinaryField32b, Field};
 use num_traits::WrappingAdd;
-use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_fibonacci_integration() {
@@ -8,11 +8,7 @@ fn test_fibonacci_integration() {
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
     // Parse the Fibonacci program
-    let instructions = parse_program(include_str!("../../examples/fib.asm")).unwrap();
-
-    // Generate the program ROM and associated data
-    let (prom, _, pc_field_to_int, frame_sizes) =
-        get_full_prom_and_labels(&instructions).expect("Failed to process instructions");
+    let compiled_program = Assembler::from_code(include_str!("../../examples/fib.asm")).unwrap();
 
     // Set initial value
     let init_val = 4;
@@ -20,11 +16,15 @@ fn test_fibonacci_integration() {
 
     // Initialize memory with return PC = 0, return FP = 0, and the argument
     let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
-    let memory = Memory::new(prom, vrom);
+    let memory = Memory::new(compiled_program.prom, vrom);
 
     // Execute the program and generate the trace
-    let (trace, boundary_values) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-        .expect("Trace generation should not fail");
+    let (trace, boundary_values) = ZCrayTrace::generate(
+        memory,
+        compiled_program.frame_sizes,
+        compiled_program.pc_field_to_int,
+    )
+    .expect("Trace generation should not fail");
 
     // Validate the trace
     trace.validate(boundary_values);
