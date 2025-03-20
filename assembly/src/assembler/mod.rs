@@ -56,6 +56,7 @@ pub type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
 
+#[derive(Debug)]
 pub struct AssembledProgram {
     pub prom: ProgramRom,
     pub labels: Labels,
@@ -670,14 +671,29 @@ mod tests {
 
     #[test]
     fn test_function_with_no_frame_size() {
-        const PROGRAM: &str = r#"_start:
-    RET
-        "#;
-        let instructions = parse_program(PROGRAM).unwrap();
-        let out = get_labels(&instructions);
-        assert!(matches!(
-            out,
-            Err(AssemblerError::FunctionHasNoFrameSize(_))
-        ));
+        let programs = [
+            r#"
+        #[framesize(0x10)]
+            start:
+                CALLI some_function, @3
+                RET
+
+            some_function:
+                MVV.W @3[1], @1
+                RET
+            "#,
+            r#"
+            start:
+                RET
+            "#,
+        ];
+
+        for program in programs {
+            let out = Assembler::from_code(program);
+            assert!(matches!(
+                out,
+                Err(AssemblerError::FunctionHasNoFrameSize(_))
+            ));
+        }
     }
 }

@@ -10,7 +10,7 @@ use binius_field::{
 use tracing::trace;
 
 use crate::{
-    compiler::LabelsFrameSizes,
+    assembler::LabelsFrameSizes,
     event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},

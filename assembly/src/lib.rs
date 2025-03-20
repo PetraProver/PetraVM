@@ -12,6 +12,6 @@ mod opcodes;
 mod parser;
 mod util;
 
-pub use assembler::{AssembledProgram, AssemblerError, Assembler};
+pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use execution::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
