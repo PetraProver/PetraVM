@@ -39,12 +39,20 @@ pub enum InstructionsWithLabels {
         dst: SlotWithOffset,
         src: Slot,
     },
+    MvvL {
+        dst: SlotWithOffset,
+        src: Slot,
+    },
     Taili {
         label: String,
         arg: Slot,
     },
     Calli {
         label: String,
+        arg: Slot,
+    },
+    Callv {
+        offset: Slot,
         arg: Slot,
     },
     Tailv {
@@ -155,6 +163,16 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Mulu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Mulsu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     SrlI {
         dst: Slot,
         src1: Slot,
@@ -171,7 +189,6 @@ pub enum InstructionsWithLabels {
         imm: Immediate,
     },
     Ret,
-    // Add more instructions as needed
 }
 
 const fn incr_pc(pc: u32) -> u32 {
@@ -464,18 +481,6 @@ pub fn get_prom_inst_from_inst_with_label(
             }
             *field_pc *= G;
         }
-        InstructionsWithLabels::Jumpv { offset } => {
-            let instruction = [
-                Opcode::Jumpv.get_field_elt(),
-                offset.get_16bfield_val(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
-            ];
-
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
-
-            *field_pc *= G;
-        }
         InstructionsWithLabels::Jumpi { label } => {
             if let Some(target) = labels.get(label) {
                 let targets_16b =
@@ -489,7 +494,10 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
+                return Err(format!(
+                    "Label in JUMPI instruction, {}, nonexistent.",
+                    label
+                ));
             }
             *field_pc *= G;
         }
@@ -503,23 +511,6 @@ pub fn get_prom_inst_from_inst_with_label(
 
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
-            *field_pc *= G;
-        }
-        InstructionsWithLabels::Jumpi { label } => {
-            if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
-                let instruction = [
-                    Opcode::Jumpi.get_field_elt(),
-                    targets_16b[0],
-                    targets_16b[1],
-                    BinaryField16b::zero(),
-                ];
-
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
-            } else {
-                return Err(format!("Label in BNZ instruction, {}, nonexistent.", label));
-            }
             *field_pc *= G;
         }
         InstructionsWithLabels::MulI { dst, src1, imm } => {
@@ -544,9 +535,42 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Mulsu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Mulsu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Mulu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Mulu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::MvvW { dst, src } => {
             let instruction = [
                 Opcode::MVVW.get_field_elt(),
+                dst.get_slot_16bfield_val(),
+                dst.get_offset_field_val(),
+                src.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::MvvL { dst, src } => {
+            let instruction = [
+                Opcode::MVVL.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
@@ -634,7 +658,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
                 return Err(format!(
-                    "Label in Taili instruction, {}, nonexistent.",
+                    "Label in Calli instruction, {}, nonexistent.",
                     label
                 ));
             }
@@ -653,16 +677,14 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Tailv { offset, arg } => {
+        InstructionsWithLabels::Callv { offset, arg } => {
             let instruction = [
-                Opcode::Tailv.get_field_elt(),
+                Opcode::Callv.get_field_elt(),
                 offset.get_16bfield_val(),
                 arg.get_16bfield_val(),
                 BinaryField16b::zero(),
             ];
-
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
-
             *field_pc *= G;
         }
         InstructionsWithLabels::XorI { dst, src, imm } => {
@@ -790,9 +812,11 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
+            InstructionsWithLabels::MvvL { dst, src } => write!(f, "MVV.L {dst} {src}"),
             InstructionsWithLabels::Taili { label, arg } => write!(f, "TAILI {label} {arg}"),
             InstructionsWithLabels::Calli { label, arg } => write!(f, "CALLI {label} {arg}"),
             InstructionsWithLabels::Tailv { offset, arg } => write!(f, "TAILV {offset} {arg}"),
+            InstructionsWithLabels::Callv { offset, arg } => write!(f, "CALLV {offset} {arg}"),
             InstructionsWithLabels::Ldi { dst, imm } => write!(f, "LDI {dst} {imm}"),
             InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
             InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
@@ -817,6 +841,12 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "SRA {dst} {src1} {src2}")
             }
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
+            InstructionsWithLabels::Mulu { dst, src1, src2 } => {
+                write!(f, "MULU {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Mulsu { dst, src1, src2 } => {
+                write!(f, "MULSU {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
             InstructionsWithLabels::Slt { dst, src1, src2 } => {
                 write!(f, "SLT {dst} {src1} {src2}")
