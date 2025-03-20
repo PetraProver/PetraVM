@@ -33,7 +33,7 @@
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;; ============================================================================
 
-#[framesize(0x10)]
+#[framesize(0x20)]
 _start: 
     ;; Call the binary field test
     MVV.W @3[2], @4
@@ -50,10 +50,39 @@ _start:
     CALLI test_move_ops, @7
     BNZ test_failed, @8
     
+    ;; Call the branch and jump test
+    MVV.W @9[2], @10
+    CALLI test_jumps_branches, @9
+    BNZ test_failed, @10
+    
+    ;; Call the function call operations test
+    MVV.W @11[2], @12
+    CALLI test_function_calls, @11
+    BNZ test_failed, @12
+    
     LDI.W @2, #0    ;; overall success flag
     RET
+
+#[framesize(0x5)]
 test_failed:
     LDI.W @2, #1    ;; overall failure flag
+    RET
+
+;; ============================================================================
+;; TARGET FUNCTIONS FOR CALLV/TAILV TESTS
+;; These functions are placed early in the program so we can know their PC values
+;; ============================================================================
+
+;; PC = 20G (we know this exact value for CALLV tests)
+#[framesize(0x5)]
+callv_target_fn:
+    LDI.W @2, #123      ;; Set special return value to identify CALLV worked
+    RET
+
+;; PC = 22G (we know this exact value for TAILV tests)
+#[framesize(0x5)]
+tailv_target_fn:
+    LDI.W @2, #0        ;; Set success flag (0 = success)
     RET
 
 ;; ============================================================================
@@ -496,13 +525,13 @@ test_move_call_l:
     XORI @9, @4, #1111   ;; Check if first word is correct
     BNZ move_call_l_fail, @9
 
-    XORI @10, @5, #2222   ;; Check if second word is correct
+    XORI @10, @5, #2222  ;; Check if second word is correct
     BNZ move_call_l_fail, @10
     
-    XORI @11, @6, #3333   ;; Check if third word is correct
+    XORI @11, @6, #3333  ;; Check if third word is correct
     BNZ move_call_l_fail, @11
     
-    XORI @12, @7, #4444   ;; Check if fourth word is correct
+    XORI @12, @7, #4444  ;; Check if fourth word is correct
     BNZ move_call_l_fail, @12
     
     LDI.W @2, #0         ;; Set success flag in return value slot (slot 2)
@@ -523,3 +552,201 @@ test_move_call_h:
 move_call_h_fail:
     LDI.W @3, #1         ;; Set failure flag in return value slot (slot 3, not 2)
     RET
+
+;; ============================================================================
+;; JUMPS AND BRANCHES
+;; ============================================================================
+;; Tests for jump and branch instructions, which control the flow of execution.
+;; ============================================================================
+
+#[framesize(0x20)]
+test_jumps_branches:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: BNZ (Branch If Not Zero)
+    ;; 
+    ;; FORMAT: BNZ target, cond
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Branch to target address if condition register is not zero.
+    ;;
+    ;; EFFECT: 
+    ;;   if fp[cond] != 0 then PC = target
+    ;;   else PC = PC * G (next instruction)
+    ;; ------------------------------------------------------------
+    ;; 1. Test branch NOT taken (condition is zero)
+    LDI.W @3, #0         ;; Set condition to 0
+    LDI.W @4, #0         ;; Initialize a counter
+    BNZ bnz_should_not_take, @3  ;; Should NOT branch since @3 is 0
+    ADDI @4, @4, #1      ;; Should execute this (increment counter)
+    J bnz_continue1      ;; Jump to continue testing
+
+bnz_should_not_take:
+    ;; We should NOT reach here in the first test
+    LDI.W @2, #1         ;; Set failure flag
+    RET
+
+bnz_continue1:
+    ;; Check if counter was incremented (branch not taken)
+    XORI @5, @4, #1      ;; Should be 1 if branch was not taken
+    BNZ branch_fail, @5
+    
+    ;; 2. Test branch taken (condition is non-zero)
+    LDI.W @6, #42        ;; Set non-zero condition
+    LDI.W @7, #0         ;; Initialize a flag
+    BNZ bnz_should_take, @6  ;; Should branch since @6 is non-zero
+    ;; We should NOT reach here
+    LDI.W @2, #1         ;; Set failure flag
+    RET
+    
+bnz_should_take:
+    ;; We SHOULD reach here in the second test
+    LDI.W @7, #1         ;; Set flag to indicate we reached here
+    
+    ;; Check if we successfully took the branch
+    XORI @8, @7, #1      ;; Should be 1 if branch was taken
+    BNZ branch_fail, @8
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: J (Jump)
+    ;; 
+    ;; FORMAT: J target
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Jump to a target address unconditionally.
+    ;;
+    ;; EFFECT: PC = target
+    ;; ------------------------------------------------------------
+    ;; Test unconditional jump
+    LDI.W @9, #0         ;; Initialize a flag
+    J jumpi_target       ;; Should always jump
+    ;; We should NOT reach here
+    LDI.W @2, #1         ;; Set failure flag
+    RET
+    
+jumpi_target:
+    ;; We SHOULD reach here
+    LDI.W @9, #1         ;; Set flag to indicate we reached here
+    
+    ;; Check if we successfully jumped
+    XORI @10, @9, #1     ;; Should be 1 if jump was taken
+    BNZ branch_fail, @10
+
+    ;; All tests passed
+    LDI.W @2, #0         ;; Set success flag (0 = success)
+    RET
+    
+branch_fail:
+    LDI.W @2, #1         ;; Set failure flag (1 = failure)
+    RET
+
+;; ============================================================================
+;; FUNCTION CALL OPERATIONS
+;; ============================================================================
+;; Tests for function call instructions, which save and restore execution context.
+;; ============================================================================
+
+#[framesize(0x30)]
+test_function_calls:
+    ;; Frame slots:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value (success flag)
+    ;; Slots 3+: Local variables for tests and temporary frames
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: CALLI (Call Immediate)
+    ;; 
+    ;; FORMAT: CALLI target, next_fp
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Function call to a target address.
+    ;;   Sets up a new frame with the return address and old FP.
+    ;;
+    ;; EFFECT: 
+    ;;   [FP[next_fp] + 0] = PC * G (return address)
+    ;;   [FP[next_fp] + 1] = FP (old frame pointer)
+    ;;   FP = FP[next_fp]
+    ;;   PC = target
+    ;; ------------------------------------------------------------
+    ;; Test a regular function call
+    MVV.W @10[2], @11    ;; Set up a slot to receive the return value
+    CALLI test_simple_fn, @10
+    
+    ;; Check the return value from the function
+    XORI @12, @11, #42   ;; Function should return 42
+    BNZ call_fail, @12
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: CALLV (Call Variable)
+    ;; 
+    ;; FORMAT: CALLV target, next_fp
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Function call to a target address stored in a register.
+    ;;   Sets up a new frame with the return address and old FP.
+    ;;
+    ;; EFFECT: 
+    ;;   [FP[next_fp] + 0] = PC * G (return address)
+    ;;   [FP[next_fp] + 1] = FP (old frame pointer)
+    ;;   FP = FP[next_fp]
+    ;;   PC = fp[target]
+    ;; ------------------------------------------------------------
+    ;; For CALLV, we need to use a known PC value
+    ;; We placed callv_target_fn at PC = 20G (marked in comments above)
+    LDI.W @13, #20       ;; Load the PC value for callv_target_fn
+    
+    ;; Set up a call frame for CALLV
+    MVV.W @14[2], @15    ;; Set up a slot to receive the return value
+    CALLV @13, @14       ;; Call using the address in @13
+    
+    ;; Check if we got the special return value from callv_target_fn (123)
+    XORI @16, @15, #123  ;; Function should return 123
+    BNZ call_fail, @16
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: TAILV (Tail Call Variable)
+    ;; 
+    ;; FORMAT: TAILV target, next_fp
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Tail call to a target address stored in a register.
+    ;;   Preserves the original return address and frame.
+    ;;
+    ;; EFFECT: 
+    ;;   [FP[next_fp] + 0] = FP[0] (return address)
+    ;;   [FP[next_fp] + 1] = FP[1] (old frame pointer)
+    ;;   FP = FP[next_fp]
+    ;;   PC = fp[target]
+    ;; ------------------------------------------------------------
+    ;; Test TAILV using a known PC value
+    ;; We placed tailv_target_fn at PC = 22G (marked in comments above)
+    LDI.W @17, #22       ;; Load the PC value for tailv_target_fn
+    
+    ;; Pass the final return value slot to the function
+    MVV.W @18[2], @2     ;; Pass the final return value slot
+    TAILV @17, @18       ;; Tail call using address in @17
+    
+    ;; We should not reach here - the tail call should return directly
+    ;; to the caller of test_function_calls
+    LDI.W @2, #1         ;; Set failure flag
+    RET
+
+call_fail:
+    LDI.W @2, #1         ;; Set failure flag (1 = failure)
+    RET
+
+;; Simple test function
+#[framesize(0x5)]
+test_simple_fn:
+    ;; Slot 0: Return PC (set by CALL instruction)
+    ;; Slot 1: Return FP (set by CALL instruction)
+    ;; Slot 2: Return value slot
+    
+    LDI.W @2, #42       ;; Set a test return value
+    RET                 ;; Return to caller
