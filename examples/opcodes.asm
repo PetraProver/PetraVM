@@ -62,6 +62,11 @@ _start:
     CALLI test_function_calls, @11
     BNZ test_failed, @12
     
+    ;; Call the TAILI test
+    MVV.W @13[2], @14
+    CALLI test_taili, @13
+    BNZ test_failed, @14
+
     LDI.W @2, #0    ;; overall success flag
     RET
 
@@ -75,19 +80,19 @@ test_failed:
 ;; These functions are placed early in the program so we can know their PC values
 ;; ============================================================================
 
-;; PC = 20G (we know this exact value for CALLV tests)
+;; PC = 23G (we know this exact value for CALLV tests)
 #[framesize(0x5)]
 callv_target_fn:
     LDI.W @2, #123      ;; Set special return value to identify CALLV worked
     RET
 
-;; PC = 22G (we know this exact value for TAILV tests)
+;; PC = 25G (we know this exact value for TAILV tests)
 #[framesize(0x5)]
-tailv_target_fn:
+tail_target_fn:
     LDI.W @2, #0        ;; Set success flag (0 = success)
     RET
 
-;; PC = 24G (we know this exact value for JUMPV tests)
+;; PC = 27G (we know this exact value for JUMPV tests)
 jumpv_destination:
     LDI.W @15, #77       ;; Set special value to identify JUMPV worked
     J jumpv_done        ;; Jump to continue testing
@@ -663,8 +668,8 @@ jump_target:
     ;; EFFECT: PC = fp[register]
     ;; ------------------------------------------------------------
     ;; First, load the destination address into a VROM slot
-    ;; We use the PC value of jumpv_destination (at PC = 24G)
-    LDI.W @13, #11978041  ;; Actual field element value for 24G
+    ;; We use the PC value of jumpv_destination (at PC = 27G)
+    LDI.W @13, #2983627541  ;; Actual field element value for 27G
     
     ;; Now jump to that address using J @register syntax
     J @13               ;; Jump to the address in @13
@@ -730,8 +735,8 @@ test_function_calls:
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
     ;; For CALLV, we need to use a known PC value
-    ;; We placed callv_target_fn at PC = 20G (marked in comments above)
-    LDI.W @13, #1443700361  ;; Actual field element value for 20G
+    ;; We placed callv_target_fn at PC = 23G (marked in comments above)
+    LDI.W @13, #2803768080  ;; Actual field element value for 23G
     
     ;; Set up a call frame for CALLV
     MVV.W @14[2], @15    ;; Set up a slot to receive the return value
@@ -757,8 +762,8 @@ test_function_calls:
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
     ;; Test TAILV using a known PC value
-    ;; We placed tailv_target_fn at PC = 22G (marked in comments above)
-    LDI.W @17, #481016549  ;; Actual field element value for 22G
+    ;; We placed tailv_target_fn at PC = 25G (marked in comments above)
+    LDI.W @17, #3069186472  ;; Actual field element value for 25G
     
     ;; Pass the final return value slot to the function
     MVV.W @18[2], @2     ;; Pass the final return value slot
@@ -771,6 +776,36 @@ test_function_calls:
 
 call_fail:
     LDI.W @2, #1         ;; Set failure flag (1 = failure)
+    RET
+
+#[framesize(0x10)]
+test_taili:
+    ;; Slot 0: Return PC
+    ;; Slot 1: Return FP
+    ;; Slot 2: Return value slot
+    
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: TAILI (Tail Call Immediate)
+    ;; 
+    ;; FORMAT: TAILI target, next_fp
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Tail call to a target address given by an immediate.
+    ;;   Preserves the original return address and frame.
+    ;;
+    ;; EFFECT: 
+    ;;   [FP[next_fp] + 0] = FP[0] (return address)
+    ;;   [FP[next_fp] + 1] = FP[1] (old frame pointer)
+    ;;   FP = FP[next_fp]
+    ;;   PC = target
+    ;; ------------------------------------------------------------
+    
+    ;; Set up a new frame for the tail call
+    MVV.W @3[2], @2     ;; Pass the return value slot to the target function
+    TAILI tail_target_fn, @3  ;; Tail call to tail_target_fn
+    
+    ;; Should not reach here - the tail call should return directly to our caller
+    LDI.W @2, #1        ;; Set failure flag (1 = failure)
     RET
 
 ;; Simple test function
