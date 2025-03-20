@@ -334,6 +334,12 @@ fn parse_line(
                             Rule::B128_MUL_instr => {
                                 instrs.push(InstructionsWithLabels::B128Mul { dst, src1, src2 });
                             }
+                            Rule::MULU_instr => {
+                                instrs.push(InstructionsWithLabels::Mulu { dst, src1, src2 });
+                            }
+                            Rule::MULSU_instr => {
+                                instrs.push(InstructionsWithLabels::Mulsu { dst, src1, src2 });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
                             }

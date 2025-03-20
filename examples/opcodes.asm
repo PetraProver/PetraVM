@@ -32,7 +32,6 @@
 ;; - Slot 1: Return FP (set by CALL instructions)
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;;
-;; NOTE: All memory in VROM is write-once! We cannot write to the same VROM slot twice.
 ;; ============================================================================
 
 #[framesize(0x20)]
@@ -221,7 +220,7 @@ bf_fail:
 ;; Includes arithmetic, logical, comparison, and shift operations.
 ;; ============================================================================
 
-#[framesize(0x40)]
+#[framesize(0x50)]
 test_integer_ops:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -233,6 +232,13 @@ test_integer_ops:
     LDI.W @3, #42    ;; test value A
     LDI.W @4, #7     ;; test value B
     LDI.W @5, #2     ;; shift amount
+    LDI.W @6, #65535 ;; Max u16 immediate value
+    LDI.W @7, #0     ;; Initialize a working register
+
+    ;; Set up a value with all bits set (equivalent to -1 in two's complement)
+    XORI @8, @7, #65535     ;; Low 16 bits are all 1s
+    SLLI @9, @8, #16        ;; Shift left by 16
+    ORI @10, @9, #65535     ;; OR with 65535 to set all 32 bits to 1
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: ADD / ADDI
@@ -248,12 +254,12 @@ test_integer_ops:
     ;;   fp[dst] = fp[src1] + fp[src2]
     ;;   fp[dst] = fp[src] + imm
     ;; ------------------------------------------------------------
-    ADD @10, @3, @4      ;; 42 + 7 = 49
-    ADDI @11, @3, #7     ;; 42 + 7 = 49
+    ADD @11, @3, @4      ;; 42 + 7 = 49
+    ADDI @12, @3, #7     ;; 42 + 7 = 49
     
     ;; Verify both give same result
-    XOR @12, @10, @11    ;; Compare ADD and ADDI results
-    BNZ int_fail, @12
+    XOR @13, @11, @12    ;; Compare ADD and ADDI results
+    BNZ int_fail, @13
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: SUB
@@ -265,9 +271,9 @@ test_integer_ops:
     ;;
     ;; EFFECT: fp[dst] = fp[src1] - fp[src2]
     ;; ------------------------------------------------------------
-    SUB @13, @3, @4      ;; 42 - 7 = 35
-    XORI @14, @13, #35   ;; Check result
-    BNZ int_fail, @14
+    SUB @14, @3, @4      ;; 42 - 7 = 35
+    XORI @15, @14, #35   ;; Check result
+    BNZ int_fail, @15
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: AND / ANDI
@@ -283,15 +289,15 @@ test_integer_ops:
     ;;   fp[dst] = fp[src1] & fp[src2]
     ;;   fp[dst] = fp[src] & imm
     ;; ------------------------------------------------------------
-    AND @15, @3, @4      ;; 42 & 7 = 2
-    ANDI @16, @3, #7     ;; 42 & 7 = 2
+    AND @16, @3, @4      ;; 42 & 7 = 2
+    ANDI @17, @3, #7     ;; 42 & 7 = 2
     
     ;; Verify both give same result and value is correct
-    XOR @17, @15, @16    ;; Compare AND and ANDI results
-    BNZ int_fail, @17
-    
-    XORI @18, @15, #2    ;; Check the result value
+    XOR @18, @16, @17    ;; Compare AND and ANDI results
     BNZ int_fail, @18
+    
+    XORI @19, @16, #2    ;; Check the result value
+    BNZ int_fail, @19
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: OR / ORI
@@ -307,15 +313,15 @@ test_integer_ops:
     ;;   fp[dst] = fp[src1] | fp[src2]
     ;;   fp[dst] = fp[src] | imm
     ;; ------------------------------------------------------------
-    OR @19, @3, @4       ;; 42 | 7 = 47
-    ORI @20, @3, #7      ;; 42 | 7 = 47
+    OR @20, @3, @4       ;; 42 | 7 = 47
+    ORI @21, @3, #7      ;; 42 | 7 = 47
     
     ;; Verify both give same result and value is correct
-    XOR @21, @19, @20    ;; Compare OR and ORI results
-    BNZ int_fail, @21
-    
-    XORI @22, @19, #47   ;; Check the result value
+    XOR @22, @20, @21    ;; Compare OR and ORI results
     BNZ int_fail, @22
+    
+    XORI @23, @20, #47   ;; Check the result value
+    BNZ int_fail, @23
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: Shift Operations
@@ -339,32 +345,32 @@ test_integer_ops:
     ;;   fp[dst] = fp[src1] >> fp[src2] (sign-extended)
     ;; ------------------------------------------------------------
     ;; Test immediate shift variants
-    SLLI @23, @4, #2     ;; 7 << 2 = 28
-    XORI @24, @23, #28   ;; Check result
-    BNZ int_fail, @24
+    SLLI @24, @4, #2     ;; 7 << 2 = 28
+    XORI @25, @24, #28   ;; Check result
+    BNZ int_fail, @25
     
-    SRLI @25, @3, #2     ;; 42 >> 2 = 10
-    XORI @26, @25, #10   ;; Check result
-    BNZ int_fail, @26
+    SRLI @26, @3, #2     ;; 42 >> 2 = 10
+    XORI @27, @26, #10   ;; Check result
+    BNZ int_fail, @27
     
     ;; Simple test for SRAI with small positive value
-    SRAI @27, @4, #1     ;; 7 >> 1 = 3
-    XORI @28, @27, #3    ;; Check result
-    BNZ int_fail, @28
+    SRAI @28, @4, #1     ;; 7 >> 1 = 3
+    XORI @29, @28, #3    ;; Check result
+    BNZ int_fail, @29
     
     ;; Test register shift variants
-    SLL @29, @4, @5      ;; 7 << 2 = 28
-    XORI @30, @29, #28   ;; Check result
-    BNZ int_fail, @30
+    SLL @30, @4, @5      ;; 7 << 2 = 28
+    XORI @31, @30, #28   ;; Check result
+    BNZ int_fail, @31
     
-    SRL @31, @3, @5      ;; 42 >> 2 = 10
-    XORI @32, @31, #10   ;; Check result
-    BNZ int_fail, @32
+    SRL @32, @3, @5      ;; 42 >> 2 = 10
+    XORI @33, @32, #10   ;; Check result
+    BNZ int_fail, @33
     
     ;; Simple test for SRA with small positive value
-    SRA @33, @4, @5      ;; 7 >> 2 = 1
-    XORI @34, @33, #1    ;; Check result
-    BNZ int_fail, @34
+    SRA @34, @4, @5      ;; 7 >> 2 = 1
+    XORI @35, @34, #1    ;; Check result
+    BNZ int_fail, @35
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: MUL / MULI
@@ -374,7 +380,7 @@ test_integer_ops:
     ;;   MULI dst, src, imm     (Immediate multiplication)
     ;; 
     ;; DESCRIPTION:
-    ;;   Multiply integer values.
+    ;;   Multiply integer values (signed).
     ;;   Note: Results in 64-bit output stored across two 32-bit registers.
     ;;   The destination register must be aligned to an even address.
     ;;
@@ -390,9 +396,75 @@ test_integer_ops:
     XOR @40, @36, @38    ;; Compare low 32 bits of MUL and MULI results
     BNZ int_fail, @40
     
-    ;; Verify the actual value of lower 32 bits (within u16 range)
+    ;; Verify the actual value of lower 32 bits
     XORI @41, @36, #294  ;; Check the result value
     BNZ int_fail, @41
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: MULU
+    ;; 
+    ;; FORMAT: MULU dst, src1, src2
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Unsigned multiplication of two 32-bit integers, returning
+    ;;   an unsigned 64-bit output.
+    ;;
+    ;; EFFECT: fp[dst:dst+1] = (unsigned)fp[src1] * (unsigned)fp[src2]
+    ;; ------------------------------------------------------------
+    ;; Test with positive numbers first (should match MUL for positive values)
+    MULU @42, @3, @4     ;; 42u * 7u = 294u (lower 32 bits in @42, upper 32 bits in @43)
+    XORI @44, @42, #294  ;; Check lower 32 bits match expected value
+    BNZ int_fail, @44
+    
+    ;; Test with a larger value
+    LDI.W @45, #100
+    MULU @46, @45, @45   ;; 100u * 100u = 10000u (lower 32 bits in @46, upper 32 bits in @47)
+    ;; 10000 decimal = 0x2710, so we can test against 10000
+    ;; (which is within u16 immediate range)
+    XORI @48, @46, #10000  ;; Check lower 32 bits
+    BNZ int_fail, @48
+    
+    ;; Test with the all-ones value (@10) that we created earlier
+    ;; Since we're testing with 5 * all-ones, we need to create the expected result
+    ;; Expected: 5 * 0xFFFFFFFF = 5 * (2^32 - 1) = 5 * 2^32 - 5
+    ;; The lower 32 bits will be -5 & 0xFFFFFFFF = 0xFFFFFFFB = (2^32 - 5)
+    ;; We'll create this value and compare directly
+    LDI.W @49, #5
+    MULU @50, @49, @10   ;; 5u * 0xFFFFFFFF (lower 32 bits in @50, upper 32 bits in @51)
+    
+    ;; Create the expected result: -5 in 32 bits
+    ;; We first complement 5 to get 0xFFFFFFFA, then add 1 to get 0xFFFFFFFB
+    XORI @52, @7, #5     ;; @7 is 0, so this gives us 5
+    XOR @53, @10, @52    ;; complement of 5 (all ones XOR 5)
+    ADDI @54, @53, #1    ;; Two's complement: add 1 to get -5
+    
+    ;; Now compare the MULU result with our constructed -5
+    XOR @55, @50, @54    ;; Should be 0 if they match
+    BNZ int_fail, @55
+
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: MULSU
+    ;; 
+    ;; FORMAT: MULSU dst, src1, src2
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Multiplication of a signed 32-bit integer with an unsigned 32-bit
+    ;;   integer, returning a signed 64-bit output.
+    ;;
+    ;; EFFECT: fp[dst:dst+1] = (signed)fp[src1] * (unsigned)fp[src2]
+    ;; ------------------------------------------------------------
+    ;; Test with all positive numbers first
+    MULSU @56, @3, @4    ;; 42 * 7u = 294 (lower 32 bits in @56, upper 32 bits in @57)
+    XORI @58, @56, #294  ;; Check lower 32 bits
+    BNZ int_fail, @58
+    
+    ;; Test with the all-ones value as a signed negative number (-1)
+    ;; -1 * 5u = -5
+    MULSU @60, @10, @49  ;; -1 * 5u (lower 32 bits in @60, upper 32 bits in @61)
+    
+    ;; Compare with the -5 value we created earlier
+    XOR @62, @60, @54    ;; Should be 0 if they match
+    BNZ int_fail, @62
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: SLT / SLTI / SLTU / SLTIU
@@ -411,21 +483,21 @@ test_integer_ops:
     ;;   fp[dst] = (fp[src1] < fp[src2]) ? 1 : 0
     ;;   fp[dst] = (fp[src] < imm) ? 1 : 0
     ;; ------------------------------------------------------------
-    SLT @42, @4, @3      ;; 7 < 42? = 1 (true)
-    XORI @43, @42, #1    ;; Check result
-    BNZ int_fail, @43
+    SLT @64, @4, @3      ;; 7 < 42? = 1 (true)
+    XORI @65, @64, #1    ;; Check result
+    BNZ int_fail, @65
     
-    SLTI @44, @4, #42    ;; 7 < 42? = 1 (true)
-    XORI @45, @44, #1    ;; Check result
-    BNZ int_fail, @45
+    SLTI @66, @4, #42    ;; 7 < 42? = 1 (true)
+    XORI @67, @66, #1    ;; Check result
+    BNZ int_fail, @67
     
-    SLTU @46, @4, @3     ;; 7 <u 42? = 1 (true)
-    XORI @47, @46, #1    ;; Check result
-    BNZ int_fail, @47
+    SLTU @68, @4, @3     ;; 7 <u 42? = 1 (true)
+    XORI @69, @68, #1    ;; Check result
+    BNZ int_fail, @69
     
-    SLTIU @48, @4, #42   ;; 7 <u 42? = 1 (true)
-    XORI @49, @48, #1    ;; Check result
-    BNZ int_fail, @49
+    SLTIU @70, @4, #42   ;; 7 <u 42? = 1 (true)
+    XORI @71, @70, #1    ;; Check result
+    BNZ int_fail, @71
 
     LDI.W @2, #0         ;; Set success flag (0 = success)
     RET

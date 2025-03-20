@@ -163,6 +163,16 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Mulu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Mulsu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     SrlI {
         dst: Slot,
         src1: Slot,
@@ -179,7 +189,6 @@ pub enum InstructionsWithLabels {
         imm: Immediate,
     },
     Ret,
-    // Add more instructions as needed
 }
 
 const fn incr_pc(pc: u32) -> u32 {
@@ -526,6 +535,28 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Mulsu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Mulsu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Mulu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Mulu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::MvvW { dst, src } => {
             let instruction = [
                 Opcode::MVVW.get_field_elt(),
@@ -813,6 +844,12 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "SRA {dst} {src1} {src2}")
             }
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
+            InstructionsWithLabels::Mulu { dst, src1, src2 } => {
+                write!(f, "MULU {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Mulsu { dst, src1, src2 } => {
+                write!(f, "MULSU {dst} {src1} {src2}")
+            }
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
             InstructionsWithLabels::Slt { dst, src1, src2 } => {
                 write!(f, "SLT {dst} {src1} {src2}")

@@ -1,13 +1,17 @@
-use binius_field::{BinaryField, BinaryField32b, Field};
+use std::{collections::HashSet, mem};
+
 use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_opcodes() {
-    dbg!(BinaryField32b::MULTIPLICATIVE_GENERATOR.pow([22]));
-    dbg!(BinaryField32b::MULTIPLICATIVE_GENERATOR.pow([24]));
-    dbg!(BinaryField32b::MULTIPLICATIVE_GENERATOR.pow([26]));
-
     let instructions = parse_program(include_str!("../../examples/opcodes.asm")).unwrap();
+
+    let mut seen = HashSet::new();
+    for instr in &instructions {
+        seen.insert(mem::discriminant(instr));
+    }
+    const TOTAL_OPS: usize = 39;
+    assert_eq!(seen.len(), TOTAL_OPS);
 
     // Generate the program ROM and associated data
     let (prom, _, pc_field_to_int, frame_sizes) =
