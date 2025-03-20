@@ -6,11 +6,12 @@ use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom
 fn test_opcodes() {
     let instructions = parse_program(include_str!("../../examples/opcodes.asm")).unwrap();
 
+    // Ensure all opcodes are present in the program
+    const TOTAL_OPS: usize = 39;
     let mut seen = HashSet::new();
     for instr in &instructions {
         seen.insert(mem::discriminant(instr));
     }
-    const TOTAL_OPS: usize = 39;
     assert_eq!(seen.len(), TOTAL_OPS);
 
     // Generate the program ROM and associated data
