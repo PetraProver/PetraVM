@@ -207,7 +207,7 @@ impl Event for TailVEvent {
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
         channels.state_channel.push((
-            BinaryField32b::new(self.offset as u32),
+            BinaryField32b::new(self.target),
             self.next_fp_val,
             self.timestamp + 1,
         ));
