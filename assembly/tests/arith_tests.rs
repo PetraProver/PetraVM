@@ -1,8 +1,8 @@
-use zcrayvm_assembly::{Compiler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_naive_div() {
-    let compiled_program = Compiler::from_code(include_str!("../../examples/div.asm")).unwrap();
+    let compiled_program = Assembler::from_code(include_str!("../../examples/div.asm")).unwrap();
 
     let a = rand::random();
     let b = rand::random();
@@ -38,7 +38,7 @@ fn test_bezout() {
     ];
     let full_kernel = kernel_files.join("\n");
 
-    let compiled_program = Compiler::from_code(&full_kernel).unwrap();
+    let compiled_program = Assembler::from_code(&full_kernel).unwrap();
 
     let a = 12;
     let b = 3;
@@ -78,7 +78,7 @@ fn test_bezout() {
 #[test]
 fn test_non_tail_long_div() {
     let compiled_program =
-        Compiler::from_code(include_str!("../../examples/non_tail_long_div.asm")).unwrap();
+        Assembler::from_code(include_str!("../../examples/non_tail_long_div.asm")).unwrap();
 
     let a = 54820;
     let b = 65;
@@ -110,7 +110,7 @@ fn test_non_tail_long_div() {
 #[test]
 fn test_tail_long_div() {
     let compiled_program =
-        Compiler::from_code(include_str!("../../examples/tail_long_div.asm")).unwrap();
+        Assembler::from_code(include_str!("../../examples/tail_long_div.asm")).unwrap();
 
     let a = rand::random();
     let b = rand::random();

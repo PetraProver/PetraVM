@@ -1,6 +1,6 @@
 use binius_field::{BinaryField, BinaryField32b, Field};
 use num_traits::WrappingAdd;
-use zcrayvm_assembly::{Compiler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_fibonacci_integration() {
@@ -8,7 +8,7 @@ fn test_fibonacci_integration() {
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
     // Parse the Fibonacci program
-    let compiled_program = Compiler::from_code(include_str!("../../examples/fib.asm")).unwrap();
+    let compiled_program = Assembler::from_code(include_str!("../../examples/fib.asm")).unwrap();
 
     // Set initial value
     let init_val = 4;

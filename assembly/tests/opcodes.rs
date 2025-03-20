@@ -1,8 +1,9 @@
-use zcrayvm_assembly::{Compiler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_opcodes() {
-    let compiled_program = Compiler::from_code(include_str!("../../examples/opcodes.asm")).unwrap();
+    let compiled_program =
+        Assembler::from_code(include_str!("../../examples/opcodes.asm")).unwrap();
 
     // Generate the program ROM and associated data
     let vrom = ValueRom::new_with_init_vals(&[0, 0]);

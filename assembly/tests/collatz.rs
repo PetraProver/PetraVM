@@ -1,9 +1,10 @@
-use zcrayvm_assembly::{Compiler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_collatz_integration() {
     // Parse the Collatz program
-    let compiled_program = Compiler::from_code(include_str!("../../examples/collatz.asm")).unwrap();
+    let compiled_program =
+        Assembler::from_code(include_str!("../../examples/collatz.asm")).unwrap();
 
     // Test with multiple initial values
     for &initial_value in &[5, 27, 3999] {

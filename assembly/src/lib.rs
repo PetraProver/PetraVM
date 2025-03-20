@@ -4,7 +4,7 @@
 
 // TODO: Add doc
 
-mod compiler;
+mod assembler;
 mod event;
 mod execution;
 mod memory;
@@ -12,6 +12,6 @@ mod opcodes;
 mod parser;
 mod util;
 
-pub use compiler::{CompiledProgram, Compiler, CompilerError};
+pub use assembler::{AssembledProgram, AssemblerError, Assembler};
 pub use execution::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};

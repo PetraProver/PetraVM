@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, thiserror::Error)]
-pub enum CompilerError {
+pub enum AssemblerError {
     #[error("First line should be a label")]
     NoStartLabelFound,
 
@@ -56,34 +56,34 @@ pub type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
 
-pub struct CompiledProgram {
+pub struct AssembledProgram {
     pub prom: ProgramRom,
     pub labels: Labels,
     pub pc_field_to_int: PCFieldToInt,
     pub frame_sizes: LabelsFrameSizes,
 }
 
-pub struct Compiler;
+pub struct Assembler;
 
-impl Compiler {
-    pub fn from_file(file: std::path::PathBuf) -> Result<CompiledProgram, CompilerError> {
-        let file_content = std::fs::read_to_string(file).map_err(CompilerError::FileReadError)?;
-        Compiler::from_code(&file_content)
+impl Assembler {
+    pub fn from_file(file: std::path::PathBuf) -> Result<AssembledProgram, AssemblerError> {
+        let file_content = std::fs::read_to_string(file).map_err(AssemblerError::FileReadError)?;
+        Assembler::from_code(&file_content)
     }
 
-    pub fn from_code(code: &str) -> Result<CompiledProgram, CompilerError> {
+    pub fn from_code(code: &str) -> Result<AssembledProgram, AssemblerError> {
         let instructions = parse_program(code)?;
-        Compiler::assemble(instructions)
+        Assembler::assemble(instructions)
     }
 
     fn assemble(
         instructions: Vec<InstructionsWithLabels>,
-    ) -> Result<CompiledProgram, CompilerError> {
+    ) -> Result<AssembledProgram, AssemblerError> {
         if !matches!(
             instructions.first(),
             Some(InstructionsWithLabels::Label(_, _))
         ) {
-            return Err(CompilerError::NoStartLabelFound);
+            return Err(AssemblerError::NoStartLabelFound);
         }
 
         // Make sure there's one and only one label to identify a target
@@ -95,7 +95,7 @@ impl Compiler {
                     && matches!(next_instr, InstructionsWithLabels::Label(_, _))
             })
         {
-            return Err(CompilerError::MultipleLabelsForTarget);
+            return Err(AssemblerError::MultipleLabelsForTarget);
         }
 
         // Edge case: if the last instruction is a label, just error out.
@@ -103,7 +103,7 @@ impl Compiler {
             instructions.last(),
             Some(InstructionsWithLabels::Label(_, _))
         ) {
-            return Err(CompilerError::EmptyLabel);
+            return Err(AssemblerError::EmptyLabel);
         }
 
         let (labels, pc_field_to_int, frame_sizes) = get_labels(&instructions)?;
@@ -114,7 +114,7 @@ impl Compiler {
             get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
         }
 
-        Ok(CompiledProgram {
+        Ok(AssembledProgram {
             prom,
             labels,
             pc_field_to_int,
@@ -129,11 +129,11 @@ pub fn get_prom_inst_from_inst_with_label(
     labels: &Labels,
     field_pc: &mut BinaryField32b,
     instruction: &InstructionsWithLabels,
-) -> Result<(), CompilerError> {
+) -> Result<(), AssemblerError> {
     match instruction {
         InstructionsWithLabels::Label(s, _) => {
             if labels.get(s).is_none() {
-                return Err(CompilerError::BadError(format!(
+                return Err(AssemblerError::BadError(format!(
                     "Label {} not found in the HashMap of labels.",
                     s
                 )));
@@ -221,7 +221,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(CompilerError::FunctionNotFound(label.to_string()));
+                return Err(AssemblerError::FunctionNotFound(label.to_string()));
             }
 
             *field_pc *= G;
@@ -251,7 +251,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(CompilerError::FunctionNotFound(label.to_string()));
+                return Err(AssemblerError::FunctionNotFound(label.to_string()));
             }
 
             *field_pc *= G;
@@ -281,7 +281,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(CompilerError::LabelNotFound(label.to_string()));
+                return Err(AssemblerError::LabelNotFound(label.to_string()));
             }
             *field_pc *= G;
         }
@@ -343,7 +343,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
             } else {
-                return Err(CompilerError::LabelNotFound(label.to_string()));
+                return Err(AssemblerError::LabelNotFound(label.to_string()));
             }
             *field_pc *= G;
         }
@@ -605,7 +605,7 @@ const fn incr_pc(pc: u32) -> u32 {
 
 fn get_labels(
     instructions: &[InstructionsWithLabels],
-) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), CompilerError> {
+) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), AssemblerError> {
     let mut labels = HashMap::new();
     let mut pc_field_to_int = HashMap::new();
     let mut frame_sizes = HashMap::new();
@@ -629,7 +629,7 @@ fn get_labels(
         match instruction {
             InstructionsWithLabels::Label(s, frame_size) => {
                 if labels.insert(s.clone(), field_pc).is_some() {
-                    return Err(CompilerError::DuplicateLabel(s.clone()));
+                    return Err(AssemblerError::DuplicateLabel(s.clone()));
                 }
 
                 // If we have a frame size for this label, add it to our frame_sizes map
@@ -656,9 +656,9 @@ fn get_labels(
     for function in functions {
         let as_pc = labels
             .get(function)
-            .ok_or(CompilerError::FunctionNotFound(function.to_string()))?;
+            .ok_or(AssemblerError::FunctionNotFound(function.to_string()))?;
         if !frame_sizes.contains_key(as_pc) {
-            return Err(CompilerError::FunctionHasNoFrameSize(function.to_string()));
+            return Err(AssemblerError::FunctionHasNoFrameSize(function.to_string()));
         }
     }
 
@@ -675,6 +675,9 @@ mod tests {
         "#;
         let instructions = parse_program(PROGRAM).unwrap();
         let out = get_labels(&instructions);
-        assert!(matches!(out, Err(CompilerError::FunctionHasNoFrameSize(_))));
+        assert!(matches!(
+            out,
+            Err(AssemblerError::FunctionHasNoFrameSize(_))
+        ));
     }
 }

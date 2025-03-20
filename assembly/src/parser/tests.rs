@@ -13,7 +13,7 @@ mod test_parser {
     use crate::parser::{parse_line, parse_program, AsmParser, Rule};
     use crate::util::code_to_prom;
     use crate::util::get_binary_slot;
-    use crate::Compiler;
+    use crate::Assembler;
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
@@ -174,7 +174,7 @@ mod test_parser {
             .collect::<Vec<BinaryField16b>>();
 
         let compiled_program =
-            Compiler::from_code(include_str!("../../../examples/collatz.asm")).unwrap();
+            Assembler::from_code(include_str!("../../../examples/collatz.asm")).unwrap();
 
         let zero = BinaryField16b::zero();
 
