@@ -7,12 +7,13 @@
 ;; INSTRUCTION CATEGORIES:
 ;; 1. Binary Field Operations - Field-specific arithmetic
 ;; 2. Integer Operations - Standard integer arithmetic and logic
-;; 3. Move Operations - Data movement between registers and memory
+;; 3. Move Operations - Data movement between VROM locations
 ;; 4. Control Flow - Jumps, branches, and function calls
 ;;
-;; REGISTER CONVENTIONS:
-;; - FP: Frame Pointer (points to current function frame in VROM)
+;; MEMORY MODEL:
+;; - Harvard architecture with separate instruction and data memory
 ;; - PC: Program Counter (multiplicative addressing using field's cyclic group)
+;; - FP: Frame Pointer (points to current function frame in VROM)
 ;; - TS: Timestamp for RAM operations
 ;;
 ;; NOTATION:
@@ -20,7 +21,6 @@
 ;; - All values in VROM are accessed via offsets from the frame pointer
 ;;
 ;; MEMORY MODEL:
-;; - Harvard architecture with separate instruction and data memory
 ;; - PROM: Program ROM (immutable instruction memory)
 ;; - VROM: Value ROM (write-once, non-deterministic allocation)
 ;;   * All temporary values and function frames are in VROM
@@ -128,7 +128,7 @@ test_binary_field:
     ;; INSTRUCTION: XOR / XORI
     ;; 
     ;; FORMAT: 
-    ;;   XOR dst, src1, src2     (Register variant)
+    ;;   XOR dst, src1, src2     (VROM variant)
     ;;   XORI dst, src1, imm     (Immediate variant)
     ;; 
     ;; DESCRIPTION:
@@ -232,7 +232,7 @@ test_integer_ops:
     LDI.W @4, #7     ;; test value B
     LDI.W @5, #2     ;; shift amount
     LDI.W @6, #65535 ;; Max u16 immediate value
-    LDI.W @7, #0     ;; Initialize a working register
+    LDI.W @7, #0     ;; Initialize a working value
 
     ;; Set up a value with all bits set (equivalent to -1 in two's complement)
     XORI @8, @7, #65535     ;; Low 16 bits are all 1s
@@ -243,7 +243,7 @@ test_integer_ops:
     ;; INSTRUCTION: ADD / ADDI
     ;; 
     ;; FORMAT: 
-    ;;   ADD dst, src1, src2   (Register variant)
+    ;;   ADD dst, src1, src2   (VROM variant)
     ;;   ADDI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
@@ -278,7 +278,7 @@ test_integer_ops:
     ;; INSTRUCTION: AND / ANDI
     ;; 
     ;; FORMAT: 
-    ;;   AND dst, src1, src2   (Register variant)
+    ;;   AND dst, src1, src2   (VROM variant)
     ;;   ANDI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
@@ -302,7 +302,7 @@ test_integer_ops:
     ;; INSTRUCTION: OR / ORI
     ;; 
     ;; FORMAT: 
-    ;;   OR dst, src1, src2   (Register variant)
+    ;;   OR dst, src1, src2   (VROM variant)
     ;;   ORI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
@@ -357,7 +357,7 @@ test_integer_ops:
     XORI @29, @28, #3    ;; Check result
     BNZ int_fail, @29
     
-    ;; Test register shift variants
+    ;; Test VROM-based shift variants
     SLL @30, @4, @5      ;; 7 << 2 = 28
     XORI @31, @30, #28   ;; Check result
     BNZ int_fail, @31
@@ -380,14 +380,14 @@ test_integer_ops:
     ;; 
     ;; DESCRIPTION:
     ;;   Multiply integer values (signed).
-    ;;   Note: Results in 64-bit output stored across two 32-bit registers.
-    ;;   The destination register must be aligned to an even address.
+    ;;   Note: Results in 64-bit output stored across two 32-bit slots.
+    ;;   The destination slot must be aligned to an even address.
     ;;
     ;; EFFECT: 
     ;;   fp[dst:dst+1] = fp[src1] * fp[src2]  (64-bit result)
     ;;   fp[dst:dst+1] = fp[src] * imm        (64-bit result)
     ;; ------------------------------------------------------------
-    ;; Using even registers for destination to ensure proper alignment
+    ;; Using even slots for destination to ensure proper alignment
     MUL @36, @3, @4      ;; 42 * 7 = 294 (lower 32 bits in @36, upper 32 bits in @37)
     MULI @38, @3, #7     ;; 42 * 7 = 294 (lower 32 bits in @38, upper 32 bits in @39)
     
@@ -507,7 +507,7 @@ int_fail:
 ;; ============================================================================
 ;; MOVE OPERATIONS
 ;; ============================================================================
-;; These instructions move data between registers and memory.
+;; These instructions move data between different VROM locations.
 ;; They support different data widths and addressing modes.
 ;; ============================================================================
 
@@ -525,7 +525,7 @@ test_move_ops:
     ;; FORMAT: LDI.W dst, imm
     ;; 
     ;; DESCRIPTION:
-    ;;   Load a 32-bit immediate value into a destination.
+    ;;   Load a 32-bit immediate value into a destination slot.
     ;;
     ;; EFFECT: fp[dst] = imm
     ;; ------------------------------------------------------------
@@ -665,7 +665,7 @@ test_jumps_branches:
     ;; FORMAT: BNZ target, cond
     ;; 
     ;; DESCRIPTION:
-    ;;   Branch to target address if condition register is not zero.
+    ;;   Branch to target address if condition value is not zero.
     ;;
     ;; EFFECT: 
     ;;   if fp[cond] != 0 then PC = target
@@ -731,18 +731,18 @@ jump_target:
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: J (Jump to VROM address)
     ;; 
-    ;; FORMAT: J @register
+    ;; FORMAT: J @slot
     ;; 
     ;; DESCRIPTION:
     ;;   Jump to a target address stored in VROM.
     ;;
-    ;; EFFECT: PC = fp[register]
+    ;; EFFECT: PC = fp[slot]
     ;; ------------------------------------------------------------
     ;; First, load the destination address into a VROM slot
     ;; We use the PC value of jumpv_destination (at PC = 27G)
     LDI.W @13, #2983627541  ;; Actual field element value for 27G
     
-    ;; Now jump to that address using J @register syntax
+    ;; Now jump to that address using J @slot syntax
     J @13               ;; Jump to the address in @13
     
     ;; We should NOT reach here
@@ -796,7 +796,7 @@ test_function_calls:
     ;; FORMAT: CALLV target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Function call to a target address stored in a register.
+    ;;   Function call to a target address stored in a VROM slot.
     ;;   Sets up a new frame with the return address and old FP.
     ;;
     ;; EFFECT: 
@@ -823,7 +823,7 @@ test_function_calls:
     ;; FORMAT: TAILV target, next_fp
     ;; 
     ;; DESCRIPTION:
-    ;;   Tail call to a target address stored in a register.
+    ;;   Tail call to a target address stored in a VROM slot.
     ;;   Preserves the original return address and frame.
     ;;
     ;; EFFECT: 
