@@ -247,7 +247,6 @@ impl Interpreter {
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
-        dbg!(opcode);
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Jumpi => self.generate_jumpi(trace, field_pc, arg0, arg1, arg2)?,

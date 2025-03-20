@@ -62,7 +62,6 @@ impl ValueRom {
     pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         if let Some(prev_val) = self.vrom.insert(index, value) {
             if prev_val != value {
-                dbg!(prev_val, value);
                 return Err(MemoryError::VromRewrite(index));
             }
         }
@@ -193,9 +192,7 @@ impl ValueRom {
 
     /// Allocates a new frame with the specified size.
     pub(crate) fn allocate_new_frame(&mut self, requested_size: u32) -> u32 {
-        let new_frame_size = self.vrom_allocator.alloc(requested_size);
-        dbg!(new_frame_size);
-        new_frame_size
+        self.vrom_allocator.alloc(requested_size)
     }
 
     /// Checks if the index has proper alignment.

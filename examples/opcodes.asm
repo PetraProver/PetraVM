@@ -31,7 +31,6 @@
 ;; - Slot 0: Return PC (set by CALL instructions)
 ;; - Slot 1: Return FP (set by CALL instructions)
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
-;;
 ;; ============================================================================
 
 #[framesize(0x20)]
