@@ -181,13 +181,13 @@ test_binary_field:
     
     LDI.W @24, #2     ;; Second 128-bit value starts at @24
     LDI.W @25, #0
-    LDI.W @26, #0
-    LDI.W @27, #0
+    LDI.W @26, #5
+    LDI.W @27, #7
     
     B128_ADD @28, @20, @24
     
-    ;; Check if first word is correct (1 XOR 2 = 3)
-    XORI @32, @28, #3
+    ;; Check if fourth word is correct (0 XOR 7 = 7)
+    XORI @32, @31, #7
     BNZ bf_fail, @32
 
     ;; ------------------------------------------------------------
@@ -201,10 +201,12 @@ test_binary_field:
     ;;
     ;; EFFECT: fp[dst] = fp[src1] * fp[src2] (in GF(2^128))
     ;; ------------------------------------------------------------
-    ;; Test multiplication (1 * 2 = 2)
+    ;; Test multiplication (1 * x = x)
     B128_MUL @36, @20, @24
-    XORI @37, @36, #2
-    BNZ bf_fail, @37
+
+    ;; Check if third word is correct
+    XORI @40, @38, #5
+    BNZ bf_fail, @40
 
     LDI.W @2, #0         ;; Set success flag (0 = success)
     RET
@@ -270,8 +272,8 @@ test_integer_ops:
     ;;
     ;; EFFECT: fp[dst] = fp[src1] - fp[src2]
     ;; ------------------------------------------------------------
-    SUB @14, @3, @4      ;; 42 - 7 = 35
-    XORI @15, @14, #35   ;; Check result
+    SUB @14, @11, @4      ;; 49 - 7 = 42
+    XORI @15, @14, #42   ;; Check result
     BNZ int_fail, @15
 
     ;; ------------------------------------------------------------

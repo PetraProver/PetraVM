@@ -192,7 +192,9 @@ impl ValueRom {
 
     /// Allocates a new frame with the specified size.
     pub(crate) fn allocate_new_frame(&mut self, requested_size: u32) -> u32 {
-        self.vrom_allocator.alloc(requested_size)
+        let newfs = self.vrom_allocator.alloc(requested_size);
+        dbg!(newfs);
+        newfs
     }
 
     /// Checks if the index has proper alignment.
