@@ -359,19 +359,29 @@ test_integer_ops:
     XORI @29, @28, #3    ;; Check result
     BNZ int_fail, @29
     
-    ;; Test VROM-based shift variants
-    SLL @30, @4, @5      ;; 7 << 2 = 28
-    XORI @31, @30, #28   ;; Check result
+    ;; Test SRAI with negative value (-1)
+    SRAI @30, @10, #2    ;; -1 >> 2 = -1 (sign bit preserved)
+    XOR @31, @30, @10    ;; Check result (should match original -1 value)
     BNZ int_fail, @31
     
-    SRL @32, @3, @5      ;; 42 >> 2 = 10
-    XORI @33, @32, #10   ;; Check result
+    ;; Test VROM-based shift variants
+    SLL @32, @4, @5      ;; 7 << 2 = 28
+    XORI @33, @32, #28   ;; Check result
     BNZ int_fail, @33
     
-    ;; Simple test for SRA with small positive value
-    SRA @34, @4, @5      ;; 7 >> 2 = 1
-    XORI @35, @34, #1    ;; Check result
+    SRL @34, @3, @5      ;; 42 >> 2 = 10
+    XORI @35, @34, #10   ;; Check result
     BNZ int_fail, @35
+    
+    ;; Simple test for SRA with small positive value
+    SRA @36, @4, @5      ;; 7 >> 2 = 1
+    XORI @37, @36, #1    ;; Check result
+    BNZ int_fail, @37
+    
+    ;; Test SRA with negative value (-1)
+    SRA @38, @10, @5     ;; -1 >> 2 = -1 (sign bit preserved)
+    XOR @39, @38, @10    ;; Check result (should match original -1 value)
+    BNZ int_fail, @39
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: MUL / MULI
@@ -390,16 +400,16 @@ test_integer_ops:
     ;;   fp[dst:dst+1] = fp[src] * imm        (64-bit result)
     ;; ------------------------------------------------------------
     ;; Using even slots for destination to ensure proper alignment
-    MUL @36, @3, @4      ;; 42 * 7 = 294 (lower 32 bits in @36, upper 32 bits in @37)
-    MULI @38, @3, #7     ;; 42 * 7 = 294 (lower 32 bits in @38, upper 32 bits in @39)
+    MUL @40, @3, @4      ;; 42 * 7 = 294 (lower 32 bits in @40, upper 32 bits in @41)
+    MULI @42, @3, #7     ;; 42 * 7 = 294 (lower 32 bits in @42, upper 32 bits in @43)
     
     ;; Verify both give same result (checking lower 32 bits, upper bits should be 0)
-    XOR @40, @36, @38    ;; Compare low 32 bits of MUL and MULI results
-    BNZ int_fail, @40
+    XOR @44, @40, @42    ;; Compare low 32 bits of MUL and MULI results
+    BNZ int_fail, @44
     
     ;; Verify the actual value of lower 32 bits
-    XORI @41, @36, #294  ;; Check the result value
-    BNZ int_fail, @41
+    XORI @45, @40, #294  ;; Check the result value
+    BNZ int_fail, @45
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: MULU
@@ -412,35 +422,25 @@ test_integer_ops:
     ;;
     ;; EFFECT: fp[dst:dst+1] = (unsigned)fp[src1] * (unsigned)fp[src2]
     ;; ------------------------------------------------------------
-    ;; Test with positive numbers first (should match MUL for positive values)
-    MULU @42, @3, @4     ;; 42u * 7u = 294u (lower 32 bits in @42, upper 32 bits in @43)
-    XORI @44, @42, #294  ;; Check lower 32 bits match expected value
-    BNZ int_fail, @44
-    
-    ;; Test with a larger value
-    LDI.W @45, #100
-    MULU @46, @45, @45   ;; 100u * 100u = 10000u (lower 32 bits in @46, upper 32 bits in @47)
-    ;; 10000 decimal = 0x2710, so we can test against 10000
-    ;; (which is within u16 immediate range)
-    XORI @48, @46, #10000  ;; Check lower 32 bits
+    ;; Test 1: Simple positive case
+    MULU @46, @3, @4     ;; 42u * 7u = 294u (lower 32 bits in @46, upper 32 bits in @47)
+    XORI @48, @46, #294  ;; Check lower 32 bits match expected value
     BNZ int_fail, @48
+    XORI @49, @47, #0    ;; Upper 32 bits should be 0
+    BNZ int_fail, @49
     
-    ;; Test with the all-ones value (@10) that we created earlier
-    ;; Since we're testing with 5 * all-ones, we need to create the expected result
-    ;; Expected: 5 * 0xFFFFFFFF = 5 * (2^32 - 1) = 5 * 2^32 - 5
-    ;; The lower 32 bits will be -5 & 0xFFFFFFFF = 0xFFFFFFFB = (2^32 - 5)
-    ;; We'll create this value and compare directly
-    LDI.W @49, #5
-    MULU @50, @49, @10   ;; 5u * 0xFFFFFFFF (lower 32 bits in @50, upper 32 bits in @51)
+    ;; Test 2: Using -1 (all bits set) * 2
+    LDI.W @50, #2
     
-    ;; Create the expected result: -5 in 32 bits
-    ;; We first complement 5 to get 0xFFFFFFFA, then add 1 to get 0xFFFFFFFB
-    XORI @52, @7, #5     ;; @7 is 0, so this gives us 5
-    XOR @53, @10, @52    ;; complement of 5 (all ones XOR 5)
-    ADDI @54, @53, #1    ;; Two's complement: add 1 to get -5
+    ;; Create expected lower 32 bits value (-2)
+    ADD @51, @10, @10    ;; -1 + (-1) = -2 in two's complement
     
-    ;; Now compare the MULU result with our constructed -5
-    XOR @55, @50, @54    ;; Should be 0 if they match
+    MULU @52, @10, @50   ;; 0xFFFFFFFF * 2 = 0x1FFFFFFFE
+    
+    ;; Compare results
+    XOR @54, @52, @51    ;; Lower bits should match -2
+    BNZ int_fail, @54
+    XORI @55, @53, #1    ;; Upper bits should be 1
     BNZ int_fail, @55
 
     ;; ------------------------------------------------------------
@@ -454,18 +454,23 @@ test_integer_ops:
     ;;
     ;; EFFECT: fp[dst:dst+1] = (signed)fp[src1] * (unsigned)fp[src2]
     ;; ------------------------------------------------------------
-    ;; Test with all positive numbers first
+    ;; Test 1: Simple positive case
     MULSU @56, @3, @4    ;; 42 * 7u = 294 (lower 32 bits in @56, upper 32 bits in @57)
     XORI @58, @56, #294  ;; Check lower 32 bits
     BNZ int_fail, @58
+    XORI @59, @57, #0    ;; Upper 32 bits should be 0
+    BNZ int_fail, @59
     
-    ;; Test with the all-ones value as a signed negative number (-1)
-    ;; -1 * 5u = -5
-    MULSU @60, @10, @49  ;; -1 * 5u (lower 32 bits in @60, upper 32 bits in @61)
+    ;; Test 2: Negative case (-1 * 2u)
+    MULSU @60, @10, @50  ;; -1 * 2u = -2
     
-    ;; Compare with the -5 value we created earlier
-    XOR @62, @60, @54    ;; Should be 0 if they match
+    ;; We already computed -2 in @51, reuse it
+    XOR @62, @60, @51    ;; Lower bits should match -2
     BNZ int_fail, @62
+    
+    ;; Upper 32 bits should be all 1s for negative number
+    XOR @63, @61, @10    ;; Compare with all 1s
+    BNZ int_fail, @63
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: SLT / SLTI / SLTU / SLTIU
@@ -484,21 +489,38 @@ test_integer_ops:
     ;;   fp[dst] = (fp[src1] < fp[src2]) ? 1 : 0
     ;;   fp[dst] = (fp[src] < imm) ? 1 : 0
     ;; ------------------------------------------------------------
+    ;; Test SLT (signed comparison)
     SLT @64, @4, @3      ;; 7 < 42? = 1 (true)
     XORI @65, @64, #1    ;; Check result
     BNZ int_fail, @65
     
+    ;; Test SLTI (signed immediate comparison)
     SLTI @66, @4, #42    ;; 7 < 42? = 1 (true)
     XORI @67, @66, #1    ;; Check result
     BNZ int_fail, @67
     
-    SLTU @68, @4, @3     ;; 7 <u 42? = 1 (true)
+    ;; Test SLT with negative value
+    SLT @68, @10, @3     ;; -1 < 42? = 1 (true)
     XORI @69, @68, #1    ;; Check result
     BNZ int_fail, @69
     
-    SLTIU @70, @4, #42   ;; 7 <u 42? = 1 (true)
+    ;; Test SLTU (unsigned comparison)
+    SLTU @70, @4, @3     ;; 7 <u 42? = 1 (true)
     XORI @71, @70, #1    ;; Check result
     BNZ int_fail, @71
+    
+    ;; Test SLTIU (unsigned immediate comparison)
+    SLTIU @72, @4, #42   ;; 7 <u 42? = 1 (true)
+    XORI @73, @72, #1    ;; Check result
+    BNZ int_fail, @73
+    
+    ;; Test signed vs unsigned difference
+    SLTU @74, @3, @10    ;; 42 <u 0xFFFFFFFF? = 1 (true in unsigned)
+    SLT @75, @3, @10     ;; 42 < -1? = 0 (false in signed)
+    XORI @76, @74, #1    ;; SLTU should be 1
+    BNZ int_fail, @76
+    XORI @77, @75, #0    ;; SLT should be 0
+    BNZ int_fail, @77
 
     LDI.W @2, #0         ;; Set success flag (0 = success)
     RET
@@ -548,7 +570,6 @@ test_move_ops:
     LDI.W @8, #9876      ;; Source value
     
     ;; Call a test function with MVV.W to verify it works
-    LDI.W @8, #9876      ;; Source value
     MVV.W @9[2], @8      ;; Pass the value to the function
     MVV.W @9[3], @10     ;; Set up return value location
     CALLI test_move_call, @9
@@ -697,7 +718,7 @@ bnz_check_path_1:
     BNZ bnz_path_2, @7     ;; Should branch since @7 is non-zero
     
     ;; When branch not taken, we set @8 to 1 to indicate this path was followed incorrectly
-    LDI.W @8, #1           ;; Record that branch was not taken incorrectly
+    LDI.W @8, #1           ;; Record that branch was taken incorrectly
     J bnz_check_path_2
     
 bnz_path_2:
@@ -785,12 +806,12 @@ test_function_calls:
     ;;   PC = target
     ;; ------------------------------------------------------------
     ;; Test a regular function call
-    MVV.W @10[2], @11    ;; Set up a slot to receive the return value
-    CALLI test_simple_fn, @10
+    MVV.W @3[2], @4    ;; Set up a slot to receive the return value
+    CALLI test_simple_fn, @3
     
     ;; Check the return value from the function
-    XORI @12, @11, #42   ;; Function should return 42
-    BNZ call_fail, @12
+    XORI @5, @4, #42   ;; Function should return 42
+    BNZ call_fail, @5
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: CALLV (Call Variable)
@@ -809,15 +830,15 @@ test_function_calls:
     ;; ------------------------------------------------------------
     ;; For CALLV, we need to use a known PC value
     ;; We placed callv_target_fn at PC = 23G (marked in comments above)
-    LDI.W @13, #2803768080  ;; Actual field element value for 23G
+    LDI.W @6, #2803768080  ;; Actual field element value for 23G
     
     ;; Set up a call frame for CALLV
-    MVV.W @14[2], @15    ;; Set up a slot to receive the return value
-    CALLV @13, @14       ;; Call using the address in @13
+    MVV.W @7[2], @8    ;; Set up a slot to receive the return value
+    CALLV @6, @7       ;; Call using the address in @13
     
     ;; Check if we got the special return value from callv_target_fn (123)
-    XORI @16, @15, #123  ;; Function should return 123
-    BNZ call_fail, @16
+    XORI @9, @8, #123  ;; Function should return 123
+    BNZ call_fail, @9
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: TAILV (Tail Call Variable)
@@ -836,11 +857,11 @@ test_function_calls:
     ;; ------------------------------------------------------------
     ;; Test TAILV using a known PC value
     ;; We placed tailv_target_fn at PC = 25G (marked in comments above)
-    LDI.W @17, #3069186472  ;; Actual field element value for 25G
+    LDI.W @10, #3069186472  ;; Actual field element value for 25G
     
     ;; Pass the final return value slot to the function
-    MVV.W @18[2], @2     ;; Pass the final return value slot
-    TAILV @17, @18       ;; Tail call using address in @17
+    MVV.W @11[2], @2     ;; Pass the final return value slot
+    TAILV @10, @11       ;; Tail call using address in @17
     
     ;; We should not reach here - the tail call should return directly
     ;; to the caller of test_function_calls
