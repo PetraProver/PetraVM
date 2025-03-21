@@ -33,7 +33,7 @@
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;; ============================================================================
 
-#[framesize(0x20)]
+#[framesize(0xd)]
 _start: 
     ;; Call the binary field test
     MVV.W @3[2], @4
@@ -68,7 +68,7 @@ _start:
     LDI.W @2, #0    ;; overall success flag
     RET
 
-#[framesize(0x5)]
+#[framesize(0x3)]
 test_failed:
     LDI.W @2, #1    ;; overall failure flag
     RET
@@ -79,13 +79,13 @@ test_failed:
 ;; ============================================================================
 
 ;; PC = 23G (we know this exact value for CALLV tests)
-#[framesize(0x5)]
+#[framesize(0x3)]
 callv_target_fn:
     LDI.W @2, #123      ;; Set special return value to identify CALLV worked
     RET
 
 ;; PC = 25G (we know this exact value for TAILV tests)
-#[framesize(0x5)]
+#[framesize(0x3)]
 tail_target_fn:
     LDI.W @2, #0        ;; Set success flag (0 = success)
     RET
@@ -112,7 +112,7 @@ jumpv_done:
 ;; Binary field multiplication has special semantics for the field.
 ;; ============================================================================
 
-#[framesize(0x30)]
+#[framesize(0x29)]
 test_binary_field:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -221,7 +221,7 @@ bf_fail:
 ;; Includes arithmetic, logical, comparison, and shift operations.
 ;; ============================================================================
 
-#[framesize(0x50)]
+#[framesize(0x4e)]
 test_integer_ops:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -694,41 +694,34 @@ test_jumps_branches:
     ;;   if fp[cond] != 0 then PC = target
     ;;   else PC = PC * G (next instruction)
     ;; ------------------------------------------------------------
-    ;; 1. Test branch NOT taken (condition is zero)
-    ;; Note: All VROM locations can only be written once, so we use separate locations
-    ;; to record program flow
+    ;; Test 1: Branch NOT taken (condition is zero)
     LDI.W @3, #0           ;; Set condition to 0
     BNZ bnz_path_1, @3     ;; Should NOT branch since @3 is 0
     
-    ;; When branch not taken, we set @4 to 1 to indicate this path was followed
-    LDI.W @4, #1           ;; Record that branch was not taken
-    J bnz_check_path_1     ;; Jump to verify branch was not taken
+    ;; When branch not taken (correct), record that in @4
+    LDI.W @4, #1           ;; Record that branch was not taken (success)
+    J bnz_test_2_start
     
 bnz_path_1:
-    ;; When branch taken, we set @5 to 1 to indicate this path was followed
-    LDI.W @5, #1           ;; Record that branch was taken incorrectly
+    ;; If we get here, branch was incorrectly taken
+    ;; We'll leave @4 unset, which indicates failure
+    LDI.W @5, #0           ;; Dummy instruction to avoid adjacent labels
     
-bnz_check_path_1:
-    ;; Verify @4 == 1 (branch was not taken) and @5 is undefined (branch path not taken)
-    XORI @6, @4, #1        ;; @4 should be 1 if branch was not taken
-    BNZ branch_fail, @6
+bnz_test_2_start:
+    ;; Check if @4 was set to 1 (indicates branch was not taken)
+    XORI @5, @4, #1        ;; @4 should be 1 if branch was not taken
+    BNZ branch_fail, @5
     
-    ;; 2. Test branch taken (condition is non-zero)
-    LDI.W @7, #42          ;; Set non-zero condition
-    BNZ bnz_path_2, @7     ;; Should branch since @7 is non-zero
+    ;; Test 2: Branch taken (condition is non-zero)
+    LDI.W @6, #42          ;; Set non-zero condition
+    BNZ bnz_path_2, @6     ;; Should branch since @6 is non-zero
     
-    ;; When branch not taken, we set @8 to 1 to indicate this path was followed incorrectly
-    LDI.W @8, #1           ;; Record that branch was taken incorrectly
-    J bnz_check_path_2
+    ;; If we get here, branch was not taken (failure)
+    J branch_fail
     
 bnz_path_2:
-    ;; When branch taken, we set @9 to 1 to indicate this path was followed
-    LDI.W @9, #1           ;; Record that branch was taken correctly
-    
-bnz_check_path_2:
-    ;; Verify @9 == 1 (branch was taken correctly) and @8 is undefined (other path not taken)
-    XORI @10, @9, #1       ;; @9 should be 1 if branch was taken
-    BNZ branch_fail, @10
+    ;; Branch was correctly taken, continue testing
+    LDI.W @7, #1           ;; Mark that branch was taken correctly
 
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: J (Jump to label)
@@ -740,17 +733,16 @@ bnz_check_path_2:
     ;;
     ;; EFFECT: PC = target
     ;; ------------------------------------------------------------
-    ;; Test unconditional jump
+    ;; Test simple jump
     J jump_target           ;; Should always jump
     
     ;; We should NOT reach here
-    LDI.W @11, #1          ;; This should not execute
     J branch_fail
     
 jump_target:
-    ;; We SHOULD reach here
-    LDI.W @12, #1          ;; Record that we reached the jump target
-
+    ;; We SHOULD reach here after the jump
+    LDI.W @8, #1           ;; Mark that we reached the jump target
+    
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: J (Jump to VROM address)
     ;; 
@@ -761,15 +753,13 @@ jump_target:
     ;;
     ;; EFFECT: PC = fp[slot]
     ;; ------------------------------------------------------------
-    ;; First, load the destination address into a VROM slot
-    ;; We use the PC value of jumpv_destination (at PC = 27G)
-    LDI.W @13, #2983627541  ;; Actual field element value for 27G
+    ;; Load the destination address (PC = 27G from jumpv_destination)
+    LDI.W @9, #2983627541  ;; Field element value for 27G
     
-    ;; Now jump to that address using J @slot syntax
-    J @13               ;; Jump to the address in @13
+    ;; Jump to that address
+    J @9                    ;; Jump to the address in @9
     
     ;; We should NOT reach here
-    LDI.W @14, #1       ;; This should not execute
     J branch_fail
     
 branch_fail:
