@@ -176,9 +176,9 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MviH { dst, imm } => {
+        InstructionsWithLabels::Mvih { dst, imm } => {
             let instruction = [
-                Opcode::MVIH.get_field_elt(),
+                Opcode::Mvih.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 imm.get_field_val(),
@@ -187,9 +187,9 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MvvW { dst, src } => {
+        InstructionsWithLabels::Mvvw { dst, src } => {
             let instruction = [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
@@ -198,9 +198,9 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MvvL { dst, src } => {
+        InstructionsWithLabels::Mvvl { dst, src } => {
             let instruction = [
-                Opcode::MVVL.get_field_elt(),
+                Opcode::Mvvl.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
@@ -300,7 +300,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Ldi { dst, imm } => {
             let instruction = [
-                Opcode::LDI.get_field_elt(),
+                Opcode::Ldi.get_field_elt(),
                 dst.get_16bfield_val(),
                 imm.get_field_val(),
                 imm.get_high_field_val(),
@@ -320,7 +320,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::XorI { dst, src, imm } => {
+        InstructionsWithLabels::Xori { dst, src, imm } => {
             let instruction = [
                 Opcode::Xori.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -359,7 +359,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::AddI { dst, src1, imm } => {
+        InstructionsWithLabels::Addi { dst, src1, imm } => {
             let instruction = [
                 Opcode::Addi.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -381,7 +381,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::OrI { dst, src1, imm } => {
+        InstructionsWithLabels::Ori { dst, src1, imm } => {
             let instruction = [
                 Opcode::Ori.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -480,7 +480,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::AndI { dst, src1, imm } => {
+        InstructionsWithLabels::Andi { dst, src1, imm } => {
             let instruction = [
                 Opcode::Andi.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -504,7 +504,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::MulI { dst, src1, imm } => {
+        InstructionsWithLabels::Muli { dst, src1, imm } => {
             let instruction = [
                 Opcode::Muli.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -548,7 +548,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::SrlI { dst, src1, imm } => {
+        InstructionsWithLabels::Srli { dst, src1, imm } => {
             let instruction = [
                 Opcode::Srli.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -559,7 +559,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::SllI { dst, src1, imm } => {
+        InstructionsWithLabels::Slli { dst, src1, imm } => {
             let instruction = [
                 Opcode::Slli.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -570,7 +570,7 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::SraI { dst, src1, imm } => {
+        InstructionsWithLabels::Srai { dst, src1, imm } => {
             let instruction = [
                 Opcode::Srai.get_field_elt(),
                 dst.get_16bfield_val(),

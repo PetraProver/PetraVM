@@ -90,7 +90,7 @@ impl MVEventOutput {
         } = self;
 
         match opcode {
-            Opcode::MVVL => {
+            Opcode::Mvvl => {
                 let new_event = MVVLEvent::new(
                     field_pc,
                     fp,
@@ -103,7 +103,7 @@ impl MVEventOutput {
                 );
                 trace.mvvl.push(new_event);
             }
-            Opcode::MVVW => {
+            Opcode::Mvvw => {
                 let new_event = MVVWEvent::new(
                     field_pc,
                     fp,
@@ -205,7 +205,7 @@ impl MVVWEvent {
             // also set the value at `src_addr` and generate the MOVE event.
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::MVVW, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvw, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -345,7 +345,7 @@ impl MVVLEvent {
         } else {
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::MVVL, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvl, pc, fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -608,8 +608,8 @@ mod tests {
         let src_addr2 = 8.into();
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
-            [Opcode::MVVW.get_field_elt(), dst_addr1, offset1, src_addr1],
-            [Opcode::MVVL.get_field_elt(), dst_addr2, offset2, src_addr2],
+            [Opcode::Mvvw.get_field_elt(), dst_addr1, offset1, src_addr1],
+            [Opcode::Mvvl.get_field_elt(), dst_addr2, offset2, src_addr2],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
 
@@ -679,18 +679,18 @@ mod tests {
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 next_fp_offset,
                 offset1,
                 src_addr1,
             ],
             [
-                Opcode::MVVL.get_field_elt(),
+                Opcode::Mvvl.get_field_elt(),
                 next_fp_offset,
                 offset2,
                 src_addr2,
             ],
-            [Opcode::MVIH.get_field_elt(), next_fp_offset, offset3, imm],
+            [Opcode::Mvih.get_field_elt(), next_fp_offset, offset3, imm],
             [
                 Opcode::Tailv.get_field_elt(),
                 call_offset,
@@ -783,13 +783,13 @@ mod tests {
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 next_fp_offset,
                 offset1,
                 src_addr,
             ],
             [
-                Opcode::MVVL.get_field_elt(),
+                Opcode::Mvvl.get_field_elt(),
                 next_fp_offset,
                 offset2,
                 src_addr,
@@ -797,12 +797,12 @@ mod tests {
             // The following MOVE operation should be executed, since TAILV sets `next_fp`
             // correctly.
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 0.into(),
                 storage,
                 next_fp_offset,
             ],
-            [Opcode::MVIH.get_field_elt(), next_fp_offset, offset3, imm],
+            [Opcode::Mvih.get_field_elt(), next_fp_offset, offset3, imm],
             [
                 Opcode::Tailv.get_field_elt(),
                 call_offset,
@@ -840,7 +840,7 @@ mod tests {
         let mut pending_updates = HashMap::new();
         let first_move = (
             src_addr.val() as u32, // Address to set
-            Opcode::MVVW,          // Opcode
+            Opcode::Mvvw,          // Opcode
             BinaryField32b::ONE,   // PC
             0u32,                  // FP
             0u32,                  // Timestamp
@@ -850,7 +850,7 @@ mod tests {
         );
         let second_move = (
             src_addr.val() as u32, // Address to set
-            Opcode::MVVL,          // Opcode
+            Opcode::Mvvl,          // Opcode
             G,                     // PC
             0u32,                  // FP
             1u32,                  // Timestamp

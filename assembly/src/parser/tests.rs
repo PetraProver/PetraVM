@@ -221,13 +221,13 @@ mod test_parser {
                 get_binary_slot(1),
             ], //  6G: SRLI @7, @2, #1
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
             ], //  7G: MVV.W @4[2], @7
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
@@ -252,13 +252,13 @@ mod test_parser {
                 get_binary_slot(1),
             ], //  11G: ADDI @7, @8, #1
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
             ], //  12G: MVV.W @4[2], @7
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),

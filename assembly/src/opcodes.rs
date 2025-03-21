@@ -37,10 +37,10 @@ pub enum Opcode {
     Sra = 0x1e,
 
     // Move instructions
-    MVVW = 0x0d,
-    MVIH = 0x0e,
-    LDI = 0x0f,
-    MVVL = 0x11,
+    Mvvw = 0x0d,
+    Mvih = 0x0e,
+    Ldi = 0x0f,
+    Mvvl = 0x11,
 
     // Jump instructions
     Jumpi = 0x20,
