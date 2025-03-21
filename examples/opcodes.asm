@@ -674,7 +674,7 @@ move_call_h_fail:
 ;; Tests for jump and branch instructions, which control the flow of execution.
 ;; ============================================================================
 
-#[framesize(0x20)]
+#[framesize(0xa)]
 test_jumps_branches:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -772,7 +772,7 @@ branch_fail:
 ;; Tests for function call instructions, which save and restore execution context.
 ;; ============================================================================
 
-#[framesize(0x30)]
+#[framesize(0xb)]
 test_function_calls:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -862,7 +862,7 @@ call_fail:
     LDI.W @2, #1         ;; Set failure flag (1 = failure)
     RET
 
-#[framesize(0x10)]
+#[framesize(0x4)]
 test_taili:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
@@ -893,7 +893,7 @@ test_taili:
     RET
 
 ;; Simple test function
-#[framesize(0x5)]
+#[framesize(0x3)]
 test_simple_fn:
     ;; Slot 0: Return PC (set by CALL instruction)
     ;; Slot 1: Return FP (set by CALL instruction)
