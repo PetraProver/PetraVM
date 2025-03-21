@@ -45,7 +45,6 @@ pub enum Opcode {
     // Jump instructions
     Jumpi = 0x20,
     Jumpv = 0x21,
-    // CallV, // TODO,
     Taili = 0x0c,
     Tailv = 0x12,
     Calli = 0x18,

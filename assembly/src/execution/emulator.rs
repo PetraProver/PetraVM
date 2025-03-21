@@ -19,6 +19,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::{debug, trace};
 
 use crate::{
+    assembler::LabelsFrameSizes,
     event::model::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
@@ -38,7 +39,6 @@ use crate::{
     execution::{StateChannel, ZCrayTrace},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
-    parser::LabelsFrameSizes,
 };
 
 pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -982,7 +982,7 @@ mod tests {
     use num_traits::WrappingAdd;
 
     use super::*;
-    use crate::parser::{get_full_prom_and_labels, parse_program};
+    use crate::parser::parse_program;
     use crate::util::get_binary_slot;
     use crate::util::{collatz_orbits, init_logger};
 

@@ -7,8 +7,7 @@ mod instructions_with_labels;
 mod tests;
 
 use instruction_args::{Immediate, Slot, SlotWithOffset};
-pub use instructions_with_labels::get_full_prom_and_labels;
-pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels, LabelsFrameSizes};
+pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels};
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]
@@ -177,7 +176,10 @@ fn parse_line(
                                 });
                             }
                             Rule::MVV_L_instr => {
-                                unimplemented!("MVV_L_instr not implemented");
+                                instrs.push(InstructionsWithLabels::MvvL {
+                                    dst: SlotWithOffset::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src.as_str())?,
+                                });
                             }
                             _ => {
                                 unimplemented!("mov_non_imm: {:?} not implemented", rule);
@@ -201,13 +203,13 @@ fn parse_line(
                             Rule::TAILI_instr => {
                                 instrs.push(InstructionsWithLabels::Taili {
                                     label: dst.as_str().to_string(),
-                                    arg: Slot::from_str(imm.as_str())?,
+                                    next_fp: Slot::from_str(imm.as_str())?,
                                 });
                             }
                             Rule::CALLI_instr => {
                                 instrs.push(InstructionsWithLabels::Calli {
                                     label: dst.as_str().to_string(),
-                                    arg: Slot::from_str(imm.as_str())?,
+                                    next_fp: Slot::from_str(imm.as_str())?,
                                 });
                             }
                             Rule::BNZ_instr => {
@@ -220,6 +222,37 @@ fn parse_line(
                                 unimplemented!("jump_with_op_imm: {:?} not implemented", rule);
                             }
                         };
+                    }
+                    Rule::jump_with_op_non_imm => {
+                        let mut jump_non_imm = instruction.into_inner();
+                        let rule = get_first_inner(
+                            jump_non_imm.next().unwrap(),
+                            "jump_with_op_non_imm has instruction",
+                        )
+                        .as_rule();
+                        let op1 = jump_non_imm
+                            .next()
+                            .expect("jump_with_op_non_imm has first operand");
+                        let op2 = jump_non_imm
+                            .next()
+                            .expect("jump_with_op_non_imm has second operand");
+                        match rule {
+                            Rule::TAILV_instr => {
+                                instrs.push(InstructionsWithLabels::Tailv {
+                                    offset: Slot::from_str(op1.as_str())?,
+                                    next_fp: Slot::from_str(op2.as_str())?,
+                                });
+                            }
+                            Rule::CALLV_instr => {
+                                instrs.push(InstructionsWithLabels::Callv {
+                                    offset: Slot::from_str(op1.as_str())?,
+                                    next_fp: Slot::from_str(op2.as_str())?,
+                                });
+                            }
+                            _ => {
+                                unimplemented!("jump_with_op_non_imm: {:?} not implemented", rule);
+                            }
+                        }
                     }
                     Rule::load_imm => {
                         let mut load_imm = instruction.into_inner();
@@ -299,6 +332,12 @@ fn parse_line(
                             }
                             Rule::B128_MUL_instr => {
                                 instrs.push(InstructionsWithLabels::B128Mul { dst, src1, src2 });
+                            }
+                            Rule::MULU_instr => {
+                                instrs.push(InstructionsWithLabels::Mulu { dst, src1, src2 });
+                            }
+                            Rule::MULSU_instr => {
+                                instrs.push(InstructionsWithLabels::Mulsu { dst, src1, src2 });
                             }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);

@@ -1,30 +1,20 @@
-use std::collections::HashMap;
-
-use binius_field::{BinaryField, BinaryField32b, Field};
-use zcrayvm_assembly::{get_full_prom_and_labels, parse_program, Memory, ValueRom, ZCrayTrace};
-
-const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
+use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_naive_div() {
-    let instructions = parse_program(include_str!("../../examples/div.asm")).unwrap();
-
-    let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
+    let compiled_program = Assembler::from_code(include_str!("../../examples/div.asm")).unwrap();
 
     let a = rand::random();
     let b = rand::random();
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
-    let mut pc = BinaryField32b::ONE;
-    let mut pc_field_to_int = HashMap::new();
-    for i in 0..prom.len() {
-        pc_field_to_int.insert(pc, i as u32 + 1);
-        pc *= G;
-    }
-    let memory = Memory::new(prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-        .expect("Trace generation should not fail.");
+    let memory = Memory::new(compiled_program.prom, vrom);
+    let (trace, _) = ZCrayTrace::generate(
+        memory,
+        compiled_program.frame_sizes,
+        compiled_program.pc_field_to_int,
+    )
+    .expect("Trace generation should not fail.");
 
     assert_eq!(
         trace
@@ -46,28 +36,21 @@ fn test_bezout() {
         include_str!("../../examples/bezout.asm"),
         include_str!("../../examples/div.asm"),
     ];
-    let instructions = kernel_files
-        .into_iter()
-        .flat_map(|file| parse_program(file).unwrap())
-        .collect::<Vec<_>>();
+    let full_kernel = kernel_files.join("\n");
 
-    let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
+    let compiled_program = Assembler::from_code(&full_kernel).unwrap();
 
     let a = 12;
     let b = 3;
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
-    let mut pc = BinaryField32b::ONE;
-    let mut pc_field_to_int = HashMap::new();
-    for i in 0..prom.len() {
-        pc_field_to_int.insert(pc, i as u32 + 1);
-        pc *= G;
-    }
-
-    let memory = Memory::new(prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-        .expect("Trace generation should not fail.");
+    let memory = Memory::new(compiled_program.prom, vrom);
+    let (trace, _) = ZCrayTrace::generate(
+        memory,
+        compiled_program.frame_sizes,
+        compiled_program.pc_field_to_int,
+    )
+    .expect("Trace generation should not fail.");
 
     // gcd
     assert_eq!(
@@ -94,27 +77,21 @@ fn test_bezout() {
 
 #[test]
 fn test_non_tail_long_div() {
-    let kernel_file = include_str!("../../examples/non_tail_long_div.asm");
+    let compiled_program =
+        Assembler::from_code(include_str!("../../examples/non_tail_long_div.asm")).unwrap();
 
-    let instructions = parse_program(kernel_file).unwrap();
-
-    let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
-
-    let mut pc = BinaryField32b::ONE;
-    let mut pc_field_to_int = HashMap::new();
-    for i in 0..prom.len() {
-        pc_field_to_int.insert(pc, i as u32 + 1);
-        pc *= G;
-    }
     let a = 54820;
     let b = 65;
 
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
-    let memory = Memory::new(prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-        .expect("Trace generation should not fail.");
+    let memory = Memory::new(compiled_program.prom, vrom);
+    let (trace, _) = ZCrayTrace::generate(
+        memory,
+        compiled_program.frame_sizes,
+        compiled_program.pc_field_to_int,
+    )
+    .expect("Trace generation should not fail.");
 
     assert_eq!(
         trace
@@ -132,26 +109,20 @@ fn test_non_tail_long_div() {
 
 #[test]
 fn test_tail_long_div() {
-    let kernel_file = include_str!("../../examples/tail_long_div.asm");
+    let compiled_program =
+        Assembler::from_code(include_str!("../../examples/tail_long_div.asm")).unwrap();
 
-    let instructions = parse_program(kernel_file).unwrap();
-
-    let (prom, _, _, frame_sizes) =
-        get_full_prom_and_labels(&instructions).expect("Instructions were not formatted properly.");
-
-    let mut pc = BinaryField32b::ONE;
-    let mut pc_field_to_int = HashMap::new();
-    for i in 0..prom.len() {
-        pc_field_to_int.insert(pc, i as u32 + 1);
-        pc *= G;
-    }
     let a = rand::random();
     let b = rand::random();
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
-    let memory = Memory::new(prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, pc_field_to_int)
-        .expect("Trace generation should not fail.");
+    let memory = Memory::new(compiled_program.prom, vrom);
+    let (trace, _) = ZCrayTrace::generate(
+        memory,
+        compiled_program.frame_sizes,
+        compiled_program.pc_field_to_int,
+    )
+    .expect("Trace generation should not fail.");
 
     assert_eq!(
         trace
