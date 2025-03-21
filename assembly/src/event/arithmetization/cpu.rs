@@ -19,9 +19,10 @@ pub(crate) struct CpuColumns {
     pub(crate) next_timestamp: Col<B32>, // Virtual?
     pub(crate) opcode: Col<B32>,         // Constant
     pub(crate) arg0: Col<B16>,
-    pub(crate) arg1: Col<B16>,
-    pub(crate) arg2_unpacked: Col<B1, 16>,
-    pub(crate) arg2: Col<B16>,
+    pub(crate) args12_unpacked: Col<B1, 32>,
+    pub(crate) args12: Col<B16, 2>, // Virtual
+    pub(crate) arg1: Col<B16>,      // Virtual
+    pub(crate) arg2: Col<B16>,      // Virtual
     options: CpuColumnsOptions,
 }
 
@@ -43,8 +44,9 @@ pub(crate) struct CpuColumnsOptions {
 pub(crate) struct CpuRow {
     pub(crate) index: usize,
     pub(crate) pc: u32,
-    // TODO: This is only necessary for ret because when filling it can't be read from target in NextPc::Target(target)
-    pub(crate) next_pc: Option<u32>, 
+    // TODO: This is only necessary for ret because when filling it can't be read from target in
+    // NextPc::Target(target)
+    pub(crate) next_pc: Option<u32>,
     pub(crate) fp: u32,
     pub(crate) timestamp: u32,
     pub(crate) instruction: Instruction,
@@ -69,9 +71,10 @@ impl CpuColumns {
         let timestamp = table.add_committed("timestamp");
         let opcode = table.add_constant("opcode", [B32::new(OPCODE)]); //add_committed("opcode"); //TODO: opcode is a constant
         let arg0 = table.add_committed("arg0");
-        let arg1 = table.add_committed("arg1");
-        let arg2_unpacked = table.add_committed("arg2_unpacked");
-        let arg2 = table.add_packed("arg2", arg2_unpacked);
+        let args12_unpacked = table.add_committed("args12_unpacked");
+        let args12 = table.add_packed("args12", args12_unpacked);
+        let arg1 = table.add_selected("arg1", args12, 0);
+        let arg2 = table.add_selected("arg2", args12, 1);
 
         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
         // For now it's unconstrained.
@@ -87,14 +90,7 @@ impl CpuColumns {
                 next_pc = target;
             }
             NextPc::Immediate => {
-                let arg2_shifted = table.add_shifted(
-                    "arg2_shifted",
-                    upcast_col(arg2),
-                    5,
-                    16,
-                    ShiftVariant::LogicalLeft,
-                );
-                next_pc = table.add_computed("next_pc", upcast_col(arg1) + arg2_shifted);
+                next_pc = table.add_packed("next_pc", args12_unpacked);
             }
         };
 
@@ -126,7 +122,8 @@ impl CpuColumns {
             opcode,
             arg0,
             arg1,
-            arg2_unpacked,
+            args12_unpacked,
+            args12,
             arg2,
             options,
         }
@@ -176,9 +173,7 @@ impl CpuColumns {
         // println!("next_pc = {:?}", next_pc);
         next_pc_col[i] = match self.options.next_pc {
             NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
-            NextPc::Target(target) => {
-                next_pc.expect("next_pc must be Some when NextPc::Target")
-            }
+            NextPc::Target(target) => next_pc.expect("next_pc must be Some when NextPc::Target"),
             NextPc::Immediate => (arg1 as u32) << 16 | arg2 as u32,
         };
         next_timestamp_col[i] = timestamp + 1u32;

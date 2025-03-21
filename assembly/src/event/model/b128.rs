@@ -86,7 +86,7 @@ impl super::LeftOp for B128AddEvent {
     }
 }
 
-impl super::RigthOp for B128AddEvent {
+impl super::RightOp for B128AddEvent {
     type Right = BinaryField128b;
 
     fn right(&self) -> BinaryField128b {
@@ -104,7 +104,7 @@ impl super::OutputOp for B128AddEvent {
 
 impl Event for B128AddEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        use super::{LeftOp, OutputOp, RigthOp};
+        use super::{LeftOp, OutputOp, RightOp};
 
         // Verify that the result is correct (XOR of inputs)
         assert_eq!(self.output(), Self::operation(self.left(), self.right()));
@@ -199,7 +199,7 @@ impl super::LeftOp for B128MulEvent {
     }
 }
 
-impl super::RigthOp for B128MulEvent {
+impl super::RightOp for B128MulEvent {
     type Right = BinaryField128b;
 
     fn right(&self) -> BinaryField128b {
@@ -217,7 +217,7 @@ impl super::OutputOp for B128MulEvent {
 
 impl Event for B128MulEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        use super::{LeftOp, OutputOp, RigthOp};
+        use super::{LeftOp, OutputOp, RightOp};
 
         // Verify that the result is correct
         assert_eq!(self.output(), Self::operation(self.left(), self.right()));

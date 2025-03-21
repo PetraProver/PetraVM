@@ -7,14 +7,15 @@ pub mod arithmetization {
     use bytemuck::Pod;
 
     use crate::{
-        event::arithmetization::{integer_ops::AddTable, ret::RetTable},
+        event::arithmetization::{branch::BnzTable, integer_ops::AddTable, ret::RetTable},
         ZCrayTrace,
     };
 
     pub struct ZCrayTable {
         pub(crate) add_table: AddTable,
         pub(crate) ret_table: RetTable,
-
+        pub(crate) bnz_table: BnzTable,
+        pub(crate) bz_table: BnzTable,
         pub(crate) state_channel: ChannelId,
         pub(crate) prom_channel: ChannelId,
         pub(crate) vrom_channel: ChannelId,
@@ -28,6 +29,8 @@ pub mod arithmetization {
             Self {
                 add_table: AddTable::new(cs, state_channel, vrom_channel, prom_channel),
                 ret_table: RetTable::new(cs, state_channel, vrom_channel, prom_channel),
+                bnz_table: BnzTable::new(cs, state_channel, vrom_channel, prom_channel),
+                bz_table: BnzTable::new(cs, state_channel, vrom_channel, prom_channel),
                 state_channel,
                 prom_channel,
                 vrom_channel,
@@ -43,6 +46,7 @@ pub mod arithmetization {
             println!("ret:{:?}", trace.ret);
             witness.fill_table_sequential(&self.add_table, &trace.add)?;
             witness.fill_table_sequential(&self.ret_table, &trace.ret)?;
+            witness.fill_table_sequential(&self.bnz_table, &trace.bnz)?;
             Ok(())
         }
     }

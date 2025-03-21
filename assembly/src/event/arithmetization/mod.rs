@@ -11,7 +11,6 @@ pub mod test {
         witness::MultilinearExtensionIndex,
     };
     use binius_field::{arch::OptimalUnderlier128b, BinaryField, Field};
-    use binius_hash::compress::Groestl256ByteCompression;
     use binius_m3::builder::{
         Boundary, ConstraintSystem, FlushDirection, Statement, B128, B16, B32,
     };

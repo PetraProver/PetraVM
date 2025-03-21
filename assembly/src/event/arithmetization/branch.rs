@@ -36,6 +36,7 @@ impl BnzTable {
     ) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
+        
 
         // TODO: Assert cond_val is != 0
 
@@ -214,7 +215,7 @@ pub mod test {
 
         trace.validate(boundary_values);
 
-        let statement = get_test_addi_statement(
+        let statement = get_test_bnz_statement(
             &zcray_table,
             final_pc,
             final_fp,
@@ -280,7 +281,7 @@ pub mod test {
     // Since we still don't have tables implementing the lookups, We balance the
     // prom and vrom channels by just pulling the expected values in the
     // execution.
-    fn get_test_addi_statement(
+    fn get_test_bnz_statement(
         zcray_table: &ZCrayTable,
         final_pc: B32,
         final_fp: u32,

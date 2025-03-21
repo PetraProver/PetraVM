@@ -25,7 +25,7 @@ pub trait Event {
     /// pulling from their target channels.
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
 }
-pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
+pub(crate) trait BinaryOperation: Sized + LeftOp + RightOp + OutputOp {
     fn operation(left: Self::Left, right: Self::Right) -> Self::Output;
 }
 
@@ -35,7 +35,7 @@ pub(crate) trait LeftOp {
     fn left(&self) -> Self::Left;
 }
 
-pub(crate) trait RigthOp {
+pub(crate) trait RightOp {
     type Right;
 
     fn right(&self) -> Self::Right;
@@ -235,7 +235,7 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
                 BinaryField32b::new(self.src_val)
             }
         }
-        impl $crate::event::model::RigthOp for $t {
+        impl $crate::event::model::RightOp for $t {
             type Right = BinaryField16b;
 
             fn right(&self) -> BinaryField16b {
@@ -261,7 +261,7 @@ macro_rules! impl_left_right_output_for_b32imm_bin_op {
                 BinaryField32b::new(self.src_val)
             }
         }
-        impl $crate::event::model::RigthOp for $t {
+        impl $crate::event::model::RightOp for $t {
             type Right = BinaryField32b;
 
             fn right(&self) -> BinaryField32b {
@@ -287,7 +287,7 @@ macro_rules! impl_left_right_output_for_bin_op {
                 BinaryField32b::new(self.src1_val)
             }
         }
-        impl $crate::event::model::RigthOp for $t {
+        impl $crate::event::model::RightOp for $t {
             type Right = BinaryField32b;
 
             fn right(&self) -> BinaryField32b {
@@ -313,7 +313,7 @@ macro_rules! impl_event_for_binary_operation {
                 channels: &mut $crate::execution::InterpreterChannels,
                 _tables: &$crate::execution::InterpreterTables,
             ) {
-                use $crate::event::model::{LeftOp, OutputOp, RigthOp};
+                use $crate::event::model::{LeftOp, OutputOp, RightOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 $crate::fire_non_jump_event!(self, channels);
             }

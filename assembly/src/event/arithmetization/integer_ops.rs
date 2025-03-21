@@ -13,7 +13,6 @@ use binius_field::{
     underlier::UnderlierType,
     BinaryField, Field, PackedField,
 };
-use binius_hash::compress::Groestl256ByteCompression;
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId,
