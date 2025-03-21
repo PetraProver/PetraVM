@@ -31,7 +31,7 @@ impl RetTable {
         let fp0_val = table.add_committed("fp0_val");
         let fp1_val = table.add_committed("fp1_val");
 
-        let cpu_cols = CpuColumns::new::<{ Opcode::Ret as u32 }>(
+        let cpu_cols = CpuColumns::new::<{ Opcode::Ret as u16 }>(
             &mut table,
             state_channel,
             prom_channel,

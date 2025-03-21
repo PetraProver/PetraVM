@@ -40,7 +40,7 @@ impl BnzTable {
 
         // TODO: Assert cond_val is != 0
 
-        let cpu_cols = CpuColumns::new::<{ Opcode::Bnz as u32 }>(
+        let cpu_cols = CpuColumns::new::<{ Opcode::Bnz as u16 }>(
             &mut table,
             state_channel,
             prom_channel,
@@ -115,7 +115,7 @@ impl BzTable {
     ) -> Self {
         let mut table = cs.add_table("bz");
 
-        let cpu_cols = CpuColumns::new::<{ Opcode::Bnz as u32 }>(
+        let cpu_cols = CpuColumns::new::<{ Opcode::Bnz as u16 }>(
             &mut table,
             state_channel,
             prom_channel,
@@ -220,7 +220,7 @@ pub mod test {
             final_pc,
             final_fp,
             final_timestamp,
-            vec![trace.add.len(), trace.ret.len()],
+            vec![trace.add.len(), trace.ret.len(), trace.bnz.len(), trace.bz.len()],
         );
 
         let allocator = Bump::new();

@@ -1,9 +1,10 @@
 use std::cell::RefMut;
 
 use binius_core::{constraint_system::channel::ChannelId, oracle::ShiftVariant};
-use binius_field::{as_packed_field::PackScalar, BinaryField};
+use binius_field::{as_packed_field::PackScalar, BinaryField, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableBuilder, TableWitnessIndexSegment, B1, B16, B32,
+    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableBuilder, TableWitnessIndexSegment,
+    B1, B16, B32, B64,
 };
 use bytemuck::Pod;
 
@@ -17,12 +18,10 @@ pub(crate) struct CpuColumns {
     pub(crate) fp: Col<B32>,
     pub(crate) timestamp: Col<B32>,
     pub(crate) next_timestamp: Col<B32>, // Virtual?
-    pub(crate) opcode: Col<B32>,         // Constant
+    pub(crate) opcode: Col<B16>,         // Constant
     pub(crate) arg0: Col<B16>,
-    pub(crate) args12_unpacked: Col<B1, 32>,
-    pub(crate) args12: Col<B16, 2>, // Virtual
-    pub(crate) arg1: Col<B16>,      // Virtual
-    pub(crate) arg2: Col<B16>,      // Virtual
+    pub(crate) arg1: Col<B16>,
+    pub(crate) arg2: Col<B16>,
     options: CpuColumnsOptions,
 }
 
@@ -60,7 +59,7 @@ pub(crate) struct Instruction {
 }
 
 impl CpuColumns {
-    pub fn new<const OPCODE: u32>(
+    pub fn new<const OPCODE: u16>(
         table: &mut TableBuilder,
         state_channel: ChannelId,
         prom_channel: ChannelId,
@@ -69,12 +68,10 @@ impl CpuColumns {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
         let timestamp = table.add_committed("timestamp");
-        let opcode = table.add_constant("opcode", [B32::new(OPCODE)]); //add_committed("opcode"); //TODO: opcode is a constant
+        let opcode = table.add_constant("opcode", [B16::new(OPCODE)]); //add_committed("opcode"); //TODO: opcode is a constant
         let arg0 = table.add_committed("arg0");
-        let args12_unpacked = table.add_committed("args12_unpacked");
-        let args12 = table.add_packed("args12", args12_unpacked);
-        let arg1 = table.add_selected("arg1", args12, 0);
-        let arg2 = table.add_selected("arg2", args12, 1);
+        let arg1 = table.add_committed("arg1");
+        let arg2 = table.add_committed("arg2");
 
         // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
         // For now it's unconstrained.
@@ -90,20 +87,51 @@ impl CpuColumns {
                 next_pc = target;
             }
             NextPc::Immediate => {
-                next_pc = table.add_packed("next_pc", args12_unpacked);
+                let b32_basis: [_; 2] = std::array::from_fn(|i| {
+                    <B32 as ExtensionField<B16>>::basis(i)
+                        .expect("i in range 0..2; extension degree is 2")
+                });
+                let target = move |limbs: [Expr<B16, 1>; 2]| {
+                    limbs
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, limb)| upcast_expr(limb) * b32_basis[i])
+                        .reduce(|a, b| a + b)
+                        .expect("limbs has length 2")
+                };
+
+                next_pc = table.add_computed("nex_pc", target([arg1.into(), arg2.into()]));
             }
         };
 
         // Read instruction
+        let b32_basis: [_; 4] = std::array::from_fn(|i| {
+            <B32 as ExtensionField<B16>>::basis(i).expect("i in range 0..4; extension degree is 4")
+        });
+        let b64_basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let pc_instruction = move |pc: Expr<B32, 1>, instruction: [Expr<B16, 1>; 4]| {
+            let pc = upcast_expr(pc);
+            let instruction = instruction.into_iter().map(upcast_expr).collect::<Vec<_>>();
+            let instruction = instruction
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| limb * b32_basis[i])
+                .reduce(|a, b| a + b)
+                .expect("instruction has length 4");
+            pc + instruction
+        };
+        let pc_instruction = table.add_computed(
+            "packed_instruction",
+            pc_instruction(
+                pc.into(),
+                [opcode.into(), arg0.into(), arg1.into(), arg2.into()],
+            ),
+        );
         table.push(
             prom_channel,
-            [
-                pc,
-                upcast_col(opcode),
-                upcast_col(arg0),
-                upcast_col(arg1),
-                upcast_col(arg2),
-            ],
+            [pc_instruction],
         );
 
         // Flushing rules for the state channel
@@ -122,8 +150,6 @@ impl CpuColumns {
             opcode,
             arg0,
             arg1,
-            args12_unpacked,
-            args12,
             arg2,
             options,
         }
