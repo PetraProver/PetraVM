@@ -15,3 +15,4 @@ mod util;
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use execution::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
+pub use opcodes::Opcode;

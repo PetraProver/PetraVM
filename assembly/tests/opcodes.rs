@@ -1,6 +1,6 @@
 use std::{collections::HashSet, mem};
 
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{Assembler, Memory, Opcode, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_opcodes() {
@@ -8,12 +8,11 @@ fn test_opcodes() {
         Assembler::from_code(include_str!("../../examples/opcodes.asm")).unwrap();
 
     // Ensure all opcodes are present in the program
-    const TOTAL_OPS: usize = 38;
     let mut seen = HashSet::new();
     for instr in &compiled_program.prom {
         seen.insert(mem::discriminant(&instr.opcode()));
     }
-    assert_eq!(seen.len(), TOTAL_OPS);
+    assert_eq!(seen.len(), Opcode::OP_COUNT);
 
     // Generate the program ROM and associated data
     let vrom = ValueRom::new_with_init_vals(&[0, 0]);
