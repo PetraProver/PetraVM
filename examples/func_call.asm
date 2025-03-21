@@ -5,6 +5,7 @@
 ;; fn add_two_numbers(a: u32, b: u32) -> u32 { a + b }
 ;; ------------
 
+#[framesize(0x8)]
 func_call:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
@@ -22,6 +23,7 @@ func_call:
     ADDI @2, @4[2], #10 // return add_two_numbers(4, 8) + 10
     RET
 
+#[framesize(0x5)]
 add_two_numbers:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
