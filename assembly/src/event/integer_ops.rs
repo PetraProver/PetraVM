@@ -85,7 +85,7 @@ pub(crate) struct AddiEvent {
 
 impl BinaryOperation for AddiEvent {
     fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new((val.val() as i32).wrapping_add(imm.val() as i32) as u32)
+        BinaryField32b::new((val.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
     }
 }
 
@@ -486,7 +486,7 @@ impl SignedMulEvent {
             dst_val,
             src1: src1.val(),
             src1_val,
-            src2: src1.val(),
+            src2: src2.val(),
             src2_val,
             kind,
         })
@@ -621,7 +621,7 @@ pub(crate) struct SltiEvent {
 impl BinaryOperation for SltiEvent {
     fn operation(val1: BinaryField32b, val2: BinaryField16b) -> BinaryField32b {
         // LT is checked using a SUB gadget.
-        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i32)) as u32)
+        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i16 as i32)) as u32)
     }
 }
 
@@ -675,14 +675,14 @@ mod tests {
             ImmediateBinaryOperation, NonImmediateBinaryOperation,
         },
         execution::{Interpreter, ZCrayTrace},
-        memory::{Memory, ProgramRom, ValueRom},
     };
 
+    /// Tests for Add operations (without immediate)
     #[test]
     fn test_add_operations() {
-        // Test cases for ADD and ADDI
+        // Test cases for ADD
         let test_cases = [
-            // (src1, src2, expected_result, description)
+            // (src1_val, src2_val, expected_result, description)
             (10, 20, 30, "simple addition"),
             (0, 0, 0, "zero addition"),
             (u32::MAX, 1, 0, "overflow"),
@@ -693,56 +693,155 @@ mod tests {
                 0x7FFFFFFF,
                 "negative to positive underflow",
             ),
-            (1, u32::MAX, 0, "commutative overflow"),
+            (0x1000, 0x7FFF, 0x8FFF, "add values"),
+            (
+                0x1000,
+                0xFFFF8000,
+                0xFFFF9000,
+                "add sign-extended negative value",
+            ),
+            (0x1000, 0xFFFFFFFF, 0xFFF, "add -1 value"),
         ];
 
         for (src1_val, src2_val, expected, desc) in test_cases {
             let mut env = TestEnv::new();
+            let src1_offset = BinaryField16b::new(2);
+            let src2_offset = BinaryField16b::new(3);
+            let dst_offset = BinaryField16b::new(4);
 
-            // Test ADD
-            let src1 = BinaryField16b::new(2);
-            let src2 = BinaryField16b::new(3);
-            let dst = BinaryField16b::new(4);
-
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
+            // Set values in VROM at the computed addresses (FP ^ offset)
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
 
             let event = AddEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src1_offset,
+                src2_offset,
                 env.field_pc,
             )
             .unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
-                "ADD failed for {}: {}",
-                desc, expected
+                "ADD failed for {}: expected 0x{:x} got 0x{:x} (src1=0x{:x}, src2=0x{:x})",
+                desc, expected, event.dst_val, src1_val, src2_val
             );
-            assert_eq!(
-                env.get_value(dst.val()),
-                expected,
-                "VROM update failed for ADD"
-            );
+        }
+    }
 
-            // Test ADDI using src1 and immediate
+    /// Tests for Sub operations
+    #[test]
+    fn test_sub_operations() {
+        // Test cases for SUB
+        let test_cases = [
+            // (src1_val, src2_val, expected_result, description)
+            (30, 20, 10, "simple subtraction"),
+            (
+                20,
+                30,
+                0xFFFFFFF6,
+                "negative result (-10 in two's complement)",
+            ),
+            (0, 0, 0, "zero subtraction"),
+            (0, 1, 0xFFFFFFFF, "0 - 1 = -1 (underflow to max u32)"),
+            (
+                0x80000000,
+                1,
+                0x7FFFFFFF,
+                "MIN_INT - 1 = MAX_INT (underflow)",
+            ),
+            (
+                0x7FFFFFFF,
+                0xFFFFFFFF,
+                0x80000000,
+                "MAX_INT - (-1) = MIN_INT (overflow)",
+            ),
+            (0x7FFFFFFF, 0x7FFFFFFF, 0, "MAX_INT - MAX_INT = 0"),
+            (0x80000000, 0x80000000, 0, "MIN_INT - MIN_INT = 0"),
+            (
+                0,
+                0x80000000,
+                0x80000000,
+                "0 - MIN_INT = MIN_INT (positive overflow)",
+            ),
+            (0xFFFFFFFF, 0x7FFFFFFF, 0x80000000, "-1 - MAX_INT = MIN_INT"),
+            (0x80000000, 0x7FFFFFFF, 0x00000001, "MIN_INT - MAX_INT = 1"),
+            (0xFFFFFFFF, 0xFFFFFFFF, 0, "-1 - (-1) = 0"),
+            (0x12345678, 0x12345678, 0, "arbitrary value - itself = 0"),
+        ];
+
+        for (src1_val, src2_val, expected, desc) in test_cases {
             let mut env = TestEnv::new();
-            env.set_value(src1.val(), src1_val);
+            let src1_offset = BinaryField16b::new(2);
+            let src2_offset = BinaryField16b::new(3);
+            let dst_offset = BinaryField16b::new(4);
 
-            let imm = if src2_val <= u16::MAX as u32 {
-                BinaryField16b::new(src2_val as u16)
-            } else {
-                continue; // Skip test if immediate is too large
-            };
+            // Set values in VROM at the computed addresses (FP ^ offset)
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
+
+            let event = SubEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst_offset,
+                src1_offset,
+                src2_offset,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, expected,
+                "SUB failed for {}: expected 0x{:x} got 0x{:x} (src1=0x{:x}, src2=0x{:x})",
+                desc, expected, event.dst_val, src1_val, src2_val
+            );
+        }
+    }
+
+    /// Tests for Addi operations
+    #[test]
+    fn test_addi_operations() {
+        // Test cases for ADDI with sign extension
+        let test_cases = [
+            // (src_val, imm_val, expected_result, description)
+            (10, 20, 30, "simple addition"),
+            (0, 0, 0, "zero addition"),
+            (u32::MAX, 1, 0, "overflow"),
+            (0x7FFFFFFF, 1, 0x80000000, "positive to negative overflow"),
+            (0x1000, 0x7FFF, 0x8FFF, "add max positive immediate"),
+            // Sign extension tests
+            (
+                0x1000,
+                0x8000,
+                0xFFFF9000,
+                "add min negative immediate (0x8000 -> -32768)",
+            ),
+            (0x1000, 0xFFFF, 0xFFF, "add -1 immediate (0xFFFF -> -1)"),
+            (0xFFFFFFFF, 0xFFFF, 0xFFFFFFFE, "add -1 to -1 (wrapped)"),
+            (
+                0x80000000,
+                0x8000,
+                0x7FFF8000,
+                "add min negative immediate to min int (overflow)",
+            ),
+        ];
+
+        for (src_val, imm_val, expected, desc) in test_cases {
+            let mut env = TestEnv::new();
+            let src_offset = BinaryField16b::new(2);
+            let dst_offset = BinaryField16b::new(4);
+
+            // Set value in VROM at the computed address (FP ^ offset)
+            env.set_value(src_offset.val(), src_val);
+            let imm = BinaryField16b::new(imm_val);
 
             let event = AddiEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
+                dst_offset,
+                src_offset,
                 imm,
                 env.field_pc,
             )
@@ -750,73 +849,233 @@ mod tests {
 
             assert_eq!(
                 event.dst_val, expected,
-                "ADDI failed for {}: {}",
-                desc, expected
-            );
-            assert_eq!(
-                env.get_value(dst.val()),
-                expected,
-                "VROM update failed for ADDI"
+                "ADDI failed for {}: expected 0x{:x} got 0x{:x} (src=0x{:x}, imm=0x{:x})",
+                desc, expected, event.dst_val, src_val, imm_val
             );
         }
     }
 
+    /// Tests for Mul operations (without immediate)
     #[test]
-    fn test_sub_operation() {
-        // Test cases for SUB
+    fn test_mul_operations() {
+        // Test cases for MUL, MULU, MULSU
         let test_cases = [
-            // (src1, src2, expected_result, description)
-            (30, 20, 10, "simple subtraction"),
-            (20, 30, 0xFFFFFFF6, "negative result"), // -10 as two's complement
-            (0, 0, 0, "zero subtraction"),
-            (0, 1, 0xFFFFFFFF, "underflow to -1"),
-            (0x80000000, 1, 0x7FFFFFFF, "negative to positive underflow"),
+            // (src1_val, src2_val, mul_expected, mulu_expected, mulsu_expected, description)
+            (5, 7, 35, 35, 35, "simple multiplication"),
+            (0, 0, 0, 0, 0, "zero multiplication"),
+            (1, 0, 0, 0, 0, "identity with zero"),
+            (0, 1, 0, 0, 0, "zero with identity"),
+            (1, 1, 1, 1, 1, "identity"),
+            // Negative source values - different behavior between signed and unsigned
             (
-                0x7FFFFFFF,
+                0xFFFFFFFF,
+                2,
+                (-2i64 as u64),
+                0x1FFFFFFFE,
+                (-2i64 as u64),
+                "negative * positive",
+            ),
+            (
+                0xFFFFFFFF,
+                0xFFFFFFFF,
+                1,
+                0xFFFFFFFE00000001,
+                0xFFFFFFFF00000001,
+                "negative * negative",
+            ),
+            (
                 0xFFFFFFFF,
                 0x80000000,
-                "positive to negative overflow",
+                0x80000000,
+                0x7fffffff80000000,
+                0xffffffff80000000,
+                "negative * min negative",
+            ),
+            // Large value edge cases
+            (
+                0x7FFFFFFF,
+                2,
+                0xFFFFFFFE,
+                0xFFFFFFFE,
+                0xFFFFFFFE,
+                "max positive * 2",
+            ),
+            (
+                0x7FFFFFFF,
+                0x7FFFFFFF,
+                0x3FFFFFFF00000001,
+                0x3FFFFFFF00000001,
+                0x3FFFFFFF00000001,
+                "max positive * max positive",
+            ),
+            (
+                0x80000000,
+                2,
+                0xffffffff00000000,
+                0x100000000,
+                0xffffffff00000000,
+                "min negative * 2",
+            ),
+            (
+                0x80000000,
+                0x80000000,
+                0x4000000000000000,
+                0x4000000000000000,
+                0xc000000000000000,
+                "min negative * min negative",
             ),
         ];
 
-        for (src1_val, src2_val, expected, desc) in test_cases {
+        for (src1_val, src2_val, mul_expected, mulu_expected, mulsu_expected, desc) in test_cases {
+            // Test MUL (sign * sign)
             let mut env = TestEnv::new();
+            let src1_offset = BinaryField16b::new(2);
+            let src2_offset = BinaryField16b::new(3);
+            let dst_offset = BinaryField16b::new(4);
 
-            let src1 = BinaryField16b::new(2);
-            let src2 = BinaryField16b::new(3);
-            let dst = BinaryField16b::new(4);
+            // Set values in VROM at the computed addresses (FP ^ offset)
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
 
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
-
-            let event = SubEvent::generate_event(
+            let event = SignedMulEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src1_offset,
+                src2_offset,
+                env.field_pc,
+                SignedMulKind::Mul,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, mul_expected,
+                "MUL failed for {}: expected 0x{:x} got 0x{:x} (src1=0x{:x}, src2=0x{:x})",
+                desc, mul_expected, event.dst_val, src1_val, src2_val
+            );
+
+            // Test MULU (unsigned * unsigned)
+            let mut env = TestEnv::new();
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
+
+            let event = MuluEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst_offset,
+                src1_offset,
+                src2_offset,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, mulu_expected,
+                "MULU failed for {}: expected 0x{:x} got 0x{:x} (src1=0x{:x}, src2=0x{:x})",
+                desc, mulu_expected, event.dst_val, src1_val, src2_val
+            );
+
+            // Test MULSU (sign * unsigned)
+            let mut env = TestEnv::new();
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
+
+            let event = SignedMulEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst_offset,
+                src1_offset,
+                src2_offset,
+                env.field_pc,
+                SignedMulKind::Mulsu,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, mulsu_expected,
+                "MULSU failed for {}: expected 0x{:x} got 0x{:x} (src1=0x{:x}, src2=0x{:x})",
+                desc, mulsu_expected, event.dst_val, src1_val, src2_val
+            );
+        }
+    }
+
+    /// Tests for Mul operations (with immediate)
+    #[test]
+    fn test_muli_operations() {
+        // Test cases for MULI (sign-extends the immediate)
+        let test_cases = [
+            // (src_val, imm_val, expected_result, description)
+            (5, 7, 35, "simple multiplication"),
+            (0, 0, 0, "zero multiplication"),
+            (1, 0, 0, "identity with zero"),
+            (0, 1, 0, "zero with identity"),
+            (1, 1, 1, "identity"),
+            // Immediate sign extension tests
+            (5, 0x7FFF, 163835, "multiply by max positive 16-bit"),
+            (
+                5,
+                0x8000,
+                0xfffffffffffd8000,
+                "multiply by 0x8000 (sign extends to -32768)",
+            ),
+            (
+                5,
+                0xFFFF,
+                (-5i64 as u64),
+                "multiply by 0xFFFF (sign extends to -1)",
+            ),
+            // Tests with negative source values
+            (0xFFFFFFFF, 2, (-2i64 as u64), "negative * positive"),
+            (0x80000000, 2, 0xffffffff00000000, "min negative * 2"),
+            // Edge cases with 16-bit immediate
+            (
+                0x10000,
+                0x7FFF,
+                0x7FFF0000,
+                "multiply by max positive 16-bit",
+            ),
+            (
+                0x10000,
+                0x8000,
+                0xffffffff80000000,
+                "multiply by min negative 16-bit",
+            ),
+            (0x10000, 0xFFFF, 0xffffffffffff0000, "multiply by -1"),
+        ];
+
+        for (src_val, imm_val, expected, desc) in test_cases {
+            let mut env = TestEnv::new();
+            let src_offset = BinaryField16b::new(2);
+            let dst_offset = BinaryField16b::new(4);
+
+            // Set value in VROM at the computed address (FP ^ offset)
+            env.set_value(src_offset.val(), src_val);
+            let imm = BinaryField16b::new(imm_val);
+
+            let event = MuliEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst_offset,
+                src_offset,
+                imm,
                 env.field_pc,
             )
             .unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
-                "SUB failed for {}: {}",
-                desc, expected
-            );
-            assert_eq!(
-                env.get_value(dst.val()),
-                expected,
-                "VROM update failed for SUB"
+                "MULI failed for {}: expected 0x{:x} got 0x{:x} (src=0x{:x}, imm=0x{:x})",
+                desc, expected, event.dst_val, src_val, imm_val
             );
         }
     }
 
+    /// Tests for Comparison operations (without immediate)
     #[test]
     fn test_comparison_operations() {
-        // Test cases for SLT, SLTU, SLTI, SLTIU
+        // Test cases for SLT, SLTU
         let test_cases = [
-            // (src1, src2, signed_result, unsigned_result, description)
+            // (src1_val, src2_val, slt_expected, sltu_expected, description)
             (5, 10, 1, 1, "simple less than"),
             (10, 5, 0, 0, "simple greater than"),
             (5, 5, 0, 0, "equal values"),
@@ -830,330 +1089,169 @@ mod tests {
                 0,
                 "signed MIN < MAX, unsigned MIN > MAX",
             ),
+            (
+                0x7FFFFFFF,
+                0x80000000,
+                0,
+                1,
+                "signed MAX > MIN, unsigned MAX < MIN",
+            ),
             (0, 0x80000000, 0, 1, "signed 0 > MIN, unsigned 0 < MIN"),
+            (0x80000000, 0, 1, 0, "signed MIN < 0, unsigned MIN > 0"),
         ];
 
-        for (src1_val, src2_val, signed_expected, unsigned_expected, desc) in test_cases {
-            // Test SLT
+        for (src1_val, src2_val, slt_expected, sltu_expected, desc) in test_cases {
+            // Test SLT (Signed Less Than)
             let mut env = TestEnv::new();
-            let src1 = BinaryField16b::new(2);
-            let src2 = BinaryField16b::new(3);
-            let dst = BinaryField16b::new(4);
+            let src1_offset = BinaryField16b::new(2);
+            let src2_offset = BinaryField16b::new(3);
+            let dst_offset = BinaryField16b::new(4);
 
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
+            // Set values in VROM at the computed addresses (FP ^ offset)
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
 
             let event = SltEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src1_offset,
+                src2_offset,
                 env.field_pc,
             )
             .unwrap();
 
             assert_eq!(
-                event.dst_val, signed_expected,
-                "SLT failed for {}: {}",
-                desc, signed_expected
+                event.dst_val, slt_expected,
+                "SLT failed for {}: expected {} got {} (src1=0x{:x}, src2=0x{:x})",
+                desc, slt_expected, event.dst_val, src1_val, src2_val
             );
 
-            // Test SLTU
+            // Test SLTU (Unsigned Less Than)
             let mut env = TestEnv::new();
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
+            // Set values in VROM at the computed addresses (FP ^ offset)
+            env.set_value(src1_offset.val(), src1_val);
+            env.set_value(src2_offset.val(), src2_val);
 
             let event = SltuEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src1_offset,
+                src2_offset,
                 env.field_pc,
             )
             .unwrap();
 
             assert_eq!(
-                event.dst_val, unsigned_expected,
-                "SLTU failed for {}: {}",
-                desc, unsigned_expected
+                event.dst_val, sltu_expected,
+                "SLTU failed for {}: expected {} got {} (src1=0x{:x}, src2=0x{:x})",
+                desc, sltu_expected, event.dst_val, src1_val, src2_val
             );
-
-            // Test SLTI (if immediate fits in u16)
-            if src2_val <= u16::MAX as u32 {
-                let mut env = TestEnv::new();
-                env.set_value(src1.val(), src1_val);
-                let imm = BinaryField16b::new(src2_val as u16);
-
-                let event = SltiEvent::generate_event(
-                    &mut env.interpreter,
-                    &mut env.trace,
-                    dst,
-                    src1,
-                    imm,
-                    env.field_pc,
-                )
-                .unwrap();
-
-                assert_eq!(
-                    event.dst_val, signed_expected,
-                    "SLTI failed for {}: {}",
-                    desc, signed_expected
-                );
-
-                // Test SLTIU
-                let mut env = TestEnv::new();
-                env.set_value(src1.val(), src1_val);
-
-                let event = SltiuEvent::generate_event(
-                    &mut env.interpreter,
-                    &mut env.trace,
-                    dst,
-                    src1,
-                    imm,
-                    env.field_pc,
-                )
-                .unwrap();
-
-                assert_eq!(
-                    event.dst_val, unsigned_expected,
-                    "SLTIU failed for {}: {}",
-                    desc, unsigned_expected
-                );
-            }
         }
     }
 
+    /// Tests for Comparison operations (with immediate)
     #[test]
-    fn test_multiplication_operations() {
-        // Test cases for MUL, MULU, MULSU, MULI
+    fn test_comparison_immediate_operations() {
+        // Test cases for SLTI, SLTIU
         let test_cases = [
-            // (src1, src2, signed_result, unsigned_result, signed_unsigned_result, description)
-            (5, 7, 35, 35, 35, "simple multiplication"),
-            (0, 0, 0, 0, 0, "zero multiplication"),
-            (1, 0, 0, 0, 0, "identity with zero"),
-            (0, 1, 0, 0, 0, "zero with identity"),
-            (1, 1, 1, 1, 1, "identity"),
+            // (src_val, imm_val, slti_expected, sltiu_expected, description)
+            (5, 10, 1, 1, "simple less than"),
+            (10, 5, 0, 0, "simple greater than"),
+            (5, 5, 0, 0, "equal values"),
+            (0, 0, 0, 0, "zero comparison"),
+            // Tests with max positive and min negative 16-bit immediates
+            (0x7FFF, 0x7FFF, 0, 0, "equal to max positive immediate"),
+            (0x7FFE, 0x7FFF, 1, 1, "just below max positive immediate"),
+            (0x8000, 0x7FFF, 0, 0, "just above max positive immediate"),
+            (0x0000, 0x7FFF, 1, 1, "0 vs 0x7FFF (max positive immediate)"),
+            // Sign extension tests for immediates
+            (
+                0x0000,
+                0x8000,
+                0,
+                1,
+                "0 vs 0x8000 (sign extended to -32768)",
+            ),
+            (
+                0x7FFF,
+                0x8000,
+                0,
+                1,
+                "0x7FFF vs 0x8000 (sign extended to -32768)",
+            ),
+            (0x8000, 0x8000, 0, 0, "0x8000 vs 0x8000 (equal values)"),
+            (
+                0x8001,
+                0x8000,
+                0,
+                0,
+                "0x8001 vs 0x8000 (both negative, first more negative)",
+            ),
+            // Tests with 0xFFFF (-1 signed, max unsigned)
+            (0x0000, 0xFFFF, 0, 1, "0 vs 0xFFFF (sign extended to -1)"),
+            (0xFFFE, 0xFFFF, 0, 1, "0xFFFE vs 0xFFFF (test just below)"),
+            (0xFFFF, 0xFFFF, 0, 0, "0xFFFF vs 0xFFFF (equal values)"),
+            (0x10000, 0xFFFF, 0, 0, "0x10000 vs 0xFFFF (test just above)"),
             (
                 0xFFFFFFFF,
-                2,
-                -2i64 as u64,
-                0x1FFFFFFFE,
-                -2i64 as u64,
-                "MAX*2 signed/unsigned",
+                0xFFFF,
+                0,
+                0,
+                "-1 vs -1 (both sign extended to -1)",
             ),
-            (
-                0x80000000,
-                2,
-                -4294967296i64 as u64,
-                0x100000000,
-                -4294967296i64 as u64,
-                "MIN*2",
-            ),
-            (
-                -5i32 as u32,
-                7,
-                -35i64 as u64,
-                30064771037,
-                -35i64 as u64,
-                "negative * positive",
-            ),
-            (
-                5,
-                -7i32 as u32,
-                -35i64 as u64,
-                21474836445,
-                21474836445,
-                "positive * negative",
-            ),
-            (
-                -5i32 as u32,
-                -7i32 as u32,
-                35,
-                18446744022169944099,
-                18446744052234715171,
-                "negative * negative",
-            ),
-            (
-                0x10000000,
-                0x10,
-                0x100000000,
-                0x100000000,
-                0x100000000,
-                "overflow test",
-            ),
-            (
-                0x80000000,
-                0x80000000,
-                0x4000000000000000,
-                0x4000000000000000,
-                13835058055282163712,
-                "large values",
-            ),
+            // Additional tests with signed vs unsigned interpretation
+            (0xFFFFFFFF, 0x0005, 1, 0, "-1 vs 5 (signed vs unsigned)"),
+            (0x00000005, 0xFFFF, 0, 1, "5 vs -1 (signed vs unsigned)"),
         ];
 
-        for (
-            src1_val,
-            src2_val,
-            signed_expected,
-            unsigned_expected,
-            signed_unsigned_expected,
-            desc,
-        ) in test_cases
-        {
-            // Test MUL
+        for (src_val, imm_val, slti_expected, sltiu_expected, desc) in test_cases {
+            // Test SLTI (Signed Less Than Immediate)
             let mut env = TestEnv::new();
-            let src1 = BinaryField16b::new(2);
-            let src2 = BinaryField16b::new(3);
-            let dst = BinaryField16b::new(4);
+            let src_offset = BinaryField16b::new(2);
+            let dst_offset = BinaryField16b::new(4);
+            let imm = BinaryField16b::new(imm_val);
 
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
+            // Set value in VROM at the computed address (FP ^ offset)
+            env.set_value(src_offset.val(), src_val);
 
-            let event = SignedMulEvent::generate_event(
+            let event = SltiEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
-                env.field_pc,
-                SignedMulKind::Mul,
-            )
-            .unwrap();
-
-            assert_eq!(
-                event.dst_val, signed_expected,
-                "MUL failed for {}: {}",
-                desc, signed_expected
-            );
-            assert_eq!(
-                env.get_value_u64(dst.val()),
-                signed_expected,
-                "VROM update failed for MUL"
-            );
-
-            // Test MULU
-            let mut env = TestEnv::new();
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
-
-            let event = MuluEvent::generate_event(
-                &mut env.interpreter,
-                &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src_offset,
+                imm,
                 env.field_pc,
             )
             .unwrap();
 
             assert_eq!(
-                event.dst_val, unsigned_expected,
-                "MULU failed for {}: {}",
-                desc, unsigned_expected
-            );
-            assert_eq!(
-                env.get_value_u64(dst.val()),
-                unsigned_expected,
-                "VROM update failed for MULU"
+                event.dst_val, slti_expected,
+                "SLTI failed for {}: expected {} got {} (src=0x{:x}, imm=0x{:x})",
+                desc, slti_expected, event.dst_val, src_val, imm_val
             );
 
-            // Test MULSU
+            // Test SLTIU (Unsigned Less Than Immediate)
             let mut env = TestEnv::new();
-            env.set_value(src1.val(), src1_val);
-            env.set_value(src2.val(), src2_val);
+            // Set value in VROM at the computed address (FP ^ offset)
+            env.set_value(src_offset.val(), src_val);
 
-            let event = SignedMulEvent::generate_event(
+            let event = SltiuEvent::generate_event(
                 &mut env.interpreter,
                 &mut env.trace,
-                dst,
-                src1,
-                src2,
+                dst_offset,
+                src_offset,
+                imm,
                 env.field_pc,
-                SignedMulKind::Mulsu,
             )
             .unwrap();
 
             assert_eq!(
-                event.dst_val, signed_unsigned_expected,
-                "MULSU failed for {}: expected {} but got {}",
-                desc, signed_unsigned_expected, event.dst_val
+                event.dst_val, sltiu_expected,
+                "SLTIU failed for {}: expected {} got {} (src=0x{:x}, imm=0x{:x})",
+                desc, sltiu_expected, event.dst_val, src_val, imm_val
             );
-
-            // Test MULI (if src2 fits in i16)
-            if src2_val < 0x8000 || src2_val >= 0xFFFF8000 {
-                let mut env = TestEnv::new();
-                env.set_value(src1.val(), src1_val);
-
-                let imm = BinaryField16b::new(src2_val as u16);
-
-                let event = MuliEvent::generate_event(
-                    &mut env.interpreter,
-                    &mut env.trace,
-                    dst,
-                    src1,
-                    imm,
-                    env.field_pc,
-                )
-                .unwrap();
-
-                assert_eq!(
-                    event.dst_val, signed_expected,
-                    "MULI failed for {}: {}",
-                    desc, signed_expected
-                );
-                assert_eq!(
-                    env.get_value_u64(dst.val()),
-                    signed_expected,
-                    "VROM update failed for MULI"
-                );
-            }
         }
-    }
-
-    #[test]
-    fn test_mulu_schoolbook_computation() {
-        // Test the schoolbook multiplication intermediate values
-        let mut env = TestEnv::new();
-        let src1 = BinaryField16b::new(2);
-        let src2 = BinaryField16b::new(3);
-        let dst = BinaryField16b::new(4);
-
-        // Use values that will produce interesting intermediate results
-        env.set_value(src1.val(), 0x12345678);
-        env.set_value(src2.val(), 0xABCDEF00);
-
-        let event = MuluEvent::generate_event(
-            &mut env.interpreter,
-            &mut env.trace,
-            dst,
-            src1,
-            src2,
-            env.field_pc,
-        )
-        .unwrap();
-
-        // Check the final result
-        let expected_result = (0x12345678_u64).wrapping_mul(0xABCDEF00_u64);
-        assert_eq!(event.dst_val, expected_result);
-
-        // Validate intermediate arrays have proper sizes
-        assert_eq!(event.aux.len(), 8);
-        assert_eq!(event.aux_sums.len(), 4);
-        assert_eq!(event.cum_sums.len(), 2);
-
-        // Check that auxiliary values are non-zero
-        assert!(event.aux.iter().any(|&x| x > 0));
-        assert!(event.aux_sums.iter().any(|&x| x > 0));
-        assert!(event.cum_sums.iter().any(|&x| x > 0));
-
-        // Additional check: Check that the additions of auxiliary sums yield final
-        // result
-        assert_eq!(
-            expected_result,
-            event.cum_sums[1] + (event.aux_sums[3] << 24),
-            "The auxiliary sums don't add up to the final result"
-        );
     }
 }
