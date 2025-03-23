@@ -319,7 +319,7 @@ impl MuluEvent {
             dst_val,
             src1: src1.val(),
             src1_val,
-            src2: src1.val(),
+            src2: src2.val(),
             src2_val,
             aux: aux.try_into().expect("Created an incorrect aux vector."),
             aux_sums: aux_sums
@@ -663,207 +663,541 @@ impl_event_for_binary_operation!(SubEvent);
 mod tests {
     use std::collections::HashMap;
 
-    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+    use binius_field::{BinaryField16b, BinaryField32b, Field};
 
-    use crate::{opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+    use crate::{
+        event::{
+            integer_ops::{
+                AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent, SignedMulKind, SltEvent,
+                SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            },
+            ImmediateBinaryOperation, NonImmediateBinaryOperation,
+        },
+        execution::{Interpreter, ZCrayTrace},
+        memory::{Memory, ProgramRom, ValueRom},
+    };
 
-    #[test]
-    fn test_slt_ops() {
-        // Frame
-        // Slot 0: PC
-        // Slot 1: FP
-        // Slot 2: Input1
-        // Slot 3: Input2
-        // Slot 4: SLT_output
-        // Slot 5: SLTI_output
-        // Slot 6: SLTU_output
-        // Slot 7: SLTIU_output
+    // Helper struct to simplify test setup
+    struct TestEnv {
+        interpreter: Interpreter,
+        trace: ZCrayTrace,
+        field_pc: BinaryField32b,
+    }
 
-        let slt_dst_addr = 4.into();
-        let slti_dst_addr = 5.into();
-        let sltu_dst_addr = 6.into();
-        let sltiu_dst_addr = 7.into();
+    impl TestEnv {
+        fn new() -> Self {
+            let mut interpreter = Interpreter::new(HashMap::new(), HashMap::new());
+            interpreter.timestamp = 0;
+            interpreter.pc = 1; // Start at PC = 1
 
-        let input1 = -5i32;
-        let input2 = 1u32;
+            let memory = Memory::new(ProgramRom::new(), ValueRom::default());
+            let trace = ZCrayTrace::new(memory);
 
-        let input1_addr = 2.into();
-        let input2_addr = 3.into();
+            Self {
+                interpreter,
+                trace,
+                field_pc: BinaryField32b::ONE,
+            }
+        }
 
-        let zero = BinaryField16b::zero();
-        let instructions = vec![
-            // Should return true.
-            [
-                Opcode::Slt.get_field_elt(),
-                slt_dst_addr,
-                input1_addr,
-                input2_addr,
-            ],
-            // Should return true.
-            [
-                Opcode::Slti.get_field_elt(),
-                slti_dst_addr,
-                input1_addr,
-                (input2 as u16).into(),
-            ],
-            // Should return false.
-            [
-                Opcode::Sltu.get_field_elt(),
-                sltu_dst_addr,
-                input1_addr,
-                input2_addr,
-            ],
-            // Should return false.
-            [
-                Opcode::Sltiu.get_field_elt(),
-                sltiu_dst_addr,
-                input1_addr,
-                (input2 as u16).into(),
-            ],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
-        ];
+        // Helper to set a value in VROM
+        fn set_value(&mut self, slot: u16, value: u32) {
+            self.trace
+                .set_vrom_u32(self.interpreter.fp ^ slot as u32, value)
+                .unwrap();
+        }
 
-        let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 8);
+        // Helper to get a value from VROM
+        fn get_value(&self, slot: u16) -> u32 {
+            self.trace
+                .get_vrom_u32(self.interpreter.fp ^ slot as u32)
+                .unwrap()
+        }
 
-        let prom = code_to_prom(&instructions);
-        let mut vrom = ValueRom::default();
-        // Initialize PC and FP.
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-
-        // Initialize inputs.
-        vrom.set_u32(input1_addr.val() as u32, input1 as u32)
-            .unwrap();
-        vrom.set_u32(input2_addr.val() as u32, input2).unwrap();
-
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
-            .expect("Trace generation should not fail.");
-
-        // Check outputs.
-        assert_eq!(trace.get_vrom_u32(slt_dst_addr.val() as u32).unwrap(), 1);
-        assert_eq!(trace.get_vrom_u32(slti_dst_addr.val() as u32).unwrap(), 1);
-        assert_eq!(trace.get_vrom_u32(sltu_dst_addr.val() as u32).unwrap(), 0);
-        assert_eq!(trace.get_vrom_u32(sltiu_dst_addr.val() as u32).unwrap(), 0);
+        // Helper to get a u64 value from VROM (for multiplication results)
+        fn get_value_u64(&self, slot: u16) -> u64 {
+            self.trace
+                .get_vrom_u64(self.interpreter.fp ^ slot as u32)
+                .unwrap()
+        }
     }
 
     #[test]
-    fn test_mul_ops() {
-        // Frame
-        // Slot 0: PC
-        // Slot 1: FP
-        // Slot 2: u32_max
-        // Slot 3: input2
-        // Slot 4: dst1_low
-        // Slot 5: dst1_high
-        // Slot 6: dst2_low
-        // Slot 7: dst2_high
-        // Slot 8: dst3_low
-        // Slot 9: dst3_high
-        // Slot 10: dst4_low
-        // Slot 11: dst4_high
-
-        let u32_max = u32::MAX;
-        let u32_max_addr = 2.into();
-
-        let input2 = -1000000000_i32;
-        let input2_addr = 3.into();
-
-        let dst1_addr = 4.into();
-        let dst2_addr = 6.into();
-        let dst3_addr = 8.into();
-        let dst4_addr = 10.into();
-
-        let imm = -2_i16 as u16;
-
-        let mut frame_sizes = HashMap::new();
-        frame_sizes.insert(BinaryField32b::ONE, 10);
-
-        let zero = BinaryField16b::zero();
-        let instructions = vec![
-            // Should compute u32_max * 3294967296
-            [
-                Opcode::Mulu.get_field_elt(),
-                dst1_addr,
-                u32_max_addr,
-                input2_addr,
-            ],
-            // Should compute -i32::MAX * 3294967296
-            [
-                Opcode::Mulsu.get_field_elt(),
-                dst2_addr,
-                u32_max_addr,
-                input2_addr,
-            ],
-            // Should compute -i32::MAX * -1000000000
-            [
-                Opcode::Mul.get_field_elt(),
-                dst3_addr,
-                u32_max_addr,
-                input2_addr,
-            ],
-            // Should compute -i32::MAX * -2
-            [
-                Opcode::Muli.get_field_elt(),
-                dst4_addr,
-                u32_max_addr,
-                imm.into(),
-            ],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+    fn test_add_operations() {
+        // Test cases for ADD and ADDI
+        let test_cases = [
+            // (src1, src2, expected_result, description)
+            (10, 20, 30, "simple addition"),
+            (0, 0, 0, "zero addition"),
+            (u32::MAX, 1, 0, "overflow"),
+            (0x7FFFFFFF, 1, 0x80000000, "positive to negative overflow"),
+            (
+                0x80000000,
+                0xFFFFFFFF,
+                0x7FFFFFFF,
+                "negative to positive underflow",
+            ),
+            (1, u32::MAX, 0, "commutative overflow"),
         ];
 
-        let prom = code_to_prom(&instructions);
-        let mut vrom = ValueRom::default();
-        // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0);
-        vrom.set_u32(1, 0);
-        vrom.set_u32(u32_max_addr.val() as u32, u32_max);
-        vrom.set_u32(input2_addr.val() as u32, input2 as u32);
+        for (src1_val, src2_val, expected, desc) in test_cases {
+            let mut env = TestEnv::new();
 
-        let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frame_sizes, HashMap::new())
-            .expect("Trace generation should not fail.");
+            // Test ADD
+            let src1 = BinaryField16b::new(2);
+            let src2 = BinaryField16b::new(3);
+            let dst = BinaryField16b::new(4);
 
-        // First, the inputs are turned into u32s.
-        let input2_u32 = input2 as u32;
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
 
-        // Compute expected outputs.
-        let mulu_expected_output = (u32_max as u64).wrapping_mul(input2_u32 as u64);
-        let mul_expected_output =
-            (u32_max as i32 as i64).wrapping_mul(input2_u32 as i32 as i64) as u64;
-        let muli_expected_output = (u32_max as i32 as i64).wrapping_mul(imm as i16 as i64) as u64;
-        let mulsu_expected_output = (u32_max as i32 as i64).wrapping_mul(input2_u32 as i64) as u64;
+            let event = AddEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+            )
+            .unwrap();
 
-        // Stored outputs
-        let mulu_output = trace.get_vrom_u64(dst1_addr.val() as u32).unwrap();
-        let mulsu_output = trace.get_vrom_u64(dst2_addr.val() as u32).unwrap();
-        let mul_output = trace.get_vrom_u64(dst3_addr.val() as u32).unwrap();
-        let muli_output = trace.get_vrom_u64(dst4_addr.val() as u32).unwrap();
+            assert_eq!(
+                event.dst_val, expected,
+                "ADD failed for {}: {}",
+                desc, expected
+            );
+            assert_eq!(
+                env.get_value(dst.val()),
+                expected,
+                "VROM update failed for ADD"
+            );
 
-        // Check output of MULU.
+            // Test ADDI using src1 and immediate
+            let mut env = TestEnv::new();
+            env.set_value(src1.val(), src1_val);
+
+            let imm = if src2_val <= u16::MAX as u32 {
+                BinaryField16b::new(src2_val as u16)
+            } else {
+                continue; // Skip test if immediate is too large
+            };
+
+            let event = AddiEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                imm,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, expected,
+                "ADDI failed for {}: {}",
+                desc, expected
+            );
+            assert_eq!(
+                env.get_value(dst.val()),
+                expected,
+                "VROM update failed for ADDI"
+            );
+        }
+    }
+
+    #[test]
+    fn test_sub_operation() {
+        // Test cases for SUB
+        let test_cases = [
+            // (src1, src2, expected_result, description)
+            (30, 20, 10, "simple subtraction"),
+            (20, 30, 0xFFFFFFF6, "negative result"), // -10 as two's complement
+            (0, 0, 0, "zero subtraction"),
+            (0, 1, 0xFFFFFFFF, "underflow to -1"),
+            (0x80000000, 1, 0x7FFFFFFF, "negative to positive underflow"),
+            (
+                0x7FFFFFFF,
+                0xFFFFFFFF,
+                0x80000000,
+                "positive to negative overflow",
+            ),
+        ];
+
+        for (src1_val, src2_val, expected, desc) in test_cases {
+            let mut env = TestEnv::new();
+
+            let src1 = BinaryField16b::new(2);
+            let src2 = BinaryField16b::new(3);
+            let dst = BinaryField16b::new(4);
+
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = SubEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, expected,
+                "SUB failed for {}: {}",
+                desc, expected
+            );
+            assert_eq!(
+                env.get_value(dst.val()),
+                expected,
+                "VROM update failed for SUB"
+            );
+        }
+    }
+
+    #[test]
+    fn test_comparison_operations() {
+        // Test cases for SLT, SLTU, SLTI, SLTIU
+        let test_cases = [
+            // (src1, src2, signed_result, unsigned_result, description)
+            (5, 10, 1, 1, "simple less than"),
+            (10, 5, 0, 0, "simple greater than"),
+            (5, 5, 0, 0, "equal values"),
+            (0, 0, 0, 0, "zero comparison"),
+            (0xFFFFFFFF, 5, 1, 0, "signed -1 < 5, unsigned MAX > 5"),
+            (5, 0xFFFFFFFF, 0, 1, "signed 5 > -1, unsigned 5 < MAX"),
+            (
+                0x80000000,
+                0x7FFFFFFF,
+                1,
+                0,
+                "signed MIN < MAX, unsigned MIN > MAX",
+            ),
+            (0, 0x80000000, 0, 1, "signed 0 > MIN, unsigned 0 < MIN"),
+        ];
+
+        for (src1_val, src2_val, signed_expected, unsigned_expected, desc) in test_cases {
+            // Test SLT
+            let mut env = TestEnv::new();
+            let src1 = BinaryField16b::new(2);
+            let src2 = BinaryField16b::new(3);
+            let dst = BinaryField16b::new(4);
+
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = SltEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, signed_expected,
+                "SLT failed for {}: {}",
+                desc, signed_expected
+            );
+
+            // Test SLTU
+            let mut env = TestEnv::new();
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = SltuEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, unsigned_expected,
+                "SLTU failed for {}: {}",
+                desc, unsigned_expected
+            );
+
+            // Test SLTI (if immediate fits in u16)
+            if src2_val <= u16::MAX as u32 {
+                let mut env = TestEnv::new();
+                env.set_value(src1.val(), src1_val);
+                let imm = BinaryField16b::new(src2_val as u16);
+
+                let event = SltiEvent::generate_event(
+                    &mut env.interpreter,
+                    &mut env.trace,
+                    dst,
+                    src1,
+                    imm,
+                    env.field_pc,
+                )
+                .unwrap();
+
+                assert_eq!(
+                    event.dst_val, signed_expected,
+                    "SLTI failed for {}: {}",
+                    desc, signed_expected
+                );
+
+                // Test SLTIU
+                let mut env = TestEnv::new();
+                env.set_value(src1.val(), src1_val);
+
+                let event = SltiuEvent::generate_event(
+                    &mut env.interpreter,
+                    &mut env.trace,
+                    dst,
+                    src1,
+                    imm,
+                    env.field_pc,
+                )
+                .unwrap();
+
+                assert_eq!(
+                    event.dst_val, unsigned_expected,
+                    "SLTIU failed for {}: {}",
+                    desc, unsigned_expected
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_multiplication_operations() {
+        // Test cases for MUL, MULU, MULSU, MULI
+        let test_cases = [
+            // (src1, src2, signed_result, unsigned_result, signed_unsigned_result, description)
+            (5, 7, 35, 35, 35, "simple multiplication"),
+            (0, 0, 0, 0, 0, "zero multiplication"),
+            (1, 0, 0, 0, 0, "identity with zero"),
+            (0, 1, 0, 0, 0, "zero with identity"),
+            (1, 1, 1, 1, 1, "identity"),
+            (
+                0xFFFFFFFF,
+                2,
+                -2i64 as u64,
+                0x1FFFFFFFE,
+                -2i64 as u64,
+                "MAX*2 signed/unsigned",
+            ),
+            (
+                0x80000000,
+                2,
+                -4294967296i64 as u64,
+                0x100000000,
+                -4294967296i64 as u64,
+                "MIN*2",
+            ),
+            (
+                -5i32 as u32,
+                7,
+                -35i64 as u64,
+                30064771037,
+                -35i64 as u64,
+                "negative * positive",
+            ),
+            (
+                5,
+                -7i32 as u32,
+                -35i64 as u64,
+                21474836445,
+                21474836445,
+                "positive * negative",
+            ),
+            (
+                -5i32 as u32,
+                -7i32 as u32,
+                35,
+                18446744022169944099,
+                18446744052234715171,
+                "negative * negative",
+            ),
+            (
+                0x10000000,
+                0x10,
+                0x100000000,
+                0x100000000,
+                0x100000000,
+                "overflow test",
+            ),
+            (
+                0x80000000,
+                0x80000000,
+                0x4000000000000000,
+                0x4000000000000000,
+                13835058055282163712,
+                "large values",
+            ),
+        ];
+
+        for (
+            src1_val,
+            src2_val,
+            signed_expected,
+            unsigned_expected,
+            signed_unsigned_expected,
+            desc,
+        ) in test_cases
+        {
+            // Test MUL
+            let mut env = TestEnv::new();
+            let src1 = BinaryField16b::new(2);
+            let src2 = BinaryField16b::new(3);
+            let dst = BinaryField16b::new(4);
+
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = SignedMulEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+                SignedMulKind::Mul,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, signed_expected,
+                "MUL failed for {}: {}",
+                desc, signed_expected
+            );
+            assert_eq!(
+                env.get_value_u64(dst.val()),
+                signed_expected,
+                "VROM update failed for MUL"
+            );
+
+            // Test MULU
+            let mut env = TestEnv::new();
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = MuluEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, unsigned_expected,
+                "MULU failed for {}: {}",
+                desc, unsigned_expected
+            );
+            assert_eq!(
+                env.get_value_u64(dst.val()),
+                unsigned_expected,
+                "VROM update failed for MULU"
+            );
+
+            // Test MULSU
+            let mut env = TestEnv::new();
+            env.set_value(src1.val(), src1_val);
+            env.set_value(src2.val(), src2_val);
+
+            let event = SignedMulEvent::generate_event(
+                &mut env.interpreter,
+                &mut env.trace,
+                dst,
+                src1,
+                src2,
+                env.field_pc,
+                SignedMulKind::Mulsu,
+            )
+            .unwrap();
+
+            assert_eq!(
+                event.dst_val, signed_unsigned_expected,
+                "MULSU failed for {}: expected {} but got {}",
+                desc, signed_unsigned_expected, event.dst_val
+            );
+
+            // Test MULI (if src2 fits in i16)
+            if src2_val < 0x8000 || src2_val >= 0xFFFF8000 {
+                let mut env = TestEnv::new();
+                env.set_value(src1.val(), src1_val);
+
+                let imm = BinaryField16b::new(src2_val as u16);
+
+                let event = MuliEvent::generate_event(
+                    &mut env.interpreter,
+                    &mut env.trace,
+                    dst,
+                    src1,
+                    imm,
+                    env.field_pc,
+                )
+                .unwrap();
+
+                assert_eq!(
+                    event.dst_val, signed_expected,
+                    "MULI failed for {}: {}",
+                    desc, signed_expected
+                );
+                assert_eq!(
+                    env.get_value_u64(dst.val()),
+                    signed_expected,
+                    "VROM update failed for MULI"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_mulu_schoolbook_computation() {
+        // Test the schoolbook multiplication intermediate values
+        let mut env = TestEnv::new();
+        let src1 = BinaryField16b::new(2);
+        let src2 = BinaryField16b::new(3);
+        let dst = BinaryField16b::new(4);
+
+        // Use values that will produce interesting intermediate results
+        env.set_value(src1.val(), 0x12345678);
+        env.set_value(src2.val(), 0xABCDEF00);
+
+        let event = MuluEvent::generate_event(
+            &mut env.interpreter,
+            &mut env.trace,
+            dst,
+            src1,
+            src2,
+            env.field_pc,
+        )
+        .unwrap();
+
+        // Check the final result
+        let expected_result = (0x12345678_u64).wrapping_mul(0xABCDEF00_u64);
+        assert_eq!(event.dst_val, expected_result);
+
+        // Validate intermediate arrays have proper sizes
+        assert_eq!(event.aux.len(), 8);
+        assert_eq!(event.aux_sums.len(), 4);
+        assert_eq!(event.cum_sums.len(), 2);
+
+        // Check that auxiliary values are non-zero
+        assert!(event.aux.iter().any(|&x| x > 0));
+        assert!(event.aux_sums.iter().any(|&x| x > 0));
+        assert!(event.cum_sums.iter().any(|&x| x > 0));
+
+        // Additional check: Check that the additions of auxiliary sums yield final
+        // result
         assert_eq!(
-            mulu_output, mulu_expected_output,
-            "MULU is failing. Output should have been {} but is {}",
-            mulu_expected_output, mulu_output,
-        );
-        // Check output of MULSU.
-        assert_eq!(
-            mulsu_output, mulsu_expected_output,
-            "MULSU is failing. Output should have been {} but is {}",
-            mulsu_expected_output, mulsu_output,
-        );
-        // Check output of MUL.
-        assert_eq!(
-            mul_output, mul_expected_output,
-            "MULSU is failing. Output should have been {} but is {}",
-            mul_expected_output, mul_output,
-        );
-        // Check output of MULI.
-        assert_eq!(
-            muli_output, muli_expected_output,
-            "MULSU is failing. Output should have been {} but is {}",
-            muli_expected_output, muli_output,
+            expected_result,
+            event.cum_sums[1] + (event.aux_sums[3] << 24),
+            "The auxiliary sums don't add up to the final result"
         );
     }
 }
