@@ -18,6 +18,8 @@ pub(crate) mod jump;
 pub(crate) mod mv;
 pub(crate) mod ret;
 pub(crate) mod shift;
+#[cfg(test)]
+mod test_utils;
 
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
