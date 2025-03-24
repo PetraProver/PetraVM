@@ -16,7 +16,7 @@ pub struct TestEnv {
 
 impl TestEnv {
     pub fn new() -> Self {
-        let mut interpreter = Interpreter::new(HashMap::new(), HashMap::new());
+        let mut interpreter = Interpreter::default();
         interpreter.timestamp = 0;
         interpreter.pc = 1;
 
@@ -30,22 +30,22 @@ impl TestEnv {
         }
     }
 
-    // Helper to set a value in VROM
-    pub fn set_value(&mut self, slot: u16, value: u32) {
+    /// Helper to set a value in VROM
+    pub fn set_vrom(&mut self, slot: u16, value: u32) {
         self.trace
             .set_vrom_u32(self.interpreter.fp ^ slot as u32, value)
             .unwrap();
     }
 
-    // Helper to get a value from VROM
-    pub fn get_value(&self, slot: u16) -> u32 {
+    /// Helper to get a value from VROM
+    pub fn get_vrom(&self, slot: u16) -> u32 {
         self.trace
             .get_vrom_u32(self.interpreter.fp ^ slot as u32)
             .unwrap()
     }
 
-    // Helper to get a u64 value from VROM (for multiplication results)
-    pub fn get_value_u64(&self, slot: u16) -> u64 {
+    /// Helper to get a u64 value from VROM (for multiplication results)
+    pub fn get_vrom_u64(&self, slot: u16) -> u64 {
         self.trace
             .get_vrom_u64(self.interpreter.fp ^ slot as u32)
             .unwrap()

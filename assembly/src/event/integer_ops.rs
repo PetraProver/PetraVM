@@ -710,8 +710,8 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = AddEvent::generate_event(
                 &mut env.interpreter,
@@ -779,8 +779,8 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = SubEvent::generate_event(
                 &mut env.interpreter,
@@ -834,7 +834,7 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_value(src_offset.val(), src_val);
+            env.set_vrom(src_offset.val(), src_val);
             let imm = BinaryField16b::new(imm_val);
 
             let event = AddiEvent::generate_event(
@@ -934,8 +934,8 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = SignedMulEvent::generate_event(
                 &mut env.interpreter,
@@ -956,8 +956,8 @@ mod tests {
 
             // Test MULU (unsigned * unsigned)
             let mut env = TestEnv::new();
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = MuluEvent::generate_event(
                 &mut env.interpreter,
@@ -977,8 +977,8 @@ mod tests {
 
             // Test MULSU (sign * unsigned)
             let mut env = TestEnv::new();
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = SignedMulEvent::generate_event(
                 &mut env.interpreter,
@@ -1049,7 +1049,7 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_value(src_offset.val(), src_val);
+            env.set_vrom(src_offset.val(), src_val);
             let imm = BinaryField16b::new(imm_val);
 
             let event = MuliEvent::generate_event(
@@ -1108,8 +1108,8 @@ mod tests {
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = SltEvent::generate_event(
                 &mut env.interpreter,
@@ -1130,8 +1130,8 @@ mod tests {
             // Test SLTU (Unsigned Less Than)
             let mut env = TestEnv::new();
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_value(src1_offset.val(), src1_val);
-            env.set_value(src2_offset.val(), src2_val);
+            env.set_vrom(src1_offset.val(), src1_val);
+            env.set_vrom(src2_offset.val(), src2_val);
 
             let event = SltuEvent::generate_event(
                 &mut env.interpreter,
@@ -1214,7 +1214,7 @@ mod tests {
             let imm = BinaryField16b::new(imm_val);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_value(src_offset.val(), src_val);
+            env.set_vrom(src_offset.val(), src_val);
 
             let event = SltiEvent::generate_event(
                 &mut env.interpreter,
@@ -1235,7 +1235,7 @@ mod tests {
             // Test SLTIU (Unsigned Less Than Immediate)
             let mut env = TestEnv::new();
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_value(src_offset.val(), src_val);
+            env.set_vrom(src_offset.val(), src_val);
 
             let event = SltiuEvent::generate_event(
                 &mut env.interpreter,
