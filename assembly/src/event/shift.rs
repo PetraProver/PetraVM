@@ -86,7 +86,8 @@ impl ShiftEvent {
     /// Generate a ShiftEvent for immediate shift operations.
     ///
     /// For immediate shifts (like SLLI, SRLI, SRAI), the shift amount comes
-    /// directly from the instruction (as a 16-bit immediate).
+    /// directly from the instruction (as a 16-bit immediate) and masked to 5
+    /// bits.
     pub fn generate_immediate_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
@@ -98,7 +99,7 @@ impl ShiftEvent {
     ) -> Result<Self, InterpreterError> {
         let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
         let imm_val = imm.val();
-        let mut shift_amount = u32::from(imm_val);
+        let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
         let timestamp = interpreter.timestamp;
         trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
@@ -120,7 +121,7 @@ impl ShiftEvent {
     /// Generate a ShiftEvent for VROM-based shift operations.
     ///
     /// For VROM-based shifts (like SLL, SRL, SRA), the shift amount is read
-    /// from another VROM location and taken modulo 32.
+    /// from another VROM location and masked to 5 bits.
     pub fn generate_vrom_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
