@@ -210,7 +210,7 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "B32_MUL {dst} {src1} {src2}")
             }
             InstructionsWithLabels::B32Muli { dst, src1, imm } => {
-                write!(f, "B32_MUL {dst} {src1} {imm}")
+                write!(f, "B32_MULI {dst} {src1} {imm}")
             }
             InstructionsWithLabels::B128Add { dst, src1, src2 } => {
                 write!(f, "B128_ADD {dst} {src1} {src2}")
