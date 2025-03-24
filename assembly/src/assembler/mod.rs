@@ -152,6 +152,28 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::B32Muli { dst, src1, imm } => {
+            let instruction = [
+                Opcode::B32Muli.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+
+            let instruction = [
+                Opcode::B32Muli.get_field_elt(),
+                imm.get_high_field_val(),
+                BinaryField16b::zero(),
+                BinaryField16b::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::B128Add { dst, src1, src2 } => {
             let instruction = [
                 Opcode::B128Add.get_field_elt(),
@@ -640,6 +662,11 @@ fn get_labels(
 
                 // We do not increment the PC if we found a label.
                 continue;
+            }
+            InstructionsWithLabels::B32Muli { .. } => {
+                field_pc *= G;
+                pc = incr_pc(pc);
+                pc_field_to_int.insert(field_pc, pc);
             }
             InstructionsWithLabels::Taili { label, .. } => {
                 functions.insert(label.as_str());

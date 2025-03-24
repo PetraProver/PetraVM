@@ -13,7 +13,9 @@ use crate::{
     assembler::LabelsFrameSizes,
     event::{
         b128::{B128AddEvent, B128MulEvent},
-        b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
+        b32::{
+            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
+        },
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
@@ -287,6 +289,7 @@ impl Interpreter {
             Opcode::Mvvl => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Ldi => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
@@ -824,6 +827,33 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.b32_mul.push(new_b32mul_event);
+
+        Ok(())
+    }
+
+    fn generate_b32_muli(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm_low: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        if self.pc as usize > trace.prom().len() {
+            return Err(InterpreterError::BadPc);
+        }
+        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
+
+        if second_opcode.val() != Opcode::B32Muli.into()
+            || third != BinaryField16b::ZERO
+            || fourth != BinaryField16b::ZERO
+        {
+            return Err(InterpreterError::BadPc);
+        }
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
     }

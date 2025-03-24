@@ -144,9 +144,11 @@ test_binary_field:
     BNZ bf_fail, @11
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: B32_MUL
+    ;; INSTRUCTION: B32_MUL/B32_MULI
     ;; 
-    ;; FORMAT: B32_MUL dst, src1, src2
+    ;; FORMAT: 
+    ;;   B32_MUL dst, src1, src2     (VROM variant)
+    ;;   B32_MULI dst, src1, imm     (Immediate variant)
     ;; 
     ;; DESCRIPTION:
     ;;   Multiply two 32-bit binary field elements.
@@ -157,9 +159,16 @@ test_binary_field:
     B32_MUL @12, @3, @4
     
     ;; Test with multiplicative identity
-    LDI.W @15, #1        ;; 1 is the multiplicative identity in binary fields
-    B32_MUL @16, @15, @4
-    XORI @17, @16, #7    ;; 1 * 7 should equal 7
+    LDI.W @13, #1        ;; 1 is the multiplicative identity in binary fields
+    B32_MUL @14, @13, @4
+    B32_MULI @15, @4, #0G ;; 1 = G^0
+
+    ;; Verify both give the same result
+    XOR @16, @14, @15    ;; 1 * 7 should equal 7
+    BNZ bf_fail, @16
+
+    ;; Verify they give the correct result
+    XORI @17, @14, #7
     BNZ bf_fail, @17
 
     ;; ------------------------------------------------------------
