@@ -64,13 +64,13 @@ impl ShiftEvent {
 
     /// Calculate the result of the shift operation.
     ///
-    /// The shift amount is taken modulo 32.
-    /// If the effective shift amount (i.e. shift_amount % 32) is 0,
-    /// returns the original value.
+    /// The effective shift amount is determined by masking the provided shift
+    /// amount to the lower 5 bits (i.e., `shift_amount & 0x1F`). If the
+    /// effective shift amount is 0, the original `src_val` is returned.
     /// Otherwise, the shift is performed based on the `op`:
     /// - LogicalLeft: `src_val << effective_shift`
     /// - LogicalRight: `src_val >> effective_shift`
-    /// - ArithmeticRight: arithmetic right shift preserving the sign.
+    /// - ArithmeticRight: arithmetic right shift preserving the sign bit.
     pub fn calculate_result(src_val: u32, shift_amount: u32, op: &ShiftOperation) -> u32 {
         let effective_shift = shift_amount & 0x1f;
         if effective_shift == 0 {
