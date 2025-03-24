@@ -7,202 +7,137 @@ use crate::{
     impl_immediate_binary_operation,
 };
 
-/// Event for XOR.
-///
-/// Performs a XOR between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = __b32_xor(FP[src1], FP[src2])
-#[derive(Debug, Default, Clone)]
-pub(crate) struct XorEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
+macro_rules! define_b32_op_event {
+    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
+        $(#[$meta])*
+        #[derive(Debug, Default, Clone)]
+        pub(crate) struct $name {
+            timestamp: u32,
+            pc: BinaryField32b,
+            fp: u32,
+            dst: u16,
+            dst_val: u32,
+            src1: u16,
+            src1_val: u32,
+            src2: u16,
+            src2_val: u32,
+        }
+
+        impl BinaryOperation for $name {
+            #[inline(always)]
+            fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+                $op_fn(val1, val2)
+            }
+        }
+
+        impl_binary_operation!($name);
+        impl_event_for_binary_operation!($name);
+    };
 }
 
-impl BinaryOperation for XorEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        val1 + val2
-    }
+macro_rules! define_b32_imm_op_event {
+    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
+        $(#[$meta])*
+        #[derive(Debug, Default, Clone)]
+        pub(crate) struct $name {
+            timestamp: u32,
+            pc: BinaryField32b,
+            fp: u32,
+            dst: u16,
+            dst_val: u32,
+            src: u16,
+            src_val: u32,
+            imm: u16,
+        }
+
+        impl BinaryOperation for $name {
+            #[inline(always)]
+            fn operation(val1: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
+                $op_fn(val1, imm)
+            }
+        }
+
+        impl_immediate_binary_operation!($name);
+        impl_event_for_binary_operation!($name);
+    };
 }
 
-impl_binary_operation!(XorEvent);
-impl_event_for_binary_operation!(XorEvent);
+define_b32_op_event!(
+    /// Event for XOR.
+    ///
+    /// Performs a XOR between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_xor(FP[src1], FP[src2])
+    XorEvent,
+    |a, b| a + b
+);
 
-/// Event for XORI.
-///
-/// Performs a XOR between a target address and an immediate.
-///
-/// Logic:
-///   1. FP[dst] = __b32_xor(FP[src], imm)
-#[derive(Debug, Default, Clone)]
-pub(crate) struct XoriEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
+define_b32_imm_op_event!(
+    /// Event for XORI.
+    ///
+    /// Performs a XOR between a target address and an immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_xor(FP[src], imm)
+    XoriEvent,
+    |a, b| a + b
+);
 
-impl BinaryOperation for XoriEvent {
-    #[inline(always)]
-    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        val + imm
-    }
-}
+define_b32_op_event!(
+    /// Event for AND.
+    ///
+    /// Performs an AND between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_and(FP[src], FP[src2])
+    AndEvent,
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() & b.val())
+);
 
-impl_immediate_binary_operation!(XoriEvent);
-impl_event_for_binary_operation!(XoriEvent);
+define_b32_imm_op_event!(
+    /// Event for ANDI.
+    ///
+    /// Performs an AND between a target address and an immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_and(FP[src], imm)
+    AndiEvent,
+    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() & imm.val() as u32)
+);
 
-/// Event for AND.
-///
-/// Performs an AND between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = __b32_and(FP[src], FP[src2])
-#[derive(Debug, Default, Clone)]
-pub(crate) struct AndEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-}
+define_b32_op_event!(
+    /// Event for OR.
+    ///
+    /// Performs an OR between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_or(FP[src], FP[src2])
+    OrEvent,
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() | b.val())
+);
 
-impl BinaryOperation for AndEvent {
-    #[inline(always)]
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val() & val2.val())
-    }
-}
+define_b32_imm_op_event!(
+    /// Event for ORI.
+    ///
+    /// Performs an OR between a target address and an immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_or(FP[src], imm)
+    OriEvent,
+    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() | imm.val() as u32)
+);
 
-impl_binary_operation!(AndEvent);
-impl_event_for_binary_operation!(AndEvent);
-
-/// Event for ANDI.
-///
-/// Performs an AND between a target address and an immediate.
-///
-/// Logic:
-///   1. FP[dst] = __b32_and(FP[src], imm)
-#[derive(Debug, Default, Clone)]
-pub(crate) struct AndiEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
-
-impl BinaryOperation for AndiEvent {
-    #[inline(always)]
-    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new(val.val() & imm.val() as u32)
-    }
-}
-
-impl_immediate_binary_operation!(AndiEvent);
-impl_event_for_binary_operation!(AndiEvent);
-
-/// Event for OR.
-///
-/// Performs an OR between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = __b32_or(FP[src], FP[src2])
-#[derive(Debug, Default, Clone)]
-pub(crate) struct OrEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-}
-
-impl BinaryOperation for OrEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new(val1.val() | val2.val())
-    }
-}
-
-impl_binary_operation!(OrEvent);
-impl_event_for_binary_operation!(OrEvent);
-
-/// Event for ORI.
-///
-/// Performs an OR between a target address and an immediate.
-///
-/// Logic:
-///   1. FP[dst] = __b32_or(FP[src], imm)
-#[derive(Debug, Default, Clone)]
-pub(crate) struct OriEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
-
-impl BinaryOperation for OriEvent {
-    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new(val.val() | imm.val() as u32)
-    }
-}
-
-impl_immediate_binary_operation!(OriEvent);
-impl_event_for_binary_operation!(OriEvent);
-
-/// Event for B32_MUL.
-///
-/// Performs a 32-bit MUL between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = __b32_mul(FP[src1], FP[src2])
-#[derive(Debug, Default, Clone)]
-pub(crate) struct B32MulEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-}
-
-impl BinaryOperation for B32MulEvent {
-    #[inline(always)]
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        val1 * val2
-    }
-}
-
-impl_binary_operation!(B32MulEvent);
-impl_event_for_binary_operation!(B32MulEvent);
+define_b32_op_event!(
+    /// Event for B32_MUL.
+    ///
+    /// Performs a 32-bit MUL between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = __b32_mul(FP[src1], FP[src2])
+    B32MulEvent,
+    |a, b| a * b
+);
 
 /// Event for B32_MULI.
 ///

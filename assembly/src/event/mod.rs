@@ -199,7 +199,7 @@ macro_rules! impl_32b_immediate_binary_operation {
 #[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_bin_op!($t);
+        $crate::impl_left_right_output_for_bin_op!($t, BinaryField32b);
         impl $crate::event::NonImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
@@ -282,25 +282,23 @@ macro_rules! impl_left_right_output_for_b32imm_bin_op {
 
 #[macro_export]
 macro_rules! impl_left_right_output_for_bin_op {
-    ($t:ty) => {
+    ($t:ty, $field_ty:ty) => {
         impl $crate::event::LeftOp for $t {
-            type Left = BinaryField32b;
-            fn left(&self) -> BinaryField32b {
-                BinaryField32b::new(self.src1_val)
+            type Left = $field_ty;
+            fn left(&self) -> $field_ty {
+                <$field_ty>::new(self.src1_val)
             }
         }
         impl $crate::event::RigthOp for $t {
-            type Right = BinaryField32b;
-
-            fn right(&self) -> BinaryField32b {
-                BinaryField32b::new(self.src2_val)
+            type Right = $field_ty;
+            fn right(&self) -> $field_ty {
+                <$field_ty>::new(self.src2_val)
             }
         }
         impl $crate::event::OutputOp for $t {
-            type Output = BinaryField32b;
-
-            fn output(&self) -> BinaryField32b {
-                BinaryField32b::new(self.dst_val)
+            type Output = $field_ty;
+            fn output(&self) -> $field_ty {
+                <$field_ty>::new(self.dst_val)
             }
         }
     };

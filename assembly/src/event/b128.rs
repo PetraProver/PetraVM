@@ -6,12 +6,13 @@ use crate::{
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
     },
+    impl_left_right_output_for_bin_op,
 };
 
 macro_rules! define_b128_op_event {
     ($(#[$meta:meta])* $name:ident, $op:tt) => {
         $(#[$meta])*
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
             timestamp: u32,
             pc: BinaryField32b,
@@ -25,31 +26,13 @@ macro_rules! define_b128_op_event {
         }
 
         impl BinaryOperation for $name {
+            #[inline(always)]
             fn operation(val1: BinaryField128b, val2: BinaryField128b) -> BinaryField128b {
                 val1 $op val2
             }
         }
 
-        impl super::LeftOp for $name {
-            type Left = BinaryField128b;
-            fn left(&self) -> BinaryField128b {
-                BinaryField128b::new(self.src1_val)
-            }
-        }
-
-        impl super::RigthOp for $name {
-            type Right = BinaryField128b;
-            fn right(&self) -> BinaryField128b {
-                BinaryField128b::new(self.src2_val)
-            }
-        }
-
-        impl super::OutputOp for $name {
-            type Output = BinaryField128b;
-            fn output(&self) -> BinaryField128b {
-                BinaryField128b::new(self.dst_val)
-            }
-        }
+        impl_left_right_output_for_bin_op!($name, BinaryField128b);
 
         impl $name {
             pub fn generate_event(
