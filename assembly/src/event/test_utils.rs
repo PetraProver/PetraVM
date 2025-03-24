@@ -36,18 +36,4 @@ impl TestEnv {
             .set_vrom_u32(self.interpreter.fp ^ slot as u32, value)
             .unwrap();
     }
-
-    /// Helper to get a value from VROM
-    pub fn get_vrom(&self, slot: u16) -> u32 {
-        self.trace
-            .get_vrom_u32(self.interpreter.fp ^ slot as u32)
-            .unwrap()
-    }
-
-    /// Helper to get a u64 value from VROM (for multiplication results)
-    pub fn get_vrom_u64(&self, slot: u16) -> u64 {
-        self.trace
-            .get_vrom_u64(self.interpreter.fp ^ slot as u32)
-            .unwrap()
-    }
 }
