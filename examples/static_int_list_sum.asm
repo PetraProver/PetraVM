@@ -8,6 +8,7 @@
 ;; }
 ;; ------------
 
+#[framesize(0x6)]
 static_int_list_sum:
     ;; Frame:
     ;; Slot 0: Return PC
