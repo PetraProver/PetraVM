@@ -99,10 +99,10 @@ where
 
     fn fill<'a>(
         &self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        for (i, event) in rows.enumerate() {
+        for (i, event) in rows.clone().enumerate() {
             {
                 // TODO: Move this outside the loop
                 let mut fp1 = witness.get_mut_as(self.fp1)?;
@@ -116,23 +116,17 @@ where
                 vrom_next_pc[i] = (event.fp as u64) << 32 | event.fp_0_val as u64;
                 vrom_next_fp[i] = (event.fp as u64 ^ 1) << 32 | event.fp_1_val as u64;
             }
-
-            let row = CpuRow {
-                index: i,
-                pc: event.pc.val(),
-                next_pc: Some(event.fp_0_val),
-                fp: event.fp,
-                instruction: Instruction {
-                    opcode: Opcode::Ret,
-                    arg0: 0,
-                    arg1: 0,
-                    arg2: 0,
-                },
-            };
             println!("Ret");
-            self.cpu_cols.fill_row(witness, row)?;
         }
-
-        Ok(())
+        let cpu_rows = rows.map(|event| CpuRow {
+            pc: event.pc.into(),
+            next_pc: Some(event.fp_0_val),
+            fp: event.fp,
+            instruction: Instruction {
+                opcode: Opcode::Ret,
+                ..Default::default()
+            },
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
     }
 }

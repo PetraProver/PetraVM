@@ -144,27 +144,12 @@ where
 
     fn fill<'a>(
         &self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
-            for (i, event) in rows.enumerate() {
+            for (i, event) in rows.clone().enumerate() {
                 println!("Add");
-                self.cpu_cols.fill_row(
-                    witness,
-                    CpuRow {
-                        index: i,
-                        pc: event.pc.into(),
-                        next_pc: None,
-                        fp: event.fp,
-                        instruction: Instruction {
-                            opcode: Opcode::Add,
-                            arg0: event.dst,
-                            arg1: event.src1,
-                            arg2: event.src2,
-                        },
-                    },
-                );
                 // TODO: Move this outside the loop
                 let mut src1_val = witness.get_mut_as(self.src1_val)?;
                 let mut src2_val = witness.get_mut_as(self.src2_val)?;
@@ -178,8 +163,19 @@ where
                 vrom_dst[i] = (event.dst as u64) << 32 | event.dst_val as u64;
             }
         }
-        self.u32_add.populate(witness);
-        Ok(())
+        let cpu_rows = rows.clone().map(|event| CpuRow {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: event.fp,
+            instruction: Instruction {
+                opcode: Opcode::Add,
+                arg0: event.dst,
+                arg1: event.src1,
+                arg2: event.src2,
+            },
+        });
+        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.u32_add.populate(witness)
     }
 }
 
@@ -246,33 +242,29 @@ where
 
     fn fill<'a>(
         &self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
-            for (i, event) in rows.enumerate() {
-                self.cpu_cols.fill_row(
-                    witness,
-                    CpuRow {
-                        index: i,
-                        pc: event.pc.into(),
-                        next_pc: None,
-                        fp: event.fp,
-                        instruction: Instruction {
-                            opcode: Opcode::Addi,
-                            arg0: event.dst,
-                            arg1: event.src,
-                            arg2: event.imm,
-                        },
-                    },
-                );
+            for (i, event) in rows.clone().enumerate() {
                 let mut src1_val = witness.get_mut_as(self.src_val)?;
                 // let mut imm = witness.get_mut_as(self.imm)?;
                 src1_val[i] = event.src_val;
                 // imm[i] = event.imm;
             }
         }
-        Ok(())
+        let cpu_rows = rows.clone().map(|event| CpuRow {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: event.fp,
+            instruction: Instruction {
+                opcode: Opcode::Addi,
+                arg0: event.dst,
+                arg1: event.src,
+                arg2: event.imm,
+            },
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
     }
 }
 

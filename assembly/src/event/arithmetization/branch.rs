@@ -92,26 +92,25 @@ where
 
     fn fill<'a>(
         &self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        for (i, event) in rows.enumerate() {
-            let row = CpuRow {
-                index: i,
-                pc: event.pc.val(),
-                next_pc: None,
-                fp: event.fp,
-                instruction: Instruction {
-                    opcode: Opcode::Bnz,
-                    arg0: event.cond,
-                    arg1: event.target_low.val(),
-                    arg2: event.target_high.val(),
-                },
-            };
-            self.cpu_cols.fill_row(witness, row)?;
+        for (i, event) in rows.clone().enumerate() {
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
             cond_val[i] = event.cond_val;
         }
+        let cpu_rows = rows.map(|event| CpuRow {
+            pc: event.pc.val(),
+            next_pc: None,
+            fp: event.fp,
+            instruction: Instruction {
+                opcode: Opcode::Bnz,
+                arg0: event.cond,
+                arg1: event.target_low.val(),
+                arg2: event.target_high.val(),
+            },
+        });
+        self.cpu_cols.populate(witness, cpu_rows)?;
         Ok(())
     }
 }
@@ -169,22 +168,16 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        for (i, event) in rows.enumerate() {
-            let row = CpuRow {
-                index: i,
-                pc: event.pc.val(),
-                next_pc: None,
-                fp: event.fp,
-                instruction: Instruction {
-                    opcode: Opcode::Bnz,
-                    arg0: 0,
-                    arg1: 0,
-                    arg2: 0,
-                },
-            };
-            self.cpu_cols.fill_row(witness, row)?;
-        }
-        Ok(())
+        let cpu_rows = rows.map(|event| CpuRow {
+            pc: event.pc.val(),
+            next_pc: None,
+            fp: event.fp,
+            instruction: Instruction {
+                opcode: Opcode::Bnz,
+                ..Default::default()
+            },
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
     }
 }
 

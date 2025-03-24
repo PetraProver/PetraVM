@@ -43,7 +43,6 @@ pub(crate) struct CpuColumnsOptions {
 }
 
 pub(crate) struct CpuRow {
-    pub(crate) index: usize,
     pub(crate) pc: u32,
     // TODO: This is only necessary for ret because when filling it can't be read from target in
     // NextPc::Target(target)
@@ -52,6 +51,7 @@ pub(crate) struct CpuRow {
     pub(crate) instruction: Instruction,
 }
 
+#[derive(Default)]
 pub(crate) struct Instruction {
     pub(crate) opcode: Opcode,
     pub(crate) arg0: u16,
@@ -170,19 +170,19 @@ impl CpuColumns {
         }
     }
 
-    pub fn fill_row<U>(
+    pub fn populate<U, T>(
         &self,
         index: &mut TableWitnessIndexSegment<U>,
-        row: CpuRow,
+        rows: T,
     ) -> Result<(), anyhow::Error>
     where
         U: Pod + PackScalar<B1>,
+        T: Iterator<Item = CpuRow>,
     {
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
         let mut next_pc_col = index.get_mut_as(self.next_pc)?;
         let mut opcode_col = index.get_mut_as(self.opcode)?;
-        
 
         let mut arg0_col = index.get_mut_as(self.arg0)?;
         let mut arg1_col = index.get_mut_as(self.arg1)?;
@@ -192,47 +192,53 @@ impl CpuColumns {
         let mut state_push = index.get_mut_as(self.state_push)?;
         let mut state_pull = index.get_mut_as(self.state_pull)?;
 
-        let CpuRow {
-            index: i,
-            pc,
-            next_pc,
-            fp,
-            instruction:
-                Instruction {
-                    opcode,
-                    arg0,
-                    arg1,
-                    arg2,
-                },
-        } = row;
-        pc_col[i] = pc;
-        fp_col[i] = fp;
-        opcode_col[i] = opcode as u16;
-        println!("opcode_col[i] = {:?}", opcode_col[i]);
-        arg0_col[i] = arg0;
-        arg1_col[i] = arg1;
-        arg2_col[i] = arg2;
+        for (
+            i,
+            CpuRow {
+                pc,
+                next_pc,
+                fp,
+                instruction:
+                    Instruction {
+                        opcode,
+                        arg0,
+                        arg1,
+                        arg2,
+                    },
+            },
+        ) in rows.enumerate()
+        {
+            pc_col[i] = pc;
+            fp_col[i] = fp;
+            opcode_col[i] = opcode as u16;
+            println!("opcode_col[i] = {:?}", opcode_col[i]);
+            arg0_col[i] = arg0;
+            arg1_col[i] = arg1;
+            arg2_col[i] = arg2;
 
-        // println!("next_pc = {:?}", next_pc);
-        next_pc_col[i] = match self.options.next_pc {
-            NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
-            NextPc::Target(target) => next_pc.expect("next_pc must be Some when NextPc::Target"),
-            NextPc::Immediate => (arg1 as u32) << 16 | arg2 as u32,
-        };
+            // println!("next_pc = {:?}", next_pc);
+            next_pc_col[i] = match self.options.next_pc {
+                NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
+                NextPc::Target(target) => {
+                    next_pc.expect("next_pc must be Some when NextPc::Target")
+                }
+                NextPc::Immediate => (arg1 as u32) << 16 | arg2 as u32,
+            };
 
-        prom_push[i] = (pc as u128) << 64
-            | opcode as u128
-            | (arg0 as u128) << 16
-            | (arg1 as u128) << 32
-            | (arg2 as u128) << 48;
-        state_push[i] = (next_pc_col[i] as u64) << 32 | fp as u64;
-        state_pull[i] = (pc as u64) << 32 | fp as u64;
+            prom_push[i] = (pc as u128) << 64
+                | opcode as u128
+                | (arg0 as u128) << 16
+                | (arg1 as u128) << 32
+                | (arg2 as u128) << 48;
+            state_push[i] = (next_pc_col[i] as u64) << 32 | fp as u64;
+            state_pull[i] = (pc as u64) << 32 | fp as u64;
 
-        println!(
-            "pc = {:?}, opcode = {:?}, arg0 = {:?}, arg1 = {:?}, arg2 = {:?}",
-            pc, opcode, arg0, arg1, arg2
-        );
-        println!("prom_push = {:#x}", prom_push[i]);
+            println!(
+                "pc = {:?}, opcode = {:?}, arg0 = {:?}, arg1 = {:?}, arg2 = {:?}",
+                pc, opcode, arg0, arg1, arg2
+            );
+            println!("prom_push = {:#x}", prom_push[i]);
+        }
 
         Ok(())
     }
