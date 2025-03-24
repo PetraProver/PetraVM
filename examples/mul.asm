@@ -3,7 +3,7 @@
 ;; return 3 * 7
 ;; ------------
 
-#[framesize(0x5)]
+#[framesize(0x4)]
 add:
     ;; Frame
     ;; Slot @0: Return PC

@@ -11,6 +11,7 @@ div:
     ;; Slot 7: Local: a<b
     ;; Slot 8: Local: a-b
     ;; Slot 9: Local: q1
+
     SLTU @7, @2, @3
     BNZ div_consequent, @7
     SUB @8, @2, @3

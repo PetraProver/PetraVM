@@ -10,6 +10,7 @@
 ;; let f = x ^ 0b0101; // (res: 0b0110)
 ;; ------------
 
+#[framesize(0x9)]
 bit_ops:
     ;; Frame
     ;; Slot @0: Return PC
