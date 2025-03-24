@@ -31,15 +31,15 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    MviH {
+    Mvih {
         dst: SlotWithOffset,
         imm: Immediate,
     },
-    MvvW {
+    Mvvw {
         dst: SlotWithOffset,
         src: Slot,
     },
-    MvvL {
+    Mvvl {
         dst: SlotWithOffset,
         src: Slot,
     },
@@ -74,7 +74,7 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    XorI {
+    Xori {
         dst: Slot,
         src: Slot,
         imm: Immediate,
@@ -88,7 +88,7 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    AddI {
+    Addi {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
@@ -98,7 +98,7 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    OrI {
+    Ori {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
@@ -143,7 +143,7 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    AndI {
+    Andi {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
@@ -153,7 +153,7 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    MulI {
+    Muli {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
@@ -173,17 +173,17 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
-    SrlI {
+    Srli {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
     },
-    SllI {
+    Slli {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
     },
-    SraI {
+    Srai {
         dst: Slot,
         src1: Slot,
         imm: Immediate,
@@ -210,9 +210,9 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
                 write!(f, "B128_MUL {dst} {src1} {src2}")
             }
-            InstructionsWithLabels::MviH { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
-            InstructionsWithLabels::MvvW { dst, src } => write!(f, "MVV.W {dst} {src}"),
-            InstructionsWithLabels::MvvL { dst, src } => write!(f, "MVV.L {dst} {src}"),
+            InstructionsWithLabels::Mvih { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
+            InstructionsWithLabels::Mvvw { dst, src } => write!(f, "MVV.W {dst} {src}"),
+            InstructionsWithLabels::Mvvl { dst, src } => write!(f, "MVV.L {dst} {src}"),
             InstructionsWithLabels::Taili { label, next_fp } => {
                 write!(f, "TAILI {label} {next_fp}")
             }
@@ -229,12 +229,12 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::Jumpv { offset } => write!(f, "JUMPV {offset}"),
             InstructionsWithLabels::Ldi { dst, imm } => write!(f, "LDI {dst} {imm}"),
             InstructionsWithLabels::Xor { dst, src1, src2 } => write!(f, "XOR {dst} {src1} {src2}"),
-            InstructionsWithLabels::XorI { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
+            InstructionsWithLabels::Xori { dst, src, imm } => write!(f, "XORI {dst} {src} {imm}"),
             InstructionsWithLabels::Bnz { label, src } => write!(f, "BNZ {label} {src}"),
             InstructionsWithLabels::Add { dst, src1, src2 } => write!(f, "ADD {dst} {src1} {src2}"),
-            InstructionsWithLabels::AddI { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Addi { dst, src1, imm } => write!(f, "ADDI {dst} {src1} {imm}"),
             InstructionsWithLabels::Or { dst, src1, src2 } => write!(f, "OR {dst} {src1} {src2}"),
-            InstructionsWithLabels::OrI { dst, src1, imm } => {
+            InstructionsWithLabels::Ori { dst, src1, imm } => {
                 write!(f, "ORI {dst} {src1} {imm}")
             }
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
@@ -259,11 +259,11 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::Sra { dst, src1, src2 } => {
                 write!(f, "SRA {dst} {src1} {src2}")
             }
-            InstructionsWithLabels::AndI { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Andi { dst, src1, imm } => write!(f, "ANDI {dst} {src1} {imm}"),
             InstructionsWithLabels::And { dst, src1, src2 } => {
                 write!(f, "AND {dst} {src1} {src2}")
             }
-            InstructionsWithLabels::MulI { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Muli { dst, src1, imm } => write!(f, "MULI {dst} {src1} {imm}"),
             InstructionsWithLabels::Mul { dst, src1, src2 } => write!(f, "MUL {dst} {src1} {src2}"),
             InstructionsWithLabels::Mulu { dst, src1, src2 } => {
                 write!(f, "MULU {dst} {src1} {src2}")
@@ -271,9 +271,9 @@ impl std::fmt::Display for InstructionsWithLabels {
             InstructionsWithLabels::Mulsu { dst, src1, src2 } => {
                 write!(f, "MULSU {dst} {src1} {src2}")
             }
-            InstructionsWithLabels::SrlI { dst, src1, imm } => write!(f, "SRLI {dst} {src1} {imm}"),
-            InstructionsWithLabels::SllI { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
-            InstructionsWithLabels::SraI { dst, src1, imm } => write!(f, "SRAI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Srli { dst, src1, imm } => write!(f, "SRLI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Slli { dst, src1, imm } => write!(f, "SLLI {dst} {src1} {imm}"),
+            InstructionsWithLabels::Srai { dst, src1, imm } => write!(f, "SRAI {dst} {src1} {imm}"),
             InstructionsWithLabels::Ret => write!(f, "RET"),
         }
     }

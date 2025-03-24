@@ -63,7 +63,7 @@ fn parse_line(
                         let imm = Immediate::from_str(imm.as_str())?;
                         match rule {
                             Rule::MVI_H_instr => {
-                                instrs.push(InstructionsWithLabels::MviH { dst, imm });
+                                instrs.push(InstructionsWithLabels::Mvih { dst, imm });
                             }
                             _ => {
                                 unreachable!("We have implemented all mov_imm instructions");
@@ -85,28 +85,28 @@ fn parse_line(
                         match rule {
                             // B32_ADDI is an alias for XORI.
                             Rule::XORI_instr | Rule::B32_ADDI_instr => {
-                                instrs.push(InstructionsWithLabels::XorI {
+                                instrs.push(InstructionsWithLabels::Xori {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::ADDI_instr => {
-                                instrs.push(InstructionsWithLabels::AddI {
+                                instrs.push(InstructionsWithLabels::Addi {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::ANDI_instr => {
-                                instrs.push(InstructionsWithLabels::AndI {
+                                instrs.push(InstructionsWithLabels::Andi {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::ORI_instr => {
-                                instrs.push(InstructionsWithLabels::OrI {
+                                instrs.push(InstructionsWithLabels::Ori {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
@@ -127,28 +127,28 @@ fn parse_line(
                                 });
                             }
                             Rule::MULI_instr => {
-                                instrs.push(InstructionsWithLabels::MulI {
+                                instrs.push(InstructionsWithLabels::Muli {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::SRLI_instr => {
-                                instrs.push(InstructionsWithLabels::SrlI {
+                                instrs.push(InstructionsWithLabels::Srli {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::SLLI_instr => {
-                                instrs.push(InstructionsWithLabels::SllI {
+                                instrs.push(InstructionsWithLabels::Slli {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
                                 });
                             }
                             Rule::SRAI_instr => {
-                                instrs.push(InstructionsWithLabels::SraI {
+                                instrs.push(InstructionsWithLabels::Srai {
                                     dst: Slot::from_str(dst.as_str())?,
                                     src1: Slot::from_str(src1.as_str())?,
                                     imm,
@@ -170,13 +170,13 @@ fn parse_line(
                         let src = mov_non_imm.next().expect("mov_non_imm has src");
                         match rule {
                             Rule::MVV_W_instr => {
-                                instrs.push(InstructionsWithLabels::MvvW {
+                                instrs.push(InstructionsWithLabels::Mvvw {
                                     dst: SlotWithOffset::from_str(dst.as_str())?,
                                     src: Slot::from_str(src.as_str())?,
                                 });
                             }
                             Rule::MVV_L_instr => {
-                                instrs.push(InstructionsWithLabels::MvvL {
+                                instrs.push(InstructionsWithLabels::Mvvl {
                                     dst: SlotWithOffset::from_str(dst.as_str())?,
                                     src: Slot::from_str(src.as_str())?,
                                 });

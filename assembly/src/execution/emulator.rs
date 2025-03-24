@@ -96,6 +96,9 @@ impl InterpreterInstruction {
             field_pc,
         }
     }
+    pub fn opcode(&self) -> Opcode {
+        Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
+    }
 }
 
 #[derive(Debug)]
@@ -288,13 +291,14 @@ impl Interpreter {
             Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Ori => self.generate_ori(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::MVIH => self.generate_mvih(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::MVVW => self.generate_mvvw(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::MVVL => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::LDI => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mvih => self.generate_mvih(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mvvw => self.generate_mvvw(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Mvvl => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Ldi => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
         self.timestamp += 1;
         Ok(Some(()))
@@ -1114,13 +1118,13 @@ mod tests {
                 get_binary_slot(1),
             ], //  6G: SRLI @7, @2, #1
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
             ], //  7G: MVV.W @4[2], @7
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
@@ -1145,13 +1149,13 @@ mod tests {
                 get_binary_slot(1),
             ], //  11G: ADDI @7, @8, #1
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
             ], //  12G: MVV.W @4[2], @7
             [
-                Opcode::MVVW.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),

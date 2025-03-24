@@ -439,7 +439,7 @@ mod tests {
             ],
             // Code that should not be accessed.
             [
-                Opcode::LDI.get_field_elt(),
+                Opcode::Ldi.get_field_elt(),
                 unaccessed_dst_addr,
                 unused_imm,
                 zero,
@@ -505,7 +505,7 @@ mod tests {
                 next_fp_addr,
                 zero,
             ],
-            [Opcode::LDI.get_field_elt(), dst_addr, imm, zero],
+            [Opcode::Ldi.get_field_elt(), dst_addr, imm, zero],
             [Opcode::Ret.get_field_elt(), zero, zero, zero],
         ];
 
