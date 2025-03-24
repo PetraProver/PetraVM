@@ -1,7 +1,7 @@
+pub(crate) mod branch;
 pub(crate) mod cpu;
 pub(crate) mod integer_ops;
 pub(crate) mod ret;
-pub(crate) mod branch;
 
 pub mod test {
     use std::collections::HashMap;
@@ -62,7 +62,12 @@ pub mod test {
             final_pc,
             final_fp,
             final_timestamp,
-            vec![trace.add.len(), trace.ret.len()],
+            vec![
+                trace.add.len(),
+                trace.ret.len(),
+                // trace.bnz.len(),
+                // trace.bz.len(),
+            ],
         );
 
         let allocator = Bump::new();
@@ -133,45 +138,31 @@ pub mod test {
         Statement {
             boundaries: vec![
                 Boundary {
-                    values: vec![B128::ONE, B128::new(0), B128::new(0)], /* inital_pc = 0,
-                                                                          * inital_fp = 0,
-                                                                          * initial_timestamp
-                                                                          * = 0 */
+                    // first_pc = 1, first_fp = 0
+                    //                                       |..pc..||..fp..|
+                    values: vec![B128::new(0x00000000000000000000000100000000)],
                     channel_id: zcray_table.state_channel,
                     direction: FlushDirection::Push,
                     multiplicity: 1,
                 },
                 Boundary {
-                    values: vec![
-                        B128::new(final_pc.val() as u128),
-                        B128::new(final_fp as u128),
-                        B128::new(final_timestamp as u128),
-                    ],
+                    values: vec![B128::new((final_pc.val() as u128) << 32 | final_fp as u128)],
                     channel_id: zcray_table.state_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 // For now we add the prom here
                 Boundary {
-                    values: vec![
-                        B128::ONE,
-                        B128::new((Opcode::Add as u16).into()),
-                        0.into(),
-                        0.into(),
-                        0.into(),
-                    ],
+                    values: vec![B128::new(1 << 64 | Opcode::Add as u128)],
                     channel_id: zcray_table.prom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 Boundary {
-                    values: vec![
-                        B32::MULTIPLICATIVE_GENERATOR.into(),
-                        B128::new((Opcode::Ret as u16).into()),
-                        0.into(),
-                        0.into(),
-                        0.into(),
-                    ],
+                    values: vec![B128::new(
+                        (B32::MULTIPLICATIVE_GENERATOR.val() as u128) << 64
+                            | Opcode::Ret as u128,
+                    )],
                     channel_id: zcray_table.prom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
@@ -179,29 +170,29 @@ pub mod test {
                 // For now we add the vrom here
                 // Read src1 and src2 from ADD
                 Boundary {
-                    values: vec![B128::ZERO, B128::ZERO, B128::ZERO],
+                    values: vec![B128::ZERO],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 2,
                 },
                 // Write dst from ADD
-                // table.push(vrom_channel, [timestamp, upcast_col(dst), dst_val_packed]);
+                // table.push(vrom_channel, [dst_dst_val]);
                 Boundary {
-                    values: vec![B128::ONE, B128::ZERO, B128::ZERO],
+                    values: vec![B128::ZERO],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 // Read the next_pc from RET
                 Boundary {
-                    values: vec![B128::ONE, B128::ZERO, B128::ZERO],
+                    values: vec![B128::ZERO],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 //Read the next_fp
                 Boundary {
-                    values: vec![B128::ONE, B128::ONE, B128::ZERO],
+                    values: vec![B128::new(1 << 32)],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,

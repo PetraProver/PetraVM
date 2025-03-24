@@ -4,7 +4,7 @@ use binius_core::{constraint_system::channel::ChannelId, oracle::ShiftVariant};
 use binius_field::{as_packed_field::PackScalar, BinaryField, ExtensionField};
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableBuilder, TableWitnessIndexSegment,
-    B1, B16, B32, B64,
+    B1, B128, B16, B32, B64,
 };
 use bytemuck::Pod;
 
@@ -16,13 +16,15 @@ pub(crate) struct CpuColumns {
     pub(crate) pc: Col<B32>,
     pub(crate) next_pc: Col<B32>, // Virtual
     pub(crate) fp: Col<B32>,
-    pub(crate) timestamp: Col<B32>,
-    pub(crate) next_timestamp: Col<B32>, // Virtual?
-    pub(crate) opcode: Col<B16>,         // Constant
+    pub(crate) opcode: Col<B16>, // Constant
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
     pub(crate) arg2: Col<B16>,
     options: CpuColumnsOptions,
+    // Virtual columns for communication with the channels
+    prom_push: Col<B128>,
+    state_push: Col<B64>,
+    state_pull: Col<B64>,
 }
 
 pub(crate) enum NextPc {
@@ -47,7 +49,6 @@ pub(crate) struct CpuRow {
     // NextPc::Target(target)
     pub(crate) next_pc: Option<u32>,
     pub(crate) fp: u32,
-    pub(crate) timestamp: u32,
     pub(crate) instruction: Instruction,
 }
 
@@ -67,15 +68,41 @@ impl CpuColumns {
     ) -> Self {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
-        let timestamp = table.add_committed("timestamp");
-        let opcode = table.add_constant("opcode", [B16::new(OPCODE)]); //add_committed("opcode"); //TODO: opcode is a constant
+        let opcode = table.add_constant(format!("opcode_{OPCODE}"), [B16::new(OPCODE)]);
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
         let arg2 = table.add_committed("arg2");
 
-        // TODO: Next timestamp should be either timestamp + 1 or timestamp*G.
-        // For now it's unconstrained.
-        let next_timestamp = table.add_committed("next_timestamp");
+        // Pakc pc and instruction into a single value. We should eventually import this
+        // from some utility module.
+        let b128_basis: [_; 2] = std::array::from_fn(|i| {
+            <B128 as ExtensionField<B64>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let b64_16basis: [_; 4] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B16>>::basis(i).expect("i in range 0..4; extension degree is 4")
+        });
+        let b64_32basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let b32_basis: [_; 2] = std::array::from_fn(|i| {
+            <B32 as ExtensionField<B16>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let pack_b16_into_b32 = move |limbs: [Expr<B16, 1>; 2]| {
+            limbs
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| upcast_expr(limb) * b32_basis[i])
+                .reduce(|a, b| a + b)
+                .expect("limbs has length 2")
+        };
+        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
+            limbs
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| upcast_expr(limb) * b64_32basis[i])
+                .reduce(|a, b| a + b)
+                .expect("limbs has length 2")
+        };
 
         let next_pc;
         match options.next_pc {
@@ -87,71 +114,59 @@ impl CpuColumns {
                 next_pc = target;
             }
             NextPc::Immediate => {
-                let b32_basis: [_; 2] = std::array::from_fn(|i| {
-                    <B32 as ExtensionField<B16>>::basis(i)
-                        .expect("i in range 0..2; extension degree is 2")
-                });
-                let target = move |limbs: [Expr<B16, 1>; 2]| {
-                    limbs
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, limb)| upcast_expr(limb) * b32_basis[i])
-                        .reduce(|a, b| a + b)
-                        .expect("limbs has length 2")
-                };
-
-                next_pc = table.add_computed("nex_pc", target([arg1.into(), arg2.into()]));
+                next_pc =
+                    table.add_computed("nex_pc", pack_b16_into_b32([arg1.into(), arg2.into()]));
             }
         };
 
-        // Read instruction
-        let b32_basis: [_; 4] = std::array::from_fn(|i| {
-            <B32 as ExtensionField<B16>>::basis(i).expect("i in range 0..4; extension degree is 4")
-        });
-        let b64_basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
         let pc_instruction = move |pc: Expr<B32, 1>, instruction: [Expr<B16, 1>; 4]| {
             let pc = upcast_expr(pc);
             let instruction = instruction.into_iter().map(upcast_expr).collect::<Vec<_>>();
-            let instruction = instruction
+            let instruction_64 = instruction
                 .into_iter()
                 .enumerate()
-                .map(|(i, limb)| limb * b32_basis[i])
+                .map(|(i, limb)| limb * b64_16basis[i])
                 .reduce(|a, b| a + b)
                 .expect("instruction has length 4");
-            pc + instruction
-        };
-        let pc_instruction = table.add_computed(
-            "packed_instruction",
+            pc * b128_basis[1] + upcast_expr(instruction_64) * b128_basis[0]
+        }; // 0x00000000000000010008000000000000
+        let prom_push = table.add_computed(
+            "prom_push",
             pc_instruction(
                 pc.into(),
                 [opcode.into(), arg0.into(), arg1.into(), arg2.into()],
             ),
         );
-        table.push(
-            prom_channel,
-            [pc_instruction],
-        );
+        table.push(prom_channel, [prom_push]);
 
         // Flushing rules for the state channel
-        table.pull(state_channel, [pc, fp, timestamp]);
+        let state_pull =
+            table.add_computed("state_pull", pack_b32_into_b64([fp.into(), pc.into()]));
+        table.pull(state_channel, [state_pull]);
+        let state_push;
         if let Some(next_fp) = options.next_fp {
-            table.push(state_channel, [next_pc, next_fp, next_timestamp]);
+            state_push = table.add_computed(
+                "state_push",
+                pack_b32_into_b64([next_fp.into(), next_pc.into()]),
+            );
+            table.push(state_channel, [state_push]);
         } else {
-            table.push(state_channel, [next_pc, fp, next_timestamp]);
+            state_push =
+                table.add_computed("state_push", pack_b32_into_b64([fp.into(), next_pc.into()]));
+            table.push(state_channel, [state_push]);
         }
         Self {
             pc,
             next_pc,
             fp,
-            timestamp,
-            next_timestamp,
             opcode,
             arg0,
             arg1,
             arg2,
             options,
+            prom_push,
+            state_push,
+            state_pull,
         }
     }
 
@@ -165,21 +180,23 @@ impl CpuColumns {
     {
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
-        let mut timestamp_col = index.get_mut_as(self.timestamp)?;
         let mut next_pc_col = index.get_mut_as(self.next_pc)?;
-        let mut next_timestamp_col = index.get_mut_as(self.next_timestamp)?;
         let mut opcode_col = index.get_mut_as(self.opcode)?;
+        
 
         let mut arg0_col = index.get_mut_as(self.arg0)?;
         let mut arg1_col = index.get_mut_as(self.arg1)?;
         let mut arg2_col = index.get_mut_as(self.arg2)?;
+
+        let mut prom_push = index.get_mut_as(self.prom_push)?;
+        let mut state_push = index.get_mut_as(self.state_push)?;
+        let mut state_pull = index.get_mut_as(self.state_pull)?;
 
         let CpuRow {
             index: i,
             pc,
             next_pc,
             fp,
-            timestamp,
             instruction:
                 Instruction {
                     opcode,
@@ -190,8 +207,8 @@ impl CpuColumns {
         } = row;
         pc_col[i] = pc;
         fp_col[i] = fp;
-        timestamp_col[i] = timestamp;
         opcode_col[i] = opcode as u16;
+        println!("opcode_col[i] = {:?}", opcode_col[i]);
         arg0_col[i] = arg0;
         arg1_col[i] = arg1;
         arg2_col[i] = arg2;
@@ -202,9 +219,20 @@ impl CpuColumns {
             NextPc::Target(target) => next_pc.expect("next_pc must be Some when NextPc::Target"),
             NextPc::Immediate => (arg1 as u32) << 16 | arg2 as u32,
         };
-        next_timestamp_col[i] = timestamp + 1u32;
-        println!("next_pc = {:?}", next_pc_col[i]);
-        println!("next_timestamp = {:?}", next_timestamp_col[i]);
+
+        prom_push[i] = (pc as u128) << 64
+            | opcode as u128
+            | (arg0 as u128) << 16
+            | (arg1 as u128) << 32
+            | (arg2 as u128) << 48;
+        state_push[i] = (next_pc_col[i] as u64) << 32 | fp as u64;
+        state_pull[i] = (pc as u64) << 32 | fp as u64;
+
+        println!(
+            "pc = {:?}, opcode = {:?}, arg0 = {:?}, arg1 = {:?}, arg2 = {:?}",
+            pc, opcode, arg0, arg1, arg2
+        );
+        println!("prom_push = {:#x}", prom_push[i]);
 
         Ok(())
     }

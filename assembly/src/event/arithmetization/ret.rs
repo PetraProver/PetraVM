@@ -1,7 +1,8 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, Field};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField, Field};
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32,
+    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableFiller, TableId,
+    TableWitnessIndexSegment, B1, B16, B32, B64,
 };
 use bytemuck::Pod;
 use env_logger::Target;
@@ -18,6 +19,9 @@ pub(crate) struct RetTable {
     fp1: Col<B32>, // Virtual
     fp0_val: Col<B32>,
     fp1_val: Col<B32>,
+
+    vrom_next_pc: Col<B64>,
+    vrom_next_fp: Col<B64>,
 }
 
 impl RetTable {
@@ -43,13 +47,33 @@ impl RetTable {
 
         let fp0 = cpu_cols.fp;
         let fp1 = table.add_computed("fp1", fp0 + B32::ONE);
-        let timestamp = cpu_cols.timestamp;
+
+        // TODO: Load this from some utility module
+        let b64_basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
+            limbs
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| upcast_expr(limb) * b64_basis[i])
+                .reduce(|a, b| a + b)
+                .expect("limbs has length 2")
+        };
 
         // Read the next_pc
-        table.push(vrom_channel, [timestamp, fp0, fp0_val]);
+        let vrom_next_pc = table.add_computed(
+            "fp0_fp0_val",
+            pack_b32_into_b64([fp0_val.into(), fp0.into()]),
+        );
+        table.push(vrom_channel, [vrom_next_pc]);
 
         //Read the next_fp
-        table.push(vrom_channel, [timestamp, fp1, fp1_val]);
+        let vrom_next_fp = table.add_computed(
+            "fp1_fp1_val",
+            pack_b32_into_b64([fp1_val.into(), fp1.into()]),
+        );
+        table.push(vrom_channel, [vrom_next_fp]);
 
         Self {
             id: table.id(),
@@ -57,6 +81,8 @@ impl RetTable {
             fp1,
             fp0_val,
             fp1_val,
+            vrom_next_pc,
+            vrom_next_fp,
         }
     }
 }
@@ -82,9 +108,13 @@ where
                 let mut fp1 = witness.get_mut_as(self.fp1)?;
                 let mut fp0_val = witness.get_mut_as(self.fp0_val)?;
                 let mut fp1_val = witness.get_mut_as(self.fp1_val)?;
+                let mut vrom_next_pc = witness.get_mut_as(self.vrom_next_pc)?;
+                let mut vrom_next_fp = witness.get_mut_as(self.vrom_next_fp)?;
                 fp1[i] = event.fp ^ 1;
                 fp0_val[i] = event.fp_0_val;
                 fp1_val[i] = event.fp_1_val;
+                vrom_next_pc[i] = (event.fp as u64) << 32 | event.fp_0_val as u64;
+                vrom_next_fp[i] = (event.fp as u64 ^ 1) << 32 | event.fp_1_val as u64;
             }
 
             let row = CpuRow {
@@ -92,7 +122,6 @@ where
                 pc: event.pc.val(),
                 next_pc: Some(event.fp_0_val),
                 fp: event.fp,
-                timestamp: event.timestamp,
                 instruction: Instruction {
                     opcode: Opcode::Ret,
                     arg0: 0,

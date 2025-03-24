@@ -11,11 +11,11 @@ use binius_field::{
     arch::OptimalUnderlier128b,
     as_packed_field::{PackScalar, PackedType},
     underlier::UnderlierType,
-    BinaryField, Field, PackedField,
+    BinaryField, ExtensionField, Field, PackedField,
 };
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId,
+        upcast_col, upcast_expr, Col, ConstraintSystem, Expr, Statement, TableFiller, TableId,
         TableWitnessIndexSegment, B1, B128, B16, B32, B64,
     },
     gadgets::u32::{U32Add, U32AddFlags},
@@ -46,6 +46,10 @@ pub struct AddTable {
     src2_val: Col<B1, 32>,
     src2_val_packed: Col<B32>,
     u32_add: U32Add,
+
+    vrom_src1: Col<B64>,
+    vrom_src2: Col<B64>,
+    vrom_dst: Col<B64>,
 }
 
 impl AddTable {
@@ -80,21 +84,37 @@ impl AddTable {
         let u32_add = U32Add::new(&mut table, src1_val, src2_val, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
+        // TODO: Load this from some utility module
+        let b64_basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
+            limbs
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| upcast_expr(limb) * b64_basis[i])
+                .reduce(|a, b| a + b)
+                .expect("limbs has length 2")
+        };
+
         // Read src1
-        table.push(
-            vrom_channel,
-            [cpu.timestamp, upcast_col(src1), src1_val_packed],
+        let vrom_src1 = table.add_computed(
+            "src1_src1_val",
+            pack_b32_into_b64([upcast_col(src1).into(), src1_val_packed.into()]),
         );
+        table.push(vrom_channel, [vrom_src1]);
         // Read src2
-        table.push(
-            vrom_channel,
-            [cpu.timestamp, upcast_col(src2), src2_val_packed],
+        let vrom_src2 = table.add_computed(
+            "src2_src2_val",
+            pack_b32_into_b64([upcast_col(src2).into(), src2_val_packed.into()]),
         );
+        table.push(vrom_channel, [vrom_src2]);
         // Write dst
-        table.push(
-            vrom_channel,
-            [cpu.next_timestamp, upcast_col(dst), dst_val_packed],
+        let vrom_dst = table.add_computed(
+            "dst_dst_val",
+            pack_b32_into_b64([upcast_col(dst).into(), dst_val_packed.into()]),
         );
+        table.push(vrom_channel, [vrom_dst]);
 
         Self {
             id: table.id(),
@@ -105,6 +125,9 @@ impl AddTable {
             src2_val_packed,
             u32_add,
             dst_val_packed,
+            vrom_src1,
+            vrom_src2,
+            vrom_dst,
         }
     }
 }
@@ -134,7 +157,6 @@ where
                         pc: event.pc.into(),
                         next_pc: None,
                         fp: event.fp,
-                        timestamp: event.timestamp,
                         instruction: Instruction {
                             opcode: Opcode::Add,
                             arg0: event.dst,
@@ -146,8 +168,14 @@ where
                 // TODO: Move this outside the loop
                 let mut src1_val = witness.get_mut_as(self.src1_val)?;
                 let mut src2_val = witness.get_mut_as(self.src2_val)?;
+                let mut vrom_src1 = witness.get_mut_as(self.vrom_src1)?;
+                let mut vrom_src2 = witness.get_mut_as(self.vrom_src2)?;
+                let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
+                vrom_src1[i] = (event.src1 as u64) << 32 | event.src1_val as u64;
+                vrom_src2[i] = (event.src2 as u64) << 32 | event.src2_val as u64;
+                vrom_dst[i] = (event.dst as u64) << 32 | event.dst_val as u64;
             }
         }
         self.u32_add.populate(witness);
@@ -230,7 +258,6 @@ where
                         pc: event.pc.into(),
                         next_pc: None,
                         fp: event.fp,
-                        timestamp: event.timestamp,
                         instruction: Instruction {
                             opcode: Opcode::Addi,
                             arg0: event.dst,

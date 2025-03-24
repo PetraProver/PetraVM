@@ -6,7 +6,8 @@ use binius_field::{
     ExtensionField, Field,
 };
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32,
+    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableFiller, TableId,
+    TableWitnessIndexSegment, B1, B32, B64,
 };
 use bytemuck::Pod;
 use env_logger::fmt::Timestamp;
@@ -36,7 +37,6 @@ impl BnzTable {
     ) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
-        
 
         // TODO: Assert cond_val is != 0
 
@@ -51,10 +51,26 @@ impl BnzTable {
         );
 
         let cond = cpu_cols.arg0;
-        let timestamp = cpu_cols.timestamp;
 
+        // TODO: Load this from some utility module
+        let b64_basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
+            limbs
+                .into_iter()
+                .enumerate()
+                .map(|(i, limb)| upcast_expr(limb) * b64_basis[i])
+                .reduce(|a, b| a + b)
+                .expect("limbs has length 2")
+        };
+
+        let cond_cond_val = table.add_computed(
+            "cond_cond_val",
+            pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),
+        );
         // Read cond_val
-        table.push(vrom_channel, [timestamp, upcast_col(cond), cond_val]);
+        table.push(vrom_channel, [cond_cond_val]);
 
         Self {
             id: table.id(),
@@ -85,7 +101,6 @@ where
                 pc: event.pc.val(),
                 next_pc: None,
                 fp: event.fp,
-                timestamp: event.timestamp,
                 instruction: Instruction {
                     opcode: Opcode::Bnz,
                     arg0: event.cond,
@@ -101,7 +116,7 @@ where
     }
 }
 
-struct BzTable {
+pub(crate) struct BzTable {
     id: TableId,
     cpu_cols: CpuColumns,
 }
@@ -126,12 +141,11 @@ impl BzTable {
         );
 
         let cond = cpu_cols.arg0;
-        let timestamp = cpu_cols.timestamp;
-        // TODO: We should have a single zero?
+        // TODO: Should we have a single zero?
         let zero = table.add_constant("zero", [B32::ZERO]);
 
         // cond_val must be zero
-        table.push(prom_channel, [timestamp, upcast_col(cond), zero]);
+        table.push(prom_channel, [upcast_col(cond), zero]);
 
         Self {
             id: table.id(),
@@ -161,7 +175,6 @@ where
                 pc: event.pc.val(),
                 next_pc: None,
                 fp: event.fp,
-                timestamp: event.timestamp,
                 instruction: Instruction {
                     opcode: Opcode::Bnz,
                     arg0: 0,
@@ -179,11 +192,16 @@ pub mod test {
     use std::collections::HashMap;
 
     use binius_field::{arch::OptimalUnderlier128b, BinaryField, Field};
-    use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128, B16, B32};
+    use binius_m3::builder::{
+        Boundary, ConstraintSystem, FlushDirection, Statement, B128, B16, B32,
+    };
     use bumpalo::Bump;
 
     use crate::{
-        execution::{emulator_arithmetization::arithmetization::ZCrayTable, trace::BoundaryValues}, opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace
+        execution::{emulator_arithmetization::arithmetization::ZCrayTable, trace::BoundaryValues},
+        opcodes::Opcode,
+        util::code_to_prom,
+        Memory, ValueRom, ZCrayTrace,
     };
 
     #[test]
@@ -220,7 +238,12 @@ pub mod test {
             final_pc,
             final_fp,
             final_timestamp,
-            vec![trace.add.len(), trace.ret.len(), trace.bnz.len(), trace.bz.len()],
+            vec![
+                trace.add.len(),
+                trace.ret.len(),
+                trace.bnz.len(),
+                trace.bz.len(),
+            ],
         );
 
         let allocator = Bump::new();
