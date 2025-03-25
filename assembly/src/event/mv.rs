@@ -221,7 +221,6 @@ impl MVVWEvent {
         let pc = ctx.pc;
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
-        let src_addr = ctx.addr(src.val());
         let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
         // If the source value is missing or the destination address is still unknown,

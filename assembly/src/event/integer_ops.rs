@@ -168,7 +168,7 @@ impl MuliEvent {
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
-        let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64; // TODO: shouldn't the result be u64, stored over two slots?
+        let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
@@ -263,7 +263,7 @@ impl MuluEvent {
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
-        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64); // TODO: shouldn't the result be u64, stored over two slots?
+        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
