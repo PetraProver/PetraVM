@@ -167,9 +167,7 @@ impl MVVWEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         pc: BinaryField32b,
         timestamp: u32,
@@ -311,9 +309,7 @@ impl MVVLEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         pc: BinaryField32b,
         timestamp: u32,
@@ -343,6 +339,10 @@ impl MVVLEvent {
                 offset: offset.val(),
             }))
         } else {
+            // `src_val` is not yet known, which is means it's a return value from the
+            // function called. So we insert `dst_addr ^ offset` to the addresses to track
+            // in `pending_updates`. As soon as it is set in the called function, we can
+            // also set the value at `src_addr` and generate the MOVE event.
             trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvl, pc, fp, timestamp, dst, src, offset),
@@ -448,9 +448,7 @@ impl MVIHEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         pc: BinaryField32b,
         timestamp: u32,

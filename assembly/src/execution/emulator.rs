@@ -163,7 +163,6 @@ impl Interpreter {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
                     let opt_event = MVVWEvent::generate_event_from_info(
-                        self,
                         trace,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -178,7 +177,6 @@ impl Interpreter {
                 }
                 MVKind::Mvvl => {
                     let opt_event = MVVLEvent::generate_event_from_info(
-                        self,
                         trace,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -193,7 +191,6 @@ impl Interpreter {
                 }
                 MVKind::Mvih => {
                     let event = MVIHEvent::generate_event_from_info(
-                        self,
                         trace,
                         mv_info.pc,
                         mv_info.timestamp,
