@@ -5,6 +5,7 @@ use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use super::BinaryOperation;
 use crate::{
+    define_b32_imm_op_event, define_b32_op_event,
     event::Event,
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
@@ -65,32 +66,16 @@ pub(crate) type Add64Event = AddGadgetEvent<u64>;
 impl_event_no_interaction_with_state_channel!(Add32Event);
 impl_event_no_interaction_with_state_channel!(Add64Event);
 
-/// Event for ADDI.
-///
-/// Performs an ADD between a target address and an immediate.
-///
-/// Logic:
-///   1. FP[dst] = FP[src] + imm
-#[derive(Debug, Clone)]
-pub(crate) struct AddiEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    pub(crate) src_val: u32,
-    imm: u16,
-}
-
-impl BinaryOperation for AddiEvent {
-    fn operation(val: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-        BinaryField32b::new((val.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
-    }
-}
-
-impl_immediate_binary_operation!(AddiEvent);
-impl_event_for_binary_operation!(AddiEvent);
+define_b32_imm_op_event!(
+    /// Event for ADDI.
+    ///
+    /// Performs an ADD between a target address and an immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src] + imm
+    AddiEvent,
+    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
+);
 
 impl AddiEvent {
     pub fn generate_event(
@@ -124,34 +109,17 @@ impl AddiEvent {
     }
 }
 
-/// Event for ADD.
-///
-/// Performs an ADD between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] + FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct AddEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    pub(crate) src2_val: u32,
-}
-
-impl BinaryOperation for AddEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        BinaryField32b::new((val1.val() as i32).wrapping_add(val2.val() as i32) as u32)
-    }
-}
-
 // Note: The addition is checked thanks to the ADD32 table.
-impl_binary_operation!(AddEvent);
-impl_event_for_binary_operation!(AddEvent);
+define_b32_op_event!(
+    /// Event for ADD.
+    ///
+    /// Performs an ADD between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] + FP[src2]
+    AddEvent,
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
+);
 
 /// Event for MULI.
 ///

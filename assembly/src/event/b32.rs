@@ -7,20 +7,21 @@ use crate::{
     impl_immediate_binary_operation,
 };
 
+#[macro_export]
 macro_rules! define_b32_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
-            timestamp: u32,
-            pc: BinaryField32b,
-            fp: u32,
-            dst: u16,
-            dst_val: u32,
-            src1: u16,
-            src1_val: u32,
-            src2: u16,
-            src2_val: u32,
+            pub(crate) timestamp: u32,
+            pub(crate) pc: BinaryField32b,
+            pub(crate) fp: u32,
+            pub(crate) dst: u16,
+            pub(crate) dst_val: u32,
+            pub(crate) src1: u16,
+            pub(crate) src1_val: u32,
+            pub(crate) src2: u16,
+            pub(crate) src2_val: u32,
         }
 
         impl BinaryOperation for $name {
@@ -35,19 +36,20 @@ macro_rules! define_b32_op_event {
     };
 }
 
+#[macro_export]
 macro_rules! define_b32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
-            timestamp: u32,
-            pc: BinaryField32b,
-            fp: u32,
-            dst: u16,
-            dst_val: u32,
-            src: u16,
-            src_val: u32,
-            imm: u16,
+            pub(crate) timestamp: u32,
+            pub(crate) pc: BinaryField32b,
+            pub(crate) fp: u32,
+            pub(crate) dst: u16,
+            pub(crate) dst_val: u32,
+            pub(crate) src: u16,
+            pub(crate) src_val: u32,
+            pub(crate) imm: u16,
         }
 
         impl BinaryOperation for $name {
