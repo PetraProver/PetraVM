@@ -1,8 +1,9 @@
 use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
-use super::{BinaryOperation, Event};
+use super::BinaryOperation;
 use crate::{
     define_b32_imm_op_event, define_b32_op_event,
+    event::Event,
     execution::{InterpreterError, ZCrayTrace, G},
     impl_32b_immediate_binary_operation,
 };

@@ -1,9 +1,9 @@
 use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 
-use super::Event;
+use super::BinaryOperation;
 use crate::{
     define_b128_op_event,
-    event::BinaryOperation,
+    event::Event,
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
     },

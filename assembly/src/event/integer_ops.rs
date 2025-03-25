@@ -3,10 +3,9 @@ use std::ops::Add;
 use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
 use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
-use super::BinaryOperation;
 use crate::{
     define_b32_imm_op_event, define_b32_op_event,
-    event::Event,
+    event::{binary_ops::BinaryOperation, Event},
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
     },
@@ -551,12 +550,12 @@ mod tests {
 
     use crate::{
         event::{
+            binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
             integer_ops::{
                 AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent, SignedMulKind, SltEvent,
                 SltiEvent, SltiuEvent, SltuEvent, SubEvent,
             },
             test_utils::TestEnv,
-            ImmediateBinaryOperation, NonImmediateBinaryOperation,
         },
         execution::{Interpreter, ZCrayTrace},
     };

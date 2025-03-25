@@ -16,6 +16,7 @@ use crate::{
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
+        binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
@@ -26,8 +27,6 @@ use crate::{
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         shift::{ShiftEvent, ShiftOperation},
-        ImmediateBinaryOperation,
-        NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::{StateChannel, ZCrayTrace},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
