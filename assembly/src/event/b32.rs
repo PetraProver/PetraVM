@@ -2,67 +2,10 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::{BinaryOperation, Event};
 use crate::{
+    define_b32_imm_op_event, define_b32_op_event,
     execution::{InterpreterError, ZCrayTrace, G},
-    impl_32b_immediate_binary_operation, impl_binary_operation, impl_event_for_binary_operation,
-    impl_immediate_binary_operation,
+    impl_32b_immediate_binary_operation,
 };
-
-#[macro_export]
-macro_rules! define_b32_op_event {
-    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
-        $(#[$meta])*
-        #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src1: u16,
-            pub(crate) src1_val: u32,
-            pub(crate) src2: u16,
-            pub(crate) src2_val: u32,
-        }
-
-        impl BinaryOperation for $name {
-            #[inline(always)]
-            fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-                $op_fn(val1, val2)
-            }
-        }
-
-        impl_binary_operation!($name);
-        impl_event_for_binary_operation!($name);
-    };
-}
-
-#[macro_export]
-macro_rules! define_b32_imm_op_event {
-    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
-        $(#[$meta])*
-        #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src: u16,
-            pub(crate) src_val: u32,
-            pub(crate) imm: u16,
-        }
-
-        impl BinaryOperation for $name {
-            #[inline(always)]
-            fn operation(val1: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
-                $op_fn(val1, imm)
-            }
-        }
-
-        impl_immediate_binary_operation!($name);
-        impl_event_for_binary_operation!($name);
-    };
-}
 
 define_b32_op_event!(
     /// Event for XOR.
