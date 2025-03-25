@@ -8,7 +8,7 @@
 ;; }
 ;; ------------
 
-#[framesize(0x6)]
+#[framesize(0x8)]
 static_int_list_sum:
     ;; Frame:
     ;; Slot 0: Return PC
@@ -17,6 +17,8 @@ static_int_list_sum:
     ;; Slot 3: Arg: list_size
     ;; Slot 4: Arg: curr_sum
     ;; Slot 5: ND Local: Next FP
+    ;; Slot 6: Local: new_list_size
+    ;; Slot 7: Local: new_curr_sum
 
     BNZ @3, list_size_gt_0
     MVI.H @5, @4 ;; return curr_sum
@@ -25,6 +27,11 @@ static_int_list_sum:
 list_size_gt_0:
     ;; Recursively call this function again
     MOV.W @5[2], @2[1] ;; list[1..]
-    SUB @5[3], @3, #1 ;; list_size - 1
-    ADD @5[4], @4, @2[0] ;; curr_sum + list[0]
+
+    SUBI @6, @3, #1 ;; list_size - 1
+    ADD @7, @4, @2[0] ;; curr_sum + list[0]
+
+    MVV.W @5[3], @6
+    MVV.W @5[4], @7
+
     TAILI static_int_list_sum, @5 ;; static_int_list_sum(&list[1..], list_size - 1, curr_sum + list[0])

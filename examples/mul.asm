@@ -4,7 +4,7 @@
 ;; ------------
 
 #[framesize(0x4)]
-add:
+mul:
     ;; Frame
     ;; Slot @0: Return PC
     ;; Slot @1: Return FP

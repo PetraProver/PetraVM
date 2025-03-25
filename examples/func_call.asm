@@ -20,7 +20,8 @@ func_call:
     MVI.H @4[4] #8
     CALLI add_two_numbers, @4
 
-    ADDI @2, @4[2], #10 // return add_two_numbers(4, 8) + 10
+    MVV.H @7, @4[2] // add_two_numbers(4, 8)
+    ADDI @2, @7, #10 // return add_two_numbers(4, 8) + 10
     RET
 
 #[framesize(0x5)]
