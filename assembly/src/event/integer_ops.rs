@@ -549,7 +549,6 @@ mod tests {
                 AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent, SignedMulKind, SltEvent,
                 SltiEvent, SltiuEvent, SltuEvent, SubEvent,
             },
-            test_utils::TestEnv,
         },
         execution::{Interpreter, ZCrayTrace},
     };

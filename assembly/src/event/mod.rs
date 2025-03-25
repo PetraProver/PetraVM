@@ -22,9 +22,6 @@ pub(crate) mod shift;
 
 pub(crate) use binary_ops::{b128, b32};
 
-#[cfg(test)]
-mod test_utils;
-
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
     /// Executes the flushing rules associated to this `Event`, pushing to /
