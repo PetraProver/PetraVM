@@ -9,6 +9,12 @@ use crate::{
     ZCrayTrace,
 };
 
+/// A context sufficient to generate any `Event`, update the state machine and
+/// log associated trace operations.
+///
+/// It contains a mutable reference to the running [`Interpreter`], the
+/// [`ZCrayTrace`], and also contains the PC associated to the event to be
+/// generated.
 pub(crate) struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut ZCrayTrace,
@@ -16,6 +22,8 @@ pub(crate) struct EventContext<'a> {
 }
 
 impl<'a> EventContext<'a> {
+    #[cfg(test)]
+    /// Constructor method used for testing.
     pub fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
         use binius_field::Field;
 
@@ -96,12 +104,9 @@ impl<'a> EventContext<'a> {
         self.trace.set_vrom_u128(address, value)
     }
 
+    /// Increments the underlying [`Interpreter`]'s PC.
     pub fn incr_pc(&mut self) {
         self.interpreter.incr_pc();
-    }
-
-    pub fn next_timestamp(&self) -> u32 {
-        self.interpreter.timestamp + 1
     }
 
     /// This method should only be called once the frame pointer has been
