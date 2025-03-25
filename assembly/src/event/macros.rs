@@ -235,8 +235,8 @@ macro_rules! define_b32_op_event {
             }
         }
 
-        crate::impl_binary_operation!($name);
-        crate::impl_event_for_binary_operation!($name);
+        $crate::impl_binary_operation!($name);
+        $crate::impl_event_for_binary_operation!($name);
     };
 }
 
@@ -263,7 +263,7 @@ macro_rules! define_b32_imm_op_event {
             }
         }
 
-        crate::impl_immediate_binary_operation!($name);
-        crate::impl_event_for_binary_operation!($name);
+        $crate::impl_immediate_binary_operation!($name);
+        $crate::impl_event_for_binary_operation!($name);
     };
 }

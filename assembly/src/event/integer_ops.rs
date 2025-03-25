@@ -480,152 +480,68 @@ impl Event for SignedMulEvent {
     }
 }
 
-/// Event for SLTU.
-///
-/// Performs an SLTU between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] < FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct SltuEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-}
-
-impl BinaryOperation for SltuEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        // LT is checked using a SUB gadget.
-        BinaryField32b::new((val1.val() < val2.val()) as u32)
-    }
-}
+// Note: The addition is checked thanks to the ADD32 table.
+define_b32_op_event!(
+    /// Event for SLTU.
+    ///
+    /// Performs an SLTU between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] < FP[src2]
+    SltuEvent,
+    // LT is checked using a SUB gadget.
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() < b.val()) as u32)
+);
 
 // Note: The addition is checked thanks to the ADD32 table.
-impl_binary_operation!(SltuEvent);
-impl_event_for_binary_operation!(SltuEvent);
+define_b32_op_event!(
+    /// Event for SLT.
+    ///
+    /// Performs an SLT between two signed target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] < FP[src2]
+    SltEvent,
+    // LT is checked using a SUB gadget.
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32) < (b.val() as i32)) as u32)
+);
 
-/// Event for SLT.
-///
-/// Performs an SLT between two signed target addresses.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] < FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct SltEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-}
+define_b32_imm_op_event!(
+    /// Event for SLTIU.
+    ///
+    /// Performs an SLTIU between an unsigned target address and immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] < FP[src2]
+    SltiuEvent,
+    // LT is checked using a SUB gadget.
+    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() < imm.val() as u32) as u32)
+);
 
-impl BinaryOperation for SltEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        // LT is checked using a SUB gadget.
-        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i32)) as u32)
-    }
-}
+define_b32_imm_op_event!(
+    /// Event for SLTI.
+    ///
+    /// Performs an SLTI between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] < FP[src2]
+    SltiEvent,
+    // LT is checked using a SUB gadget.
+    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
+);
 
-// Note: The addition is checked thanks to the ADD32 table.
-impl_binary_operation!(SltEvent);
-impl_event_for_binary_operation!(SltEvent);
-
-/// Event for SLTIU.
-///
-/// Performs an SLTIU between an unsigned target address and immediate.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] < FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct SltiuEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
-
-impl BinaryOperation for SltiuEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField16b) -> BinaryField32b {
-        // LT is checked using a SUB gadget.
-        BinaryField32b::new((val1.val() < val2.val() as u32) as u32)
-    }
-}
-
-impl_immediate_binary_operation!(SltiuEvent);
-impl_event_for_binary_operation!(SltiuEvent);
-
-/// Event for SLTI.
-///
-/// Performs an SLTI between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] < FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct SltiEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u16,
-}
-
-impl BinaryOperation for SltiEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField16b) -> BinaryField32b {
-        // LT is checked using a SUB gadget.
-        BinaryField32b::new(((val1.val() as i32) < (val2.val() as i16 as i32)) as u32)
-    }
-}
-
-impl_immediate_binary_operation!(SltiEvent);
-impl_event_for_binary_operation!(SltiEvent);
-
-// Event for SUB.
-///
-/// Performs a SUB between two target addresses.
-///
-/// Logic:
-///   1. FP[dst] = FP[src1] - FP[src2]
-#[derive(Debug, Clone)]
-pub(crate) struct SubEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u32,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    pub(crate) src2_val: u32,
-}
-
-// TODO: add support for signed values.
-impl BinaryOperation for SubEvent {
-    fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
-        // SUB is checked using a specific gadget, similarly to ADD.
-        BinaryField32b::new(((val1.val() as i32).wrapping_sub(val2.val() as i32)) as u32)
-    }
-}
-
-// Note: The addition is checked thanks to the ADD32 table.
-impl_binary_operation!(SubEvent);
-impl_event_for_binary_operation!(SubEvent);
+define_b32_op_event!(
+    // Event for SUB.
+    ///
+    /// Performs a SUB between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] - FP[src2]
+    SubEvent,
+    // SUB is checked using a specific gadget, similarly to ADD.
+    // TODO: add support for signed values.
+    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
+);
 
 #[cfg(test)]
 mod tests {
