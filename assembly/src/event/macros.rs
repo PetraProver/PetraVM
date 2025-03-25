@@ -186,7 +186,7 @@ macro_rules! impl_32b_immediate_binary_operation {
 }
 
 #[macro_export]
-macro_rules! define_b32_op_event {
+macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
@@ -215,7 +215,7 @@ macro_rules! define_b32_op_event {
 }
 
 #[macro_export]
-macro_rules! define_b32_imm_op_event {
+macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
@@ -243,7 +243,7 @@ macro_rules! define_b32_imm_op_event {
 }
 
 #[macro_export]
-macro_rules! define_b128_op_event {
+macro_rules! define_bin128_op_event {
     ($(#[$meta:meta])* $name:ident, $op:tt) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]

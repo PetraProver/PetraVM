@@ -2,13 +2,13 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 
 use super::BinaryOperation;
 use crate::{
-    define_b32_imm_op_event, define_b32_op_event,
+    define_bin32_imm_op_event, define_bin32_op_event,
     event::Event,
     execution::{InterpreterError, ZCrayTrace, G},
     impl_32b_immediate_binary_operation,
 };
 
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for XOR.
     ///
     /// Performs a XOR between two target addresses.
@@ -19,7 +19,7 @@ define_b32_op_event!(
     |a, b| a + b
 );
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for XORI.
     ///
     /// Performs a XOR between a target address and an immediate.
@@ -30,7 +30,7 @@ define_b32_imm_op_event!(
     |a, b| a + b
 );
 
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for AND.
     ///
     /// Performs an AND between two target addresses.
@@ -41,7 +41,7 @@ define_b32_op_event!(
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() & b.val())
 );
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for ANDI.
     ///
     /// Performs an AND between a target address and an immediate.
@@ -52,7 +52,7 @@ define_b32_imm_op_event!(
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() & imm.val() as u32)
 );
 
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for OR.
     ///
     /// Performs an OR between two target addresses.
@@ -63,7 +63,7 @@ define_b32_op_event!(
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() | b.val())
 );
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for ORI.
     ///
     /// Performs an OR between a target address and an immediate.
@@ -74,7 +74,7 @@ define_b32_imm_op_event!(
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() | imm.val() as u32)
 );
 
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for B32_MUL.
     ///
     /// Performs a 32-bit MUL between two target addresses.

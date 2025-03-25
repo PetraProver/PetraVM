@@ -4,7 +4,7 @@ use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
 use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use crate::{
-    define_b32_imm_op_event, define_b32_op_event,
+    define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::BinaryOperation, Event},
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
@@ -65,7 +65,7 @@ pub(crate) type Add64Event = AddGadgetEvent<u64>;
 impl_event_no_interaction_with_state_channel!(Add32Event);
 impl_event_no_interaction_with_state_channel!(Add64Event);
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for ADDI.
     ///
     /// Performs an ADD between a target address and an immediate.
@@ -109,7 +109,7 @@ impl AddiEvent {
 }
 
 // Note: The addition is checked thanks to the ADD32 table.
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for ADD.
     ///
     /// Performs an ADD between two target addresses.
@@ -480,7 +480,7 @@ impl Event for SignedMulEvent {
 }
 
 // Note: The addition is checked thanks to the ADD32 table.
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for SLTU.
     ///
     /// Performs an SLTU between two target addresses.
@@ -493,7 +493,7 @@ define_b32_op_event!(
 );
 
 // Note: The addition is checked thanks to the ADD32 table.
-define_b32_op_event!(
+define_bin32_op_event!(
     /// Event for SLT.
     ///
     /// Performs an SLT between two signed target addresses.
@@ -505,7 +505,7 @@ define_b32_op_event!(
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32) < (b.val() as i32)) as u32)
 );
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for SLTIU.
     ///
     /// Performs an SLTIU between an unsigned target address and immediate.
@@ -517,7 +517,7 @@ define_b32_imm_op_event!(
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() < imm.val() as u32) as u32)
 );
 
-define_b32_imm_op_event!(
+define_bin32_imm_op_event!(
     /// Event for SLTI.
     ///
     /// Performs an SLTI between two target addresses.
@@ -529,7 +529,7 @@ define_b32_imm_op_event!(
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
 );
 
-define_b32_op_event!(
+define_bin32_op_event!(
     // Event for SUB.
     ///
     /// Performs a SUB between two target addresses.

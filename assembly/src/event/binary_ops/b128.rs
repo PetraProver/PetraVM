@@ -2,14 +2,14 @@ use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 
 use super::BinaryOperation;
 use crate::{
-    define_b128_op_event,
+    define_bin128_op_event,
     event::Event,
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
     },
 };
 
-define_b128_op_event!(
+define_bin128_op_event!(
     /// Event for 128_ADD.
     ///
     /// Performs a 128-bit binary field addition (XOR) between two target addresses.
@@ -20,7 +20,7 @@ define_b128_op_event!(
     +
 );
 
-define_b128_op_event!(
+define_bin128_op_event!(
     /// Event for B128_MUL.
     ///
     /// Performs a 128-bit binary field multiplication between two target addresses.
