@@ -169,7 +169,7 @@ mod test {
     use crate::{
         event::{
             ret::RetEvent,
-            test_utils::{vrom_slot, TestEnv},
+            test_utils::{vrom_set_value_at_offset, TestEnv},
         },
         memory::Memory,
         opcodes::Opcode,
@@ -290,13 +290,13 @@ mod test {
         vrom.set_u32(1, 0).unwrap(); // Return FP
 
         // Create source value slots
-        let src_pos = vrom_slot(&mut vrom, 2, 0x00000003);
-        let src_neg = vrom_slot(&mut vrom, 3, 0x80000000);
+        let src_pos = vrom_set_value_at_offset(&mut vrom, 2, 0x00000003);
+        let src_neg = vrom_set_value_at_offset(&mut vrom, 3, 0x80000000);
 
         // Create shift amount slots
-        let shift_zero = vrom_slot(&mut vrom, 4, 0);
-        let shift_normal = vrom_slot(&mut vrom, 5, 3);
-        let shift_32 = vrom_slot(&mut vrom, 6, 32);
+        let shift_zero = vrom_set_value_at_offset(&mut vrom, 4, 0);
+        let shift_normal = vrom_set_value_at_offset(&mut vrom, 5, 3);
+        let shift_32 = vrom_set_value_at_offset(&mut vrom, 6, 32);
 
         // Create destination slots
         let slli_result = BinaryField16b::new(10);
