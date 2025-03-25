@@ -223,6 +223,14 @@ impl ValueRom {
 
         Ok(())
     }
+
+    /// Helper method to set a value at the given VROM offset and returns a
+    /// [`BinaryField16b`] for that offset
+    #[cfg(test)]
+    pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> BinaryField16b {
+        self.set_u32(offset as u32, value).unwrap();
+        BinaryField16b::new(offset)
+    }
 }
 
 #[cfg(test)]

@@ -21,19 +21,7 @@ pub(crate) struct EventContext<'a> {
     pub field_pc: BinaryField32b,
 }
 
-impl<'a> EventContext<'a> {
-    #[cfg(test)]
-    /// Constructor method used for testing.
-    pub fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
-        use binius_field::Field;
-
-        Self {
-            interpreter,
-            trace,
-            field_pc: BinaryField32b::ONE,
-        }
-    }
-
+impl EventContext<'_> {
     // TODO: merge with #70 if it goes through
     /// Computes a VROM address from a provided offset, by scaling the frame
     /// pointer accordingly.
@@ -171,24 +159,38 @@ impl<'a> EventContext<'a> {
     ) -> Result<u32, InterpreterError> {
         self.interpreter.allocate_new_frame(self.trace, target)
     }
-
-    /// Helper to set a value in VROM, only used for testing.
-    #[cfg(test)]
-    pub fn set_vrom(&mut self, slot: u16, value: u32) {
-        self.trace.set_vrom_u32(self.addr(slot), value).unwrap();
-    }
 }
 
-impl<'a> Deref for EventContext<'a> {
+impl Deref for EventContext<'_> {
     type Target = Interpreter;
 
     fn deref(&self) -> &Self::Target {
-        &self.interpreter
+        self.interpreter
     }
 }
 
-impl<'a> DerefMut for EventContext<'a> {
+impl DerefMut for EventContext<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.interpreter
+        self.interpreter
+    }
+}
+
+// Additional helper methods used for testing.
+#[cfg(test)]
+impl<'a> EventContext<'a> {
+    /// Constructor.
+    pub fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
+        use binius_field::Field;
+
+        Self {
+            interpreter,
+            trace,
+            field_pc: BinaryField32b::ONE,
+        }
+    }
+
+    /// Helper method to set a value in VROM.
+    pub fn set_vrom(&mut self, slot: u16, value: u32) {
+        self.trace.set_vrom_u32(self.addr(slot), value).unwrap();
     }
 }

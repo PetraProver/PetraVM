@@ -345,7 +345,8 @@ test_integer_ops:
     ;;   SRAI dst, src, imm    (Shift Right Arithmetic Immediate)
     ;; 
     ;; DESCRIPTION:
-    ;;   Perform shift operations.
+    ;;   Perform shift operations. The effective shift amount is
+    ;;   determined by the last 5 bits of the shift operand.
     ;;   Logical shifts fill with zeros.
     ;;   Arithmetic right shift preserves the sign bit.
     ;;

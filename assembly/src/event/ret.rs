@@ -34,7 +34,7 @@ impl RetEvent {
     }
 
     pub fn generate_event(ctx: &mut EventContext) -> Result<Self, InterpreterError> {
-        let ret_event = RetEvent::new(&ctx);
+        let ret_event = RetEvent::new(ctx);
         let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
         ctx.jump_to(BinaryField32b::new(target));
         ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?;
