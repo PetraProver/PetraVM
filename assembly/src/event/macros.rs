@@ -41,7 +41,7 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
                 BinaryField32b::new(self.src_val)
             }
         }
-        impl $crate::event::binary_ops::RigthOp for $t {
+        impl $crate::event::binary_ops::RightOp for $t {
             type Right = $imm_field_ty;
 
             fn right(&self) -> $imm_field_ty {
@@ -67,7 +67,7 @@ macro_rules! impl_left_right_output_for_bin_op {
                 <$field_ty>::new(self.src1_val)
             }
         }
-        impl $crate::event::binary_ops::RigthOp for $t {
+        impl $crate::event::binary_ops::RightOp for $t {
             type Right = $field_ty;
             fn right(&self) -> $field_ty {
                 <$field_ty>::new(self.src2_val)
@@ -91,7 +91,7 @@ macro_rules! impl_event_for_binary_operation {
                 channels: &mut $crate::execution::InterpreterChannels,
                 _tables: &$crate::execution::InterpreterTables,
             ) {
-                use $crate::event::binary_ops::{LeftOp, OutputOp, RigthOp};
+                use $crate::event::binary_ops::{LeftOp, OutputOp, RightOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 $crate::fire_non_jump_event!(self, channels);
             }
@@ -317,7 +317,7 @@ macro_rules! define_bin128_op_event {
 
         impl Event for $name {
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-                use super::{LeftOp, OutputOp, RigthOp};
+                use super::{LeftOp, OutputOp, RightOp};
 
                 // Verify that the result is correct
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));

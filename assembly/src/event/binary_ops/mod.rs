@@ -7,7 +7,7 @@ use crate::{execution::InterpreterError, ZCrayTrace};
 pub(crate) mod b128;
 pub(crate) mod b32;
 
-pub(crate) trait BinaryOperation: Sized + LeftOp + RigthOp + OutputOp {
+pub(crate) trait BinaryOperation: Sized + LeftOp + RightOp + OutputOp {
     fn operation(left: Self::Left, right: Self::Right) -> Self::Output;
 }
 
@@ -17,7 +17,7 @@ pub(crate) trait LeftOp {
     fn left(&self) -> Self::Left;
 }
 
-pub(crate) trait RigthOp {
+pub(crate) trait RightOp {
     type Right;
 
     fn right(&self) -> Self::Right;
