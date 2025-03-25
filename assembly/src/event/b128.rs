@@ -84,7 +84,11 @@ macro_rules! define_b128_op_event {
         impl Event for $name {
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 use super::{LeftOp, OutputOp, RigthOp};
+
+                // Verify that the result is correct
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
+
+                // Update state channel
                 channels.state_channel.pull((self.pc, self.fp, self.timestamp));
                 channels
                     .state_channel
