@@ -177,15 +177,15 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(dst.val())?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u32(src.val())?;
+        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u32(offset.val(), src_val)?;
+            ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -220,9 +220,9 @@ impl MVVWEvent {
         let timestamp = ctx.timestamp;
         let pc = ctx.pc;
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(dst.val())?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u32(src.val())?;
+        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
@@ -247,7 +247,7 @@ impl MVVWEvent {
 
         ctx.incr_pc();
 
-        ctx.store_vrom_u32(offset.val(), src_val)?;
+        ctx.store_vrom_u32(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
             pc: ctx.field_pc,
@@ -317,15 +317,15 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(dst.val())?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u128(src.val())?;
+        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u128(offset.val(), src_val)?;
+            ctx.store_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -360,8 +360,8 @@ impl MVVLEvent {
         let timestamp = ctx.timestamp;
         let fp = ctx.fp;
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(dst.val())?;
-        let opt_src_val = ctx.load_vrom_opt_u128(src.val())?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
 
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
@@ -384,7 +384,7 @@ impl MVVLEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        ctx.store_vrom_u128(offset.val(), src_val)?;
+        ctx.store_vrom_u128(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
             pc: ctx.field_pc,
@@ -456,9 +456,9 @@ impl MVIHEvent {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = ctx.load_vrom_u32(dst.val())?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
 
-        ctx.store_vrom_u32(offset.val(), imm.val() as u32)?;
+        ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -481,12 +481,12 @@ impl MVIHEvent {
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(dst.val())?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            ctx.store_vrom_u32(offset.val(), imm.val() as u32)?;
+            ctx.store_vrom_u32(ctx.addr(offset.val()), imm.val() as u32)?;
             ctx.incr_pc();
 
             Ok(Some(Self {
@@ -547,7 +547,7 @@ impl LDIEvent {
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
 
-        ctx.store_vrom_u32(dst.val(), imm.val())?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
         ctx.incr_pc();
 
         Ok(Self {

@@ -110,7 +110,7 @@ impl B32MuliEvent {
         src: BinaryField16b,
         imm: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(src.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         debug_assert!(ctx.field_pc == G.pow(ctx.pc as u64 - 1));
         let event = Self::new(
@@ -123,7 +123,7 @@ impl B32MuliEvent {
             src_val,
             imm.val(),
         );
-        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
         // The instruction is over two rows in the PROM.
         ctx.incr_pc();
         ctx.incr_pc();

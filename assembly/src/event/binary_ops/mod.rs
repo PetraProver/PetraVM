@@ -51,7 +51,7 @@ pub(crate) trait ImmediateBinaryOperation:
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(src.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
             ctx.timestamp,
@@ -63,7 +63,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }
@@ -91,8 +91,8 @@ pub(crate) trait NonImmediateBinaryOperation:
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(src1.val())?;
-        let src2_val = ctx.load_vrom_u32(src2.val())?;
+        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
             ctx.timestamp,
@@ -105,7 +105,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }

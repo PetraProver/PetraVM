@@ -42,7 +42,7 @@ impl JumpvEvent {
         ctx: &mut EventContext,
         offset: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let target = ctx.load_vrom_u32(offset.val())?;
+        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
         let pc = ctx.pc;
         let fp = ctx.fp;

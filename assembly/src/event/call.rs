@@ -59,9 +59,9 @@ impl TailiEvent {
         next_fp: BinaryField16b,
         next_fp_val: u32,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = ctx.load_vrom_u32(0u32)?;
-        let old_fp_val = ctx.load_vrom_u32(1u32)?;
-        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
+        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
+        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
         ctx.handles_call_moves()?;
 
@@ -72,8 +72,8 @@ impl TailiEvent {
         ctx.fp = next_fp_val;
         ctx.jump_to(target);
 
-        ctx.store_vrom_u32(0u32, return_addr)?;
-        ctx.store_vrom_u32(1u32, old_fp_val)?;
+        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
         Ok(Self {
             pc: ctx.field_pc,
@@ -154,15 +154,15 @@ impl TailVEvent {
         offset: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = ctx.load_vrom_u32(0u32)?;
-        let old_fp_val = ctx.load_vrom_u32(1u32)?;
+        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
+        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = ctx.load_vrom_u32(offset.val())?;
+        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
         // Allocate a frame for the call and set the value of the next frame pointer.
         let next_fp_val = ctx.allocate_new_frame(target.into())?;
-        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
+        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
@@ -177,8 +177,8 @@ impl TailVEvent {
         // Jump to the target,
         ctx.jump_to(BinaryField32b::new(target));
 
-        ctx.store_vrom_u32(0u32, return_addr)?;
-        ctx.store_vrom_u32(1u32, old_fp_val)?;
+        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
         Ok(Self {
             pc: ctx.field_pc,
@@ -253,7 +253,7 @@ impl CalliEvent {
         next_fp: BinaryField16b,
         next_fp_val: u32,
     ) -> Result<Self, InterpreterError> {
-        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
+        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
         ctx.handles_call_moves()?;
 
@@ -265,8 +265,8 @@ impl CalliEvent {
         ctx.jump_to(target);
 
         let return_pc = (ctx.field_pc * G).val();
-        ctx.store_vrom_u32(0u32, return_pc)?;
-        ctx.store_vrom_u32(1u32, fp)?; // TODO(Robin): check offset?
+        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
 
         Ok(Self {
             pc: ctx.field_pc,
@@ -344,11 +344,11 @@ impl CallvEvent {
 
         // Get the target address, to which we should jump.
         let target_addr = ctx.addr(offset.val());
-        let target = ctx.load_vrom_u32(offset.val())?;
+        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
         // Allocate a frame for the call and set the value of the next frame pointer.
         let next_fp_val = ctx.allocate_new_frame(target.into())?;
-        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
+        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
@@ -364,8 +364,8 @@ impl CallvEvent {
         ctx.jump_to(BinaryField32b::new(target));
 
         let return_pc = (ctx.field_pc * G).val();
-        ctx.store_vrom_u32(0u32, return_pc)?;
-        ctx.store_vrom_u32(1u32, fp)?;
+        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
 
         Ok(Self {
             pc: ctx.field_pc,

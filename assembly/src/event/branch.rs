@@ -43,7 +43,7 @@ impl BnzEvent {
         cond: BinaryField16b,
         target: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let cond_val = ctx.load_vrom_u32(cond.val())?;
+        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
 
         if ctx.pc == 0 {
             return Err(InterpreterError::BadPc);
@@ -87,7 +87,7 @@ impl BzEvent {
         target: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
-        let cond_val = ctx.load_vrom_u32(cond.val())?;
+        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         let event = BzEvent {
             timestamp: ctx.timestamp,
             pc: ctx.field_pc,

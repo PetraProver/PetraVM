@@ -265,7 +265,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = ctx.load_vrom_u32(cond.val())?;
+        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         if cond_val != 0 {
             let new_bnz_event = BnzEvent::generate_event(ctx, cond, target)?;
             ctx.trace.bnz.push(new_bnz_event);

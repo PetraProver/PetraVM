@@ -27,48 +27,73 @@ impl<'a> EventContext<'a> {
     }
 
     // TODO: merge with #70 if it goes through
+    /// Computes a VROM address from a provided offset, by scaling the frame
+    /// pointer accordingly.
     pub fn addr(&self, offset: impl Into<u32>) -> u32 {
-        self.interpreter.fp ^ offset.into()
+        self.fp ^ offset.into()
     }
 
-    pub fn load_vrom_u32(&self, offset: impl Into<u32>) -> Result<u32, MemoryError> {
-        self.trace.get_vrom_u32(self.addr(offset))
+    /// Loads a `u32` value stored in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn load_vrom_u32(&self, address: u32) -> Result<u32, MemoryError> {
+        self.trace.get_vrom_u32(address)
     }
 
-    pub fn load_vrom_opt_u32(&self, offset: impl Into<u32>) -> Result<Option<u32>, MemoryError> {
-        self.trace.get_vrom_opt_u32(self.addr(offset))
+    /// Loads an optional `u32` value stored in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn load_vrom_opt_u32(&self, address: u32) -> Result<Option<u32>, MemoryError> {
+        self.trace.get_vrom_opt_u32(address)
     }
 
-    pub fn store_vrom_u32(
-        &mut self,
-        offset: impl Into<u32>,
-        value: u32,
-    ) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u32(self.addr(offset), value)
+    /// Stores a `u32` value in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn store_vrom_u32(&mut self, address: u32, value: u32) -> Result<(), MemoryError> {
+        self.trace.set_vrom_u32(address, value)
     }
 
-    pub fn store_vrom_u64(
-        &mut self,
-        offset: impl Into<u32>,
-        value: u64,
-    ) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u64(self.addr(offset), value)
+    /// Stores a `u64` value in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn store_vrom_u64(&mut self, address: u32, value: u64) -> Result<(), MemoryError> {
+        self.trace.set_vrom_u64(address, value)
     }
 
-    pub fn load_vrom_u128(&self, offset: impl Into<u32>) -> Result<u128, MemoryError> {
-        self.trace.get_vrom_u128(self.addr(offset))
+    /// Loads a `u128` value stored in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn load_vrom_u128(&self, address: u32) -> Result<u128, MemoryError> {
+        self.trace.get_vrom_u128(address)
     }
 
-    pub fn load_vrom_opt_u128(&self, offset: impl Into<u32>) -> Result<Option<u128>, MemoryError> {
-        self.trace.get_vrom_opt_u128(self.addr(offset))
+    /// Loads an optional `u128` value stored in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn load_vrom_opt_u128(&self, address: u32) -> Result<Option<u128>, MemoryError> {
+        self.trace.get_vrom_opt_u128(address)
     }
 
-    pub fn store_vrom_u128(
-        &mut self,
-        offset: impl Into<u32>,
-        value: u128,
-    ) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u128(self.addr(offset), value)
+    /// Stores a `u128` value in VROM at the provided address.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub fn store_vrom_u128(&mut self, address: u32, value: u128) -> Result<(), MemoryError> {
+        self.trace.set_vrom_u128(address, value)
     }
 
     pub fn incr_pc(&mut self) {
@@ -142,7 +167,7 @@ impl<'a> EventContext<'a> {
         self.interpreter.allocate_new_frame(self.trace, target)
     }
 
-    /// Helper to set a value in VROM
+    /// Helper to set a value in VROM, only used for testing.
     #[cfg(test)]
     pub fn set_vrom(&mut self, slot: u16, value: u32) {
         self.trace.set_vrom_u32(self.addr(slot), value).unwrap();

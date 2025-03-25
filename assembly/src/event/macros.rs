@@ -278,8 +278,8 @@ macro_rules! define_bin128_op_event {
                 let fp = ctx.fp;
 
                 // Get source values
-                let src1_val = ctx.load_vrom_u128(src1.val())?;
-                let src2_val = ctx.load_vrom_u128(src2.val())?;
+                let src1_val = ctx.load_vrom_u128(ctx.addr(src1.val()))?;
+                let src2_val = ctx.load_vrom_u128(ctx.addr(src2.val()))?;
 
                 // Binary field operation
                 let src1_bf = BinaryField128b::new(src1_val);
@@ -288,7 +288,7 @@ macro_rules! define_bin128_op_event {
                 let dst_val = dst_bf.val();
 
                 // Store result
-                ctx.store_vrom_u128(dst.val(), dst_val)?;
+                ctx.store_vrom_u128(ctx.addr(dst.val()), dst_val)?;
 
                 let pc = ctx.pc;
                 let timestamp = ctx.timestamp;

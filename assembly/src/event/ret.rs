@@ -28,16 +28,16 @@ impl RetEvent {
             pc: ctx.field_pc,
             fp,
             timestamp: ctx.timestamp,
-            fp_0_val: ctx.load_vrom_u32(0u32)?,
-            fp_1_val: ctx.load_vrom_u32(1u32)?,
+            fp_0_val: ctx.load_vrom_u32(ctx.addr(0u32))?,
+            fp_1_val: ctx.load_vrom_u32(ctx.addr(1u32))?,
         })
     }
 
     pub fn generate_event(ctx: &mut EventContext) -> Result<Self, InterpreterError> {
         let ret_event = RetEvent::new(&ctx);
-        let target = ctx.load_vrom_u32(0u32)?;
+        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
         ctx.jump_to(BinaryField32b::new(target));
-        ctx.fp = ctx.load_vrom_u32(1u32)?;
+        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?;
 
         ret_event
     }

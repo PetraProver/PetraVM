@@ -100,12 +100,12 @@ impl ShiftEvent {
         imm: BinaryField16b,
         op: ShiftOperation,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(src.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
         let timestamp = ctx.timestamp;
-        ctx.store_vrom_u32(dst.val(), new_val)?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -132,12 +132,12 @@ impl ShiftEvent {
         src2: BinaryField16b,
         op: ShiftOperation,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(src1.val())?;
-        let shift_amount = ctx.load_vrom_u32(src2.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
         let timestamp = ctx.timestamp;
-        ctx.store_vrom_u32(dst.val(), new_val)?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(

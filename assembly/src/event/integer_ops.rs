@@ -85,10 +85,10 @@ impl AddiEvent {
         imm: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
-        let src_val = ctx.load_vrom_u32(src.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = AddiEvent::operation(src_val.into(), imm).val();
-        ctx.store_vrom_u32(dst.val(), dst_val)?;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
 
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
@@ -165,12 +165,12 @@ impl MuliEvent {
         imm: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
-        let src_val = ctx.load_vrom_u32(src.val())?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64; // TODO: shouldn't the result be u64, stored over two slots?
 
-        ctx.store_vrom_u64(dst.val(), dst_val)?;
+        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
@@ -260,12 +260,12 @@ impl MuluEvent {
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
-        let src1_val = ctx.load_vrom_u32(src1.val())?;
-        let src2_val = ctx.load_vrom_u32(src2.val())?;
+        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64); // TODO: shouldn't the result be u64, stored over two slots?
 
-        ctx.store_vrom_u64(dst.val(), dst_val)?;
+        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
@@ -428,12 +428,12 @@ impl SignedMulEvent {
         kind: SignedMulKind,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
-        let src1_val = ctx.load_vrom_u32(src1.val())?;
-        let src2_val = ctx.load_vrom_u32(src2.val())?;
+        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
         let dst_val = Self::multiplication(src1_val, src2_val, &kind);
 
-        ctx.store_vrom_u64(dst.val(), dst_val)?;
+        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
