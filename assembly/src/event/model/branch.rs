@@ -28,7 +28,7 @@ pub(crate) struct BnzEvent {
 
 impl Event for BnzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_ne!(self.cond, 0);
+        assert_ne!(self.cond_val, 0);
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));

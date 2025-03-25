@@ -25,7 +25,8 @@ use crate::opcodes::Opcode;
 pub(crate) struct BnzTable {
     id: TableId,
     cpu_cols: CpuColumns,
-    cond_val: Col<B32>, // Constant
+    cond_val: Col<B32>,  // Constant
+    vrom_push: Col<B64>, // Virtual;
 }
 
 impl BnzTable {
@@ -76,6 +77,7 @@ impl BnzTable {
             id: table.id(),
             cpu_cols,
             cond_val,
+            vrom_push: cond_cond_val,
         }
     }
 }
@@ -95,14 +97,19 @@ where
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        for (i, event) in rows.clone().enumerate() {
+        {
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
-            cond_val[i] = event.cond_val;
+            let mut cond_cond_val = witness.get_mut_as(self.vrom_push)?;
+            for (i, event) in rows.clone().enumerate() {
+                cond_val[i] = event.cond_val;
+                cond_cond_val[i] = (event.cond as u64) << 32 | event.cond_val as u64;
+            }
         }
         let cpu_rows = rows.map(|event| CpuRow {
             pc: event.pc.val(),
-            next_pc: None,
+            next_pc: Some((event.target_high.val() as u32) << 16 | event.target_low.val() as u32),
             fp: event.fp,
+            next_fp: None,
             instruction: Instruction {
                 opcode: Opcode::Bnz,
                 arg0: event.cond,
@@ -172,6 +179,7 @@ where
             pc: event.pc.val(),
             next_pc: None,
             fp: event.fp,
+            next_fp: None,
             instruction: Instruction {
                 opcode: Opcode::Bnz,
                 ..Default::default()
@@ -184,7 +192,7 @@ where
 pub mod test {
     use std::collections::HashMap;
 
-    use binius_field::{arch::OptimalUnderlier128b, BinaryField, Field};
+    use binius_field::{arch::OptimalUnderlier128b, BinaryField, ExtensionField, Field};
     use binius_m3::builder::{
         Boundary, ConstraintSystem, FlushDirection, Statement, B128, B16, B32,
     };
@@ -202,11 +210,22 @@ pub mod test {
         let mut cs = ConstraintSystem::new();
         let zcray_table = ZCrayTable::new(&mut cs);
 
-        let zero = B16::ZERO;
-        // TODO: This is a Ret!!!
+        let generator_low = B16::new((B32::MULTIPLICATIVE_GENERATOR.val() & 0xFFFF) as u16);
+        let generator_high = B16::new((B32::MULTIPLICATIVE_GENERATOR.val() >> 16) as u16);
+        assert_eq!(
+            B32::from_bases([generator_low, generator_high]).unwrap(),
+            B32::MULTIPLICATIVE_GENERATOR
+        );
         let code = vec![
-            [Opcode::Bnz.get_field_elt(), zero, zero, zero],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+            // Jumps to the next line because there's a 1 at address 0x1, and the next
+            // line is at B32::MULTIPLICATIVE_GENERATOR.
+            [
+                Opcode::Bnz.get_field_elt(),
+                B16::ONE,
+                generator_low,
+                generator_high,
+            ],
+            [Opcode::Ret.get_field_elt(), B16::ZERO, B16::ZERO, B16::ZERO],
         ];
         let prom = code_to_prom(&code);
         let vrom = ValueRom::new(HashMap::new());
@@ -214,9 +233,17 @@ pub mod test {
         let mut frames = HashMap::new();
         frames.insert(B32::ONE, 12);
 
-        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
-        let (trace, boundary_values) =
-            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
+        // The memory contains two values a addresses 0x0 and 0x1, 0 which is the value
+        // of next_pc, and 1 which is the predicate in BNZ as well as next_fp in
+        // RET.
+        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 1]));
+
+        let (trace, boundary_values) = ZCrayTrace::generate(
+            memory,
+            frames,
+            [(B32::ONE, 1), (B32::MULTIPLICATIVE_GENERATOR, 2)].into(),
+        )
+        .expect("Ouch!");
 
         let BoundaryValues {
             final_pc,
@@ -307,78 +334,54 @@ pub mod test {
         Statement {
             boundaries: vec![
                 Boundary {
-                    values: vec![B128::ONE, B128::new(0), B128::new(0)], /* inital_pc = 0,
-                                                                          * inital_fp = 0,
-                                                                          * initial_timestamp
-                                                                          * = 0 */
+                    // first_pc = 1, first_fp = 0
+                    //                                       |..pc..||..fp..|
+                    values: vec![B128::new(0x00000000000000000000000100000000)],
                     channel_id: zcray_table.state_channel,
                     direction: FlushDirection::Push,
                     multiplicity: 1,
                 },
                 Boundary {
-                    values: vec![
-                        B128::new(final_pc.val() as u128),
-                        B128::new(final_fp as u128),
-                        B128::new(final_timestamp as u128),
-                    ],
+                    values: vec![B128::new((final_pc.val() as u128) << 32 | final_fp as u128)],
                     channel_id: zcray_table.state_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 // For now we add the prom here
                 Boundary {
-                    values: vec![
-                        B128::ONE,
-                        B128::new((Opcode::Add as u16).into()),
-                        0.into(),
-                        0.into(),
-                        0.into(),
-                    ],
+                    values: vec![B128::new(
+                        1 << 64
+                            | Opcode::Bnz as u128
+                            | 1 << 16
+                            | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 & 0xFFFF) << 32
+                            | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 >> 16) << 48,
+                    )],
                     channel_id: zcray_table.prom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 Boundary {
-                    values: vec![
-                        B32::MULTIPLICATIVE_GENERATOR.into(),
-                        B128::new((Opcode::Ret as u16).into()),
-                        0.into(),
-                        0.into(),
-                        0.into(),
-                    ],
+                    values: vec![B128::new(
+                        (B32::MULTIPLICATIVE_GENERATOR.val() as u128) << 64 | Opcode::Ret as u128,
+                    )],
                     channel_id: zcray_table.prom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,
                 },
                 // For now we add the vrom here
-                // Read src1 and src2 from ADD
+                // Read next_pc in RET
                 Boundary {
-                    values: vec![B128::ZERO, B128::ZERO, B128::ZERO],
+                    values: vec![B128::ZERO],
+                    channel_id: zcray_table.vrom_channel,
+                    direction: FlushDirection::Pull,
+                    multiplicity: 1,
+                },
+                //Read cond_val in BNZ and fp^1 in RET
+                Boundary {
+                    values: vec![B128::new(1 << 32 | 1)],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 2,
-                },
-                // Write dst from ADD
-                // table.push(vrom_channel, [timestamp, upcast_col(dst), dst_val_packed]);
-                Boundary {
-                    values: vec![B128::ONE, B128::ZERO, B128::ZERO],
-                    channel_id: zcray_table.vrom_channel,
-                    direction: FlushDirection::Pull,
-                    multiplicity: 1,
-                },
-                // Read the next_pc from RET
-                Boundary {
-                    values: vec![B128::ONE, B128::ZERO, B128::ZERO],
-                    channel_id: zcray_table.vrom_channel,
-                    direction: FlushDirection::Pull,
-                    multiplicity: 1,
-                },
-                //Read the next_fp
-                Boundary {
-                    values: vec![B128::ONE, B128::ONE, B128::ZERO],
-                    channel_id: zcray_table.vrom_channel,
-                    direction: FlushDirection::Pull,
-                    multiplicity: 1,
                 },
             ],
             table_sizes, // TODO: What should be here?

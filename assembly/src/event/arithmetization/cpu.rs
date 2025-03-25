@@ -48,6 +48,7 @@ pub(crate) struct CpuRow {
     // NextPc::Target(target)
     pub(crate) next_pc: Option<u32>,
     pub(crate) fp: u32,
+    pub(crate) next_fp: Option<u32>,
     pub(crate) instruction: Instruction,
 }
 
@@ -104,19 +105,19 @@ impl CpuColumns {
                 .expect("limbs has length 2")
         };
 
-        let next_pc;
-        match options.next_pc {
+        let next_pc = match options.next_pc {
             NextPc::Increment => {
-                next_pc =
-                    table.add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into());
+                table.add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into())
             }
-            NextPc::Target(target) => {
-                next_pc = target;
-            }
+            NextPc::Target(target) => target,
             NextPc::Immediate => {
-                next_pc =
-                    table.add_computed("nex_pc", pack_b16_into_b32([arg1.into(), arg2.into()]));
+                table.add_computed("next_pc", pack_b16_into_b32([arg1.into(), arg2.into()]))
             }
+        };
+
+        let next_fp = match options.next_fp {
+            Some(next_fp) => next_fp,
+            None => fp.clone(),
         };
 
         let pc_instruction = move |pc: Expr<B32, 1>, instruction: [Expr<B16, 1>; 4]| {
@@ -129,7 +130,9 @@ impl CpuColumns {
                 .reduce(|a, b| a + b)
                 .expect("instruction has length 4");
             pc * b128_basis[1] + upcast_expr(instruction_64) * b128_basis[0]
-        }; // 0x00000000000000010008000000000000
+        };
+
+        // Push the current pc and instruction to the prom channel
         let prom_push = table.add_computed(
             "prom_push",
             pc_instruction(
@@ -139,7 +142,7 @@ impl CpuColumns {
         );
         table.push(prom_channel, [prom_push]);
 
-        // Flushing rules for the state channel
+        // Pull/Push the current/next pc and fp from from/to the state channel
         let state_pull =
             table.add_computed("state_pull", pack_b32_into_b64([fp.into(), pc.into()]));
         table.pull(state_channel, [state_pull]);
@@ -182,6 +185,7 @@ impl CpuColumns {
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
         let mut next_pc_col = index.get_mut_as(self.next_pc)?;
+
         let mut opcode_col = index.get_mut_as(self.opcode)?;
 
         let mut arg0_col = index.get_mut_as(self.arg0)?;
@@ -198,6 +202,7 @@ impl CpuColumns {
                 pc,
                 next_pc,
                 fp,
+                next_fp,
                 instruction:
                     Instruction {
                         opcode,
@@ -211,18 +216,16 @@ impl CpuColumns {
             pc_col[i] = pc;
             fp_col[i] = fp;
             opcode_col[i] = opcode as u16;
-            println!("opcode_col[i] = {:?}", opcode_col[i]);
             arg0_col[i] = arg0;
             arg1_col[i] = arg1;
             arg2_col[i] = arg2;
 
-            // println!("next_pc = {:?}", next_pc);
             next_pc_col[i] = match self.options.next_pc {
                 NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
                 NextPc::Target(target) => {
                     next_pc.expect("next_pc must be Some when NextPc::Target")
                 }
-                NextPc::Immediate => (arg1 as u32) << 16 | arg2 as u32,
+                NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,
             };
 
             prom_push[i] = (pc as u128) << 64
@@ -230,8 +233,16 @@ impl CpuColumns {
                 | (arg0 as u128) << 16
                 | (arg1 as u128) << 32
                 | (arg2 as u128) << 48;
-            state_push[i] = (next_pc_col[i] as u64) << 32 | fp as u64;
+
+            let next_fp = if let Some(next_fp) = next_fp {
+                next_fp
+            } else {
+                fp
+            };
+            state_push[i] = (next_pc_col[i] as u64) << 32 | next_fp as u64;
             state_pull[i] = (pc as u64) << 32 | fp as u64;
+
+            println!("next_pc = {:?}, next_fp = {:?}", next_pc, next_fp);
 
             println!(
                 "pc = {:?}, opcode = {:?}, arg0 = {:?}, arg1 = {:?}, arg2 = {:?}",

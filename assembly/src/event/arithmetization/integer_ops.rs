@@ -166,6 +166,7 @@ where
         let cpu_rows = rows.clone().map(|event| CpuRow {
             pc: event.pc.into(),
             next_pc: None,
+            next_fp: None,
             fp: event.fp,
             instruction: Instruction {
                 opcode: Opcode::Add,
@@ -257,6 +258,7 @@ where
             pc: event.pc.into(),
             next_pc: None,
             fp: event.fp,
+            next_fp: None,
             instruction: Instruction {
                 opcode: Opcode::Addi,
                 arg0: event.dst,
