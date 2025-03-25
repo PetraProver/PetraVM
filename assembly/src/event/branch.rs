@@ -1,6 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use super::Event;
+use super::{context::EventContext, Event};
 use crate::{
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
@@ -39,27 +39,25 @@ impl Event for BnzEvent {
 
 impl BnzEvent {
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         cond: BinaryField16b,
         target: BinaryField32b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let cond_val = trace.get_vrom_u32(interpreter.fp ^ cond.val() as u32)?;
+        let cond_val = ctx.load_vrom_u32(cond.val())?;
 
-        if interpreter.pc == 0 {
+        if ctx.pc == 0 {
             return Err(InterpreterError::BadPc);
         }
 
         let event = BnzEvent {
-            timestamp: interpreter.timestamp,
-            pc: field_pc,
-            fp: interpreter.fp,
+            timestamp: ctx.timestamp,
+            pc: ctx.field_pc,
+            fp: ctx.fp,
             cond: cond.val(),
             con_val: cond_val,
             target,
         };
-        interpreter.jump_to(target);
+        ctx.jump_to(target);
         Ok(event)
     }
 }
@@ -84,23 +82,21 @@ impl Event for BzEvent {
 
 impl BzEvent {
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         cond: BinaryField16b,
         target: BinaryField32b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let fp = interpreter.fp;
-        let cond_val = trace.get_vrom_u32(fp ^ cond.val() as u32)?;
+        let fp = ctx.fp;
+        let cond_val = ctx.load_vrom_u32(cond.val())?;
         let event = BzEvent {
-            timestamp: interpreter.timestamp,
-            pc: field_pc,
+            timestamp: ctx.timestamp,
+            pc: ctx.field_pc,
             fp,
             cond: cond.val(),
             cond_val,
             target,
         };
-        interpreter.incr_pc();
+        ctx.incr_pc();
         Ok(event)
     }
 }

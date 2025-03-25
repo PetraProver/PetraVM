@@ -1,6 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use super::Event;
+use super::{context::EventContext, Event};
 use crate::{
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     ZCrayTrace,
@@ -39,21 +39,19 @@ impl JumpvEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let target = trace.get_vrom_u32(interpreter.fp ^ offset.val() as u32)?;
+        let target = ctx.load_vrom_u32(offset.val())?;
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.jump_to(target.into());
+        ctx.jump_to(target.into());
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             offset: offset.val(),
@@ -100,19 +98,17 @@ impl JumpiEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         target: BinaryField32b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.jump_to(target);
+        ctx.jump_to(target);
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             target,

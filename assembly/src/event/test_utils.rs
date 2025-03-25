@@ -7,6 +7,7 @@ use crate::{
     memory::{Memory, ProgramRom, ValueRom},
 };
 
+// TODO: Remove in favor of EventContext
 /// Test environment for simplified instruction testing
 pub struct TestEnv {
     pub interpreter: Interpreter,

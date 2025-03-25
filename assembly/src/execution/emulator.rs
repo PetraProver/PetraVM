@@ -19,6 +19,7 @@ use crate::{
         binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+        context::EventContext,
         integer_ops::{
             Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
             SignedMulKind, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
@@ -48,7 +49,7 @@ pub struct InterpreterTables {
 
 // TODO: Add some structured execution tracing
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
     /// PC (which starts at `BinaryField32b::ONE` and iterate over the
@@ -69,6 +70,19 @@ pub(crate) struct Interpreter {
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
     pc_field_to_int: HashMap<BinaryField32b, u32>,
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self {
+            pc: 1, // default starting value for PC
+            fp: 0,
+            timestamp: 0,
+            frames: HashMap::new(),
+            pc_field_to_int: HashMap::new(),
+            moves_to_apply: vec![],
+        }
+    }
 }
 
 /// An `Instruction` is composed of an opcode and up to three 16-bit arguments
@@ -149,64 +163,6 @@ impl Interpreter {
         }
     }
 
-    /// This method should only be called once the frame pointer has been
-    /// allocated. It is used to generate events -- whenever possible --
-    /// once the next_fp has been set by the allocator. When it is not yet
-    /// possible to generate the MOVE event (because we are dealing with a
-    /// return value that has not yet been set), we add the move information to
-    /// the trace's `pending_updates`, so that it can be generated later on.
-    pub(crate) fn handles_call_moves(
-        &mut self,
-        trace: &mut ZCrayTrace,
-    ) -> Result<(), InterpreterError> {
-        for mv_info in &self.moves_to_apply.clone() {
-            match mv_info.mv_kind {
-                MVKind::Mvvw => {
-                    let opt_event = MVVWEvent::generate_event_from_info(
-                        trace,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        trace.mvvw.push(event);
-                    }
-                }
-                MVKind::Mvvl => {
-                    let opt_event = MVVLEvent::generate_event_from_info(
-                        trace,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        trace.mvvl.push(event);
-                    }
-                }
-                MVKind::Mvih => {
-                    let event = MVIHEvent::generate_event_from_info(
-                        trace,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    trace.mvih.push(event);
-                }
-            }
-        }
-        self.moves_to_apply = vec![];
-        Ok(())
-    }
-
     #[inline(always)]
     pub(crate) const fn is_halted(&self) -> bool {
         self.pc == 0 // The real PC should be 0, which is outside of the
@@ -248,46 +204,53 @@ impl Interpreter {
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
         trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
+
+        let mut ctx = EventContext {
+            interpreter: self,
+            trace,
+            field_pc,
+        };
+
         match opcode {
-            Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Jumpi => self.generate_jumpi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Jumpv => self.generate_jumpv(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Xori => self.generate_xori(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Xor => self.generate_xor(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Slli => self.generate_slli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Srli => self.generate_srli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Srai => self.generate_srai(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Sll => self.generate_sll(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Srl => self.generate_srl(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Sra => self.generate_sra(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Addi => self.generate_addi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Add => self.generate_add(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Sub => self.generate_sub(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Slt => self.generate_slt(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Slti => self.generate_slti(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Sltu => self.generate_sltu(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Sltiu => self.generate_sltiu(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Muli => self.generate_muli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mulu => self.generate_mulu(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mulsu => self.generate_mulsu(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mul => self.generate_mul(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Ret => self.generate_ret(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Taili => self.generate_taili(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Tailv => self.generate_tailv(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Calli => self.generate_calli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Callv => self.generate_callv(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::And => self.generate_and(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Andi => self.generate_andi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Or => self.generate_or(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Ori => self.generate_ori(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mvih => self.generate_mvih(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mvvw => self.generate_mvvw(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Mvvl => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::Ldi => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
-            Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::Bnz => Self::generate_bnz(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Jumpi => Self::generate_jumpi(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Jumpv => Self::generate_jumpv(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Xori => Self::generate_xori(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Xor => Self::generate_xor(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slli => Self::generate_slli(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srli => Self::generate_srli(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srai => Self::generate_srai(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sll => Self::generate_sll(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srl => Self::generate_srl(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sra => Self::generate_sra(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Addi => Self::generate_addi(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Add => Self::generate_add(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sub => Self::generate_sub(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slt => Self::generate_slt(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slti => Self::generate_slti(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sltu => Self::generate_sltu(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sltiu => Self::generate_sltiu(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Muli => Self::generate_muli(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mulu => Self::generate_mulu(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mulsu => Self::generate_mulsu(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mul => Self::generate_mul(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ret => Self::generate_ret(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Taili => Self::generate_taili(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Tailv => Self::generate_tailv(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Calli => Self::generate_calli(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Callv => Self::generate_callv(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::And => Self::generate_and(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Andi => Self::generate_andi(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Or => Self::generate_or(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ori => Self::generate_ori(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvih => Self::generate_mvih(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvvw => Self::generate_mvvw(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvvl => Self::generate_mvvl(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ldi => Self::generate_ldi(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B32Mul => Self::generate_b32_mul(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B32Muli => Self::generate_b32_muli(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B128Add => Self::generate_b128_add(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B128Mul => Self::generate_b128_mul(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
         self.timestamp += 1;
@@ -295,550 +258,425 @@ impl Interpreter {
     }
 
     fn generate_bnz(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         cond: BinaryField16b,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let cond_val = trace.get_vrom_u32(self.fp ^ cond.val() as u32)?;
+        let cond_val = ctx.load_vrom_u32(cond.val())?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(self, trace, cond, target, field_pc)?;
-            trace.bnz.push(new_bnz_event);
+            let new_bnz_event = BnzEvent::generate_event(ctx, cond, target)?;
+            ctx.trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
-            trace.bz.push(new_bz_event);
+            let new_bz_event = BzEvent::generate_event(ctx, cond, target)?;
+            ctx.trace.bz.push(new_bz_event);
         }
 
         Ok(())
     }
 
     fn generate_jumpi(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_jumpi_event = JumpiEvent::generate_event(self, trace, target, field_pc)?;
-        trace.jumpi.push(new_jumpi_event);
+        let new_jumpi_event = JumpiEvent::generate_event(ctx, target)?;
+        ctx.trace.jumpi.push(new_jumpi_event);
 
         Ok(())
     }
 
     fn generate_jumpv(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
         _: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_jumpv_event = JumpvEvent::generate_event(self, trace, offset, field_pc)?;
-        trace.jumpv.push(new_jumpv_event);
+        let new_jumpv_event = JumpvEvent::generate_event(ctx, offset)?;
+        ctx.trace.jumpv.push(new_jumpv_event);
 
         Ok(())
     }
 
     fn generate_xori(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xori_event = XoriEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.xori.push(new_xori_event);
+        let new_xori_event = XoriEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.xori.push(new_xori_event);
 
         Ok(())
     }
 
     fn generate_xor(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xor_event = XorEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.xor.push(new_xor_event);
+        let new_xor_event = XorEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.xor.push(new_xor_event);
 
         Ok(())
     }
 
     fn generate_ret(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         _: BinaryField16b,
         _: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate_event(self, trace, field_pc)?;
-        trace.ret.push(new_ret_event);
+        let new_ret_event = RetEvent::generate_event(ctx)?;
+        ctx.trace.ret.push(new_ret_event);
 
         Ok(())
     }
 
     fn generate_slli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::generate_immediate_event(
-            self,
-            trace,
-            dst,
-            src,
-            imm,
-            ShiftOperation::LogicalLeft,
-            field_pc,
-        )?;
-        trace.shifts.push(new_shift_event);
+        let new_shift_event =
+            ShiftEvent::generate_immediate_event(ctx, dst, src, imm, ShiftOperation::LogicalLeft)?;
+        ctx.trace.shifts.push(new_shift_event);
         Ok(())
     }
 
     fn generate_srli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::generate_immediate_event(
-            self,
-            trace,
-            dst,
-            src,
-            imm,
-            ShiftOperation::LogicalRight,
-            field_pc,
-        )?;
-        trace.shifts.push(new_shift_event);
+        let new_shift_event =
+            ShiftEvent::generate_immediate_event(ctx, dst, src, imm, ShiftOperation::LogicalRight)?;
+        ctx.trace.shifts.push(new_shift_event);
         Ok(())
     }
 
     fn generate_srai(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event = ShiftEvent::generate_immediate_event(
-            self,
-            trace,
+            ctx,
             dst,
             src,
             imm,
             ShiftOperation::ArithmeticRight,
-            field_pc,
         )?;
-        trace.shifts.push(new_shift_event);
+        ctx.trace.shifts.push(new_shift_event);
         Ok(())
     }
 
     fn generate_sll(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::generate_vrom_event(
-            self,
-            trace,
-            dst,
-            src1,
-            src2,
-            ShiftOperation::LogicalLeft,
-            field_pc,
-        )?;
-        trace.shifts.push(new_shift_event);
+        let new_shift_event =
+            ShiftEvent::generate_vrom_event(ctx, dst, src1, src2, ShiftOperation::LogicalLeft)?;
+        ctx.trace.shifts.push(new_shift_event);
         Ok(())
     }
 
     fn generate_srl(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::generate_vrom_event(
-            self,
-            trace,
-            dst,
-            src1,
-            src2,
-            ShiftOperation::LogicalRight,
-            field_pc,
-        )?;
-        trace.shifts.push(new_shift_event);
+        let new_shift_event =
+            ShiftEvent::generate_vrom_event(ctx, dst, src1, src2, ShiftOperation::LogicalRight)?;
+        ctx.trace.shifts.push(new_shift_event);
         Ok(())
     }
 
     fn generate_sra(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::generate_vrom_event(
-            self,
-            trace,
-            dst,
-            src1,
-            src2,
-            ShiftOperation::ArithmeticRight,
-            field_pc,
-        )?;
-        trace.shifts.push(new_shift_event);
+        let new_shift_event =
+            ShiftEvent::generate_vrom_event(ctx, dst, src1, src2, ShiftOperation::ArithmeticRight)?;
+        ctx.trace.shifts.push(new_shift_event);
 
         Ok(())
     }
 
     fn generate_tailv(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_tailv_event = TailVEvent::generate_event(self, trace, offset, next_fp, field_pc)?;
-        trace.tailv.push(new_tailv_event);
+        let new_tailv_event = TailVEvent::generate_event(ctx, offset, next_fp)?;
+        ctx.trace.tailv.push(new_tailv_event);
 
         Ok(())
     }
 
     fn generate_taili(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = self.allocate_new_frame(trace, target)?;
-        let new_taili_event =
-            TailiEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
-        trace.taili.push(new_taili_event);
+        let next_fp_val = ctx.allocate_new_frame(target)?;
+        let new_taili_event = TailiEvent::generate_event(ctx, target, next_fp, next_fp_val)?;
+        ctx.trace.taili.push(new_taili_event);
 
         Ok(())
     }
 
     fn generate_calli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = self.allocate_new_frame(trace, target)?;
-        let new_calli_event =
-            CalliEvent::generate_event(self, trace, target, next_fp, next_fp_val, field_pc)?;
-        trace.calli.push(new_calli_event);
+        let next_fp_val = ctx.allocate_new_frame(target)?;
+        let new_calli_event = CalliEvent::generate_event(ctx, target, next_fp, next_fp_val)?;
+        ctx.trace.calli.push(new_calli_event);
 
         Ok(())
     }
 
     fn generate_callv(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
         _: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_callv_event = CallvEvent::generate_event(self, trace, offset, next_fp, field_pc)?;
-        trace.callv.push(new_callv_event);
+        let new_callv_event = CallvEvent::generate_event(ctx, offset, next_fp)?;
+        ctx.trace.callv.push(new_callv_event);
 
         Ok(())
     }
 
     fn generate_and(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_and_event = AndEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.and.push(new_and_event);
+        let new_and_event = AndEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.and.push(new_and_event);
 
         Ok(())
     }
 
     fn generate_andi(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_andi_event = AndiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.andi.push(new_andi_event);
+        let new_andi_event = AndiEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.andi.push(new_andi_event);
 
         Ok(())
     }
 
     fn generate_sub(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sub_event = SubEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.sub.push(new_sub_event);
+        let new_sub_event = SubEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.sub.push(new_sub_event);
 
         Ok(())
     }
 
     fn generate_slt(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slt_event = SltEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.slt.push(new_slt_event);
+        let new_slt_event = SltEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.slt.push(new_slt_event);
 
         Ok(())
     }
 
     fn generate_slti(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slti_event = SltiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.slti.push(new_slti_event);
+        let new_slti_event = SltiEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.slti.push(new_slti_event);
 
         Ok(())
     }
 
     fn generate_sltu(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltu_event = SltuEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.sltu.push(new_sltu_event);
+        let new_sltu_event = SltuEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.sltu.push(new_sltu_event);
 
         Ok(())
     }
 
     fn generate_sltiu(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltiu_event = SltiuEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.sltiu.push(new_sltiu_event);
+        let new_sltiu_event = SltiuEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.sltiu.push(new_sltiu_event);
 
         Ok(())
     }
 
     fn generate_or(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_or_event = OrEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.or.push(new_or_event);
+        let new_or_event = OrEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.or.push(new_or_event);
 
         Ok(())
     }
 
     fn generate_ori(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ori_event = OriEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.ori.push(new_ori_event);
+        let new_ori_event = OriEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.ori.push(new_ori_event);
 
         Ok(())
     }
 
     fn generate_muli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_muli_event = MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        let new_muli_event = MuliEvent::generate_event(ctx, dst, src, imm)?;
 
-        trace.muli.push(new_muli_event);
+        ctx.trace.muli.push(new_muli_event);
 
         Ok(())
     }
 
     fn generate_mulu(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mulu_event = MuluEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
+        let new_mulu_event = MuluEvent::generate_event(ctx, dst, src1, src2)?;
         let aux = new_mulu_event.aux;
         let aux_sums = new_mulu_event.aux_sums;
         let cum_sums = new_mulu_event.cum_sums;
 
         // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
         for i in 0..aux.len() / 2 {
-            trace.add64.push(Add64Event::generate_event(
-                self,
-                aux[2 * i] as u64,
-                (aux[2 * i + 1] as u64) << 8,
-            ));
+            let new_add64_event =
+                Add64Event::generate_event(ctx, aux[2 * i] as u64, (aux[2 * i + 1] as u64) << 8);
+            ctx.trace.add64.push(new_add64_event);
         }
         // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
         // Check the first element.
-        trace.add64.push(Add64Event::generate_event(
-            self,
-            aux_sums[0],
-            aux_sums[1] << 8,
-        ));
+        let new_add64_event = Add64Event::generate_event(ctx, aux_sums[0], aux_sums[1] << 8);
+        ctx.trace.add64.push(new_add64_event);
         // CHeck the second element.
-        trace.add64.push(Add64Event::generate_event(
-            self,
-            cum_sums[0],
-            aux_sums[2] << 16,
-        ));
+        let new_add64_event = Add64Event::generate_event(ctx, cum_sums[0], aux_sums[2] << 16);
+        ctx.trace.add64.push(new_add64_event);
 
         // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
-        trace.add64.push(Add64Event::generate_event(
-            self,
-            cum_sums[1],
-            aux_sums[3] << 24,
-        ));
-        trace.mulu.push(new_mulu_event);
+        let new_add64_event = Add64Event::generate_event(ctx, cum_sums[1], aux_sums[3] << 24);
+        ctx.trace.add64.push(new_add64_event);
+        ctx.trace.mulu.push(new_mulu_event);
 
         Ok(())
     }
 
     fn generate_mul(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
 
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mul_event = SignedMulEvent::generate_event(
-            self,
-            trace,
-            dst,
-            src1,
-            src2,
-            field_pc,
-            SignedMulKind::Mul,
-        )?;
+        let new_mul_event =
+            SignedMulEvent::generate_event(ctx, dst, src1, src2, SignedMulKind::Mul)?;
 
-        trace.signed_mul.push(new_mul_event);
+        ctx.trace.signed_mul.push(new_mul_event);
 
         Ok(())
     }
 
     fn generate_mulsu(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mulsu_event = SignedMulEvent::generate_event(
-            self,
-            trace,
-            dst,
-            src1,
-            src2,
-            field_pc,
-            SignedMulKind::Mulsu,
-        )?;
+        let new_mulsu_event =
+            SignedMulEvent::generate_event(ctx, dst, src1, src2, SignedMulKind::Mulsu)?;
 
-        trace.signed_mul.push(new_mulsu_event);
+        ctx.trace.signed_mul.push(new_mulsu_event);
 
         Ok(())
     }
 
     fn generate_b32_mul(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.b32_mul.push(new_b32mul_event);
+        let new_b32mul_event = B32MulEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.b32_mul.push(new_b32mul_event);
 
         Ok(())
     }
 
     fn generate_b32_muli(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        if self.pc as usize > trace.prom().len() {
+        if ctx.pc as usize > ctx.trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] =
+            ctx.trace.prom()[ctx.pc as usize].instruction;
 
         if second_opcode.val() != Opcode::B32Muli.into()
             || third != BinaryField16b::ZERO
@@ -848,141 +686,116 @@ impl Interpreter {
         }
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.b32_muli.push(new_b32muli_event);
+        let new_b32muli_event = B32MuliEvent::generate_event(ctx, dst, src, imm)?;
+        ctx.trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
     }
 
     fn generate_b128_add(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_add_event =
-            B128AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.b128_add.push(new_b128_add_event);
+        let new_b128_add_event = B128AddEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.b128_add.push(new_b128_add_event);
         Ok(())
     }
 
     fn generate_b128_mul(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_mul_event =
-            B128MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.b128_mul.push(new_b128_mul_event);
+        let new_b128_mul_event = B128MulEvent::generate_event(ctx, dst, src1, src2)?;
+        ctx.trace.b128_mul.push(new_b128_mul_event);
         Ok(())
     }
 
     fn generate_add(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_add_event = AddEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
-        trace.add32.push(Add32Event::generate_event(
-            self,
-            new_add_event.src1_val,
-            new_add_event.src2_val,
-        ));
-        trace.add.push(new_add_event);
+        let new_add_event = AddEvent::generate_event(ctx, dst, src1, src2)?;
+        let new_add32_event =
+            Add32Event::generate_event(ctx, new_add_event.src1_val, new_add_event.src2_val);
+        ctx.trace.add32.push(new_add32_event);
+        ctx.trace.add.push(new_add_event);
 
         Ok(())
     }
 
     fn generate_addi(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_addi_event = AddiEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
-        trace.add32.push(Add32Event::generate_event(
-            self,
-            new_addi_event.src_val,
-            imm.val() as u32,
-        ));
-        trace.addi.push(new_addi_event);
+        let new_addi_event = AddiEvent::generate_event(ctx, dst, src, imm)?;
+        let new_add32_event =
+            Add32Event::generate_event(ctx, new_addi_event.src_val, imm.val() as u32);
+        ctx.trace.add32.push(new_add32_event);
+        ctx.trace.addi.push(new_addi_event);
 
         Ok(())
     }
 
     fn generate_mvvw(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvw_event =
-            MVVWEvent::generate_event(self, trace, dst, offset, src, field_pc)?;
+        let opt_new_mvvw_event = MVVWEvent::generate_event(ctx, dst, offset, src)?;
         if let Some(new_mvvw_event) = opt_new_mvvw_event {
-            trace.mvvw.push(new_mvvw_event);
+            ctx.trace.mvvw.push(new_mvvw_event);
         }
 
         Ok(())
     }
 
     fn generate_mvvl(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvl_event =
-            MVVLEvent::generate_event(self, trace, dst, offset, src, field_pc)?;
+        let opt_new_mvvl_event = MVVLEvent::generate_event(ctx, dst, offset, src)?;
         if let Some(new_mvvl_event) = opt_new_mvvl_event {
-            trace.mvvl.push(new_mvvl_event);
+            ctx.trace.mvvl.push(new_mvvl_event);
         }
 
         Ok(())
     }
 
     fn generate_mvih(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvih_event =
-            MVIHEvent::generate_event(self, trace, dst, offset, imm, field_pc)?;
+        let opt_new_mvih_event = MVIHEvent::generate_event(ctx, dst, offset, imm)?;
         if let Some(new_mvih_event) = opt_new_mvih_event {
-            trace.mvih.push(new_mvih_event);
+            ctx.trace.mvih.push(new_mvih_event);
         }
 
         Ok(())
     }
 
     fn generate_ldi(
-        &mut self,
-        trace: &mut ZCrayTrace,
-        field_pc: BinaryField32b,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let new_ldi_event = LDIEvent::generate_event(self, trace, dst, imm, field_pc)?;
-        trace.ldi.push(new_ldi_event);
+        let new_ldi_event = LDIEvent::generate_event(ctx, dst, imm)?;
+        ctx.trace.ldi.push(new_ldi_event);
 
         Ok(())
     }

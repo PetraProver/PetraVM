@@ -1,5 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
+use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{
@@ -53,31 +54,29 @@ impl TailiEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         target: BinaryField32b,
         next_fp: BinaryField16b,
         next_fp_val: u32,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
-        trace.set_vrom_u32(interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+        let return_addr = ctx.load_vrom_u32(0u32)?;
+        let old_fp_val = ctx.load_vrom_u32(1u32)?;
+        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
 
-        interpreter.handles_call_moves(trace)?;
+        ctx.handles_call_moves()?;
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.fp = next_fp_val;
-        interpreter.jump_to(target);
+        ctx.fp = next_fp_val;
+        ctx.jump_to(target);
 
-        trace.set_vrom_u32(next_fp_val, return_addr)?;
-        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
+        ctx.store_vrom_u32(0u32, return_addr)?;
+        ctx.store_vrom_u32(1u32, old_fp_val)?;
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             target: target.val(),
@@ -151,44 +150,38 @@ impl TailVEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let return_addr = trace.get_vrom_u32(interpreter.fp)?;
-        let old_fp_val = trace.get_vrom_u32(interpreter.fp ^ 1)?;
-
-        // Address where the value of the next frame pointer is stored.
-        let next_fp_addr = interpreter.fp ^ next_fp.val() as u32;
+        let return_addr = ctx.load_vrom_u32(0u32)?;
+        let old_fp_val = ctx.load_vrom_u32(1u32)?;
 
         // Get the target address, to which we should jump.
-        let target_addr = interpreter.fp ^ offset.val() as u32;
-        let target = trace.get_vrom_u32(target_addr)?;
+        let target = ctx.load_vrom_u32(offset.val())?;
 
         // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = interpreter.allocate_new_frame(trace, target.into())?;
-        trace.set_vrom_u32(next_fp_addr, next_fp_val)?;
+        let next_fp_val = ctx.allocate_new_frame(target.into())?;
+        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
         // delegate the other moves.
-        interpreter.handles_call_moves(trace);
+        ctx.handles_call_moves();
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.fp = next_fp_val;
+        ctx.fp = next_fp_val;
         // Jump to the target,
-        interpreter.jump_to(BinaryField32b::new(target));
+        ctx.jump_to(BinaryField32b::new(target));
 
-        trace.set_vrom_u32(next_fp_val, return_addr)?;
-        trace.set_vrom_u32(next_fp_val ^ 1, old_fp_val)?;
+        ctx.store_vrom_u32(0u32, return_addr)?;
+        ctx.store_vrom_u32(1u32, old_fp_val)?;
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             offset: offset.val(),
@@ -255,30 +248,28 @@ impl CalliEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         target: BinaryField32b,
         next_fp: BinaryField16b,
         next_fp_val: u32,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        trace.set_vrom_u32(interpreter.fp ^ next_fp.val() as u32, next_fp_val)?;
+        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
 
-        interpreter.handles_call_moves(trace)?;
+        ctx.handles_call_moves()?;
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.fp = next_fp_val;
-        interpreter.jump_to(target);
+        ctx.fp = next_fp_val;
+        ctx.jump_to(target);
 
-        let return_pc = (field_pc * G).val();
-        trace.set_vrom_u32(next_fp_val, return_pc)?;
-        trace.set_vrom_u32(next_fp_val + 1, fp)?;
+        let return_pc = (ctx.field_pc * G).val();
+        ctx.store_vrom_u32(0u32, return_pc)?;
+        ctx.store_vrom_u32(1u32, fp)?; // TODO(Robin): check offset?
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             target: target.val(),
@@ -344,42 +335,40 @@ impl CallvEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         // Address where the value of the next frame pointer is stored.
-        let next_fp_addr = interpreter.fp ^ next_fp.val() as u32;
+        let next_fp_addr = ctx.addr(next_fp.val());
 
         // Get the target address, to which we should jump.
-        let target_addr = interpreter.fp ^ offset.val() as u32;
-        let target = trace.get_vrom_u32(target_addr)?;
+        let target_addr = ctx.addr(offset.val());
+        let target = ctx.load_vrom_u32(offset.val())?;
 
         // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = interpreter.allocate_new_frame(trace, target.into())?;
-        trace.set_vrom_u32(next_fp_addr, next_fp_val)?;
+        let next_fp_val = ctx.allocate_new_frame(target.into())?;
+        ctx.store_vrom_u32(next_fp.val(), next_fp_val)?;
 
         // Once we have the next_fp, we knpw the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
         // delegate the other moves.
-        interpreter.handles_call_moves(trace);
+        ctx.handles_call_moves();
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.fp = next_fp_val;
+        ctx.fp = next_fp_val;
         // Jump to the target,
-        interpreter.jump_to(BinaryField32b::new(target));
+        ctx.jump_to(BinaryField32b::new(target));
 
-        let return_pc = (field_pc * G).val();
-        trace.set_vrom_u32(next_fp_val, return_pc)?;
-        trace.set_vrom_u32(next_fp_val ^ 1, fp)?;
+        let return_pc = (ctx.field_pc * G).val();
+        ctx.store_vrom_u32(0u32, return_pc)?;
+        ctx.store_vrom_u32(1u32, fp)?;
 
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             offset: offset.val(),

@@ -1,5 +1,6 @@
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
+use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
@@ -93,25 +94,23 @@ impl ShiftEvent {
     /// For immediate shifts (like SLLI, SRLI, SRAI), the shift amount comes
     /// directly from the instruction (as a 16-bit immediate).
     pub fn generate_immediate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
         op: ShiftOperation,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(src.val())?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
-        let timestamp = interpreter.timestamp;
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
-        interpreter.incr_pc();
+        let timestamp = ctx.timestamp;
+        ctx.store_vrom_u32(dst.val(), new_val)?;
+        ctx.incr_pc();
 
         Ok(Self::new(
-            field_pc,
-            interpreter.fp,
+            ctx.field_pc,
+            ctx.fp,
             timestamp,
             dst.val(),
             new_val,
@@ -127,25 +126,23 @@ impl ShiftEvent {
     /// For VROM-based shifts (like SLL, SRL, SRA), the shift amount is read
     /// from another VROM location and masked to 5 bits.
     pub fn generate_vrom_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
         op: ShiftOperation,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let shift_amount = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(src1.val())?;
+        let shift_amount = ctx.load_vrom_u32(src2.val())?;
         let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount, &op);
-        let timestamp = interpreter.timestamp;
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
-        interpreter.incr_pc();
+        let timestamp = ctx.timestamp;
+        ctx.store_vrom_u32(dst.val(), new_val)?;
+        ctx.incr_pc();
 
         Ok(Self::new(
-            field_pc,
-            interpreter.fp,
+            ctx.field_pc,
+            ctx.fp,
             timestamp,
             dst.val(),
             new_val,

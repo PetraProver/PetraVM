@@ -3,7 +3,7 @@ use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
 use super::BinaryOperation;
 use crate::{
     define_bin128_op_event,
-    event::Event,
+    event::{context::EventContext, Event},
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
     },

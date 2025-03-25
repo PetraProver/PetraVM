@@ -3,7 +3,7 @@ use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
 use super::BinaryOperation;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
-    event::Event,
+    event::{context::EventContext, Event},
     execution::{InterpreterError, ZCrayTrace, G},
     impl_32b_immediate_binary_operation,
 };
@@ -105,30 +105,28 @@ pub(crate) struct B32MuliEvent {
 
 impl B32MuliEvent {
     pub fn generate_event(
-        interpreter: &mut crate::execution::Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField32b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(src.val())?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
-        debug_assert!(field_pc == G.pow(interpreter.pc as u64 - 1));
+        debug_assert!(ctx.field_pc == G.pow(ctx.pc as u64 - 1));
         let event = Self::new(
-            interpreter.timestamp,
-            field_pc,
-            interpreter.fp,
+            ctx.timestamp,
+            ctx.field_pc,
+            ctx.fp,
             dst.val(),
             dst_val.val(),
             src.val(),
             src_val,
             imm.val(),
         );
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
+        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
         // The instruction is over two rows in the PROM.
-        interpreter.incr_pc();
-        interpreter.incr_pc();
+        ctx.incr_pc();
+        ctx.incr_pc();
         Ok(event)
     }
 }

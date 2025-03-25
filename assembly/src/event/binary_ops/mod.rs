@@ -2,6 +2,7 @@ use core::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
+use super::context::EventContext;
 use crate::{execution::InterpreterError, ZCrayTrace};
 
 pub(crate) mod b128;
@@ -45,27 +46,25 @@ pub(crate) trait ImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::execution::Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(src.val())?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         let event = Self::new(
-            interpreter.timestamp,
-            field_pc,
-            interpreter.fp,
+            ctx.timestamp,
+            ctx.field_pc,
+            ctx.fp,
             dst.val(),
             dst_val.val(),
             src.val(),
             src_val,
             imm.into(),
         );
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
-        interpreter.incr_pc();
+        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
+        ctx.incr_pc();
         Ok(event)
     }
 }
@@ -87,20 +86,18 @@ pub(crate) trait NonImmediateBinaryOperation:
     ) -> Self;
 
     fn generate_event(
-        interpreter: &mut crate::execution::Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let src2_val = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src1_val = ctx.load_vrom_u32(src1.val())?;
+        let src2_val = ctx.load_vrom_u32(src2.val())?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
         let event = Self::new(
-            interpreter.timestamp,
-            field_pc,
-            interpreter.fp,
+            ctx.timestamp,
+            ctx.field_pc,
+            ctx.fp,
             dst.val(),
             dst_val.val(),
             src1.val(),
@@ -108,8 +105,8 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, dst_val.val())?;
-        interpreter.incr_pc();
+        ctx.store_vrom_u32(dst.val(), dst_val.val())?;
+        ctx.incr_pc();
         Ok(event)
     }
 }

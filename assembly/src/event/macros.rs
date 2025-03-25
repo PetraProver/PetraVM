@@ -270,23 +270,16 @@ macro_rules! define_bin128_op_event {
 
         impl $name {
             pub fn generate_event(
-                interpreter: &mut Interpreter,
-                trace: &mut ZCrayTrace,
+                ctx: &mut EventContext,
                 dst: BinaryField16b,
                 src1: BinaryField16b,
                 src2: BinaryField16b,
-                field_pc: BinaryField32b,
             ) -> Result<Self, InterpreterError> {
-                let fp = interpreter.fp;
-
-                // Calculate addresses
-                let dst_addr = fp ^ dst.val() as u32;
-                let src1_addr = fp ^ src1.val() as u32;
-                let src2_addr = fp ^ src2.val() as u32;
+                let fp = ctx.fp;
 
                 // Get source values
-                let src1_val = trace.get_vrom_u128(src1_addr)?;
-                let src2_val = trace.get_vrom_u128(src2_addr)?;
+                let src1_val = ctx.load_vrom_u128(src1.val())?;
+                let src2_val = ctx.load_vrom_u128(src2.val())?;
 
                 // Binary field operation
                 let src1_bf = BinaryField128b::new(src1_val);
@@ -295,15 +288,15 @@ macro_rules! define_bin128_op_event {
                 let dst_val = dst_bf.val();
 
                 // Store result
-                trace.set_vrom_u128(dst_addr, dst_val)?;
+                ctx.store_vrom_u128(dst.val(), dst_val)?;
 
-                let pc = interpreter.pc;
-                let timestamp = interpreter.timestamp;
-                interpreter.incr_pc();
+                let pc = ctx.pc;
+                let timestamp = ctx.timestamp;
+                ctx.incr_pc();
 
                 Ok(Self {
                     timestamp,
-                    pc: field_pc,
+                    pc: ctx.field_pc,
                     fp,
                     dst: dst.val(),
                     dst_val,

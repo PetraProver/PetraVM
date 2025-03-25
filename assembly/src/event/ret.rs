@@ -1,6 +1,6 @@
 use binius_field::BinaryField32b;
 
-use super::Event;
+use super::{context::EventContext, Event};
 use crate::execution::{
     Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
 };
@@ -22,30 +22,22 @@ pub struct RetEvent {
 }
 
 impl RetEvent {
-    pub fn new(
-        interpreter: &Interpreter,
-        trace: &ZCrayTrace,
-        field_pc: BinaryField32b,
-    ) -> Result<Self, InterpreterError> {
-        let fp = interpreter.fp;
+    pub fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
+        let fp = ctx.fp;
         Ok(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
-            timestamp: interpreter.timestamp,
-            fp_0_val: trace.get_vrom_u32(fp)?,
-            fp_1_val: trace.get_vrom_u32(fp ^ 1)?,
+            timestamp: ctx.timestamp,
+            fp_0_val: ctx.load_vrom_u32(0u32)?,
+            fp_1_val: ctx.load_vrom_u32(1u32)?,
         })
     }
 
-    pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &ZCrayTrace,
-        field_pc: BinaryField32b,
-    ) -> Result<Self, InterpreterError> {
-        let fp = interpreter.fp;
-        let ret_event = RetEvent::new(interpreter, trace, field_pc);
-        interpreter.jump_to(BinaryField32b::new(trace.get_vrom_u32(fp)?));
-        interpreter.fp = trace.get_vrom_u32(fp ^ 1)?;
+    pub fn generate_event(ctx: &mut EventContext) -> Result<Self, InterpreterError> {
+        let ret_event = RetEvent::new(&ctx);
+        let target = ctx.load_vrom_u32(0u32)?;
+        ctx.jump_to(BinaryField32b::new(target));
+        ctx.fp = ctx.load_vrom_u32(1u32)?;
 
         ret_event
     }
