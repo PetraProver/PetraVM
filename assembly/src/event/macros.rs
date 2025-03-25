@@ -1,67 +1,6 @@
 //! Helper macros for [`Event`] definitions.
 
 #[macro_export]
-macro_rules! impl_immediate_binary_operation {
-    ($t:ty) => {
-        $crate::impl_left_right_output_for_imm_bin_op!($t);
-        impl $crate::event::ImmediateBinaryOperation for $t {
-            fn new(
-                timestamp: u32,
-                pc: BinaryField32b,
-                fp: u32,
-                dst: u16,
-                dst_val: u32,
-                src: u16,
-                src_val: u32,
-                imm: u16,
-            ) -> Self {
-                Self {
-                    timestamp,
-                    pc,
-                    fp,
-                    dst,
-                    dst_val,
-                    src,
-                    src_val,
-                    imm,
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! impl_32b_immediate_binary_operation {
-    ($t:ty) => {
-        $crate::impl_left_right_output_for_b32imm_bin_op!($t);
-        #[allow(clippy::too_many_arguments)]
-        impl $t {
-            const fn new(
-                timestamp: u32,
-                pc: BinaryField32b,
-                fp: u32,
-                dst: u16,
-                dst_val: u32,
-                src: u16,
-                src_val: u32,
-                imm: u32,
-            ) -> Self {
-                Self {
-                    timestamp,
-                    pc,
-                    fp,
-                    dst,
-                    dst_val,
-                    src,
-                    src_val,
-                    imm,
-                }
-            }
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
         $crate::impl_left_right_output_for_bin_op!($t, BinaryField32b);
@@ -95,7 +34,7 @@ macro_rules! impl_binary_operation {
 
 #[macro_export]
 macro_rules! impl_left_right_output_for_imm_bin_op {
-    ($t:ty) => {
+    ($t:ty, $imm_field_ty:ty) => {
         impl $crate::event::LeftOp for $t {
             type Left = BinaryField32b;
             fn left(&self) -> BinaryField32b {
@@ -103,36 +42,10 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
             }
         }
         impl $crate::event::RigthOp for $t {
-            type Right = BinaryField16b;
+            type Right = $imm_field_ty;
 
-            fn right(&self) -> BinaryField16b {
-                BinaryField16b::new(self.imm)
-            }
-        }
-        impl $crate::event::OutputOp for $t {
-            type Output = BinaryField32b;
-
-            fn output(&self) -> BinaryField32b {
-                BinaryField32b::new(self.dst_val)
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! impl_left_right_output_for_b32imm_bin_op {
-    ($t:ty) => {
-        impl $crate::event::LeftOp for $t {
-            type Left = BinaryField32b;
-            fn left(&self) -> BinaryField32b {
-                BinaryField32b::new(self.src_val)
-            }
-        }
-        impl $crate::event::RigthOp for $t {
-            type Right = BinaryField32b;
-
-            fn right(&self) -> BinaryField32b {
-                BinaryField32b::new(self.imm)
+            fn right(&self) -> $imm_field_ty {
+                <$imm_field_ty>::new(self.imm)
             }
         }
         impl $crate::event::OutputOp for $t {
@@ -206,6 +119,67 @@ macro_rules! impl_event_no_interaction_with_state_channel {
         impl Event for $t {
             fn fire(&self, _channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 // No interaction with the state channel.
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_immediate_binary_operation {
+    ($t:ty) => {
+        $crate::impl_left_right_output_for_imm_bin_op!($t, BinaryField16b);
+        impl $crate::event::ImmediateBinaryOperation for $t {
+            fn new(
+                timestamp: u32,
+                pc: BinaryField32b,
+                fp: u32,
+                dst: u16,
+                dst_val: u32,
+                src: u16,
+                src_val: u32,
+                imm: u16,
+            ) -> Self {
+                Self {
+                    timestamp,
+                    pc,
+                    fp,
+                    dst,
+                    dst_val,
+                    src,
+                    src_val,
+                    imm,
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_32b_immediate_binary_operation {
+    ($t:ty) => {
+        $crate::impl_left_right_output_for_imm_bin_op!($t, BinaryField32b);
+        #[allow(clippy::too_many_arguments)]
+        impl $t {
+            const fn new(
+                timestamp: u32,
+                pc: BinaryField32b,
+                fp: u32,
+                dst: u16,
+                dst_val: u32,
+                src: u16,
+                src_val: u32,
+                imm: u32,
+            ) -> Self {
+                Self {
+                    timestamp,
+                    pc,
+                    fp,
+                    dst,
+                    dst_val,
+                    src,
+                    src_val,
+                    imm,
+                }
             }
         }
     };
