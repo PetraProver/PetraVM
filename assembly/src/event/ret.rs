@@ -59,7 +59,7 @@ impl Event for RetEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.fp_0_val),
             self.fp_1_val,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }

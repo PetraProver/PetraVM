@@ -108,7 +108,7 @@ macro_rules! fire_non_jump_event {
         $channels.state_channel.push((
             $intrp.pc * $crate::execution::G,
             $intrp.fp,
-            $intrp.timestamp + 1,
+            $intrp.timestamp,
         ));
     };
 }
@@ -326,7 +326,7 @@ macro_rules! define_bin128_op_event {
                 channels.state_channel.pull((self.pc, self.fp, self.timestamp));
                 channels
                     .state_channel
-                    .push((self.pc * G, self.fp, self.timestamp + 1));
+                    .push((self.pc * G, self.fp, self.timestamp));
             }
         }
     };

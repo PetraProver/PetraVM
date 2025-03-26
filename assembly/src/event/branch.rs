@@ -33,7 +33,7 @@ impl Event for BnzEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.target, self.fp, self.timestamp + 1));
+            .push((self.target, self.fp, self.timestamp));
     }
 }
 

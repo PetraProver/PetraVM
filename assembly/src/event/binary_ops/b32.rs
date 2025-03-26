@@ -156,7 +156,7 @@ impl Event for B32MuliEvent {
             .pull((self.pc, self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc * G * G, self.fp, self.timestamp + 1));
+            .push((self.pc * G * G, self.fp, self.timestamp));
     }
 }
 

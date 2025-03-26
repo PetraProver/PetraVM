@@ -97,7 +97,7 @@ impl Event for TailiEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
@@ -209,7 +209,7 @@ impl Event for TailVEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
@@ -296,7 +296,7 @@ impl Event for CalliEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
@@ -398,7 +398,7 @@ impl Event for CallvEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
