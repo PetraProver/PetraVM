@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -41,6 +41,8 @@ impl JumpvEvent {
     pub fn generate_event(
         ctx: &mut EventContext,
         offset: BinaryField16b,
+        _: BinaryField16b,
+        _: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
@@ -99,11 +101,16 @@ impl JumpiEvent {
 
     pub fn generate_event(
         ctx: &mut EventContext,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        _: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let pc = ctx.pc;
         let fp = ctx.fp;
         let timestamp = ctx.timestamp;
+
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
 
         ctx.jump_to(target);
 

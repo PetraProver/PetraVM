@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::context::EventContext;
 use crate::{
@@ -55,10 +55,14 @@ impl TailiEvent {
 
     pub fn generate_event(
         ctx: &mut EventContext,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
         next_fp: BinaryField16b,
-        next_fp_val: u32,
     ) -> Result<Self, InterpreterError> {
+        let target = BinaryField32b::from_bases([target_low, target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let next_fp_val = ctx.allocate_new_frame(target)?;
+
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
         ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
@@ -153,6 +157,7 @@ impl TailVEvent {
         ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
+        _: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
@@ -249,10 +254,14 @@ impl CalliEvent {
 
     pub fn generate_event(
         ctx: &mut EventContext,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
         next_fp: BinaryField16b,
-        next_fp_val: u32,
     ) -> Result<Self, InterpreterError> {
+        let target = BinaryField32b::from_bases([target_low, target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let next_fp_val = ctx.allocate_new_frame(target)?;
+
         ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
         ctx.handles_call_moves()?;
@@ -338,6 +347,7 @@ impl CallvEvent {
         ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
+        _: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = ctx.addr(next_fp.val());

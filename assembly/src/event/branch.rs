@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -41,8 +41,12 @@ impl BnzEvent {
     pub fn generate_event(
         ctx: &mut EventContext,
         cond: BinaryField16b,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
+
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
 
         if ctx.pc == 0 {
@@ -84,8 +88,12 @@ impl BzEvent {
     pub fn generate_event(
         ctx: &mut EventContext,
         cond: BinaryField16b,
-        target: BinaryField32b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
+
         let fp = ctx.fp;
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         let event = BzEvent {

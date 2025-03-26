@@ -1,4 +1,5 @@
-use std::ops::Add;
+use core::{fmt::Debug, ops::Add};
+use std::marker::PhantomData;
 
 use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
 use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
@@ -370,16 +371,37 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
     (aux, aux_sums, cum_sums)
 }
 
-#[derive(Debug, Clone)]
-pub(crate) enum SignedMulKind {
-    Mulsu,
-    Mul,
+pub trait SignedMulOperation: Debug + Clone {
+    fn mul_op(input1: u32, input2: u32) -> u64;
 }
+
+#[derive(Debug, Clone)]
+pub(crate) struct MulsuOp;
+impl SignedMulOperation for MulsuOp {
+    fn mul_op(input1: u32, input2: u32) -> u64 {
+        // If the value is signed, first turn into an i32 to get the sign, then into an
+        // i64 to get the 64-bit value. Otherwise, directly cast as an i64 for
+        // the multiplication.
+        (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MulOp;
+impl SignedMulOperation for MulOp {
+    fn mul_op(input1: u32, input2: u32) -> u64 {
+        // If the value is signed, first turn into an i32 to get the sign, then into an
+        // i64 to get the 64-bit value. Otherwise, directly cast as an i64 for
+        // the multiplication.
+        (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64
+    }
+}
+
 /// Event for MUL or MULSU.
 ///
 /// Performs a MUL between two signed 32-bit integers.
 #[derive(Debug, Clone)]
-pub(crate) struct SignedMulEvent {
+pub(crate) struct SignedMulEvent<SignedMulOperation> {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -389,10 +411,11 @@ pub(crate) struct SignedMulEvent {
     pub(crate) src1_val: u32,
     src2: u16,
     src2_val: u32,
-    kind: SignedMulKind,
+
+    _phantom: PhantomData<SignedMulOperation>,
 }
 
-impl SignedMulEvent {
+impl<T: SignedMulOperation> SignedMulEvent<T> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
@@ -404,7 +427,6 @@ impl SignedMulEvent {
         src1_val: u32,
         src2: u16,
         src2_val: u32,
-        kind: SignedMulKind,
     ) -> Self {
         Self {
             pc,
@@ -416,7 +438,7 @@ impl SignedMulEvent {
             src1_val,
             src2,
             src2_val,
-            kind,
+            _phantom: PhantomData,
         }
     }
 
@@ -425,19 +447,19 @@ impl SignedMulEvent {
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-        kind: SignedMulKind,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
-        let dst_val = Self::multiplication(src1_val, src2_val, &kind);
+        let dst_val = T::mul_op(src1_val, src2_val);
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
         ctx.incr_pc();
+
         Ok(Self {
             pc: ctx.field_pc,
             fp,
@@ -448,26 +470,14 @@ impl SignedMulEvent {
             src1_val,
             src2: src2.val(),
             src2_val,
-            kind,
+            _phantom: PhantomData,
         })
-    }
-
-    pub fn multiplication(input1: u32, input2: u32, kind: &SignedMulKind) -> u64 {
-        match kind {
-            // If the value is signed, first turn into an i32 to get the sign, then into an i64 to
-            // get the 64-bit value. Otherwise, directly cast as an i64 for the multiplication.
-            SignedMulKind::Mul => (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64,
-            SignedMulKind::Mulsu => (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64,
-        }
     }
 }
 
-impl Event for SignedMulEvent {
+impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(
-            self.dst_val,
-            SignedMulEvent::multiplication(self.src1_val, self.src2_val, &self.kind)
-        );
+        assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
         fire_non_jump_event!(self, channels);
     }
 }
@@ -537,21 +547,8 @@ define_bin32_op_event!(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use binius_field::{BinaryField16b, BinaryField32b, Field};
-
-    use crate::{
-        event::{
-            binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
-            context::EventContext,
-            integer_ops::{
-                AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent, SignedMulKind, SltEvent,
-                SltiEvent, SltiuEvent, SltuEvent, SubEvent,
-            },
-        },
-        execution::{Interpreter, ZCrayTrace},
-    };
+    use super::*;
+    use crate::event::binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -799,12 +796,11 @@ mod tests {
             env.set_vrom(src1_offset.val(), src1_val);
             env.set_vrom(src2_offset.val(), src2_val);
 
-            let event = SignedMulEvent::generate_event(
+            let event = SignedMulEvent::<MulOp>::generate_event(
                 &mut env,
                 dst_offset,
                 src1_offset,
                 src2_offset,
-                SignedMulKind::Mul,
             )
             .unwrap();
 
@@ -846,12 +842,11 @@ mod tests {
             env.set_vrom(src1_offset.val(), src1_val);
             env.set_vrom(src2_offset.val(), src2_val);
 
-            let event = SignedMulEvent::generate_event(
+            let event = SignedMulEvent::<MulsuOp>::generate_event(
                 &mut env,
                 dst_offset,
                 src1_offset,
                 src2_offset,
-                SignedMulKind::Mulsu,
             )
             .unwrap();
 

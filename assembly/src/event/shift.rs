@@ -1,3 +1,6 @@
+use core::fmt::Debug;
+use std::marker::PhantomData;
+
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use super::context::EventContext;
@@ -7,12 +10,33 @@ use crate::{
     fire_non_jump_event, ZCrayTrace,
 };
 
-/// Enum to distinguish between the different kinds of shifts.
+/// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
+pub trait ShiftOperation: Debug + Clone + PartialEq {
+    fn shift_op(val: u32, shift: u32) -> u32;
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum ShiftOperation {
-    LogicalLeft,
-    LogicalRight,
-    ArithmeticRight,
+pub struct LogicalLeft;
+impl ShiftOperation for LogicalLeft {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val << shift
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalRight;
+impl ShiftOperation for LogicalRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val >> shift
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArithmeticRight;
+impl ShiftOperation for ArithmeticRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        ((val as i32) >> shift) as u32
+    }
 }
 
 /// Indicates the source of the shift amount.
@@ -23,9 +47,9 @@ pub enum ShiftSource {
 }
 
 /// Combined event for both logical and arithmetic shift operations.
-/// The type of shift is determined by the `op` field.
+/// The type of shift is determined by the `shift_op` field.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShiftEvent {
+pub struct ShiftEvent<ShiftOperation> {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -34,10 +58,11 @@ pub struct ShiftEvent {
     src: u16,                // 16-bit source VROM offset
     pub(crate) src_val: u32, // 32-bit source value
     shift_source: ShiftSource,
-    op: ShiftOperation, // Specifies which shift operation to perform
+
+    _phantom: PhantomData<ShiftOperation>,
 }
 
-impl ShiftEvent {
+impl<T: ShiftOperation> ShiftEvent<T> {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
@@ -48,7 +73,6 @@ impl ShiftEvent {
         src: u16,
         src_val: u32,
         shift_source: ShiftSource,
-        op: ShiftOperation,
     ) -> Self {
         Self {
             pc,
@@ -59,7 +83,7 @@ impl ShiftEvent {
             src,
             src_val,
             shift_source,
-            op,
+            _phantom: PhantomData,
         }
     }
 
@@ -68,20 +92,17 @@ impl ShiftEvent {
     /// The effective shift amount is determined by masking the provided shift
     /// amount to the lower 5 bits (i.e., `shift_amount & 0x1F`). If the
     /// effective shift amount is 0, the original `src_val` is returned.
-    /// Otherwise, the shift is performed based on the `op`:
+    /// Otherwise, the shift is performed based on the `shift_op`:
     /// - LogicalLeft: `src_val << effective_shift`
     /// - LogicalRight: `src_val >> effective_shift`
     /// - ArithmeticRight: arithmetic right shift preserving the sign bit.
-    pub fn calculate_result(src_val: u32, shift_amount: u32, op: &ShiftOperation) -> u32 {
+    pub fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
         let effective_shift = shift_amount & 0x1f;
         if effective_shift == 0 {
             return src_val;
         }
-        match op {
-            ShiftOperation::LogicalLeft => src_val << effective_shift,
-            ShiftOperation::LogicalRight => src_val >> effective_shift,
-            ShiftOperation::ArithmeticRight => ((src_val as i32) >> effective_shift) as u32,
-        }
+
+        T::shift_op(src_val, effective_shift)
     }
 
     /// Generate a ShiftEvent for immediate shift operations.
@@ -94,12 +115,11 @@ impl ShiftEvent {
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-        op: ShiftOperation,
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
-        let new_val = Self::calculate_result(src_val, shift_amount, &op);
+        let new_val = Self::calculate_result(src_val, shift_amount);
         let timestamp = ctx.timestamp;
         ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
@@ -113,7 +133,6 @@ impl ShiftEvent {
             src.val(),
             src_val,
             ShiftSource::Immediate(imm_val),
-            op,
         ))
     }
 
@@ -126,12 +145,11 @@ impl ShiftEvent {
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-        op: ShiftOperation,
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
-        let new_val = Self::calculate_result(src_val, shift_amount, &op);
+        let new_val = Self::calculate_result(src_val, shift_amount);
         let timestamp = ctx.timestamp;
         ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
@@ -145,12 +163,11 @@ impl ShiftEvent {
             src1.val(),
             src_val,
             ShiftSource::VromOffset(src2_offset, shift_amount),
-            op,
         ))
     }
 }
 
-impl Event for ShiftEvent {
+impl<T: ShiftOperation> Event for ShiftEvent<T> {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         fire_non_jump_event!(self, channels);
     }
@@ -242,15 +259,10 @@ mod test {
         for (src_val, shift_amount, expected_left, expected_right, expected_arith, desc) in
             test_cases
         {
-            let result_left =
-                ShiftEvent::calculate_result(src_val, shift_amount, &ShiftOperation::LogicalLeft);
-            let result_right =
-                ShiftEvent::calculate_result(src_val, shift_amount, &ShiftOperation::LogicalRight);
-            let result_arith = ShiftEvent::calculate_result(
-                src_val,
-                shift_amount,
-                &ShiftOperation::ArithmeticRight,
-            );
+            let result_left = ShiftEvent::<LogicalLeft>::calculate_result(src_val, shift_amount);
+            let result_right = ShiftEvent::<LogicalRight>::calculate_result(src_val, shift_amount);
+            let result_arith =
+                ShiftEvent::<ArithmeticRight>::calculate_result(src_val, shift_amount);
 
             assert_eq!(
                 result_left, expected_left,

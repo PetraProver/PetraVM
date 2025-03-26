@@ -17,13 +17,13 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
-            SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            Add32Event, Add64Event, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
+            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::ShiftEvent,
+        shift::{self, ShiftEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
@@ -46,13 +46,18 @@ pub struct ZCrayTrace {
     pub(crate) slti: Vec<SltiEvent>,
     pub(crate) sltu: Vec<SltuEvent>,
     pub(crate) sltiu: Vec<SltiuEvent>,
-    pub(crate) shifts: Vec<ShiftEvent>,
+    // TODO(Robin): Re-unify shifts
+    pub(crate) logic_left_shift: Vec<ShiftEvent<shift::LogicalLeft>>,
+    pub(crate) logic_right_shift: Vec<ShiftEvent<shift::LogicalRight>>,
+    pub(crate) arith_right_shift: Vec<ShiftEvent<shift::ArithmeticRight>>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
     pub(crate) add32: Vec<Add32Event>,
     pub(crate) add64: Vec<Add64Event>,
     pub(crate) muli: Vec<MuliEvent>,
-    pub(crate) signed_mul: Vec<SignedMulEvent>,
+    // TODO(Robin): Re-unify mul / mulsu
+    pub(crate) signed_mul: Vec<SignedMulEvent<MulOp>>,
+    pub(crate) signed_mulsu: Vec<SignedMulEvent<MulsuOp>>,
     pub(crate) mulu: Vec<MuluEvent>,
     pub(crate) taili: Vec<TailiEvent>,
     pub(crate) tailv: Vec<TailVEvent>,
@@ -152,13 +157,16 @@ impl ZCrayTrace {
         fire_events!(self.slti, &mut channels, &tables);
         fire_events!(self.sltu, &mut channels, &tables);
         fire_events!(self.sltiu, &mut channels, &tables);
-        fire_events!(self.shifts, &mut channels, &tables);
+        fire_events!(self.logic_left_shift, &mut channels, &tables);
+        fire_events!(self.logic_right_shift, &mut channels, &tables);
+        fire_events!(self.arith_right_shift, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
         fire_events!(self.add64, &mut channels, &tables);
         fire_events!(self.muli, &mut channels, &tables);
         fire_events!(self.signed_mul, &mut channels, &tables);
+        fire_events!(self.signed_mulsu, &mut channels, &tables);
         fire_events!(self.mulu, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);

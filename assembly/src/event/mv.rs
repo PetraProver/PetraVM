@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::context::EventContext;
 use crate::{
@@ -540,11 +540,15 @@ impl LDIEvent {
     pub fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
-        imm: BinaryField32b,
+        imm_low: BinaryField16b,
+        imm_high: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
+
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
 
         ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
         ctx.incr_pc();

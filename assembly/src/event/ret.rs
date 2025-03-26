@@ -1,4 +1,4 @@
-use binius_field::BinaryField32b;
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::{context::EventContext, Event};
 use crate::execution::{
@@ -33,7 +33,12 @@ impl RetEvent {
         })
     }
 
-    pub fn generate_event(ctx: &mut EventContext) -> Result<Self, InterpreterError> {
+    pub fn generate_event(
+        ctx: &mut EventContext,
+        _: BinaryField16b,
+        _: BinaryField16b,
+        _: BinaryField16b,
+    ) -> Result<Self, InterpreterError> {
         let ret_event = RetEvent::new(ctx);
         let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
         ctx.jump_to(BinaryField32b::new(target));

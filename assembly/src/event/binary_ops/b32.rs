@@ -1,11 +1,11 @@
-use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
 
 use super::BinaryOperation;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
     event::{context::EventContext, Event},
     execution::{InterpreterError, ZCrayTrace, G},
-    impl_32b_immediate_binary_operation,
+    impl_32b_immediate_binary_operation, Opcode,
 };
 
 define_bin32_op_event!(
@@ -108,8 +108,21 @@ impl B32MuliEvent {
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
-        imm: BinaryField32b,
+        imm_low: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
+        // B32_MULI spans over two rows in the PROM
+        let [second_opcode, imm_high, third, fourth] =
+            ctx.trace.prom()[ctx.pc as usize].instruction;
+
+        if second_opcode.val() != Opcode::B32Muli.into()
+            || third != BinaryField16b::ZERO
+            || fourth != BinaryField16b::ZERO
+        {
+            return Err(InterpreterError::BadPc);
+        }
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
         debug_assert!(ctx.field_pc == G.pow(ctx.pc as u64 - 1));
