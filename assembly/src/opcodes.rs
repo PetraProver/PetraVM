@@ -1,5 +1,6 @@
 use binius_field::BinaryField16b;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pest::pratt_parser::Op;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 
@@ -79,5 +80,51 @@ impl Opcode {
     pub const OP_COUNT: usize = Self::COUNT - 1;
     pub const fn get_field_elt(&self) -> BinaryField16b {
         BinaryField16b::new(*self as u16)
+    }
+
+    /// Returns the number of arguments expected by the given opcode.
+    pub fn num_args(&self) -> usize {
+        match self {
+            Opcode::Bnz => 3,
+            Opcode::Jumpi => 3,
+            Opcode::Jumpv => 2,
+            Opcode::Xori => 3,
+            Opcode::Xor => 3,
+            Opcode::Ret => 0,
+            Opcode::Slli => 3,
+            Opcode::Srli => 3,
+            Opcode::Srai => 3,
+            Opcode::Sll => 3,
+            Opcode::Srl => 3,
+            Opcode::Sra => 3,
+            Opcode::Tailv => 2,
+            Opcode::Taili => 3,
+            Opcode::Calli => 3,
+            Opcode::Callv => 2,
+            Opcode::And => 3,
+            Opcode::Andi => 3,
+            Opcode::Sub => 3,
+            Opcode::Slt => 3,
+            Opcode::Slti => 3,
+            Opcode::Sltu => 3,
+            Opcode::Sltiu => 3,
+            Opcode::Or => 3,
+            Opcode::Ori => 3,
+            Opcode::Muli => 3,
+            Opcode::Mulu => 3,
+            Opcode::Mul => 3,
+            Opcode::Mulsu => 3,
+            Opcode::B32Mul => 3,
+            Opcode::B32Muli => 3,
+            Opcode::B128Add => 3,
+            Opcode::B128Mul => 3,
+            Opcode::Add => 3,
+            Opcode::Addi => 3,
+            Opcode::Mvvw => 3,
+            Opcode::Mvvl => 3,
+            Opcode::Mvih => 3,
+            Opcode::Ldi => 3,
+            Opcode::Invalid => 0, // invalid
+        }
     }
 }

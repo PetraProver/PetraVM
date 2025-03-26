@@ -251,7 +251,13 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        trace!("Executing {:?}", instruction.instruction);
+        trace!(
+            "Executing {:?} with args {:?}",
+            opcode,
+            (1..1 + opcode.num_args())
+                .map(|i| instruction.instruction[i].val())
+                .collect::<Vec<_>>()
+        );
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Jumpi => self.generate_jumpi(trace, field_pc, arg0, arg1, arg2)?,
@@ -773,7 +779,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
