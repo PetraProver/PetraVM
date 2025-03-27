@@ -149,7 +149,6 @@ where
     ) -> Result<(), anyhow::Error> {
         {
             for (i, event) in rows.clone().enumerate() {
-                println!("Add");
                 // TODO: Move this outside the loop
                 let mut src1_val = witness.get_mut_as(self.src1_val)?;
                 let mut src2_val = witness.get_mut_as(self.src2_val)?;
@@ -553,7 +552,7 @@ pub mod test {
                 },
                 //Read the next_fp
                 Boundary {
-                    values: vec![B128::new(1 << 32)],
+                    values: vec![B128::new(1)],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 1,

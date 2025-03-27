@@ -25,7 +25,7 @@ use crate::opcodes::Opcode;
 pub(crate) struct BnzTable {
     id: TableId,
     cpu_cols: CpuColumns,
-    cond_val: Col<B32>,  // Constant
+    cond_val: Col<B32>,
     vrom_push: Col<B64>, // Virtual;
 }
 
@@ -66,18 +66,18 @@ impl BnzTable {
                 .expect("limbs has length 2")
         };
 
-        let cond_cond_val = table.add_computed(
-            "cond_cond_val",
+        let vrom_push = table.add_computed(
+            "vrom_push",
             pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),
         );
         // Read cond_val
-        table.push(vrom_channel, [cond_cond_val]);
+        table.push(vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
             cpu_cols,
             cond_val,
-            vrom_push: cond_cond_val,
+            vrom_push,
         }
     }
 }
@@ -99,10 +99,10 @@ where
     ) -> Result<(), anyhow::Error> {
         {
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
-            let mut cond_cond_val = witness.get_mut_as(self.vrom_push)?;
+            let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
             for (i, event) in rows.clone().enumerate() {
                 cond_val[i] = event.cond_val;
-                cond_cond_val[i] = (event.cond as u64) << 32 | event.cond_val as u64;
+                vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
             }
         }
         let cpu_rows = rows.map(|event| CpuRow {
@@ -125,6 +125,7 @@ where
 pub(crate) struct BzTable {
     id: TableId,
     cpu_cols: CpuColumns,
+    vrom_push: Col<B64>, // Virtual
 }
 
 impl BzTable {
@@ -147,15 +148,24 @@ impl BzTable {
         );
 
         let cond = cpu_cols.arg0;
-        // TODO: Should we have a single zero?
-        let zero = table.add_constant("zero", [B32::ZERO]);
 
-        // cond_val must be zero
-        table.push(prom_channel, [upcast_col(cond), zero]);
+        // TODO: Load this from some utility module
+        let b64_basis: [_; 2] = std::array::from_fn(|i| {
+            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
+        });
+
+        let vrom_push = table.add_computed(
+            "vrom_push",
+            // cond_val is zero in this case
+            upcast_expr(cond.into()) * b64_basis[0],
+        );
+        // Read cond_val
+        table.push(vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
             cpu_cols,
+            vrom_push,
         }
     }
 }
@@ -172,18 +182,28 @@ where
 
     fn fill<'a>(
         &self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        let cpu_rows = rows.map(|event| CpuRow {
-            pc: event.pc.val(),
-            next_pc: None,
-            fp: event.fp,
-            next_fp: None,
-            instruction: Instruction {
-                opcode: Opcode::Bnz,
-                ..Default::default()
-            },
+        {
+            let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
+            for (i, event) in rows.clone().enumerate() {
+                vrom_push[i] = event.cond as u64; //  cond_val is 0
+            }
+        }
+        let cpu_rows = rows.map(|event| {
+            CpuRow {
+                pc: event.pc.val(),
+                next_pc: None,
+                fp: event.fp,
+                next_fp: None,
+                instruction: Instruction {
+                    opcode: Opcode::Bnz,
+                    arg0: event.cond,
+                    arg1: event.target_low.val(),
+                    arg2: event.target_high.val(),
+                },
+            }
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }
@@ -206,10 +226,22 @@ pub mod test {
     };
 
     #[test]
-    fn test_bnz() {
+    fn test_bnz_non_zero_branch() {
+        test_bnz(true);
+    }
+
+    #[test]
+    fn test_bnz_zero_branch() {
+        test_bnz(false);
+    }
+
+    fn test_bnz(cond_val: bool) {
         let mut cs = ConstraintSystem::new();
         let zcray_table = ZCrayTable::new(&mut cs);
 
+        // We need to jump to the next line, given that there's a 1 at address 0x1.]
+        // Since the next line is at address B32::MULTIPLICATIVE_GENERATOR, we need to
+        // split this value into two limbs of 16 bits each.
         let generator_low = B16::new((B32::MULTIPLICATIVE_GENERATOR.val() & 0xFFFF) as u16);
         let generator_high = B16::new((B32::MULTIPLICATIVE_GENERATOR.val() >> 16) as u16);
         assert_eq!(
@@ -217,8 +249,6 @@ pub mod test {
             B32::MULTIPLICATIVE_GENERATOR
         );
         let code = vec![
-            // Jumps to the next line because there's a 1 at address 0x1, and the next
-            // line is at B32::MULTIPLICATIVE_GENERATOR.
             [
                 Opcode::Bnz.get_field_elt(),
                 B16::ONE,
@@ -228,15 +258,14 @@ pub mod test {
             [Opcode::Ret.get_field_elt(), B16::ZERO, B16::ZERO, B16::ZERO],
         ];
         let prom = code_to_prom(&code);
-        let vrom = ValueRom::new(HashMap::new());
 
         let mut frames = HashMap::new();
         frames.insert(B32::ONE, 12);
 
-        // The memory contains two values a addresses 0x0 and 0x1, 0 which is the value
-        // of next_pc, and 1 which is the predicate in BNZ as well as next_fp in
-        // RET.
-        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 1]));
+        // The memory contains two values at addresses 0x0 and 0x1, which are
+        // respectively: 0, the value of next_pc; and `cond`, the predicate in
+        // BNZ as well as next_fp in RET.
+        let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, cond_val as u32]));
 
         let (trace, boundary_values) = ZCrayTrace::generate(
             memory,
@@ -264,6 +293,7 @@ pub mod test {
                 trace.bnz.len(),
                 trace.bz.len(),
             ],
+            cond_val,
         );
 
         let allocator = Bump::new();
@@ -330,6 +360,7 @@ pub mod test {
         final_fp: u32,
         final_timestamp: u32,
         table_sizes: Vec<usize>,
+        cond_val: bool,
     ) -> Statement {
         Statement {
             boundaries: vec![
@@ -348,17 +379,17 @@ pub mod test {
                     multiplicity: 1,
                 },
                 // For now we add the prom here
-                    Boundary {
-                        values: vec![B128::new(
-                            1 << 64
-                                | Opcode::Bnz as u128
-                                | 1 << 16
-                                | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 & 0xFFFF) << 32
-                                | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 >> 16) << 48,
-                        )],
-                        channel_id: zcray_table.prom_channel,
-                        direction: FlushDirection::Pull,
-                        multiplicity: 1,
+                Boundary {
+                    values: vec![B128::new(
+                        1 << 64
+                            | Opcode::Bnz as u128
+                            | 1 << 16
+                            | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 & 0xFFFF) << 32
+                            | (B32::MULTIPLICATIVE_GENERATOR.val() as u128 >> 16) << 48,
+                    )],
+                    channel_id: zcray_table.prom_channel,
+                    direction: FlushDirection::Pull,
+                    multiplicity: 1,
                 },
                 Boundary {
                     values: vec![B128::new(
@@ -378,7 +409,7 @@ pub mod test {
                 },
                 //Read cond_val in BNZ and fp^1 in RET
                 Boundary {
-                    values: vec![B128::new(1 << 32 | 1)],
+                    values: vec![B128::new((cond_val as u128) << 32 | 1)],
                     channel_id: zcray_table.vrom_channel,
                     direction: FlushDirection::Pull,
                     multiplicity: 2,

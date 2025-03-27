@@ -241,14 +241,6 @@ impl CpuColumns {
             };
             state_push[i] = (next_pc_col[i] as u64) << 32 | next_fp as u64;
             state_pull[i] = (pc as u64) << 32 | fp as u64;
-
-            println!("next_pc = {:?}, next_fp = {:?}", next_pc, next_fp);
-
-            println!(
-                "pc = {:?}, opcode = {:?}, arg0 = {:?}, arg1 = {:?}, arg2 = {:?}",
-                pc, opcode, arg0, arg1, arg2
-            );
-            println!("prom_push = {:#x}", prom_push[i]);
         }
 
         Ok(())

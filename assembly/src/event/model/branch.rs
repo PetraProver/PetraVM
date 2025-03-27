@@ -1,4 +1,5 @@
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_m3::builder::B32;
 
 use super::Event;
 use crate::{
@@ -33,9 +34,9 @@ impl Event for BnzEvent {
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
         channels.state_channel.push((
-            BinaryField32b::from_bases([self.target_low, self.target_high]).unwrap(),
+            B32::from_bases([self.target_low, self.target_high]).unwrap(),
             self.fp,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
@@ -76,12 +77,12 @@ pub(crate) struct BzEvent {
     pub(crate) pc: BinaryField32b,
     pub(crate) fp: u32,
     pub(crate) cond: u16,
-    pub(crate) cond_val: u32,
+    pub(crate) target_low: BinaryField16b,
+    pub(crate) target_high: BinaryField16b,
 }
 
 impl Event for BzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);
     }
 }
@@ -91,6 +92,8 @@ impl BzEvent {
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
         cond: BinaryField16b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
         field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
@@ -100,7 +103,8 @@ impl BzEvent {
             pc: field_pc,
             fp,
             cond: cond.val(),
-            cond_val,
+            target_low,
+            target_high,
         };
         interpreter.incr_pc();
         Ok(event)

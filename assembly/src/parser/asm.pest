@@ -21,6 +21,7 @@ MULU_instr     = { "MULU" }
 MULSU_instr    = { "MULSU" }
 XORI_instr     = { "XORI" }
 B32_ADDI_instr = { "B32_ADDI" }
+B32_MULI_instr = { "B32_MULI" }
 ADDI_instr     = { "ADDI" }
 SLTI_instr     = { "SLTI" }
 SLTIU_instr    = { "SLTIU" }
@@ -73,6 +74,7 @@ binary_non_imm_instrs = ${
 binary_imm_instrs     = ${
     XORI_instr
   | B32_ADDI_instr
+  | B32_MULI_instr
   | ADDI_instr
   | SLTIU_instr
   | SLTI_instr

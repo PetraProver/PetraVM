@@ -21,6 +21,11 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    B32Muli {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
     B128Add {
         dst: Slot,
         src1: Slot,
@@ -203,6 +208,9 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             InstructionsWithLabels::B32Mul { dst, src1, src2 } => {
                 write!(f, "B32_MUL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::B32Muli { dst, src1, imm } => {
+                write!(f, "B32_MULI {dst} {src1} {imm}")
             }
             InstructionsWithLabels::B128Add { dst, src1, src2 } => {
                 write!(f, "B128_ADD {dst} {src1} {src2}")
