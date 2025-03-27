@@ -15,11 +15,17 @@ pub struct ZkVMChannels {
 
     /// Channel connecting the PROM table to instruction tables
     /// Follows format [PC, Opcode, Arg1, Arg2, Arg3]
+    /// TODO: We may want this channel balanced without considering its
+    /// multiplicities (a lookup table)
     pub prom_channel: ChannelId,
 
     /// Channel for memory operations (VROM)
     /// Follows format [Address, Value]
     pub vrom_channel: ChannelId,
+
+    /// Channel for VROM address space (verifier pushes full address space)
+    /// Follows format [Address]
+    pub vrom_addr_space_channel: ChannelId,
 }
 
 impl ZkVMChannels {
@@ -29,6 +35,7 @@ impl ZkVMChannels {
             state_channel: cs.add_channel("state_channel"),
             prom_channel: cs.add_channel("prom_channel"),
             vrom_channel: cs.add_channel("vrom_channel"),
+            vrom_addr_space_channel: cs.add_channel("vrom_addr_space_channel"),
         }
     }
 }

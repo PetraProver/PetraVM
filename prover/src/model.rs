@@ -46,12 +46,15 @@ impl From<InterpreterInstruction> for Instruction {
 /// for the proving system. It contains:
 /// 1. The program instructions in a format optimized for the prover
 /// 2. The original ZCrayTrace with all execution events and memory state
+/// 3. A list of VROM writes (address, value) pairs
 #[derive(Debug)]
 pub struct ZkVMTrace {
     /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<Instruction>,
+    /// List of VROM writes (address, value) pairs
+    pub vrom_writes: Vec<(u32, u32)>,
 }
 
 impl ZkVMTrace {
@@ -60,6 +63,7 @@ impl ZkVMTrace {
         Self {
             trace: ZCrayTrace::default(),
             program: Vec::new(),
+            vrom_writes: Vec::new(),
         }
     }
 
@@ -74,6 +78,7 @@ impl ZkVMTrace {
         Self {
             trace,
             program: Vec::new(),
+            vrom_writes: Vec::new(),
         }
     }
 
@@ -109,6 +114,15 @@ impl ZkVMTrace {
         for instr in instructions {
             self.add_instruction(instr);
         }
+    }
+
+    /// Add a VROM write event.
+    ///
+    /// # Arguments
+    /// * `addr` - The address to write to
+    /// * `value` - The value to write
+    pub fn add_vrom_write(&mut self, addr: u32, value: u32) {
+        self.vrom_writes.push((addr, value));
     }
 
     /// Ensures the trace has enough data for proving.

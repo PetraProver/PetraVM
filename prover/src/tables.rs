@@ -100,36 +100,41 @@ where
     }
 }
 
-/// VROM (Value ROM) table for storing memory values.
+/// VROM (Value ROM) table for writing memory values.
 ///
-/// This table models the zCrayVM's memory, storing address-value pairs
-/// for all memory accesses.
+/// This table handles the case where we want to write a value to an address.
+/// It pulls an address from the address space channel and pushes the
+/// address+value to the VROM channel.
 ///
 /// Format: [Address, Value]
-pub struct VromTable {
+pub struct VromWriteTable {
     /// Table ID
     pub id: TableId,
-    /// Address column
+    /// Address column (from address space channel)
     pub addr: Col<B32, 1>,
-    /// Value column
+    /// Value column (from VROM channel)
     pub value: Col<B32, 1>,
 }
 
-impl VromTable {
-    /// Create a new VROM table with the given constraint system and channels.
+impl VromWriteTable {
+    /// Create a new VROM write table with the given constraint system and
+    /// channels.
     ///
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
-        let mut table = cs.add_table("vrom");
+        let mut table = cs.add_table("vrom_write");
 
         // Add columns for address and value
         let addr = table.add_committed("addr");
         let value = table.add_committed("value");
 
-        // Connect to VROM channel
-        table.pull(channels.vrom_channel, [addr, value]);
+        // Pull from VROM address space channel (verifier pushes full address space)
+        table.pull(channels.vrom_addr_space_channel, [addr]);
+
+        // Push to VROM channel (address+value)
+        table.push(channels.vrom_channel, [addr, value]);
 
         Self {
             id: table.id(),
@@ -139,7 +144,7 @@ impl VromTable {
     }
 }
 
-impl<U> TableFiller<U> for VromTable
+impl<U> TableFiller<U> for VromWriteTable
 where
     U: Pod + PackScalar<B32>,
 {
@@ -157,9 +162,137 @@ where
         let mut addr_col = witness.get_mut_as(self.addr)?;
         let mut value_col = witness.get_mut_as(self.value)?;
 
+        // Fill in values from events
         for (i, (addr, value)) in rows.enumerate() {
             addr_col[i] = *addr as u32;
             value_col[i] = *value as u32;
+        }
+
+        Ok(())
+    }
+}
+
+/// VROM (Value ROM) table for skipping addresses.
+///
+/// This table handles the case where we don't want to write a value to an
+/// address. It pulls an address from the address space channel but doesn't push
+/// anything to the VROM channel.
+///
+/// Format: [Address]
+pub struct VromSkipTable {
+    /// Table ID
+    pub id: TableId,
+    /// Address column (from address space channel)
+    pub addr: Col<B32, 1>,
+}
+
+impl VromSkipTable {
+    /// Create a new VROM skip table with the given constraint system and
+    /// channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
+    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+        let mut table = cs.add_table("vrom_skip");
+
+        // Add column for address
+        let addr = table.add_committed("addr");
+
+        // Pull from VROM address space channel (verifier pushes full address space)
+        table.pull(channels.vrom_addr_space_channel, [addr]);
+
+        Self {
+            id: table.id(),
+            addr,
+        }
+    }
+}
+
+impl<U> TableFiller<U> for VromSkipTable
+where
+    U: Pod + PackScalar<B32>,
+{
+    type Event = u32;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a Self::Event>,
+        witness: &'a mut TableWitnessIndexSegment<U>,
+    ) -> anyhow::Result<()> {
+        let mut addr_col = witness.get_mut_as(self.addr)?;
+
+        // Fill in addresses from events
+        for (i, addr) in rows.enumerate() {
+            addr_col[i] = *addr as u32;
+        }
+
+        Ok(())
+    }
+}
+
+/// VROM Address Space table that pushes all possible addresses (0-31) into the
+/// vrom_addr_space_channel.
+///
+/// This table is used by the verifier to push the full address space into the
+/// vrom_addr_space_channel. Each address must be pulled exactly once by either
+/// VromWriteTable or VromSkipTable.
+///
+/// Format: [Address]
+pub struct VromAddrSpaceTable {
+    /// Table ID
+    pub id: TableId,
+    /// Address column
+    pub addr: Col<B32, 1>,
+}
+
+impl VromAddrSpaceTable {
+    /// Create a new VROM Address Space table with the given constraint system
+    /// and channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
+    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+        let mut table = cs.add_table("vrom_addr_space");
+
+        // Add column for address
+        let addr = table.add_committed("addr");
+
+        // Push to VROM address space channel
+        table.push(channels.vrom_addr_space_channel, [addr]);
+
+        Self {
+            id: table.id(),
+            addr,
+        }
+    }
+}
+
+impl<U> TableFiller<U> for VromAddrSpaceTable
+where
+    U: Pod + PackScalar<B32>,
+{
+    type Event = u32;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        _rows: impl Iterator<Item = &'a Self::Event>,
+        witness: &'a mut TableWitnessIndexSegment<U>,
+    ) -> anyhow::Result<()> {
+        let mut addr_col = witness.get_mut_as(self.addr)?;
+
+        // TODO: use the actual size
+        for i in 0..32 {
+            addr_col[i] = i as u32;
         }
 
         Ok(())

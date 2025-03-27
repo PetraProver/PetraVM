@@ -1,0 +1,109 @@
+# zCrayVM Prover
+
+This crate implements the proving system for zCrayVM, which is designed to efficiently execute WebAssembly code within Zero-Knowledge proof systems. The key innovation is the use of a specialized virtual machine (zCrayVM) that is optimized for recursive proof verification.
+
+## Architecture
+
+The proving system is built using an M3 arithmetic circuit with the following components:
+
+### Tables
+
+1. **PROM Table**
+   - Stores program instructions
+   - Format: [PC, Opcode, Arg1, Arg2, Arg3]
+   - Connected to instruction tables through `prom_channel`
+
+2. **VROM Tables**
+   - `VromAddrSpaceTable`: Pushes the full address space (0-31) into `vrom_addr_space_channel`
+   - `VromWriteTable`: Handles writing values to VROM addresses
+   - `VromSkipTable`: Handles skipping unused VROM addresses
+   - Format: [Address, Value]
+   - Connected through `vrom_channel` and `vrom_addr_space_channel`
+
+3. **Instruction Tables**
+   - `LdiTable`: Handles Load Immediate instructions
+   - `RetTable`: Handles Return instructions
+   - Each table pulls addresses from `vrom_addr_space_channel` and verifies they match computed addresses
+
+### Channels
+
+1. **State Channel**
+   - Format: [PC, FP]
+   - Used for state transitions between instructions
+   - Pulled by instruction tables for current state
+   - Pushed by instruction tables for next state
+
+2. **PROM Channel**
+   - Format: [PC, Opcode, Arg1, Arg2, Arg3]
+   - Used to connect PROM table with instruction tables
+   - Pulled by instruction tables to get instruction details
+   - Pushed by PROM table with instruction data
+
+3. **VROM Channel**
+   - Format: [Address, Value]
+   - Used for memory operations
+   - Pulled by VromWriteTable for address+value pairs
+   - Pushed by instruction tables when writing values
+
+4. **VROM Address Space Channel**
+   - Format: [Address]
+   - Used to push the full address space (0-31)
+   - Pulled by instruction tables and VROM tables
+   - Pushed by VromAddrSpaceTable
+
+### Design Considerations
+
+1. **VROM Memory Model**
+   - Write-once semantics enforced by channel balancing
+   - Each address can only be pulled once from `vrom_addr_space_channel`
+   - Prover must either write a value or skip each address
+   - All addresses (0-31) must be accounted for
+
+2. **Channel Balancing**
+   - All pushes must be matched by pulls
+   - Each address from `vrom_addr_space_channel` must be pulled exactly once
+   - Instruction tables verify pulled addresses match computed addresses
+
+3. **Table Organization**
+   - Separate tables for different operations (write vs skip)
+   - Each table has a focused responsibility
+   - Tables communicate through channels to maintain separation of concerns
+
+## Usage
+
+The proving system is used to generate and verify proofs of zCrayVM execution:
+
+```rust
+use zcrayvm_prover::prover::ZkVMProver;
+use zcrayvm_prover::model::ZkVMTrace;
+
+// Create a prover
+let prover = ZkVMProver::new();
+
+// Generate a proof for a trace
+let proof = prover.prove(&trace)?;
+
+// Verify the proof
+prover.verify(&trace, &proof)?;
+```
+
+## Testing
+
+The crate includes integration tests that verify the complete proving pipeline:
+
+1. Assembly to trace generation
+2. Trace validation
+3. Proof generation
+4. Proof verification
+
+Run the tests with:
+```bash
+cargo test
+```
+
+## Future Work
+
+1. Support for more instruction types
+2. Optimization of table sizes and channel interactions
+3. Improved error messages and debugging tools
+4. Performance optimizations for recursive proof verification

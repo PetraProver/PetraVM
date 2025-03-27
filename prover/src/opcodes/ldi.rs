@@ -91,8 +91,17 @@ impl LdiTable {
         let computed_imm = table.add_computed("computed_imm", instr_imm_low + imm_high_shifted);
         table.assert_zero("imm_computation_correct", (imm - computed_imm).into());
 
-        // Push value to VROM (addr = fp + dst, value = imm)
+        // Compute target address
         let addr = table.add_computed("addr", fp + dst);
+
+        // Pull address from VROM address space channel
+        let addr_space = table.add_committed("addr_space");
+        table.pull(channels.vrom_addr_space_channel, [addr_space]);
+
+        // Verify address matches
+        table.assert_zero("addr_matches", (addr - addr_space).into());
+
+        // Push value to VROM write table
         table.push(channels.vrom_channel, [addr, imm]);
 
         // Update state: PC = PC * G (moves to next instruction)

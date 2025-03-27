@@ -9,7 +9,7 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::ZkVMChannels,
     model::ZkVMTrace,
-    tables::{LdiTable, PromTable, RetTable, VromTable},
+    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
 /// Complete zCrayVM circuit with all tables for the proving system.
@@ -20,8 +20,12 @@ pub struct ZkVMCircuit {
     pub channels: ZkVMChannels,
     /// Program ROM table
     pub prom_table: PromTable,
-    /// Value ROM table
-    pub vrom_table: VromTable,
+    /// VROM Address Space table
+    pub vrom_addr_space_table: VromAddrSpaceTable,
+    /// VROM Write table
+    pub vrom_write_table: VromWriteTable,
+    /// VROM Skip table
+    pub vrom_skip_table: VromSkipTable,
     /// LDI instruction table
     pub ldi_table: LdiTable,
     /// RET instruction table
@@ -39,7 +43,9 @@ impl ZkVMCircuit {
 
         // Create all the tables
         let prom_table = PromTable::new(&mut cs, &channels);
-        let vrom_table = VromTable::new(&mut cs, &channels);
+        let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
+        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
+        let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
 
@@ -47,7 +53,9 @@ impl ZkVMCircuit {
             cs,
             channels,
             prom_table,
-            vrom_table,
+            vrom_addr_space_table,
+            vrom_write_table,
+            vrom_skip_table,
             ldi_table,
             ret_table,
         }
@@ -86,21 +94,28 @@ impl ZkVMCircuit {
             multiplicity: 1,
         };
 
-        // Calculate more accurate table sizes
         let prom_size = trace.program.len();
 
         // TODO: Get actual size
-        let vrom_size = 32;
+        let vrom_addr_space_size = 32;
+
+        // VROM write size is the number of addresses we write to
+        let vrom_write_size = trace.vrom_writes.len();
+
+        // VROM skip size is the number of addresses we skip
+        let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
-            prom_size, // PROM table size
-            vrom_size, // VROM table size
-            ldi_size,  // LDI table size
-            ret_size,  // RET table size
+            prom_size,            // PROM table size
+            vrom_addr_space_size, // VROM address space table size
+            vrom_write_size,      // VROM write table size
+            vrom_skip_size,       // VROM skip table size
+            ldi_size,             // LDI table size
+            ret_size,             // RET table size
         ];
 
         // Create the statement

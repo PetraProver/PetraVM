@@ -5,13 +5,13 @@
 
 use anyhow::Result;
 use binius_core::{
-    constraint_system::{prove, verify, validate, Proof},
+    constraint_system::{prove, validate, Proof},
     fiat_shamir::HasherChallenger,
     tower::CanonicalTowerFamily,
 };
 use binius_field::arch::OptimalUnderlier128b;
-use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_hal::make_portable_backend;
+use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use bumpalo::Bump;
 
 use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
@@ -20,6 +20,7 @@ const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
 
 /// Main prover for zCrayVM.
+// TODO: should be customizable by supported opcodes
 pub struct ZkVMProver {
     /// Arithmetic circuit for zCrayVM
     circuit: ZkVMCircuit,
