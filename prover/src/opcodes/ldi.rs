@@ -1,7 +1,7 @@
 //! LDI (Load Immediate) table implementation for the zCrayVM M3 circuit.
 //!
 //! This module contains the LDI table which handles loading immediate values
-//! into registers in the zCrayVM execution.
+//! into VROM locations in the zCrayVM execution.
 
 use binius_field::{as_packed_field::PackScalar, BinaryField, BinaryField32b};
 use binius_m3::builder::{
@@ -15,7 +15,7 @@ use crate::channels::ZkVMChannels;
 /// LDI (Load Immediate) table.
 ///
 /// This table handles the Load Immediate instruction, which loads a 32-bit
-/// immediate value into a register.
+/// immediate value into a VROM location.
 ///
 /// Logic:
 /// 1. Load the current PC and FP from the state channel
@@ -31,7 +31,7 @@ pub struct LdiTable {
     pub pc: Col<B32, 1>,
     /// Frame pointer column
     pub fp: Col<B32, 1>,
-    /// Destination register column
+    /// Destination VROM offset column
     pub dst: Col<B32, 1>,
     /// Immediate value column
     pub imm: Col<B32, 1>,
