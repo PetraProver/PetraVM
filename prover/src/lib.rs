@@ -10,5 +10,4 @@ pub mod channels;
 pub mod circuit;
 pub mod prover;
 pub mod error;
-pub mod ldi;
 pub mod opcodes;

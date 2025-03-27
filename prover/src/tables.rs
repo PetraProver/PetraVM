@@ -15,8 +15,7 @@ use crate::{
 };
 
 // Re-export instruction-specific tables
-pub use crate::ldi::LdiTable;
-pub use crate::opcodes::RetTable;
+pub use crate::opcodes::{RetTable, LdiTable};
 
 /// PROM (Program ROM) table for storing program instructions.
 ///

@@ -3,6 +3,7 @@
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
 
+use anyhow::Result;
 use binius_field::BinaryField32b;
 use zcrayvm_assembly::{
     Opcode,
@@ -13,6 +14,9 @@ use zcrayvm_assembly::{
 };
 
 /// High-level representation of a zCrayVM instruction with its PC and arguments.
+///
+/// This is a simplified representation of the instruction format used in the proving
+/// system, where the arguments are stored in a more convenient form for the prover.
 #[derive(Debug, Clone)]
 pub struct Instruction {
     /// PC value as a field element
@@ -20,12 +24,18 @@ pub struct Instruction {
     /// Opcode of the instruction
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
+    /// - For most instructions, these map directly to the instruction arguments
+    /// - For LDI, args = [dst, imm_low, imm_high]
+    /// - For RET, args is empty
     pub args: Vec<u16>,
 }
 
 impl From<InterpreterInstruction> for Instruction {
     fn from(instr: InterpreterInstruction) -> Self {
+        // Extract arguments from the interpreter instruction
         let args_array = instr.args();
+        
+        // Convert to our simplified format
         Self {
             pc: instr.field_pc,
             opcode: instr.opcode(),
@@ -35,11 +45,14 @@ impl From<InterpreterInstruction> for Instruction {
 }
 
 /// Execution trace containing a program and all execution events.
+///
 /// This is a wrapper around ZCrayTrace that provides a simplified interface
-/// for the proving system.
+/// for the proving system. It contains:
+/// 1. The program instructions in a format optimized for the prover
+/// 2. The original ZCrayTrace with all execution events and memory state
 #[derive(Debug)]
 pub struct ZkVMTrace {
-    /// The underlying ZCrayTrace
+    /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<Instruction>,
@@ -55,6 +68,12 @@ impl ZkVMTrace {
     }
     
     /// Creates a ZkVMTrace from an existing ZCrayTrace.
+    ///
+    /// This is useful when you have a trace from the interpreter and want
+    /// to convert it to the proving format.
+    ///
+    /// Note: This creates an empty program vector. You'll need to populate
+    /// the program instructions separately using add_instructions().
     pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
         Self { 
             trace,
@@ -62,22 +81,31 @@ impl ZkVMTrace {
         }
     }
     
-    /// Returns a reference to the LDI events.
+    /// Returns a reference to the LDI events from the trace.
+    ///
+    /// These events represent each LDI instruction executed during the trace.
     pub fn ldi_events(&self) -> &Vec<LDIEvent> {
         &self.trace.ldi
     }
     
-    /// Returns a reference to the RET events.
+    /// Returns a reference to the RET events from the trace.
+    ///
+    /// These events represent each RET instruction executed during the trace.
     pub fn ret_events(&self) -> &Vec<RetEvent> {
         &self.trace.ret
     }
     
     /// Add an interpreter instruction to the program.
+    ///
+    /// This converts the interpreter instruction to our simplified format.
     pub fn add_instruction(&mut self, instr: InterpreterInstruction) {
         self.program.push(instr.into());
     }
     
     /// Add multiple interpreter instructions to the program.
+    ///
+    /// # Arguments
+    /// * `instructions` - An iterator of InterpreterInstructions to add
     pub fn add_instructions<I>(&mut self, instructions: I)
     where
         I: IntoIterator<Item = InterpreterInstruction>
@@ -85,5 +113,30 @@ impl ZkVMTrace {
         for instr in instructions {
             self.add_instruction(instr);
         }
+    }
+    
+    /// Ensures the trace has enough data for proving.
+    ///
+    /// This will verify that:
+    /// 1. The program has at least one instruction
+    /// 2. The trace has at least one LDI event
+    /// 3. The trace has at least one RET event
+    ///
+    /// # Returns
+    /// * Ok(()) if the trace is valid, or an error with a description of what's missing
+    pub fn validate(&self) -> Result<()> {
+        if self.program.is_empty() {
+            return Err(anyhow::anyhow!("Trace must contain at least one instruction"));
+        }
+        
+        if self.ldi_events().is_empty() {
+            return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
+        }
+        
+        if self.ret_events().is_empty() {
+            return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
+        }
+        
+        Ok(())
     }
 }
