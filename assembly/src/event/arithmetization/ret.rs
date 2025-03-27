@@ -70,8 +70,8 @@ impl RetTable {
 
         //Read the next_fp
         let vrom_next_fp = table.add_computed(
-            "fp_xor_1_next_fp",
-            pack_b32_into_b64([next_fp.into(), fp_xor_1.into()]),
+            "vrom_next_fp",
+            pack_b32_into_b64([fp_xor_1.into(), next_fp.into()]),
         );
         table.push(vrom_channel, [vrom_next_fp]);
 
@@ -113,8 +113,8 @@ where
                 fp_xor_1[i] = event.fp ^ 1;
                 next_pc[i] = event.fp_0_val;
                 next_fp[i] = event.fp_1_val;
-                vrom_next_pc[i] = (event.fp as u64) << 32 | event.fp_0_val as u64;
-                vrom_next_fp[i] = (event.fp as u64 ^ 1) << 32 | event.fp_1_val as u64;
+                vrom_next_pc[i] = (event.fp_0_val as u64) << 32 | event.fp as u64;
+                vrom_next_fp[i] = (event.fp_1_val as u64) << 32 | event.fp as u64 ^ 1;
             }
         }
         let cpu_rows = rows.map(|event| {

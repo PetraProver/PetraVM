@@ -318,7 +318,8 @@ impl Interpreter {
                 BnzEvent::generate_event(self, trace, cond, target_low, target_high, field_pc)?;
             trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, trace, cond, field_pc)?;
+            let new_bz_event =
+                BzEvent::generate_event(self, trace, cond, target_low, target_high, field_pc)?;
             trace.bz.push(new_bz_event);
         }
 
