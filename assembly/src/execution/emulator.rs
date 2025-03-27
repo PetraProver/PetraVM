@@ -21,8 +21,9 @@ use crate::{
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         context::EventContext,
         integer_ops::{
-            self, Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp,
-            MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            self, Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent,
+            MulsuEvent, MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent,
+            SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -59,6 +60,7 @@ pub(crate) struct Interpreter {
     /// 1, and 0 can be the halting value.
     pub(crate) pc: u32,
     pub(crate) fp: u32,
+    /// The system timestamp. Only RAM operations increase it.
     pub(crate) timestamp: u32,
     frames: LabelsFrameSizes,
     /// Before a CALL, there are a few move operations used to populate the next
@@ -204,7 +206,13 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
+        trace!(
+            "Executing {:?} with args {:?}",
+            opcode,
+            (1..1 + opcode.num_args())
+                .map(|i| instruction.instruction[i].val())
+                .collect::<Vec<_>>()
+        );
 
         let mut ctx = EventContext {
             interpreter: self,
@@ -233,8 +241,8 @@ impl Interpreter {
             Opcode::Sltiu => SltiuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Muli => MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Mulu => MuluEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulsu => SignedMulEvent::<MulsuOp>::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mul => SignedMulEvent::<MulOp>::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mulsu => MulsuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mul => MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Ret => RetEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Taili => TailiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Tailv => TailVEvent::generate(&mut ctx, arg0, arg1, arg2)?,
@@ -254,7 +262,6 @@ impl Interpreter {
             Opcode::B128Mul => B128MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
-        self.timestamp += 1;
         Ok(Some(()))
     }
 

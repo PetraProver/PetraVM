@@ -52,11 +52,9 @@ impl Event for JumpvEvent {
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target),
-            self.fp,
-            self.timestamp + 1,
-        ));
+        channels
+            .state_channel
+            .push((BinaryField32b::new(self.target), self.fp, self.timestamp));
     }
 }
 
@@ -108,7 +106,7 @@ impl Event for JumpiEvent {
         channels.state_channel.push((
             BinaryField32b::new(self.target.val()),
             self.fp,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }

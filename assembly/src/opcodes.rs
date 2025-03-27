@@ -1,5 +1,6 @@
 use binius_field::BinaryField16b;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use pest::pratt_parser::Op;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 
@@ -79,5 +80,51 @@ impl Opcode {
     pub const OP_COUNT: usize = Self::COUNT - 1;
     pub const fn get_field_elt(&self) -> BinaryField16b {
         BinaryField16b::new(*self as u16)
+    }
+
+    /// Returns the number of arguments expected by the given opcode.
+    pub fn num_args(&self) -> usize {
+        match self {
+            Opcode::Bnz => 3,     // cond, target_low, target_high
+            Opcode::Jumpi => 2,   // target_low, target_high
+            Opcode::Jumpv => 1,   // offset
+            Opcode::Xori => 3,    // dst, src, imm
+            Opcode::Xor => 3,     // dst, src1, src2
+            Opcode::Ret => 0,     //
+            Opcode::Slli => 3,    // dst, src, imm
+            Opcode::Srli => 3,    // dst, src, imm
+            Opcode::Srai => 3,    // dst, src, imm
+            Opcode::Sll => 3,     // dst, src1, src2
+            Opcode::Srl => 3,     // dst, src1, src2
+            Opcode::Sra => 3,     // dst, src1, src2
+            Opcode::Tailv => 2,   // offset, next_fp
+            Opcode::Taili => 3,   // target_low, target_high, next_fp
+            Opcode::Calli => 3,   // target_low, target_high, next_fp
+            Opcode::Callv => 2,   // offset, next_fp
+            Opcode::And => 3,     // dst, src1, src2
+            Opcode::Andi => 3,    // dst, src, imm
+            Opcode::Sub => 3,     // dst, src1, src2
+            Opcode::Slt => 3,     // dst, src1, src2
+            Opcode::Slti => 3,    // dst, src, imm
+            Opcode::Sltu => 3,    // dst, src1, src2
+            Opcode::Sltiu => 3,   // dst, src, imm
+            Opcode::Or => 3,      // dst, src1, src2
+            Opcode::Ori => 3,     // dst, src, imm
+            Opcode::Muli => 3,    // dst, src, imm
+            Opcode::Mulu => 3,    // dst, src1, src2
+            Opcode::Mul => 3,     // dst, src1, src2
+            Opcode::Mulsu => 3,   // dst, src1, src2
+            Opcode::B32Mul => 3,  // dst, src1, src2
+            Opcode::B32Muli => 3, // dst, src, imm
+            Opcode::B128Add => 3, // dst, src1, src2
+            Opcode::B128Mul => 3, // dst, src, imm
+            Opcode::Add => 3,     // dst, src1, src2
+            Opcode::Addi => 3,    // dst, src, imm
+            Opcode::Mvvw => 3,    // dst, offset, src
+            Opcode::Mvvl => 3,    // dst, offset, src
+            Opcode::Mvih => 3,    // dst, offset, imm
+            Opcode::Ldi => 3,     // dst, imm_low, imm_high
+            Opcode::Invalid => 0, // invalid
+        }
     }
 }

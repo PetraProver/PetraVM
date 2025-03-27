@@ -500,6 +500,9 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
     }
 }
 
+pub type MulEvent = SignedMulEvent<MulOp>;
+pub type MulsuEvent = SignedMulEvent<MulsuOp>;
+
 // Note: The addition is checked thanks to the ADD32 table.
 define_bin32_op_event!(
     /// Event for SLTU.
