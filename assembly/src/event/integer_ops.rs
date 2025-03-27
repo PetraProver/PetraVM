@@ -26,16 +26,6 @@ pub(crate) struct AddGadget<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> 
 }
 
 impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadget<T> {
-    pub const fn new(timestamp: u32, output: T, input1: T, input2: T, cout: T) -> Self {
-        Self {
-            timestamp,
-            output,
-            input1,
-            input2,
-            cout,
-        }
-    }
-
     pub fn generate_gadget(ctx: &mut EventContext, input1: T, input2: T) -> Self {
         let (output, carry) = input1.overflowing_add(&input2);
 

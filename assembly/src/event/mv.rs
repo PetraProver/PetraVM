@@ -435,26 +435,6 @@ pub(crate) struct MVIHEvent {
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
 // zero-extended. So it needs to be updated once we have multi-granularity.
 impl MVIHEvent {
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_addr: u32,
-        imm: u16,
-        offset: u16,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_addr,
-            imm,
-            offset,
-        }
-    }
-
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
     pub(crate) fn generate_event_from_info(
@@ -541,16 +521,6 @@ pub(crate) struct LDIEvent {
 }
 
 impl LDIEvent {
-    pub const fn new(pc: BinaryField32b, fp: u32, timestamp: u32, dst: u16, imm: u32) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            imm,
-        }
-    }
-
     pub fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
