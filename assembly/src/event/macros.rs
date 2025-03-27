@@ -86,6 +86,17 @@ macro_rules! impl_left_right_output_for_bin_op {
 macro_rules! impl_event_for_binary_operation {
     ($ty:ty) => {
         impl $crate::event::Event for $ty {
+            fn generate(
+                &self,
+                ctx: &mut EventContext,
+                arg0: BinaryField16b,
+                arg1: BinaryField16b,
+                arg2: BinaryField16b,
+            ) {
+                // TODO(Robin): push to trace
+                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+            }
+
             fn fire(
                 &self,
                 channels: &mut $crate::execution::InterpreterChannels,
@@ -117,6 +128,17 @@ macro_rules! fire_non_jump_event {
 macro_rules! impl_event_no_interaction_with_state_channel {
     ($t:ty) => {
         impl Event for $t {
+            fn generate(
+                &self,
+                ctx: &mut EventContext,
+                arg0: BinaryField16b,
+                arg1: BinaryField16b,
+                arg2: BinaryField16b,
+            ) {
+                // TODO(Robin): fix gadgets
+                let _ = Self::generate_event(ctx, arg0.val().into(), arg1.val().into());
+            }
+
             fn fire(&self, _channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 // No interaction with the state channel.
             }
@@ -309,6 +331,15 @@ macro_rules! define_bin128_op_event {
         }
 
         impl Event for $name {
+            fn generate(&self,
+                ctx: &mut EventContext,
+                arg0: BinaryField16b,
+                arg1: BinaryField16b,
+                arg2: BinaryField16b,) {
+                // TODO(Robin): push to trace
+                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+            }
+
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 use super::{LeftOp, OutputOp, RightOp};
 

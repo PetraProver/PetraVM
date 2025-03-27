@@ -49,6 +49,16 @@ impl RetEvent {
 }
 
 impl Event for RetEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        _unused0: BinaryField16b,
+        _unused1: BinaryField16b,
+        _unused2: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, _unused0, _unused1, _unused2);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel

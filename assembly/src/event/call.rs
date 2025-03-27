@@ -93,6 +93,16 @@ impl TailiEvent {
 }
 
 impl Event for TailiEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        next_fp: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, target_low, target_high, next_fp);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
@@ -200,6 +210,16 @@ impl TailVEvent {
 }
 
 impl Event for TailVEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        offset: BinaryField16b,
+        next_fp: BinaryField16b,
+        _unused: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, offset, next_fp, _unused);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
@@ -289,6 +309,16 @@ impl CalliEvent {
 }
 
 impl Event for CalliEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        next_fp: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, target_low, target_high, next_fp);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
@@ -390,6 +420,16 @@ impl CallvEvent {
 }
 
 impl Event for CallvEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        offset: BinaryField16b,
+        next_fp: BinaryField16b,
+        _unused: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, offset, next_fp, _unused);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel

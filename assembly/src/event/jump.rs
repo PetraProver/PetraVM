@@ -63,6 +63,16 @@ impl JumpvEvent {
 }
 
 impl Event for JumpvEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        offset: BinaryField16b,
+        _unused0: BinaryField16b,
+        _unused1: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, offset, _unused0, _unused1);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
@@ -124,6 +134,16 @@ impl JumpiEvent {
 }
 
 impl Event for JumpiEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        _unused: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, target_low, target_high, _unused);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel

@@ -5,7 +5,7 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use super::context::EventContext;
 use crate::{
-    event::Event,
+    event::{binary_ops::*, Event},
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
     fire_non_jump_event, ZCrayTrace,
 };
@@ -192,6 +192,16 @@ impl<S: ShiftSource, O: ShiftOperation> ShiftEvent<S, O> {
 }
 
 impl<S: ShiftSource, O: ShiftOperation> Event for ShiftEvent<S, O> {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, dst, src1, src2);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         fire_non_jump_event!(self, channels);
     }

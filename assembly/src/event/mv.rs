@@ -32,6 +32,17 @@ pub(crate) struct MVInfo {
 macro_rules! impl_mv_fire {
     ($event:ty) => {
         impl Event for $event {
+            fn generate(
+                &self,
+                ctx: &mut EventContext,
+                arg0: BinaryField16b,
+                arg1: BinaryField16b,
+                arg2: BinaryField16b,
+            ) {
+                // TODO(Robin): push to trace
+                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+            }
+
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 fire_non_jump_event!(self, channels);
             }

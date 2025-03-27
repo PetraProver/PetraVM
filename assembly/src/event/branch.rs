@@ -26,6 +26,16 @@ pub(crate) struct BnzEvent {
 }
 
 impl Event for BnzEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        cond: BinaryField16b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, cond, target_low, target_high);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         assert_ne!(self.cond, 0);
         channels
@@ -78,6 +88,16 @@ pub(crate) struct BzEvent {
 }
 
 impl Event for BzEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        cond: BinaryField16b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, cond, target_low, target_high);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);

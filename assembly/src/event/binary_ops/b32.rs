@@ -3,7 +3,7 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, Packed
 use super::BinaryOperation;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
-    event::{context::EventContext, Event},
+    event::{binary_ops::*, context::EventContext, Event},
     execution::{InterpreterError, ZCrayTrace, G},
     impl_32b_immediate_binary_operation, Opcode,
 };
@@ -152,6 +152,16 @@ impl BinaryOperation for B32MuliEvent {
 }
 
 impl Event for B32MuliEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm_low: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, dst, src, imm_low);
+    }
+
     fn fire(
         &self,
         channels: &mut crate::execution::InterpreterChannels,

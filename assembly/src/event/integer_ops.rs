@@ -7,7 +7,7 @@ use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 use super::context::EventContext;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
-    event::{binary_ops::BinaryOperation, Event},
+    event::{binary_ops::*, Event},
     execution::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
     },
@@ -190,6 +190,16 @@ impl MuliEvent {
 }
 
 impl Event for MuliEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, dst, src, imm);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         assert_eq!(
             self.dst_val,
@@ -296,6 +306,16 @@ impl MuluEvent {
 }
 
 impl Event for MuluEvent {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, dst, src1, src2);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         assert_eq!(
             self.dst_val,
@@ -476,6 +496,16 @@ impl<T: SignedMulOperation> SignedMulEvent<T> {
 }
 
 impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) {
+        let _ = Self::generate_event(ctx, dst, src1, src2);
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
         fire_non_jump_event!(self, channels);

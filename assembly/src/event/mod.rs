@@ -6,6 +6,7 @@
 use std::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
+use context::EventContext;
 
 use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
 
@@ -24,6 +25,16 @@ pub(crate) use binary_ops::{b128, b32};
 
 /// An `Event` represents an instruction that can be executed by the VM.
 pub trait Event {
+    /// Generates a new event and pushes it to its corresponding list in the set
+    /// of traces.
+    fn generate(
+        &self,
+        ctx: &mut EventContext,
+        arg0: BinaryField16b,
+        arg1: BinaryField16b,
+        arg2: BinaryField16b,
+    );
+
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
