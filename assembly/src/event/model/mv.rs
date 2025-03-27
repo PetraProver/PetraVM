@@ -646,7 +646,7 @@ mod tests {
             offset: offset2,
             src: src_addr2,
             pc: G,
-            timestamp: 1,
+            timestamp: 0, // Only RAM operations increase the timestamp
         };
 
         assert_eq!(interpreter.moves_to_apply, vec![first_move, second_move]);
@@ -853,7 +853,7 @@ mod tests {
             Opcode::Mvvl,          // Opcode
             G,                     // PC
             0u32,                  // FP
-            1u32,                  // Timestamp
+            0u32,                  // Timestamp (Only RAM operations increase it)
             next_fp_offset,        // Dst
             src_addr,              // Src
             offset2,               // Offset

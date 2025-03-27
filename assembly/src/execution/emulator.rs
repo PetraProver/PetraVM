@@ -22,7 +22,10 @@ use crate::{
     assembler::LabelsFrameSizes,
     event::model::{
         b128::{B128AddEvent, B128MulEvent},
-        b32::{AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
+        b32::{
+            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
+        },
+        binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
@@ -33,8 +36,6 @@ use crate::{
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         shift::{ShiftEvent, ShiftOperation},
-        ImmediateBinaryOperation,
-        NonImmediateBinaryOperation, // Add the import for RetEvent
     },
     execution::{StateChannel, ZCrayTrace},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
@@ -65,6 +66,7 @@ pub(crate) struct Interpreter {
     /// 1, and 0 can be the halting value.
     pub(crate) pc: u32,
     pub(crate) fp: u32,
+    /// The system timestamp. Only RAM operations increase it.
     pub(crate) timestamp: u32,
     frames: LabelsFrameSizes,
     /// Before a CALL, there are a few move operations used to populate the next
@@ -258,7 +260,13 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        trace!("Executing {:?} at timestamp {:?}", opcode, self.timestamp);
+        trace!(
+            "Executing {:?} with args {:?}",
+            opcode,
+            (1..1 + opcode.num_args())
+                .map(|i| instruction.instruction[i].val())
+                .collect::<Vec<_>>()
+        );
         match opcode {
             Opcode::Bnz => self.generate_bnz(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Jumpi => self.generate_jumpi(trace, field_pc, arg0, arg1, arg2)?,
@@ -296,11 +304,11 @@ impl Interpreter {
             Opcode::Mvvl => self.generate_mvvl(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Ldi => self.generate_ldi(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B32Mul => self.generate_b32_mul(trace, field_pc, arg0, arg1, arg2)?,
+            Opcode::B32Muli => self.generate_b32_muli(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Add => self.generate_b128_add(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::B128Mul => self.generate_b128_mul(trace, field_pc, arg0, arg1, arg2)?,
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
-        self.timestamp += 1;
         Ok(Some(()))
     }
 
@@ -779,7 +787,6 @@ impl Interpreter {
         &mut self,
         trace: &mut ZCrayTrace,
         field_pc: BinaryField32b,
-
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
@@ -832,6 +839,33 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let new_b32mul_event = B32MulEvent::generate_event(self, trace, dst, src1, src2, field_pc)?;
         trace.b32_mul.push(new_b32mul_event);
+
+        Ok(())
+    }
+
+    fn generate_b32_muli(
+        &mut self,
+        trace: &mut ZCrayTrace,
+        field_pc: BinaryField32b,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm_low: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        if self.pc as usize > trace.prom().len() {
+            return Err(InterpreterError::BadPc);
+        }
+        let [second_opcode, imm_high, third, fourth] = trace.prom()[self.pc as usize].instruction;
+
+        if second_opcode.val() != Opcode::B32Muli.into()
+            || third != BinaryField16b::ZERO
+            || fourth != BinaryField16b::ZERO
+        {
+            return Err(InterpreterError::BadPc);
+        }
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
+        let new_b32muli_event = B32MuliEvent::generate_event(self, trace, dst, src, imm, field_pc)?;
+        trace.b32_muli.push(new_b32muli_event);
 
         Ok(())
     }

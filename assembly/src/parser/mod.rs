@@ -91,6 +91,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::B32_MULI_instr => {
+                                instrs.push(InstructionsWithLabels::B32Muli {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::ADDI_instr => {
                                 instrs.push(InstructionsWithLabels::Addi {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -323,9 +330,6 @@ fn parse_line(
                             }
                             Rule::MUL_instr => {
                                 instrs.push(InstructionsWithLabels::Mul { dst, src1, src2 });
-                            }
-                            Rule::B32_MUL_instr => {
-                                instrs.push(InstructionsWithLabels::B32Mul { dst, src1, src2 });
                             }
                             Rule::B128_ADD_instr => {
                                 instrs.push(InstructionsWithLabels::B128Add { dst, src1, src2 });

@@ -1,4 +1,5 @@
 use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_m3::builder::B32;
 
 use super::Event;
 use crate::{
@@ -33,9 +34,9 @@ impl Event for BnzEvent {
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
         channels.state_channel.push((
-            BinaryField32b::from_bases([self.target_low, self.target_high]).unwrap(),
+            B32::from_bases([self.target_low, self.target_high]).unwrap(),
             self.fp,
-            self.timestamp + 1,
+            self.timestamp,
         ));
     }
 }
