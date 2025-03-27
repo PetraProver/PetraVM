@@ -49,16 +49,16 @@ pub struct InterpreterTables {
 // TODO: Add some structured execution tracing
 
 #[derive(Debug, Default)]
-pub(crate) struct Interpreter {
+pub struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
     /// PC (which starts at `BinaryField32b::ONE` and iterate over the
     /// multiplicative group). Since we need to have a value for 0 as well
     /// (which is not in the multiplicative group), we shift all powers by
     /// 1, and 0 can be the halting value.
-    pub(crate) pc: u32,
-    pub(crate) fp: u32,
+    pub pc: u32,
+    pub fp: u32,
     /// The system timestamp. Only RAM operations increase it.
-    pub(crate) timestamp: u32,
+    pub timestamp: u32,
     frames: LabelsFrameSizes,
     /// Before a CALL, there are a few move operations used to populate the next
     /// frame. But the next frame pointer is not necessarily known at this
@@ -66,7 +66,7 @@ pub(crate) struct Interpreter {
     /// used to store the move operations that need to be handled once we
     /// have enough information. Stores all move operations that should be
     /// handles during the current call procedure.
-    pub(crate) moves_to_apply: Vec<MVInfo>,
+    pub moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
     pc_field_to_int: HashMap<BinaryField32b, u32>,

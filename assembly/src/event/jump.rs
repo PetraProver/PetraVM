@@ -12,12 +12,12 @@ use crate::{
 /// Logic:
 /// 1. PC = FP[offset]
 #[derive(Debug, Clone)]
-pub(crate) struct JumpvEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    offset: u16,
-    target: u32,
+pub struct JumpvEvent {
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub offset: u16,
+    pub target: u32,
 }
 
 impl JumpvEvent {
@@ -79,11 +79,11 @@ impl Event for JumpvEvent {
 /// Logic:
 /// 1. PC = target
 #[derive(Debug, Clone)]
-pub(crate) struct JumpiEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    target: BinaryField32b,
+pub struct JumpiEvent {
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub target: BinaryField32b,
 }
 
 impl JumpiEvent {

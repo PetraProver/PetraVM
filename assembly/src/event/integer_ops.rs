@@ -15,7 +15,7 @@ use crate::{
 
 /// Event for the Add gadgets over the integers.
 #[derive(Debug, Clone)]
-pub(crate) struct AddGadgetEvent<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
+pub struct AddGadgetEvent<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
     timestamp: u32,
     output: T,
     input1: T,
@@ -124,15 +124,15 @@ define_bin32_op_event!(
 ///
 /// Performs a MUL between a signed 32-bit integer and a 16-bit immediate.
 #[derive(Debug, Clone)]
-pub(crate) struct MuliEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src: u16,
-    pub(crate) src_val: u32,
-    imm: u16,
+pub struct MuliEvent {
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src: u16,
+    pub src_val: u32,
+    pub imm: u16,
 }
 
 impl MuliEvent {
@@ -206,7 +206,7 @@ impl Event for MuliEvent {
 /// Performs a MULU between two unsigned 32-bit integers. Returns a 64-bit
 /// result.
 #[derive(Debug, Clone)]
-pub(crate) struct MuluEvent {
+pub struct MuluEvent {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -376,7 +376,7 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum SignedMulKind {
+pub enum SignedMulKind {
     Mulsu,
     Mul,
 }
@@ -384,17 +384,17 @@ pub(crate) enum SignedMulKind {
 ///
 /// Performs a MUL between two signed 32-bit integers.
 #[derive(Debug, Clone)]
-pub(crate) struct SignedMulEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    src2_val: u32,
-    kind: SignedMulKind,
+pub struct SignedMulEvent {
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src1: u16,
+    pub src1_val: u32,
+    pub src2: u16,
+    pub src2_val: u32,
+    pub kind: SignedMulKind,
 }
 
 impl SignedMulEvent {

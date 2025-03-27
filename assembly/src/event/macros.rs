@@ -190,16 +190,16 @@ macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src1: u16,
-            pub(crate) src1_val: u32,
-            pub(crate) src2: u16,
-            pub(crate) src2_val: u32,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: u32,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src1: u16,
+            pub src1_val: u32,
+            pub src2: u16,
+            pub src2_val: u32,
         }
 
         impl BinaryOperation for $name {
@@ -219,15 +219,15 @@ macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src: u16,
-            pub(crate) src_val: u32,
-            pub(crate) imm: u16,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: u32,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src: u16,
+            pub src_val: u32,
+            pub imm: u16,
         }
 
         impl BinaryOperation for $name {
@@ -247,16 +247,16 @@ macro_rules! define_bin128_op_event {
     ($(#[$meta:meta])* $name:ident, $op:tt) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            timestamp: u32,
-            pc: BinaryField32b,
-            fp: u32,
-            dst: u16,
-            dst_val: u128,
-            src1: u16,
-            src1_val: u128,
-            src2: u16,
-            src2_val: u128,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: u32,
+            pub dst: u16,
+            pub dst_val: u128,
+            pub src1: u16,
+            pub src1_val: u128,
+            pub src2: u16,
+            pub src2_val: u128,
         }
 
         impl BinaryOperation for $name {

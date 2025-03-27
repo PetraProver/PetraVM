@@ -18,7 +18,7 @@ pub(crate) enum MVKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MVInfo {
+pub struct MVInfo {
     pub(crate) mv_kind: MVKind,
     pub(crate) dst: BinaryField16b,
     pub(crate) offset: BinaryField16b,
@@ -128,7 +128,7 @@ impl MVEventOutput {
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
-pub(crate) struct MVVWEvent {
+pub struct MVVWEvent {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -274,7 +274,7 @@ impl_mv_fire!(MVVWEvent);
 /// Logic:
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
-pub(crate) struct MVVLEvent {
+pub struct MVVLEvent {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -413,7 +413,7 @@ impl_mv_fire!(MVVLEvent);
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
-pub(crate) struct MVIHEvent {
+pub struct MVIHEvent {
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
