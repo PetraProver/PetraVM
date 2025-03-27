@@ -32,6 +32,9 @@ pub struct ZkVMCircuit {
 
 impl ZkVMCircuit {
     /// Create a new zCrayVM circuit.
+    ///
+    /// This initializes the constraint system, channels, and all tables
+    /// needed for the zCrayVM execution.
     pub fn new() -> Self {
         let mut cs = ConstraintSystem::new();
         let channels = ZkVMChannels::new(&mut cs);
@@ -53,14 +56,20 @@ impl ZkVMCircuit {
     }
     
     /// Create a circuit statement for a given trace.
+    ///
+    /// # Arguments
+    /// * `trace` - The zCrayVM execution trace
+    ///
+    /// # Returns
+    /// * A Statement that defines boundaries and table sizes
     pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
         // Build the statement with boundary values
         let generator = BinaryField32b::MULTIPLICATIVE_GENERATOR;
         
-        // Define the initial and final state boundaries
+        // Define the initial state boundary (program starts at PC=G, FP=0)
         let initial_state = Boundary {
             values: vec![
-                B128::from(BinaryField32b::from(generator)), // Initial PC = G
+                B128::from(generator), // Initial PC = G
                 B128::from(BinaryField32b::ZERO), // Initial FP = 0
             ],
             channel_id: self.channels.state_channel,
@@ -68,7 +77,7 @@ impl ZkVMCircuit {
             multiplicity: 1,
         };
         
-        // After RET, PC and FP are both set to 0
+        // Define the final state boundary (program ends with PC=0, FP=0)
         let final_state = Boundary {
             values: vec![
                 B128::from(BinaryField32b::ZERO), // Final PC = 0
@@ -79,22 +88,39 @@ impl ZkVMCircuit {
             multiplicity: 1,
         };
         
-        // Define the table sizes
+        // Calculate more accurate table sizes
+        let prom_size = trace.program.len();
+        
+        // VROM entries = initial values (2) + LDI writes (1 per LDI) + RET reads (2 per RET)
+        let vrom_size = 2 + trace.ldi_events().len() + (2 * trace.ret_events().len());
+        
+        let ldi_size = trace.ldi_events().len();
+        let ret_size = trace.ret_events().len();
+        
+        // Define the table sizes in order of table creation
+        let table_sizes = vec![
+            prom_size,    // PROM table size
+            vrom_size,    // VROM table size
+            ldi_size,     // LDI table size
+            ret_size,     // RET table size
+        ];
+        
+        // Create the statement
         let statement = Statement {
             boundaries: vec![initial_state, final_state],
-            // [PROM rows, VROM rows, LDI table rows, RET table rows]
-            table_sizes: vec![
-                trace.program.len(),    // PROM table size
-                trace.program.len() * 2,  // Estimate VROM size (rough estimate)
-                trace.ldi_events().len(),  // LDI table size
-                trace.ret_events().len(),  // RET table size
-            ],
+            table_sizes,
         };
         
         Ok(statement)
     }
     
     /// Compile the circuit with a given statement.
+    ///
+    /// # Arguments
+    /// * `statement` - The statement to compile
+    ///
+    /// # Returns
+    /// * A compiled constraint system
     pub fn compile(&self, statement: &Statement) -> anyhow::Result<binius_core::constraint_system::ConstraintSystem<binius_field::BinaryField128b>> {
         Ok(self.cs.compile(statement)?)
     }

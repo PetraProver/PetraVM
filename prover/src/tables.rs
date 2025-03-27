@@ -19,6 +19,11 @@ pub use crate::ldi::LdiTable;
 pub use crate::opcodes::RetTable;
 
 /// PROM (Program ROM) table for storing program instructions.
+///
+/// This table stores all the instructions in the program and makes them
+/// available to the instruction-specific tables.
+///
+/// Format: [PC, Opcode, Arg1, Arg2, Arg3]
 pub struct PromTable {
     /// Table ID
     pub id: TableId,
@@ -35,7 +40,11 @@ pub struct PromTable {
 }
 
 impl PromTable {
-    /// Create a new PROM table.
+    /// Create a new PROM table with the given constraint system and channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("prom");
         
@@ -96,6 +105,11 @@ where
 }
 
 /// VROM (Value ROM) table for storing memory values.
+///
+/// This table models the zCrayVM's memory, storing address-value pairs
+/// for all memory accesses.
+///
+/// Format: [Address, Value]
 pub struct VromTable {
     /// Table ID
     pub id: TableId,
@@ -106,7 +120,11 @@ pub struct VromTable {
 }
 
 impl VromTable {
-    /// Create a new VROM table.
+    /// Create a new VROM table with the given constraint system and channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("vrom");
         

@@ -13,6 +13,17 @@ use crate::channels::ZkVMChannels;
 use zcrayvm_assembly::LDIEvent;
 
 /// LDI (Load Immediate) table.
+///
+/// This table handles the Load Immediate instruction, which loads a 32-bit
+/// immediate value into a register.
+///
+/// Logic:
+/// 1. Load the current PC and FP from the state channel
+/// 2. Get the instruction from PROM channel
+/// 3. Verify this is an LDI instruction
+/// 4. Compute the immediate value from the low and high parts
+/// 5. Store the immediate value at FP + dst in VROM
+/// 6. Update PC to move to the next instruction
 pub struct LdiTable {
     /// Table ID
     pub id: TableId,
@@ -27,7 +38,11 @@ pub struct LdiTable {
 }
 
 impl LdiTable {
-    /// Create a new LDI table.
+    /// Create a new LDI table with the given constraint system and channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("ldi_table");
         
@@ -61,7 +76,8 @@ impl LdiTable {
         table.assert_zero("dst_matches_instruction", (dst - instr_dst).into());
         
         // Compute imm = imm_low + (imm_high << 16)
-        let imm_high_shifted = table.add_computed("imm_high_shifted", instr_imm_high * B32::from(65536));
+        let shift_amount = table.add_constant("shift_16", [B32::from(65536)]);  // 2^16
+        let imm_high_shifted = table.add_computed("imm_high_shifted", instr_imm_high * shift_amount);
         let computed_imm = table.add_computed("computed_imm", instr_imm_low + imm_high_shifted);
         table.assert_zero("imm_computation_correct", (imm - computed_imm).into());
         
@@ -70,7 +86,8 @@ impl LdiTable {
         table.push(channels.vrom_channel, [addr, imm]);
         
         // Update state: PC = PC * G (moves to next instruction)
-        let next_pc = table.add_computed("next_pc", pc * B32::from(BinaryField32b::MULTIPLICATIVE_GENERATOR));
+        let g = table.add_constant("generator", [B32::from(BinaryField32b::MULTIPLICATIVE_GENERATOR)]);
+        let next_pc = table.add_computed("next_pc", pc * g);
         table.push(channels.state_channel, [next_pc, fp]);
         
         Self {

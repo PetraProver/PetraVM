@@ -10,18 +10,15 @@ use binius_m3::builder::ConstraintSystem;
 #[derive(Debug, Clone)]
 pub struct ZkVMChannels {
     /// Channel for state transitions (PC, FP)
+    /// Follows format [PC, FP]
     pub state_channel: ChannelId,
     
     /// Channel connecting the PROM table to instruction tables
+    /// Follows format [PC, Opcode, Arg1, Arg2, Arg3]
     pub prom_channel: ChannelId,
     
-    /// Channel for the LDI table
-    pub ldi_channel: ChannelId,
-    
-    /// Channel for the RET table
-    pub ret_channel: ChannelId,
-    
-    /// Channel for VROM operations
+    /// Channel for memory operations (VROM)
+    /// Follows format [Address, Value]
     pub vrom_channel: ChannelId,
 }
 
@@ -31,8 +28,6 @@ impl ZkVMChannels {
         Self {
             state_channel: cs.add_channel("state_channel"),
             prom_channel: cs.add_channel("prom_channel"),
-            ldi_channel: cs.add_channel("ldi_channel"),
-            ret_channel: cs.add_channel("ret_channel"),
             vrom_channel: cs.add_channel("vrom_channel"),
         }
     }

@@ -13,6 +13,16 @@ use crate::channels::ZkVMChannels;
 use zcrayvm_assembly::RetEvent;
 
 /// RET (Return) table.
+///
+/// This table handles the Return instruction, which returns from a function call
+/// by loading the return PC and FP from the current frame.
+///
+/// Logic:
+/// 1. Load the current PC and FP from the state channel
+/// 2. Get the instruction from PROM channel
+/// 3. Verify this is a RET instruction
+/// 4. Load the return PC and FP from VROM at addresses FP+0 and FP+1
+/// 5. Update the state with the new PC and FP
 pub struct RetTable {
     /// Table ID
     pub id: TableId,
@@ -27,7 +37,11 @@ pub struct RetTable {
 }
 
 impl RetTable {
-    /// Create a new RET table.
+    /// Create a new RET table with the given constraint system and channels.
+    ///
+    /// # Arguments
+    /// * `cs` - Constraint system to add the table to
+    /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("ret_table");
         
@@ -56,8 +70,10 @@ impl RetTable {
         table.assert_zero("is_ret", (instr_opcode - ret_opcode).into());
         
         // Compute addresses for return PC and FP
-        let addr_0 = table.add_computed("addr_0", fp + B32::ZERO);
-        let addr_1 = table.add_computed("addr_1", fp + B32::ONE);
+        let zero = table.add_constant("zero", [B32::ZERO]);
+        let one = table.add_constant("one", [B32::ONE]);
+        let addr_0 = table.add_computed("addr_0", fp + zero);
+        let addr_1 = table.add_computed("addr_1", fp + one);
         
         // Get return PC and FP from VROM
         table.push(channels.vrom_channel, [addr_0, fp_0_val]);
