@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use std::marker::PhantomData;
+use std::{any::Any, marker::PhantomData};
 
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
@@ -13,10 +13,6 @@ use crate::{
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
 pub trait ShiftOperation<S: ShiftSource>: Debug + Clone + PartialEq {
     fn shift_op(val: u32, shift: u32) -> u32;
-    fn instruction() -> Opcode;
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<S, Self>)
-    where
-        Self: Sized;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,33 +21,11 @@ impl ShiftOperation<ImmediateShift> for LogicalLeft {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val << shift
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Slli
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.imm_logic_left_shift.push(event);
-    }
 }
 
 impl ShiftOperation<VromOffsetShift> for LogicalLeft {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val << shift
-    }
-
-    fn instruction() -> Opcode {
-        Opcode::Sll
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.off_logic_left_shift.push(event);
     }
 }
 
@@ -61,33 +35,11 @@ impl ShiftOperation<ImmediateShift> for LogicalRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val >> shift
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Srli
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.imm_logic_right_shift.push(event);
-    }
 }
 
 impl ShiftOperation<VromOffsetShift> for LogicalRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val >> shift
-    }
-
-    fn instruction() -> Opcode {
-        Opcode::Srl
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.off_logic_right_shift.push(event);
     }
 }
 
@@ -97,41 +49,17 @@ impl ShiftOperation<ImmediateShift> for ArithmeticRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         ((val as i32) >> shift) as u32
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Srai
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.imm_arith_right_shift.push(event);
-    }
 }
 
 impl ShiftOperation<VromOffsetShift> for ArithmeticRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         ((val as i32) >> shift) as u32
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Srai
-    }
-
-    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.off_arith_right_shift.push(event);
-    }
 }
 
 /// Indicates the source of the shift amount.
 pub trait ShiftSource: Debug + Clone + PartialEq {
     fn is_immediate() -> bool;
-    // Immediate(u16),       // 16-bit immediate shift amount
-    // VromOffset(u16, u32), // (16-bit VROM offset, 32-bit VROM value)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -155,8 +83,8 @@ impl ShiftSource for VromOffsetShift {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShiftEvent<S, O>
 where
-    S: ShiftSource,
-    O: ShiftOperation<S>,
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
 {
     pc: BinaryField32b,
     fp: u32,
@@ -171,8 +99,8 @@ where
 
 impl<S, O> ShiftEvent<S, O>
 where
-    S: ShiftSource,
-    O: ShiftOperation<S>,
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
@@ -287,7 +215,11 @@ where
     }
 }
 
-impl<S: ShiftSource, O: ShiftOperation<S>> Event for ShiftEvent<S, O> {
+impl<S, O> Event for ShiftEvent<S, O>
+where
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
+{
     fn generate(
         ctx: &mut EventContext,
         dst: BinaryField16b,
@@ -300,12 +232,26 @@ impl<S: ShiftSource, O: ShiftOperation<S>> Event for ShiftEvent<S, O> {
             Self::generate_vrom_event(ctx, dst, src1, src2)?
         };
 
-        O::push_event(ctx, event);
+        ctx.trace.shifts.push(Box::new(event));
         Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         fire_non_jump_event!(self, channels);
+    }
+}
+
+pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<S, O> GenericShiftEvent for ShiftEvent<S, O>
+where
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

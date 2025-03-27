@@ -32,7 +32,9 @@ pub trait Event {
         arg0: BinaryField16b,
         arg1: BinaryField16b,
         arg2: BinaryField16b,
-    ) -> Result<(), InterpreterError>;
+    ) -> Result<(), InterpreterError>
+    where
+        Self: Sized;
 
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.

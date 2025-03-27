@@ -1,5 +1,5 @@
 use core::{fmt::Debug, ops::Add};
-use std::marker::PhantomData;
+use std::{any::Any, marker::PhantomData};
 
 use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
 use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
@@ -411,7 +411,7 @@ impl SignedMulOperation for MulsuOp {
     where
         Self: Sized,
     {
-        ctx.trace.signed_mulsu.push(event);
+        ctx.trace.signed_mul.push(Box::new(event));
     }
 }
 
@@ -433,7 +433,20 @@ impl SignedMulOperation for MulOp {
     where
         Self: Sized,
     {
-        ctx.trace.signed_mul.push(event);
+        ctx.trace.signed_mul.push(Box::new(event));
+    }
+}
+
+pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T> GenericSignedMulEvent for SignedMulEvent<T>
+where
+    T: SignedMulOperation + Send + Sync + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -820,7 +833,14 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = env.trace.signed_mul.last().unwrap();
+            let event = env
+                .trace
+                .signed_mul
+                .last()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<SignedMulEvent<MulOp>>()
+                .unwrap();
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -864,7 +884,14 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = env.trace.signed_mulsu.last().unwrap();
+            let event = env
+                .trace
+                .signed_mul
+                .last()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<SignedMulEvent<MulsuOp>>()
+                .unwrap();
 
             assert_eq!(
                 event.dst_val, mulsu_expected,

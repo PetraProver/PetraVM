@@ -17,13 +17,14 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
-            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            Add32Gadget, Add64Gadget, AddEvent, AddiEvent, GenericSignedMulEvent, MulOp, MuliEvent,
+            MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
+            SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::{self, ShiftEvent},
+        shift::{self, GenericShiftEvent, ShiftEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
@@ -46,23 +47,13 @@ pub struct ZCrayTrace {
     pub(crate) slti: Vec<SltiEvent>,
     pub(crate) sltu: Vec<SltuEvent>,
     pub(crate) sltiu: Vec<SltiuEvent>,
-    // TODO(Robin): Re-unify shifts
-    pub(crate) imm_logic_left_shift: Vec<ShiftEvent<shift::ImmediateShift, shift::LogicalLeft>>,
-    pub(crate) off_logic_left_shift: Vec<ShiftEvent<shift::VromOffsetShift, shift::LogicalLeft>>,
-    pub(crate) imm_logic_right_shift: Vec<ShiftEvent<shift::ImmediateShift, shift::LogicalRight>>,
-    pub(crate) off_logic_right_shift: Vec<ShiftEvent<shift::VromOffsetShift, shift::LogicalRight>>,
-    pub(crate) imm_arith_right_shift:
-        Vec<ShiftEvent<shift::ImmediateShift, shift::ArithmeticRight>>,
-    pub(crate) off_arith_right_shift:
-        Vec<ShiftEvent<shift::VromOffsetShift, shift::ArithmeticRight>>,
+    pub(crate) shifts: Vec<Box<dyn GenericShiftEvent>>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
     pub(crate) add32: Vec<Add32Gadget>,
     pub(crate) add64: Vec<Add64Gadget>,
     pub(crate) muli: Vec<MuliEvent>,
-    // TODO(Robin): Re-unify mul / mulsu
-    pub(crate) signed_mul: Vec<SignedMulEvent<MulOp>>,
-    pub(crate) signed_mulsu: Vec<SignedMulEvent<MulsuOp>>,
+    pub(crate) signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
     pub(crate) mulu: Vec<MuluEvent>,
     pub(crate) taili: Vec<TailiEvent>,
     pub(crate) tailv: Vec<TailVEvent>,
@@ -162,19 +153,13 @@ impl ZCrayTrace {
         fire_events!(self.slti, &mut channels, &tables);
         fire_events!(self.sltu, &mut channels, &tables);
         fire_events!(self.sltiu, &mut channels, &tables);
-        fire_events!(self.imm_logic_left_shift, &mut channels, &tables);
-        fire_events!(self.off_logic_left_shift, &mut channels, &tables);
-        fire_events!(self.imm_logic_right_shift, &mut channels, &tables);
-        fire_events!(self.off_logic_right_shift, &mut channels, &tables);
-        fire_events!(self.imm_arith_right_shift, &mut channels, &tables);
-        fire_events!(self.off_arith_right_shift, &mut channels, &tables);
+        fire_events!(self.shifts, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         // add32 gadgets do not incur any flushes
         // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels, &tables);
         fire_events!(self.signed_mul, &mut channels, &tables);
-        fire_events!(self.signed_mulsu, &mut channels, &tables);
         fire_events!(self.mulu, &mut channels, &tables);
         fire_events!(self.taili, &mut channels, &tables);
         fire_events!(self.tailv, &mut channels, &tables);

@@ -535,17 +535,18 @@ mod tests {
 
         traces.validate(boundary_values);
 
-        // TODO(Robin): Bring back when reunifying shifts
-        // assert!(
-        //     traces.shifts.len() == expected_evens.len(),
-        //     "Generated an incorrect number of even cases."
-        // );
-        // for (i, &even) in expected_evens.iter().enumerate() {
-        //     assert!(
-        //         traces.shifts[i].src_val == even,
-        //         "Incorrect input to an even case."
-        //     );
-        // }
+        assert!(
+            traces.shifts.len() == expected_evens.len(),
+            "Generated an incorrect number of even cases."
+        );
+        for (i, &even) in expected_evens.iter().enumerate() {
+            let event = traces.shifts[i]
+                .as_any()
+                .downcast_ref::<SrliEvent>()
+                .unwrap();
+
+            assert!(event.src_val == even, "Incorrect input to an even case.");
+        }
         assert!(
             traces.muli.len() == expected_odds.len(),
             "Generated an incorrect number of odd cases."
