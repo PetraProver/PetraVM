@@ -89,9 +89,8 @@ impl ZkVMCircuit {
         // Calculate more accurate table sizes
         let prom_size = trace.program.len();
 
-        // VROM entries = initial values (2) + LDI writes (1 per LDI) + RET reads (2 per
-        // RET)
-        let vrom_size = 2 + trace.ldi_events().len() + (2 * trace.ret_events().len());
+        // TODO: Get actual size
+        let vrom_size = 32;
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();

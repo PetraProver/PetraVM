@@ -19,6 +19,7 @@ use crate::{channels::ZkVMChannels, model::Instruction};
 /// available to the instruction-specific tables.
 ///
 /// Format: [PC, Opcode, Arg1, Arg2, Arg3]
+/// TODO: B16 for arg1, arg2, arg3?
 pub struct PromTable {
     /// Table ID
     pub id: TableId,
@@ -135,5 +136,32 @@ impl VromTable {
             addr,
             value,
         }
+    }
+}
+
+impl<U> TableFiller<U> for VromTable
+where
+    U: Pod + PackScalar<B32>,
+{
+    type Event = (u32, u32);
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a Self::Event>,
+        witness: &'a mut TableWitnessIndexSegment<U>,
+    ) -> anyhow::Result<()> {
+        let mut addr_col = witness.get_mut_as(self.addr)?;
+        let mut value_col = witness.get_mut_as(self.value)?;
+
+        for (i, (addr, value)) in rows.enumerate() {
+            addr_col[i] = *addr as u32;
+            value_col[i] = *value as u32;
+        }
+
+        Ok(())
     }
 }

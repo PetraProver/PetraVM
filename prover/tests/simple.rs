@@ -179,9 +179,30 @@ fn test_full_proving_cycle() -> Result<()> {
     
     // Prove the trace
     println!("Starting proof generation...");
-    let result = prover.prove(&trace);
+    let proof = prover.prove(&trace)?;
     println!("Proof generation complete");
     
-    // Check result
-    result
+    // Verify the proof
+    prover.verify(&trace, &proof)?;
+    println!("Proof verification successful");
+    
+    Ok(())
+}
+
+#[test]
+fn test_prove_verify() -> Result<()> {
+    // Create a trace with a simple LDI instruction
+    let value = 0x12345678;
+    let trace = generate_ldi_ret_trace(value)?;
+
+    // Create a prover
+    let prover = ZkVMProver::new();
+
+    // Generate a proof
+    let proof = prover.prove(&trace)?;
+
+    // Verify the proof
+    prover.verify(&trace, &proof)?;
+
+    Ok(())
 }

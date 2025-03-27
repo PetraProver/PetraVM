@@ -8,13 +8,14 @@ authors = ["zCray Team"]
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
 binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
 binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
 anyhow = "1.0"
 zcrayvm-assembly = { path = "../assembly" }
 bumpalo = { version = "3.16.0", features = ["collections"] }
 bytemuck = { version = "1.18.0", features = [
     "derive",
     "min_const_generics",
-    "must_cast",
 ] }
 thiserror = "2.0.11"
 

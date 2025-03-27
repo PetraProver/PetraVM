@@ -4,11 +4,20 @@
 //! zCrayVM execution traces.
 
 use anyhow::Result;
-use binius_core::constraint_system::validate;
+use binius_core::{
+    constraint_system::{prove, verify, validate, Proof},
+    fiat_shamir::HasherChallenger,
+    tower::CanonicalTowerFamily,
+};
 use binius_field::arch::OptimalUnderlier128b;
+use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_hal::make_portable_backend;
 use bumpalo::Bump;
 
 use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
+
+const LOG_INV_RATE: usize = 1;
+const SECURITY_BITS: usize = 100;
 
 /// Main prover for zCrayVM.
 pub struct ZkVMProver {
@@ -31,13 +40,14 @@ impl ZkVMProver {
     /// 2. Compiles the constraint system
     /// 3. Builds and fills the witness
     /// 4. Validates the witness against the constraints
+    /// 5. Generates a proof
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace to prove
     ///
     /// # Returns
-    /// * Result indicating success or error
-    pub fn prove(&self, trace: &ZkVMTrace) -> Result<()> {
+    /// * Result containing the proof or error
+    pub fn prove(&self, trace: &ZkVMTrace) -> Result<Proof> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
@@ -70,7 +80,61 @@ impl ZkVMProver {
         // Validate the witness against the constraint system
         validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
 
-        // Verification succeeded
+        // Generate the proof
+        let proof = prove::<
+            OptimalUnderlier128b,
+            CanonicalTowerFamily,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+            _,
+        >(
+            &compiled_cs,
+            LOG_INV_RATE,
+            SECURITY_BITS,
+            &statement.boundaries,
+            mle_witness,
+            &make_portable_backend(),
+        )?;
+
+        Ok(proof)
+    }
+
+    /// Verify a zCrayVM execution proof.
+    ///
+    /// This function:
+    /// 1. Creates a statement from the trace
+    /// 2. Compiles the constraint system
+    /// 3. Verifies the proof against the statement
+    ///
+    /// # Arguments
+    /// * `trace` - The zCrayVM execution trace
+    /// * `proof` - The proof to verify
+    ///
+    /// # Returns
+    /// * Result indicating success or error
+    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof) -> Result<()> {
+        // Create a statement from the trace
+        let statement = self.circuit.create_statement(trace)?;
+
+        // Compile the constraint system
+        let compiled_cs = self.circuit.compile(&statement)?;
+
+        // Verify the proof
+        binius_core::constraint_system::verify::<
+            OptimalUnderlier128b,
+            CanonicalTowerFamily,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+        >(
+            &compiled_cs,
+            LOG_INV_RATE,
+            SECURITY_BITS,
+            &statement.boundaries,
+            proof.clone(),
+        )?;
+
         Ok(())
     }
 }
