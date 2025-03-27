@@ -342,8 +342,10 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::LogicalLeft>::generate_immediate_event(ctx, dst, src, imm)?;
-        ctx.trace.logic_left_shift.push(new_shift_event);
+            ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate_immediate_event(
+                ctx, dst, src, imm,
+            )?;
+        ctx.trace.imm_logic_left_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -354,8 +356,10 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::LogicalRight>::generate_immediate_event(ctx, dst, src, imm)?;
-        ctx.trace.logic_right_shift.push(new_shift_event);
+            ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate_immediate_event(
+                ctx, dst, src, imm,
+            )?;
+        ctx.trace.imm_logic_right_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -366,8 +370,10 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::ArithmeticRight>::generate_immediate_event(ctx, dst, src, imm)?;
-        ctx.trace.arith_right_shift.push(new_shift_event);
+            ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate_immediate_event(
+                ctx, dst, src, imm,
+            )?;
+        ctx.trace.imm_arith_right_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -378,8 +384,10 @@ impl Interpreter {
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::LogicalLeft>::generate_vrom_event(ctx, dst, src1, src2)?;
-        ctx.trace.logic_left_shift.push(new_shift_event);
+            ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate_vrom_event(
+                ctx, dst, src1, src2,
+            )?;
+        ctx.trace.off_logic_left_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -390,8 +398,10 @@ impl Interpreter {
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::LogicalRight>::generate_vrom_event(ctx, dst, src1, src2)?;
-        ctx.trace.logic_right_shift.push(new_shift_event);
+            ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate_vrom_event(
+                ctx, dst, src1, src2,
+            )?;
+        ctx.trace.off_logic_right_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -402,8 +412,10 @@ impl Interpreter {
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::ArithmeticRight>::generate_vrom_event(ctx, dst, src1, src2)?;
-        ctx.trace.arith_right_shift.push(new_shift_event);
+            ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate_vrom_event(
+                ctx, dst, src1, src2,
+            )?;
+        ctx.trace.off_arith_right_shift.push(new_shift_event);
 
         Ok(())
     }

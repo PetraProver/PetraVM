@@ -47,9 +47,14 @@ pub struct ZCrayTrace {
     pub(crate) sltu: Vec<SltuEvent>,
     pub(crate) sltiu: Vec<SltiuEvent>,
     // TODO(Robin): Re-unify shifts
-    pub(crate) logic_left_shift: Vec<ShiftEvent<shift::LogicalLeft>>,
-    pub(crate) logic_right_shift: Vec<ShiftEvent<shift::LogicalRight>>,
-    pub(crate) arith_right_shift: Vec<ShiftEvent<shift::ArithmeticRight>>,
+    pub(crate) imm_logic_left_shift: Vec<ShiftEvent<shift::ImmediateShift, shift::LogicalLeft>>,
+    pub(crate) off_logic_left_shift: Vec<ShiftEvent<shift::VromOffsetShift, shift::LogicalLeft>>,
+    pub(crate) imm_logic_right_shift: Vec<ShiftEvent<shift::ImmediateShift, shift::LogicalRight>>,
+    pub(crate) off_logic_right_shift: Vec<ShiftEvent<shift::VromOffsetShift, shift::LogicalRight>>,
+    pub(crate) imm_arith_right_shift:
+        Vec<ShiftEvent<shift::ImmediateShift, shift::ArithmeticRight>>,
+    pub(crate) off_arith_right_shift:
+        Vec<ShiftEvent<shift::VromOffsetShift, shift::ArithmeticRight>>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
     pub(crate) add32: Vec<Add32Event>,
@@ -157,9 +162,12 @@ impl ZCrayTrace {
         fire_events!(self.slti, &mut channels, &tables);
         fire_events!(self.sltu, &mut channels, &tables);
         fire_events!(self.sltiu, &mut channels, &tables);
-        fire_events!(self.logic_left_shift, &mut channels, &tables);
-        fire_events!(self.logic_right_shift, &mut channels, &tables);
-        fire_events!(self.arith_right_shift, &mut channels, &tables);
+        fire_events!(self.imm_logic_left_shift, &mut channels, &tables);
+        fire_events!(self.off_logic_left_shift, &mut channels, &tables);
+        fire_events!(self.imm_logic_right_shift, &mut channels, &tables);
+        fire_events!(self.off_logic_right_shift, &mut channels, &tables);
+        fire_events!(self.imm_arith_right_shift, &mut channels, &tables);
+        fire_events!(self.off_arith_right_shift, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
         fire_events!(self.add32, &mut channels, &tables);
