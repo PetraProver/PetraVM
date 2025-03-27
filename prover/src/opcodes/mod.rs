@@ -2,8 +2,8 @@
 //!
 //! This module contains the tables for each opcode instruction.
 
-pub mod ret;
 pub mod ldi;
+pub mod ret;
 
+pub use ldi::LdiTable;
 pub use ret::RetTable;
-pub use ldi::LdiTable; 

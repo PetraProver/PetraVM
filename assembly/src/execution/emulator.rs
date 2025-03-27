@@ -92,10 +92,14 @@ impl InterpreterInstruction {
     pub fn opcode(&self) -> Opcode {
         Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
     }
-    
+
     /// Get the arguments of this instruction.
     pub fn args(&self) -> [BinaryField16b; 3] {
-        [self.instruction[1], self.instruction[2], self.instruction[3]]
+        [
+            self.instruction[1],
+            self.instruction[2],
+            self.instruction[3],
+        ]
     }
 }
 

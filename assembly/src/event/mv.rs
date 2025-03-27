@@ -579,11 +579,12 @@ mod tests {
 
     use crate::{
         event::mv::{MVInfo, MVKind},
+        execution::trace::ZCrayTrace,
         execution::{Interpreter, G},
         memory::{Memory, VromPendingUpdates, VromUpdate},
         opcodes::Opcode,
         util::code_to_prom,
-        ValueRom, execution::trace::ZCrayTrace,
+        ValueRom,
     };
 
     #[test]

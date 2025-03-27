@@ -2,7 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, trace::ZCrayTrace},
+    execution::{
+        trace::ZCrayTrace, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+    },
     fire_non_jump_event,
 };
 

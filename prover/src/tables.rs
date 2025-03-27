@@ -5,17 +5,13 @@
 
 use binius_field::as_packed_field::PackScalar;
 use binius_m3::builder::{
-    B32, ConstraintSystem, TableId, TableFiller, TableWitnessIndexSegment, Col
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B32,
 };
 use bytemuck::Pod;
 
-use crate::{
-    channels::ZkVMChannels,
-    model::Instruction,
-};
-
 // Re-export instruction-specific tables
-pub use crate::opcodes::{RetTable, LdiTable};
+pub use crate::opcodes::{LdiTable, RetTable};
+use crate::{channels::ZkVMChannels, model::Instruction};
 
 /// PROM (Program ROM) table for storing program instructions.
 ///
@@ -46,17 +42,17 @@ impl PromTable {
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("prom");
-        
+
         // Add columns for PC and instruction components
         let pc = table.add_committed("pc");
         let opcode = table.add_committed("opcode");
         let arg1 = table.add_committed("arg1");
         let arg2 = table.add_committed("arg2");
         let arg3 = table.add_committed("arg3");
-        
+
         // Push to the PROM channel
         table.push(channels.prom_channel, [pc, opcode, arg1, arg2, arg3]);
-        
+
         Self {
             id: table.id(),
             pc,
@@ -73,11 +69,11 @@ where
     U: Pod + PackScalar<B32>,
 {
     type Event = Instruction;
-    
+
     fn id(&self) -> TableId {
         self.id
     }
-    
+
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
@@ -88,17 +84,17 @@ where
         let mut arg1_col = witness.get_mut_as(self.arg1)?;
         let mut arg2_col = witness.get_mut_as(self.arg2)?;
         let mut arg3_col = witness.get_mut_as(self.arg3)?;
-        
+
         for (i, instr) in rows.enumerate() {
             pc_col[i] = instr.pc;
             opcode_col[i] = instr.opcode as u16 as u32;
-            
+
             // Fill arguments, using 0 if the argument doesn't exist
             arg1_col[i] = instr.args.get(0).copied().unwrap_or(0) as u32;
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0) as u32;
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0) as u32;
         }
-        
+
         Ok(())
     }
 }
@@ -126,14 +122,14 @@ impl VromTable {
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("vrom");
-        
+
         // Add columns for address and value
         let addr = table.add_committed("addr");
         let value = table.add_committed("value");
-        
+
         // Connect to VROM channel
         table.pull(channels.vrom_channel, [addr, value]);
-        
+
         Self {
             id: table.id(),
             addr,

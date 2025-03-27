@@ -13,10 +13,10 @@ mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use execution::trace::ZCrayTrace;
-pub use execution::trace::BoundaryValues;
-pub use execution::emulator::{InterpreterInstruction, Instruction};
-pub use memory::{Memory, ProgramRom, ValueRom};
-pub use opcodes::Opcode;
 pub use event::mv::LDIEvent;
 pub use event::ret::RetEvent;
+pub use execution::emulator::{Instruction, InterpreterInstruction};
+pub use execution::trace::BoundaryValues;
+pub use execution::trace::ZCrayTrace;
+pub use memory::{Memory, ProgramRom, ValueRom};
+pub use opcodes::Opcode;

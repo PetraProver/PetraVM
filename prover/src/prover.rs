@@ -3,15 +3,12 @@
 //! This module provides the main entry point for creating proofs from
 //! zCrayVM execution traces.
 
+use anyhow::Result;
 use binius_core::constraint_system::validate;
 use binius_field::arch::OptimalUnderlier128b;
 use bumpalo::Bump;
-use anyhow::Result;
 
-use crate::{
-    model::ZkVMTrace,
-    circuit::ZkVMCircuit,
-};
+use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
 
 /// Main prover for zCrayVM.
 pub struct ZkVMProver {
@@ -26,7 +23,7 @@ impl ZkVMProver {
             circuit: ZkVMCircuit::new(),
         }
     }
-    
+
     /// Prove a zCrayVM execution trace.
     ///
     /// This function:
@@ -43,39 +40,36 @@ impl ZkVMProver {
     pub fn prove(&self, trace: &ZkVMTrace) -> Result<()> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
-        
+
         // Compile the constraint system
         let compiled_cs = self.circuit.compile(&statement)?;
-        
+
         // Create a memory allocator for the witness
         let allocator = Bump::new();
-        
+
         // Build the witness structure
-        let mut witness = self.circuit.cs.build_witness::<OptimalUnderlier128b>(
-            &allocator, &statement
-        )?;
-        
+        let mut witness = self
+            .circuit
+            .cs
+            .build_witness::<OptimalUnderlier128b>(&allocator, &statement)?;
+
         // Fill all table witnesses in sequence
-        
+
         // 1. Fill PROM table with program instructions
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
-        
+
         // 2. Fill LDI table with load immediate events
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
-        
+
         // 3. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
-        
+
         // Convert witness to multilinear extension format for validation
         let mle_witness = witness.into_multilinear_extension_index(&statement);
-        
+
         // Validate the witness against the constraint system
-        validate::validate_witness(
-            &compiled_cs,
-            &statement.boundaries,
-            &mle_witness,
-        )?;
-        
+        validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
+
         // Verification succeeded
         Ok(())
     }

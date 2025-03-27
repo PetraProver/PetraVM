@@ -2,7 +2,7 @@ use core::fmt::Debug;
 
 use binius_field::{BinaryField16b, BinaryField32b};
 
-use crate::{execution::InterpreterError, execution::trace::ZCrayTrace};
+use crate::{execution::trace::ZCrayTrace, execution::InterpreterError};
 
 pub(crate) mod b128;
 pub(crate) mod b32;

@@ -12,11 +12,11 @@ pub struct ZkVMChannels {
     /// Channel for state transitions (PC, FP)
     /// Follows format [PC, FP]
     pub state_channel: ChannelId,
-    
+
     /// Channel connecting the PROM table to instruction tables
     /// Follows format [PC, Opcode, Arg1, Arg2, Arg3]
     pub prom_channel: ChannelId,
-    
+
     /// Channel for memory operations (VROM)
     /// Follows format [Address, Value]
     pub vrom_channel: ChannelId,

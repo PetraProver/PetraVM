@@ -1,8 +1,8 @@
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::Event;
-use crate::{
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, trace::ZCrayTrace},
+use crate::execution::{
+    trace::ZCrayTrace, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
 };
 
 /// Event for Jumpv.
