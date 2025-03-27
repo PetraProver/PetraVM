@@ -102,14 +102,13 @@ where
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
-        for (i, event) in rows.clone().enumerate() {
-            {
-                // TODO: Move this outside the loop
-                let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;
-                let mut next_pc = witness.get_mut_as(self.next_pc)?;
-                let mut next_fp = witness.get_mut_as(self.next_fp)?;
-                let mut vrom_next_pc = witness.get_mut_as(self.vrom_next_pc)?;
-                let mut vrom_next_fp = witness.get_mut_as(self.vrom_next_fp)?;
+        {
+            let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;
+            let mut next_pc = witness.get_mut_as(self.next_pc)?;
+            let mut next_fp = witness.get_mut_as(self.next_fp)?;
+            let mut vrom_next_pc = witness.get_mut_as(self.vrom_next_pc)?;
+            let mut vrom_next_fp = witness.get_mut_as(self.vrom_next_fp)?;
+            for (i, event) in rows.clone().enumerate() {
                 fp_xor_1[i] = event.fp ^ 1;
                 next_pc[i] = event.fp_0_val;
                 next_fp[i] = event.fp_1_val;
@@ -117,17 +116,15 @@ where
                 vrom_next_fp[i] = (event.fp_1_val as u64) << 32 | event.fp as u64 ^ 1;
             }
         }
-        let cpu_rows = rows.map(|event| {
-            CpuRow {
-                pc: event.pc.into(),
-                next_pc: Some(event.fp_0_val),
-                fp: event.fp,
-                next_fp: Some(event.fp_1_val),
-                instruction: Instruction {
-                    opcode: Opcode::Ret,
-                    ..Default::default()
-                },
-            }
+        let cpu_rows = rows.map(|event| CpuRow {
+            pc: event.pc.into(),
+            next_pc: Some(event.fp_0_val),
+            fp: event.fp,
+            next_fp: Some(event.fp_1_val),
+            instruction: Instruction {
+                opcode: Opcode::Ret,
+                ..Default::default()
+            },
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }

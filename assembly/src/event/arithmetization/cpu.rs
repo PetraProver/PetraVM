@@ -27,8 +27,10 @@ pub(crate) struct CpuColumns {
     state_pull: Col<B64>,
 }
 
+#[derive(Default)]
 pub(crate) enum NextPc {
     /// Next pc is the current pc * G.
+    #[default]
     Increment,
     /// Next pc is the value defined by target.
     Target(Col<B32>),
@@ -36,6 +38,7 @@ pub(crate) enum NextPc {
     Immediate,
 }
 
+#[derive(Default)]
 pub(crate) struct CpuColumnsOptions {
     pub(crate) next_pc: NextPc,
     pub(crate) next_fp: Option<Col<B32>>,
@@ -107,7 +110,7 @@ impl CpuColumns {
 
         let next_pc = match options.next_pc {
             NextPc::Increment => {
-                table.add_computed("next_pc", (pc * B32::MULTIPLICATIVE_GENERATOR).into())
+                table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR)
             }
             NextPc::Target(target) => target,
             NextPc::Immediate => {
@@ -117,7 +120,7 @@ impl CpuColumns {
 
         let next_fp = match options.next_fp {
             Some(next_fp) => next_fp,
-            None => fp.clone(),
+            None => fp,
         };
 
         let pc_instruction = move |pc: Expr<B32, 1>, instruction: [Expr<B16, 1>; 4]| {

@@ -315,7 +315,7 @@ macro_rules! define_bin128_op_event {
             }
         }
 
-        impl crate::event::model::Event for $name {
+        impl $crate::event::model::Event for $name {
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 use super::{LeftOp, OutputOp, RightOp};
 

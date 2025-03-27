@@ -7,7 +7,7 @@ pub mod arithmetization {
     use bytemuck::Pod;
 
     use crate::{
-        event::arithmetization::{branch::{BnzTable, BzTable}, integer_ops::AddTable, ret::RetTable},
+        event::arithmetization::{binary_ops::b32::XoriTable, branch::{BnzTable, BzTable}, integer_ops::AddTable, ret::RetTable},
         ZCrayTrace,
     };
 
@@ -16,6 +16,7 @@ pub mod arithmetization {
         pub(crate) ret_table: RetTable,
         pub(crate) bnz_table: BnzTable,
         pub(crate) bz_table: BzTable,
+        pub(crate) xori_table: XoriTable,
         pub(crate) state_channel: ChannelId,
         pub(crate) prom_channel: ChannelId,
         pub(crate) vrom_channel: ChannelId,
@@ -31,6 +32,7 @@ pub mod arithmetization {
                 ret_table: RetTable::new(cs, state_channel, vrom_channel, prom_channel),
                 bnz_table: BnzTable::new(cs, state_channel, vrom_channel, prom_channel),
                 bz_table: BzTable::new(cs, state_channel, vrom_channel, prom_channel),
+                xori_table: XoriTable::new(cs, state_channel, vrom_channel, prom_channel),
                 state_channel,
                 prom_channel,
                 vrom_channel,
@@ -46,6 +48,7 @@ pub mod arithmetization {
             witness.fill_table_sequential(&self.ret_table, &trace.ret)?;
             witness.fill_table_sequential(&self.bnz_table, &trace.bnz)?;
             witness.fill_table_sequential(&self.bz_table, &trace.bz)?;
+            witness.fill_table_sequential(&self.xori_table, &trace.xori)?;
             Ok(())
         }
     }

@@ -292,6 +292,7 @@ pub mod test {
                 trace.ret.len(),
                 trace.bnz.len(),
                 trace.bz.len(),
+                trace.xori.len()
             ],
             cond_val,
         );
