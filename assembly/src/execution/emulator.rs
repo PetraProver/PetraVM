@@ -265,13 +265,12 @@ impl Interpreter {
         target_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
-        if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate(ctx, cond, target_low, target_high)?;
-        } else {
-            let new_bz_event = BzEvent::generate(ctx, cond, target_low, target_high)?;
-        }
 
-        Ok(())
+        if cond_val != 0 {
+            BnzEvent::generate(ctx, cond, target_low, target_high)
+        } else {
+            BzEvent::generate(ctx, cond, target_low, target_high)
+        }
     }
 
     fn generate_jumpi(
@@ -280,9 +279,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_jumpi_event = JumpiEvent::generate(ctx, target_low, target_high, _unused)?;
-
-        Ok(())
+        JumpiEvent::generate(ctx, target_low, target_high, _unused)
     }
 
     fn generate_jumpv(
@@ -291,9 +288,7 @@ impl Interpreter {
         _unused: BinaryField16b,
         _unused2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_jumpv_event = JumpvEvent::generate(ctx, offset, _unused, _unused2)?;
-
-        Ok(())
+        JumpvEvent::generate(ctx, offset, _unused, _unused2)
     }
 
     fn generate_xori(
@@ -302,9 +297,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xori_event = XoriEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        XoriEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_xor(
@@ -313,9 +306,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xor_event = XorEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        XorEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_ret(
@@ -324,9 +315,7 @@ impl Interpreter {
         _unused2: BinaryField16b,
         _unused3: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate(ctx, _unused1, _unused2, _unused3)?;
-
-        Ok(())
+        RetEvent::generate(ctx, _unused1, _unused2, _unused3)
     }
 
     fn generate_slli(
@@ -335,9 +324,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate(ctx, dst, src, imm)?;
-        Ok(())
+        ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate(ctx, dst, src, imm)
     }
 
     fn generate_srli(
@@ -346,9 +333,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate(ctx, dst, src, imm)?;
-        Ok(())
+        ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate(ctx, dst, src, imm)
     }
 
     fn generate_srai(
@@ -357,11 +342,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate(
-                ctx, dst, src, imm,
-            )?;
-        Ok(())
+        ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate(ctx, dst, src, imm)
     }
 
     fn generate_sll(
@@ -370,10 +351,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate(
-            ctx, dst, src1, src2,
-        )?;
-        Ok(())
+        ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate(ctx, dst, src1, src2)
     }
 
     fn generate_srl(
@@ -382,10 +360,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event = ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate(
-            ctx, dst, src1, src2,
-        )?;
-        Ok(())
+        ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate(ctx, dst, src1, src2)
     }
 
     fn generate_sra(
@@ -394,12 +369,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate(
-                ctx, dst, src1, src2,
-            )?;
-
-        Ok(())
+        ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate(ctx, dst, src1, src2)
     }
 
     fn generate_tailv(
@@ -408,9 +378,7 @@ impl Interpreter {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_tailv_event = TailVEvent::generate(ctx, offset, next_fp, _unused)?;
-
-        Ok(())
+        TailVEvent::generate(ctx, offset, next_fp, _unused)
     }
 
     fn generate_taili(
@@ -419,9 +387,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_taili_event = TailiEvent::generate(ctx, target_low, target_high, next_fp)?;
-
-        Ok(())
+        TailiEvent::generate(ctx, target_low, target_high, next_fp)
     }
 
     fn generate_calli(
@@ -430,9 +396,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_calli_event = CalliEvent::generate(ctx, target_low, target_high, next_fp)?;
-
-        Ok(())
+        CalliEvent::generate(ctx, target_low, target_high, next_fp)
     }
 
     fn generate_callv(
@@ -441,9 +405,7 @@ impl Interpreter {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_callv_event = CallvEvent::generate(ctx, offset, next_fp, _unused)?;
-
-        Ok(())
+        CallvEvent::generate(ctx, offset, next_fp, _unused)
     }
 
     fn generate_and(
@@ -452,9 +414,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_and_event = AndEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        AndEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_andi(
@@ -463,9 +423,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_andi_event = AndiEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        AndiEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_sub(
@@ -474,9 +432,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sub_event = SubEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        SubEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_slt(
@@ -485,9 +441,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slt_event = SltEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        SltEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_slti(
@@ -496,9 +450,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slti_event = SltiEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        SltiEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_sltu(
@@ -507,9 +459,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltu_event = SltuEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        SltuEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_sltiu(
@@ -518,9 +468,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltiu_event = SltiuEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        SltiuEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_or(
@@ -529,9 +477,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_or_event = OrEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        OrEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_ori(
@@ -540,9 +486,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ori_event = OriEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        OriEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_muli(
@@ -551,9 +495,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_muli_event = MuliEvent::generate(ctx, dst, src, imm)?;
-
-        Ok(())
+        MuliEvent::generate(ctx, dst, src, imm)
     }
 
     fn generate_mulu(
@@ -562,9 +504,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let _ = MuluEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        MuluEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_mul(
@@ -573,9 +513,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mul_event = SignedMulEvent::<integer_ops::MulOp>::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        SignedMulEvent::<integer_ops::MulOp>::generate(ctx, dst, src1, src2)
     }
 
     fn generate_mulsu(
@@ -584,10 +522,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mulsu_event =
-            SignedMulEvent::<integer_ops::MulsuOp>::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        SignedMulEvent::<integer_ops::MulsuOp>::generate(ctx, dst, src1, src2)
     }
 
     fn generate_b32_mul(
@@ -596,9 +531,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b32mul_event = B32MulEvent::generate(ctx, dst, src1, src2)?;
-
-        Ok(())
+        B32MulEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_b32_muli(
@@ -607,9 +540,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b32muli_event = B32MuliEvent::generate(ctx, dst, src, imm_low)?;
-
-        Ok(())
+        B32MuliEvent::generate(ctx, dst, src, imm_low)
     }
 
     fn generate_b128_add(
@@ -618,8 +549,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_add_event = B128AddEvent::generate(ctx, dst, src1, src2)?;
-        Ok(())
+        B128AddEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_b128_mul(
@@ -628,8 +558,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_mul_event = B128MulEvent::generate(ctx, dst, src1, src2)?;
-        Ok(())
+        B128MulEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_add(
@@ -681,9 +610,7 @@ impl Interpreter {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvw_event = MVVWEvent::generate(ctx, dst, offset, src)?;
-
-        Ok(())
+        MVVWEvent::generate(ctx, dst, offset, src)
     }
 
     fn generate_mvvl(
@@ -692,9 +619,7 @@ impl Interpreter {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvl_event = MVVLEvent::generate(ctx, dst, offset, src)?;
-
-        Ok(())
+        MVVLEvent::generate(ctx, dst, offset, src)
     }
 
     fn generate_mvih(
@@ -703,9 +628,7 @@ impl Interpreter {
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvih_event = MVIHEvent::generate(ctx, dst, offset, imm)?;
-
-        Ok(())
+        MVIHEvent::generate(ctx, dst, offset, imm)
     }
 
     fn generate_ldi(
@@ -714,9 +637,7 @@ impl Interpreter {
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ldi_event = LDIEvent::generate(ctx, dst, imm_low, imm_high)?;
-
-        Ok(())
+        LDIEvent::generate(ctx, dst, imm_low, imm_high)
     }
 
     pub(crate) fn allocate_new_frame(
