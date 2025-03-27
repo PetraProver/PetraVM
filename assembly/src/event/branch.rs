@@ -27,33 +27,11 @@ pub(crate) struct BnzEvent {
 
 impl Event for BnzEvent {
     fn generate(
-        &self,
         ctx: &mut EventContext,
         cond: BinaryField16b,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, cond, target_low, target_high);
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_ne!(self.cond, 0);
-        channels
-            .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.target, self.fp, self.timestamp + 1));
-    }
-}
-
-impl BnzEvent {
-    pub fn generate_event(
-        ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
@@ -72,7 +50,19 @@ impl BnzEvent {
             target,
         };
         ctx.jump_to(target);
-        Ok(event)
+
+        ctx.trace.bnz.push(event);
+        Ok(())
+    }
+
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_ne!(self.cond, 0);
+        channels
+            .state_channel
+            .pull((self.pc, self.fp, self.timestamp));
+        channels
+            .state_channel
+            .push((self.target, self.fp, self.timestamp + 1));
     }
 }
 
@@ -89,28 +79,11 @@ pub(crate) struct BzEvent {
 
 impl Event for BzEvent {
     fn generate(
-        &self,
         ctx: &mut EventContext,
         cond: BinaryField16b,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, cond, target_low, target_high);
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.cond_val, 0);
-        fire_non_jump_event!(self, channels);
-    }
-}
-
-impl BzEvent {
-    pub fn generate_event(
-        ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
@@ -125,6 +98,13 @@ impl BzEvent {
             target,
         };
         ctx.incr_pc();
-        Ok(event)
+
+        ctx.trace.bz.push(event);
+        Ok(())
+    }
+
+    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_eq!(self.cond_val, 0);
+        fire_non_jump_event!(self, channels);
     }
 }

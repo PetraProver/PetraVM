@@ -29,18 +29,21 @@ pub(crate) struct MVInfo {
 }
 
 /// Convenience macro to implement the `Event` trait for MV events.
-macro_rules! impl_mv_fire {
-    ($event:ty) => {
+macro_rules! impl_mv_event {
+    ($event:ty, $trace_field:ident) => {
         impl Event for $event {
             fn generate(
-                &self,
                 ctx: &mut EventContext,
                 arg0: BinaryField16b,
                 arg1: BinaryField16b,
                 arg2: BinaryField16b,
-            ) {
-                // TODO(Robin): push to trace
-                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+            ) -> Result<(), InterpreterError> {
+                let opt_event = Self::generate_event(ctx, arg0, arg1, arg2)?;
+                if let Some(event) = opt_event {
+                    ctx.trace.$trace_field.push(event);
+                }
+
+                Ok(())
             }
 
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -272,7 +275,7 @@ impl MVVWEvent {
     }
 }
 
-impl_mv_fire!(MVVWEvent);
+impl_mv_event!(MVVWEvent, mvvw);
 
 /// Event for MVV.L.
 ///
@@ -409,7 +412,7 @@ impl MVVLEvent {
     }
 }
 
-impl_mv_fire!(MVVLEvent);
+impl_mv_event!(MVVLEvent, mvvl);
 
 /// Event for MVI.H.
 ///
@@ -525,7 +528,7 @@ impl MVIHEvent {
     }
 }
 
-impl_mv_fire!(MVIHEvent);
+impl_mv_event!(MVIHEvent, mvih);
 
 // Event for LDI.
 #[derive(Debug, Clone)]
@@ -553,7 +556,7 @@ impl LDIEvent {
         dst: BinaryField16b,
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let fp = ctx.fp;
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
@@ -564,17 +567,17 @@ impl LDIEvent {
         ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
         ctx.incr_pc();
 
-        Ok(Self {
+        Ok(Some(Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
             dst: dst.val(),
             imm: imm.val(),
-        })
+        }))
     }
 }
 
-impl_mv_fire!(LDIEvent);
+impl_mv_event!(LDIEvent, ldi);
 
 mod tests {
     use std::collections::HashMap;

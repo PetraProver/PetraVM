@@ -84,17 +84,18 @@ macro_rules! impl_left_right_output_for_bin_op {
 
 #[macro_export]
 macro_rules! impl_event_for_binary_operation {
-    ($ty:ty) => {
+    ($ty:ty, $trace_field:ident) => {
         impl $crate::event::Event for $ty {
             fn generate(
-                &self,
                 ctx: &mut EventContext,
                 arg0: BinaryField16b,
                 arg1: BinaryField16b,
                 arg2: BinaryField16b,
-            ) {
-                // TODO(Robin): push to trace
-                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+            ) -> Result<(), InterpreterError> {
+                // TODO: push to trace
+                let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
+                ctx.trace.$trace_field.push(event);
+                Ok(())
             }
 
             fn fire(
@@ -121,28 +122,6 @@ macro_rules! fire_non_jump_event {
             $intrp.fp,
             $intrp.timestamp + 1,
         ));
-    };
-}
-
-#[macro_export]
-macro_rules! impl_event_no_interaction_with_state_channel {
-    ($t:ty) => {
-        impl Event for $t {
-            fn generate(
-                &self,
-                ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b,
-            ) {
-                // TODO(Robin): fix gadgets
-                let _ = Self::generate_event(ctx, arg0.val().into(), arg1.val().into());
-            }
-
-            fn fire(&self, _channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-                // No interaction with the state channel.
-            }
-        }
     };
 }
 
@@ -209,7 +188,7 @@ macro_rules! impl_32b_immediate_binary_operation {
 
 #[macro_export]
 macro_rules! define_bin32_op_event {
-    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
+    ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
@@ -232,13 +211,13 @@ macro_rules! define_bin32_op_event {
         }
 
         $crate::impl_binary_operation!($name);
-        $crate::impl_event_for_binary_operation!($name);
+        $crate::impl_event_for_binary_operation!($name, $trace_field);
     };
 }
 
 #[macro_export]
 macro_rules! define_bin32_imm_op_event {
-    ($(#[$meta:meta])* $name:ident, $op_fn:expr) => {
+    ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
@@ -260,13 +239,13 @@ macro_rules! define_bin32_imm_op_event {
         }
 
         $crate::impl_immediate_binary_operation!($name);
-        $crate::impl_event_for_binary_operation!($name);
+        $crate::impl_event_for_binary_operation!($name, $trace_field);
     };
 }
 
 #[macro_export]
 macro_rules! define_bin128_op_event {
-    ($(#[$meta:meta])* $name:ident, $op:tt) => {
+    ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op:tt) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
         pub(crate) struct $name {
@@ -331,13 +310,15 @@ macro_rules! define_bin128_op_event {
         }
 
         impl Event for $name {
-            fn generate(&self,
+            fn generate(
                 ctx: &mut EventContext,
                 arg0: BinaryField16b,
                 arg1: BinaryField16b,
-                arg2: BinaryField16b,) {
-                // TODO(Robin): push to trace
-                let _ = Self::generate_event(ctx, arg0, arg1, arg2);
+                arg2: BinaryField16b) -> Result<(), InterpreterError> {
+                let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
+                ctx.trace.$trace_field.push(event);
+
+                Ok(())
             }
 
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {

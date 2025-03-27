@@ -32,31 +32,23 @@ impl RetEvent {
             fp_1_val: ctx.load_vrom_u32(ctx.addr(1u32))?,
         })
     }
-
-    pub fn generate_event(
-        ctx: &mut EventContext,
-        _: BinaryField16b,
-        _: BinaryField16b,
-        _: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
-        let ret_event = RetEvent::new(ctx);
-        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        ctx.jump_to(BinaryField32b::new(target));
-        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?;
-
-        ret_event
-    }
 }
 
 impl Event for RetEvent {
     fn generate(
-        &self,
         ctx: &mut EventContext,
         _unused0: BinaryField16b,
         _unused1: BinaryField16b,
         _unused2: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, _unused0, _unused1, _unused2);
+    ) -> Result<(), InterpreterError> {
+        let ret_event = RetEvent::new(ctx)?;
+
+        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
+        ctx.jump_to(BinaryField32b::new(target));
+        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?;
+
+        ctx.trace.ret.push(ret_event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {

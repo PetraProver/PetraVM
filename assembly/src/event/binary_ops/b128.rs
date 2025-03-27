@@ -17,6 +17,7 @@ define_bin128_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b128_add(FP[src1], FP[src2])
     B128AddEvent,
+    b128_add,
     +
 );
 
@@ -28,6 +29,7 @@ define_bin128_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b128_mul(FP[src1], FP[src2])
     B128MulEvent,
+    b128_mul,
     *
 );
 

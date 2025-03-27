@@ -16,6 +16,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_xor(FP[src1], FP[src2])
     XorEvent,
+    xor,
     |a, b| a + b
 );
 
@@ -27,6 +28,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_xor(FP[src], imm)
     XoriEvent,
+    xori,
     |a, b| a + b
 );
 
@@ -38,6 +40,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_and(FP[src], FP[src2])
     AndEvent,
+    and,
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() & b.val())
 );
 
@@ -49,6 +52,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_and(FP[src], imm)
     AndiEvent,
+    andi,
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() & imm.val() as u32)
 );
 
@@ -60,6 +64,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_or(FP[src], FP[src2])
     OrEvent,
+    or,
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() | b.val())
 );
 
@@ -71,6 +76,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_or(FP[src], imm)
     OriEvent,
+    ori,
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() | imm.val() as u32)
 );
 
@@ -82,6 +88,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = __b32_mul(FP[src1], FP[src2])
     B32MulEvent,
+    b32_mul,
     |a, b| a * b
 );
 
@@ -103,13 +110,20 @@ pub(crate) struct B32MuliEvent {
     imm: u32,
 }
 
-impl B32MuliEvent {
-    pub fn generate_event(
+impl BinaryOperation for B32MuliEvent {
+    #[inline(always)]
+    fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
+        val * imm
+    }
+}
+
+impl Event for B32MuliEvent {
+    fn generate(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm_low: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         // B32_MULI spans over two rows in the PROM
         let [second_opcode, imm_high, third, fourth] =
             ctx.trace.prom()[ctx.pc as usize].instruction;
@@ -140,26 +154,9 @@ impl B32MuliEvent {
         // The instruction is over two rows in the PROM.
         ctx.incr_pc();
         ctx.incr_pc();
-        Ok(event)
-    }
-}
 
-impl BinaryOperation for B32MuliEvent {
-    #[inline(always)]
-    fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
-        val * imm
-    }
-}
-
-impl Event for B32MuliEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm_low: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, dst, src, imm_low);
+        ctx.trace.b32_muli.push(event);
+        Ok(())
     }
 
     fn fire(

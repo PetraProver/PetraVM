@@ -21,13 +21,14 @@ use crate::{
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         context::EventContext,
         integer_ops::{
-            self, Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent,
-            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            self, Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp,
+            MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::{self, ShiftEvent, ShiftOperation},
+        shift::*,
+        Event,
     },
     execution::{StateChannel, ZCrayTrace},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
@@ -265,11 +266,9 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(ctx, cond, target_low, target_high)?;
-            ctx.trace.bnz.push(new_bnz_event);
+            let new_bnz_event = BnzEvent::generate(ctx, cond, target_low, target_high)?;
         } else {
-            let new_bz_event = BzEvent::generate_event(ctx, cond, target_low, target_high)?;
-            ctx.trace.bz.push(new_bz_event);
+            let new_bz_event = BzEvent::generate(ctx, cond, target_low, target_high)?;
         }
 
         Ok(())
@@ -281,8 +280,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_jumpi_event = JumpiEvent::generate_event(ctx, target_low, target_high, _unused)?;
-        ctx.trace.jumpi.push(new_jumpi_event);
+        let new_jumpi_event = JumpiEvent::generate(ctx, target_low, target_high, _unused)?;
 
         Ok(())
     }
@@ -293,8 +291,7 @@ impl Interpreter {
         _unused: BinaryField16b,
         _unused2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_jumpv_event = JumpvEvent::generate_event(ctx, offset, _unused, _unused2)?;
-        ctx.trace.jumpv.push(new_jumpv_event);
+        let new_jumpv_event = JumpvEvent::generate(ctx, offset, _unused, _unused2)?;
 
         Ok(())
     }
@@ -305,8 +302,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xori_event = XoriEvent::generate_event(ctx, dst, src, imm)?;
-        ctx.trace.xori.push(new_xori_event);
+        let new_xori_event = XoriEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -317,8 +313,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_xor_event = XorEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.xor.push(new_xor_event);
+        let new_xor_event = XorEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -329,8 +324,7 @@ impl Interpreter {
         _unused2: BinaryField16b,
         _unused3: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ret_event = RetEvent::generate_event(ctx, _unused1, _unused2, _unused3)?;
-        ctx.trace.ret.push(new_ret_event);
+        let new_ret_event = RetEvent::generate(ctx, _unused1, _unused2, _unused3)?;
 
         Ok(())
     }
@@ -342,10 +336,7 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate_immediate_event(
-                ctx, dst, src, imm,
-            )?;
-        ctx.trace.imm_logic_left_shift.push(new_shift_event);
+            ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate(ctx, dst, src, imm)?;
         Ok(())
     }
 
@@ -356,10 +347,7 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate_immediate_event(
-                ctx, dst, src, imm,
-            )?;
-        ctx.trace.imm_logic_right_shift.push(new_shift_event);
+            ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate(ctx, dst, src, imm)?;
         Ok(())
     }
 
@@ -370,10 +358,9 @@ impl Interpreter {
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate_immediate_event(
+            ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate(
                 ctx, dst, src, imm,
             )?;
-        ctx.trace.imm_arith_right_shift.push(new_shift_event);
         Ok(())
     }
 
@@ -383,11 +370,9 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate_vrom_event(
-                ctx, dst, src1, src2,
-            )?;
-        ctx.trace.off_logic_left_shift.push(new_shift_event);
+        let new_shift_event = ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate(
+            ctx, dst, src1, src2,
+        )?;
         Ok(())
     }
 
@@ -397,11 +382,9 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_shift_event =
-            ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate_vrom_event(
-                ctx, dst, src1, src2,
-            )?;
-        ctx.trace.off_logic_right_shift.push(new_shift_event);
+        let new_shift_event = ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate(
+            ctx, dst, src1, src2,
+        )?;
         Ok(())
     }
 
@@ -412,10 +395,9 @@ impl Interpreter {
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_shift_event =
-            ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate_vrom_event(
+            ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate(
                 ctx, dst, src1, src2,
             )?;
-        ctx.trace.off_arith_right_shift.push(new_shift_event);
 
         Ok(())
     }
@@ -426,8 +408,7 @@ impl Interpreter {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_tailv_event = TailVEvent::generate_event(ctx, offset, next_fp, _unused)?;
-        ctx.trace.tailv.push(new_tailv_event);
+        let new_tailv_event = TailVEvent::generate(ctx, offset, next_fp, _unused)?;
 
         Ok(())
     }
@@ -438,8 +419,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_taili_event = TailiEvent::generate_event(ctx, target_low, target_high, next_fp)?;
-        ctx.trace.taili.push(new_taili_event);
+        let new_taili_event = TailiEvent::generate(ctx, target_low, target_high, next_fp)?;
 
         Ok(())
     }
@@ -450,8 +430,7 @@ impl Interpreter {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_calli_event = CalliEvent::generate_event(ctx, target_low, target_high, next_fp)?;
-        ctx.trace.calli.push(new_calli_event);
+        let new_calli_event = CalliEvent::generate(ctx, target_low, target_high, next_fp)?;
 
         Ok(())
     }
@@ -462,8 +441,7 @@ impl Interpreter {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_callv_event = CallvEvent::generate_event(ctx, offset, next_fp, _unused)?;
-        ctx.trace.callv.push(new_callv_event);
+        let new_callv_event = CallvEvent::generate(ctx, offset, next_fp, _unused)?;
 
         Ok(())
     }
@@ -474,8 +452,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_and_event = AndEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.and.push(new_and_event);
+        let new_and_event = AndEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -486,8 +463,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_andi_event = AndiEvent::generate_event(ctx, dst, src, imm)?;
-        ctx.trace.andi.push(new_andi_event);
+        let new_andi_event = AndiEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -498,8 +474,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sub_event = SubEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.sub.push(new_sub_event);
+        let new_sub_event = SubEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -510,8 +485,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slt_event = SltEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.slt.push(new_slt_event);
+        let new_slt_event = SltEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -522,8 +496,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_slti_event = SltiEvent::generate_event(ctx, dst, src, imm)?;
-        ctx.trace.slti.push(new_slti_event);
+        let new_slti_event = SltiEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -534,8 +507,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltu_event = SltuEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.sltu.push(new_sltu_event);
+        let new_sltu_event = SltuEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -546,8 +518,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_sltiu_event = SltiuEvent::generate_event(ctx, dst, src, imm)?;
-        ctx.trace.sltiu.push(new_sltiu_event);
+        let new_sltiu_event = SltiuEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -558,8 +529,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_or_event = OrEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.or.push(new_or_event);
+        let new_or_event = OrEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -570,8 +540,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ori_event = OriEvent::generate_event(ctx, dst, src, imm)?;
-        ctx.trace.ori.push(new_ori_event);
+        let new_ori_event = OriEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -582,9 +551,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_muli_event = MuliEvent::generate_event(ctx, dst, src, imm)?;
-
-        ctx.trace.muli.push(new_muli_event);
+        let new_muli_event = MuliEvent::generate(ctx, dst, src, imm)?;
 
         Ok(())
     }
@@ -595,29 +562,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mulu_event = MuluEvent::generate_event(ctx, dst, src1, src2)?;
-        let aux = new_mulu_event.aux;
-        let aux_sums = new_mulu_event.aux_sums;
-        let cum_sums = new_mulu_event.cum_sums;
-
-        // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
-        for i in 0..aux.len() / 2 {
-            let new_add64_event =
-                Add64Event::generate_event(ctx, aux[2 * i] as u64, (aux[2 * i + 1] as u64) << 8);
-            ctx.trace.add64.push(new_add64_event);
-        }
-        // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
-        // Check the first element.
-        let new_add64_event = Add64Event::generate_event(ctx, aux_sums[0], aux_sums[1] << 8);
-        ctx.trace.add64.push(new_add64_event);
-        // CHeck the second element.
-        let new_add64_event = Add64Event::generate_event(ctx, cum_sums[0], aux_sums[2] << 16);
-        ctx.trace.add64.push(new_add64_event);
-
-        // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
-        let new_add64_event = Add64Event::generate_event(ctx, cum_sums[1], aux_sums[3] << 24);
-        ctx.trace.add64.push(new_add64_event);
-        ctx.trace.mulu.push(new_mulu_event);
+        let _ = MuluEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -628,10 +573,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_mul_event =
-            SignedMulEvent::<integer_ops::MulOp>::generate_event(ctx, dst, src1, src2)?;
-
-        ctx.trace.signed_mul.push(new_mul_event);
+        let new_mul_event = SignedMulEvent::<integer_ops::MulOp>::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -643,9 +585,7 @@ impl Interpreter {
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
         let new_mulsu_event =
-            SignedMulEvent::<integer_ops::MulsuOp>::generate_event(ctx, dst, src1, src2)?;
-
-        ctx.trace.signed_mulsu.push(new_mulsu_event);
+            SignedMulEvent::<integer_ops::MulsuOp>::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -656,8 +596,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b32mul_event = B32MulEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.b32_mul.push(new_b32mul_event);
+        let new_b32mul_event = B32MulEvent::generate(ctx, dst, src1, src2)?;
 
         Ok(())
     }
@@ -668,8 +607,7 @@ impl Interpreter {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b32muli_event = B32MuliEvent::generate_event(ctx, dst, src, imm_low)?;
-        ctx.trace.b32_muli.push(new_b32muli_event);
+        let new_b32muli_event = B32MuliEvent::generate(ctx, dst, src, imm_low)?;
 
         Ok(())
     }
@@ -680,8 +618,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_add_event = B128AddEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.b128_add.push(new_b128_add_event);
+        let new_b128_add_event = B128AddEvent::generate(ctx, dst, src1, src2)?;
         Ok(())
     }
 
@@ -691,8 +628,7 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_b128_mul_event = B128MulEvent::generate_event(ctx, dst, src1, src2)?;
-        ctx.trace.b128_mul.push(new_b128_mul_event);
+        let new_b128_mul_event = B128MulEvent::generate(ctx, dst, src1, src2)?;
         Ok(())
     }
 
@@ -702,11 +638,16 @@ impl Interpreter {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_add_event = AddEvent::generate_event(ctx, dst, src1, src2)?;
-        let new_add32_event =
-            Add32Event::generate_event(ctx, new_add_event.src1_val, new_add_event.src2_val);
-        ctx.trace.add32.push(new_add32_event);
-        ctx.trace.add.push(new_add_event);
+        AddEvent::generate(ctx, dst, src1, src2)?;
+
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent
+
+        // Retrieve event
+        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
+
+        let new_add32_gadget =
+            Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
+        ctx.trace.add32.push(new_add32_gadget);
 
         Ok(())
     }
@@ -717,11 +658,19 @@ impl Interpreter {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_addi_event = AddiEvent::generate_event(ctx, dst, src, imm)?;
-        let new_add32_event =
-            Add32Event::generate_event(ctx, new_addi_event.src_val, imm.val() as u32);
-        ctx.trace.add32.push(new_add32_event);
-        ctx.trace.addi.push(new_addi_event);
+        AddiEvent::generate(ctx, dst, src, imm)?;
+
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent
+
+        // Retrieve event
+        let new_addi_event = ctx
+            .trace
+            .addi
+            .last()
+            .expect("Event should have been pushed");
+        let new_add32_gadget =
+            Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
+        ctx.trace.add32.push(new_add32_gadget);
 
         Ok(())
     }
@@ -732,10 +681,7 @@ impl Interpreter {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvw_event = MVVWEvent::generate_event(ctx, dst, offset, src)?;
-        if let Some(new_mvvw_event) = opt_new_mvvw_event {
-            ctx.trace.mvvw.push(new_mvvw_event);
-        }
+        let opt_new_mvvw_event = MVVWEvent::generate(ctx, dst, offset, src)?;
 
         Ok(())
     }
@@ -746,10 +692,7 @@ impl Interpreter {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvvl_event = MVVLEvent::generate_event(ctx, dst, offset, src)?;
-        if let Some(new_mvvl_event) = opt_new_mvvl_event {
-            ctx.trace.mvvl.push(new_mvvl_event);
-        }
+        let opt_new_mvvl_event = MVVLEvent::generate(ctx, dst, offset, src)?;
 
         Ok(())
     }
@@ -760,10 +703,7 @@ impl Interpreter {
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let opt_new_mvih_event = MVIHEvent::generate_event(ctx, dst, offset, imm)?;
-        if let Some(new_mvih_event) = opt_new_mvih_event {
-            ctx.trace.mvih.push(new_mvih_event);
-        }
+        let opt_new_mvih_event = MVIHEvent::generate(ctx, dst, offset, imm)?;
 
         Ok(())
     }
@@ -774,8 +714,7 @@ impl Interpreter {
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let new_ldi_event = LDIEvent::generate_event(ctx, dst, imm_low, imm_high)?;
-        ctx.trace.ldi.push(new_ldi_event);
+        let new_ldi_event = LDIEvent::generate(ctx, dst, imm_low, imm_high)?;
 
         Ok(())
     }

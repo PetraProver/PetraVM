@@ -12,12 +12,12 @@ use crate::{
         Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
     },
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
-    impl_event_no_interaction_with_state_channel, impl_immediate_binary_operation,
+    impl_immediate_binary_operation, Opcode,
 };
 
 /// Event for the Add gadgets over the integers.
 #[derive(Debug, Clone)]
-pub(crate) struct AddGadgetEvent<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
+pub(crate) struct AddGadget<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
     timestamp: u32,
     output: T,
     input1: T,
@@ -25,7 +25,7 @@ pub(crate) struct AddGadgetEvent<T: Copy + PrimInt + FromPrimitive + Overflowing
     cout: T,
 }
 
-impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadgetEvent<T> {
+impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadget<T> {
     pub const fn new(timestamp: u32, output: T, input1: T, input2: T, cout: T) -> Self {
         Self {
             timestamp,
@@ -36,7 +36,7 @@ impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadg
         }
     }
 
-    pub fn generate_event(ctx: &mut EventContext, input1: T, input2: T) -> Self {
+    pub fn generate_gadget(ctx: &mut EventContext, input1: T, input2: T) -> Self {
         let (output, carry) = input1.overflowing_add(&input2);
 
         // cin's i-th bit stores the carry which was added to the sum's i-th bit.
@@ -61,11 +61,8 @@ impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadg
     }
 }
 
-pub(crate) type Add32Event = AddGadgetEvent<u32>;
-pub(crate) type Add64Event = AddGadgetEvent<u64>;
-
-impl_event_no_interaction_with_state_channel!(Add32Event);
-impl_event_no_interaction_with_state_channel!(Add64Event);
+pub(crate) type Add32Gadget = AddGadget<u32>;
+pub(crate) type Add64Gadget = AddGadget<u64>;
 
 define_bin32_imm_op_event!(
     /// Event for ADDI.
@@ -75,6 +72,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src] + imm
     AddiEvent,
+    addi,
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
 );
 
@@ -117,6 +115,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] + FP[src2]
     AddEvent,
+    add,
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
 );
 
@@ -135,36 +134,13 @@ pub(crate) struct MuliEvent {
     imm: u16,
 }
 
-impl MuliEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u64,
-        src: u16,
-        src_val: u32,
-        imm: u16,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src,
-            src_val,
-            imm,
-        }
-    }
-
-    pub fn generate_event(
+impl Event for MuliEvent {
+    fn generate(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let fp = ctx.fp;
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
 
@@ -176,7 +152,8 @@ impl MuliEvent {
         let pc = ctx.pc;
         let timestamp = ctx.timestamp;
         ctx.incr_pc();
-        Ok(Self {
+
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
@@ -185,19 +162,10 @@ impl MuliEvent {
             src: src.val(),
             src_val,
             imm: imm_val,
-        })
-    }
-}
+        };
 
-impl Event for MuliEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, dst, src, imm);
+        ctx.trace.muli.push(event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -233,37 +201,6 @@ pub(crate) struct MuluEvent {
 }
 
 impl MuluEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u64,
-        src1: u16,
-        src1_val: u32,
-        src2: u16,
-        src2_val: u32,
-        aux: [u32; 8],
-        aux_sums: [u64; 4],
-        cum_sums: [u64; 2],
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src1,
-            src1_val,
-            src2,
-            src2_val,
-            aux,
-            aux_sums,
-            cum_sums,
-        }
-    }
-
     pub fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
@@ -307,13 +244,70 @@ impl MuluEvent {
 
 impl Event for MuluEvent {
     fn generate(
-        &self,
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, dst, src1, src2);
+    ) -> Result<(), InterpreterError> {
+        let fp = ctx.fp;
+        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+
+        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
+
+        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+
+        let (aux, aux_sums, cum_sums) =
+            schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
+
+        let pc = ctx.pc;
+        let timestamp = ctx.timestamp;
+        ctx.incr_pc();
+
+        let mulu_event = Self {
+            pc: ctx.field_pc,
+            fp,
+            timestamp,
+            dst: dst.val(),
+            dst_val,
+            src1: src1.val(),
+            src1_val,
+            src2: src2.val(),
+            src2_val,
+            aux: aux.try_into().expect("Created an incorrect aux vector."),
+            aux_sums: aux_sums
+                .try_into()
+                .expect("Created an incorrect aux_sums vector."),
+            cum_sums: cum_sums
+                .try_into()
+                .expect("Created an incorrect cum_sums vector."),
+        };
+
+        // Check auxiliary values with gadgets
+        let aux = mulu_event.aux;
+        let aux_sums = mulu_event.aux_sums;
+        let cum_sums = mulu_event.cum_sums;
+
+        // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
+        for i in 0..aux.len() / 2 {
+            let new_add64_gadget =
+                Add64Gadget::generate_gadget(ctx, aux[2 * i] as u64, (aux[2 * i + 1] as u64) << 8);
+            ctx.trace.add64.push(new_add64_gadget);
+        }
+        // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
+        // Check the first element.
+        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, aux_sums[0], aux_sums[1] << 8);
+        ctx.trace.add64.push(new_add64_gadget);
+        // CHeck the second element.
+        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, cum_sums[0], aux_sums[2] << 16);
+        ctx.trace.add64.push(new_add64_gadget);
+
+        // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
+        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, cum_sums[1], aux_sums[3] << 24);
+        ctx.trace.add64.push(new_add64_gadget);
+
+        ctx.trace.mulu.push(mulu_event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -393,6 +387,10 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
 pub trait SignedMulOperation: Debug + Clone {
     fn mul_op(input1: u32, input2: u32) -> u64;
+    fn instruction() -> Opcode;
+    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, Clone)]
@@ -404,6 +402,17 @@ impl SignedMulOperation for MulsuOp {
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64
     }
+
+    fn instruction() -> Opcode {
+        Opcode::Mulsu
+    }
+
+    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.signed_mulsu.push(event);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -414,6 +423,17 @@ impl SignedMulOperation for MulOp {
         // i64 to get the 64-bit value. Otherwise, directly cast as an i64 for
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Mul
+    }
+
+    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.signed_mul.push(event);
     }
 }
 
@@ -435,39 +455,13 @@ pub(crate) struct SignedMulEvent<SignedMulOperation> {
     _phantom: PhantomData<SignedMulOperation>,
 }
 
-impl<T: SignedMulOperation> SignedMulEvent<T> {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_val: u64,
-        src1: u16,
-        src1_val: u32,
-        src2: u16,
-        src2_val: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_val,
-            src1,
-            src1_val,
-            src2,
-            src2_val,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn generate_event(
+impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
+    fn generate(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
@@ -480,7 +474,7 @@ impl<T: SignedMulOperation> SignedMulEvent<T> {
         let timestamp = ctx.timestamp;
         ctx.incr_pc();
 
-        Ok(Self {
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
@@ -491,19 +485,10 @@ impl<T: SignedMulOperation> SignedMulEvent<T> {
             src2: src2.val(),
             src2_val,
             _phantom: PhantomData,
-        })
-    }
-}
+        };
 
-impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, dst, src1, src2);
+        T::push_event(ctx, event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -521,6 +506,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] < FP[src2]
     SltuEvent,
+    sltu,
     // LT is checked using a SUB gadget.
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() < b.val()) as u32)
 );
@@ -534,6 +520,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] < FP[src2]
     SltEvent,
+    slt,
     // LT is checked using a SUB gadget.
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32) < (b.val() as i32)) as u32)
 );
@@ -546,6 +533,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] < FP[src2]
     SltiuEvent,
+    sltiu,
     // LT is checked using a SUB gadget.
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() < imm.val() as u32) as u32)
 );
@@ -558,6 +546,7 @@ define_bin32_imm_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] < FP[src2]
     SltiEvent,
+    slti,
     // LT is checked using a SUB gadget.
     |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
 );
@@ -570,6 +559,7 @@ define_bin32_op_event!(
     /// Logic:
     ///   1. FP[dst] = FP[src1] - FP[src2]
     SubEvent,
+    sub,
     // SUB is checked using a specific gadget, similarly to ADD.
     // TODO: add support for signed values.
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
@@ -826,13 +816,11 @@ mod tests {
             env.set_vrom(src1_offset.val(), src1_val);
             env.set_vrom(src2_offset.val(), src2_val);
 
-            let event = SignedMulEvent::<MulOp>::generate_event(
-                &mut env,
-                dst_offset,
-                src1_offset,
-                src2_offset,
-            )
-            .unwrap();
+            SignedMulEvent::<MulOp>::generate(&mut env, dst_offset, src1_offset, src2_offset)
+                .unwrap();
+
+            // Extract the event
+            let event = env.trace.signed_mul.last().unwrap();
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -872,13 +860,11 @@ mod tests {
             env.set_vrom(src1_offset.val(), src1_val);
             env.set_vrom(src2_offset.val(), src2_val);
 
-            let event = SignedMulEvent::<MulsuOp>::generate_event(
-                &mut env,
-                dst_offset,
-                src1_offset,
-                src2_offset,
-            )
-            .unwrap();
+            SignedMulEvent::<MulsuOp>::generate(&mut env, dst_offset, src1_offset, src2_offset)
+                .unwrap();
+
+            // Extract the event
+            let event = env.trace.signed_mulsu.last().unwrap();
 
             assert_eq!(
                 event.dst_val, mulsu_expected,
@@ -943,7 +929,10 @@ mod tests {
             env.set_vrom(src_offset.val(), src_val);
             let imm = BinaryField16b::new(imm_val);
 
-            let event = MuliEvent::generate_event(&mut env, dst_offset, src_offset, imm).unwrap();
+            MuliEvent::generate(&mut env, dst_offset, src_offset, imm).unwrap();
+
+            // Extract the event
+            let event = env.trace.muli.last().unwrap();
 
             assert_eq!(
                 event.dst_val, expected,

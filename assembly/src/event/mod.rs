@@ -28,12 +28,11 @@ pub trait Event {
     /// Generates a new event and pushes it to its corresponding list in the set
     /// of traces.
     fn generate(
-        &self,
         ctx: &mut EventContext,
         arg0: BinaryField16b,
         arg1: BinaryField16b,
         arg2: BinaryField16b,
-    );
+    ) -> Result<(), InterpreterError>;
 
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.

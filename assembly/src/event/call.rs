@@ -29,36 +29,13 @@ pub(crate) struct TailiEvent {
     old_fp_val: u16,
 }
 
-impl TailiEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        target: u32,
-        next_fp: u16,
-        next_fp_val: u32,
-        return_addr: u32,
-        old_fp_val: u16,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            target,
-            next_fp,
-            next_fp_val,
-            return_addr,
-            old_fp_val,
-        }
-    }
-
-    pub fn generate_event(
+impl Event for TailiEvent {
+    fn generate(
         ctx: &mut EventContext,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let next_fp_val = ctx.allocate_new_frame(target)?;
@@ -79,7 +56,7 @@ impl TailiEvent {
         ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
         ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
-        Ok(Self {
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
@@ -88,19 +65,10 @@ impl TailiEvent {
             next_fp_val,
             return_addr,
             old_fp_val: old_fp_val as u16,
-        })
-    }
-}
+        };
 
-impl Event for TailiEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, target_low, target_high, next_fp);
+        ctx.trace.taili.push(event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -137,38 +105,13 @@ pub(crate) struct TailVEvent {
     target: u32,
 }
 
-impl TailVEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        offset: u16,
-        next_fp: u16,
-        next_fp_val: u32,
-        return_addr: u32,
-        old_fp_val: u16,
-        target: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            offset,
-            next_fp,
-            next_fp_val,
-            return_addr,
-            old_fp_val,
-            target,
-        }
-    }
-
-    pub fn generate_event(
+impl Event for TailVEvent {
+    fn generate(
         ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
-        _: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+        _unused: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
 
@@ -195,7 +138,7 @@ impl TailVEvent {
         ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
         ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
-        Ok(Self {
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
@@ -205,19 +148,10 @@ impl TailVEvent {
             return_addr,
             old_fp_val: old_fp_val as u16,
             target,
-        })
-    }
-}
+        };
 
-impl Event for TailVEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, offset, next_fp, _unused);
+        ctx.trace.tailv.push(event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -252,32 +186,13 @@ pub(crate) struct CalliEvent {
     next_fp_val: u32,
 }
 
-impl CalliEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        target: u32,
-        next_fp: u16,
-        next_fp_val: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            target,
-            next_fp,
-            next_fp_val,
-        }
-    }
-
-    pub fn generate_event(
+impl Event for CalliEvent {
+    fn generate(
         ctx: &mut EventContext,
         target_low: BinaryField16b,
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<(), InterpreterError> {
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
         let next_fp_val = ctx.allocate_new_frame(target)?;
@@ -297,26 +212,17 @@ impl CalliEvent {
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
         ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
 
-        Ok(Self {
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
             target: target.val(),
             next_fp: next_fp.val(),
             next_fp_val,
-        })
-    }
-}
+        };
 
-impl Event for CalliEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, target_low, target_high, next_fp);
+        ctx.trace.calli.push(event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
@@ -351,34 +257,13 @@ pub(crate) struct CallvEvent {
     target: u32,
 }
 
-impl CallvEvent {
-    #[allow(clippy::too_many_arguments)]
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        offset: u16,
-        next_fp: u16,
-        next_fp_val: u32,
-        target: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            offset,
-            next_fp,
-            next_fp_val,
-            target,
-        }
-    }
-
-    pub fn generate_event(
+impl Event for CallvEvent {
+    fn generate(
         ctx: &mut EventContext,
         offset: BinaryField16b,
         next_fp: BinaryField16b,
-        _: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
+        _unused: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = ctx.addr(next_fp.val());
 
@@ -407,7 +292,7 @@ impl CallvEvent {
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
         ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
 
-        Ok(Self {
+        let event = Self {
             pc: ctx.field_pc,
             fp,
             timestamp,
@@ -415,19 +300,10 @@ impl CallvEvent {
             next_fp: next_fp.val(),
             next_fp_val,
             target,
-        })
-    }
-}
+        };
 
-impl Event for CallvEvent {
-    fn generate(
-        &self,
-        ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, offset, next_fp, _unused);
+        ctx.trace.callv.push(event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {

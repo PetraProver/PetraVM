@@ -17,7 +17,7 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
+            Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
             SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
@@ -57,8 +57,8 @@ pub struct ZCrayTrace {
         Vec<ShiftEvent<shift::VromOffsetShift, shift::ArithmeticRight>>,
     pub(crate) add: Vec<AddEvent>,
     pub(crate) addi: Vec<AddiEvent>,
-    pub(crate) add32: Vec<Add32Event>,
-    pub(crate) add64: Vec<Add64Event>,
+    pub(crate) add32: Vec<Add32Gadget>,
+    pub(crate) add64: Vec<Add64Gadget>,
     pub(crate) muli: Vec<MuliEvent>,
     // TODO(Robin): Re-unify mul / mulsu
     pub(crate) signed_mul: Vec<SignedMulEvent<MulOp>>,
@@ -170,8 +170,8 @@ impl ZCrayTrace {
         fire_events!(self.off_arith_right_shift, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
-        fire_events!(self.add32, &mut channels, &tables);
-        fire_events!(self.add64, &mut channels, &tables);
+        // add32 gadgets do not incur any flushes
+        // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels, &tables);
         fire_events!(self.signed_mul, &mut channels, &tables);
         fire_events!(self.signed_mulsu, &mut channels, &tables);

@@ -7,35 +7,123 @@ use super::context::EventContext;
 use crate::{
     event::{binary_ops::*, Event},
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    fire_non_jump_event, ZCrayTrace,
+    fire_non_jump_event, Opcode, ZCrayTrace,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
-pub trait ShiftOperation: Debug + Clone + PartialEq {
+pub trait ShiftOperation<S: ShiftSource>: Debug + Clone + PartialEq {
     fn shift_op(val: u32, shift: u32) -> u32;
+    fn instruction() -> Opcode;
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<S, Self>)
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalLeft;
-impl ShiftOperation for LogicalLeft {
+impl ShiftOperation<ImmediateShift> for LogicalLeft {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val << shift
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Slli
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.imm_logic_left_shift.push(event);
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for LogicalLeft {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val << shift
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Sll
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.off_logic_left_shift.push(event);
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogicalRight;
-impl ShiftOperation for LogicalRight {
+impl ShiftOperation<ImmediateShift> for LogicalRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         val >> shift
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Srli
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.imm_logic_right_shift.push(event);
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for LogicalRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val >> shift
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Srl
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.off_logic_right_shift.push(event);
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArithmeticRight;
-impl ShiftOperation for ArithmeticRight {
+impl ShiftOperation<ImmediateShift> for ArithmeticRight {
     fn shift_op(val: u32, shift: u32) -> u32 {
         ((val as i32) >> shift) as u32
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Srai
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<ImmediateShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.imm_arith_right_shift.push(event);
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for ArithmeticRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        ((val as i32) >> shift) as u32
+    }
+
+    fn instruction() -> Opcode {
+        Opcode::Srai
+    }
+
+    fn push_event(ctx: &mut EventContext, event: ShiftEvent<VromOffsetShift, Self>)
+    where
+        Self: Sized,
+    {
+        ctx.trace.off_arith_right_shift.push(event);
     }
 }
 
@@ -65,7 +153,11 @@ impl ShiftSource for VromOffsetShift {
 /// Combined event for both logical and arithmetic shift operations.
 /// The type of shift is determined by the `shift_op` field.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShiftEvent<ShiftSource, ShiftOperation> {
+pub struct ShiftEvent<S, O>
+where
+    S: ShiftSource,
+    O: ShiftOperation<S>,
+{
     pc: BinaryField32b,
     fp: u32,
     timestamp: u32,
@@ -74,10 +166,14 @@ pub struct ShiftEvent<ShiftSource, ShiftOperation> {
     src: u16,                // 16-bit source VROM offset
     pub(crate) src_val: u32, // 32-bit source value
 
-    _phantom: PhantomData<(ShiftSource, ShiftOperation)>,
+    _phantom: PhantomData<(S, O)>,
 }
 
-impl<S: ShiftSource, O: ShiftOperation> ShiftEvent<S, O> {
+impl<S, O> ShiftEvent<S, O>
+where
+    S: ShiftSource,
+    O: ShiftOperation<S>,
+{
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
@@ -191,15 +287,21 @@ impl<S: ShiftSource, O: ShiftOperation> ShiftEvent<S, O> {
     }
 }
 
-impl<S: ShiftSource, O: ShiftOperation> Event for ShiftEvent<S, O> {
+impl<S: ShiftSource, O: ShiftOperation<S>> Event for ShiftEvent<S, O> {
     fn generate(
-        &self,
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-    ) {
-        let _ = Self::generate_event(ctx, dst, src1, src2);
+    ) -> Result<(), InterpreterError> {
+        let event = if S::is_immediate() {
+            Self::generate_immediate_event(ctx, dst, src1, src2)?
+        } else {
+            Self::generate_vrom_event(ctx, dst, src1, src2)?
+        };
+
+        O::push_event(ctx, event);
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
