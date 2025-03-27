@@ -86,8 +86,8 @@ impl ZkVMCircuit {
             table_sizes: vec![
                 trace.program.len(),    // PROM table size
                 trace.program.len() * 2,  // Estimate VROM size (rough estimate)
-                trace.ldi_events.len(),  // LDI table size
-                trace.ret_events.len(),  // RET table size
+                trace.ldi_events().len(),  // LDI table size
+                trace.ret_events().len(),  // RET table size
             ],
         };
         

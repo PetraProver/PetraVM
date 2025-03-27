@@ -12,13 +12,13 @@ use crate::execution::{
 /// Logic:
 ///   1. PC = FP[0]
 ///   2. FP = FP[1]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct RetEvent {
-    pub(crate) pc: BinaryField32b,
-    pub(crate) fp: u32,
-    pub(crate) timestamp: u32,
-    pub(crate) fp_0_val: u32,
-    pub(crate) fp_1_val: u32,
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub fp_0_val: u32,
+    pub fp_1_val: u32,
 }
 
 impl RetEvent {

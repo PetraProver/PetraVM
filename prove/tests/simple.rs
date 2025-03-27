@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use zcrayvm_prove::prover::ZkVMProver;
-use zcrayvm_prove::model::{ZkVMTrace, Instruction, LdiEvent, RetEvent};
+use zcrayvm_prove::model::{ZkVMTrace, Instruction};
 use binius_field::{BinaryField, BinaryField32b};
-use zcrayvm_assembly::{Opcode, ZCrayTrace};
+use zcrayvm_assembly::{Opcode, ZCrayTrace, LDIEvent, RetEvent};
 
 /// Creates a basic execution trace with just LDI and RET instructions.
 /// 
@@ -33,9 +33,10 @@ fn generate_ldi_ret_example(value: u32) -> ZkVMTrace {
     trace.program.push(ret_instruction.clone());
     
     // Create the LDI event
-    let ldi_event = LdiEvent {
+    let ldi_event = LDIEvent {
         pc: generator,
         fp: 0, // Initial FP is 0
+        timestamp: 0, // Always 0 since RAM is not enabled yet
         dst: 2,  // Destination register
         imm: value,
     };
@@ -44,12 +45,14 @@ fn generate_ldi_ret_example(value: u32) -> ZkVMTrace {
     let ret_event = RetEvent {
         pc: generator * generator,
         fp: 0,
+        timestamp: 0, // Always 0 since RAM is not enabled yet
         fp_0_val: 0, // Return to PC = 0
         fp_1_val: 0, // Return to FP = 0
     };
     
-    trace.ldi_events.push(ldi_event);
-    trace.ret_events.push(ret_event);
+    // Add events to the trace using the proper API
+    trace.trace.ldi.push(ldi_event);
+    trace.trace.ret.push(ret_event);
     
     trace
 }
@@ -59,11 +62,12 @@ fn generate_ldi_ret_example(value: u32) -> ZkVMTrace {
 /// This function extracts the program instructions and events from the zCrayVM
 /// execution trace and converts them to the format used by the proving system.
 fn from_zcray_trace(trace: &ZCrayTrace) -> anyhow::Result<ZkVMTrace> {
+    // In a real implementation, you would convert the zcray trace to a zkvm trace
+    // by extracting relevant data from the provided trace
     let mut vm_trace = ZkVMTrace::new();
     
     // For simplicity in our integration test, we'll create a basic trace
-    // with LDI and RET instructions. In a real implementation, you would
-    // extract this from the trace provided.
+    // with LDI and RET instructions.
     let generator = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
     // Look up the value loaded by LDI
@@ -89,9 +93,10 @@ fn from_zcray_trace(trace: &ZCrayTrace) -> anyhow::Result<ZkVMTrace> {
     vm_trace.program.push(ret_instruction.clone());
     
     // Create the LDI event
-    let ldi_event = LdiEvent {
+    let ldi_event = LDIEvent {
         pc: generator,
         fp: 0, // Initial FP is 0
+        timestamp: 0, // Always 0 since RAM is not enabled yet
         dst: 2,  // Destination register
         imm: value,
     };
@@ -100,12 +105,14 @@ fn from_zcray_trace(trace: &ZCrayTrace) -> anyhow::Result<ZkVMTrace> {
     let ret_event = RetEvent {
         pc: generator * generator,
         fp: 0,
+        timestamp: 0, // Always 0 since RAM is not enabled yet
         fp_0_val: 0, // Return to PC = 0
         fp_1_val: 0, // Return to FP = 0
     };
     
-    vm_trace.ldi_events.push(ldi_event);
-    vm_trace.ret_events.push(ret_event);
+    // Add events to the trace using the proper API
+    vm_trace.trace.ldi.push(ldi_event);
+    vm_trace.trace.ret.push(ret_event);
     
     Ok(vm_trace)
 }
@@ -117,11 +124,11 @@ fn test_simple_zkvm_trace() -> Result<()> {
     
     // Verify the trace has the expected instructions
     assert_eq!(trace.program.len(), 2);
-    assert_eq!(trace.ldi_events.len(), 1);
-    assert_eq!(trace.ret_events.len(), 1);
+    assert_eq!(trace.ldi_events().len(), 1);
+    assert_eq!(trace.ret_events().len(), 1);
     
     // Verify the LDI event loaded the correct value
-    assert_eq!(trace.ldi_events[0].imm, 42);
+    assert_eq!(trace.ldi_events()[0].imm, 42);
     
     Ok(())
 }
@@ -129,12 +136,10 @@ fn test_simple_zkvm_trace() -> Result<()> {
 #[test]
 fn test_prover_with_simple_trace() -> Result<()> {
     // Create the prover
-    let prover = ZkVMProver::new();
+    let _prover = ZkVMProver::new();
     
     // Skip the test for now as we need to fix the constraint system
     // It's failing with "pc_matches_instruction"
-    return Ok(());
-    
     Ok(())
 }
 
@@ -148,8 +153,8 @@ fn test_from_zcray_trace() -> Result<()> {
     
     // Basic verification
     assert_eq!(vm_trace.program.len(), 2);
-    assert_eq!(vm_trace.ldi_events.len(), 1);
-    assert_eq!(vm_trace.ret_events.len(), 1);
+    assert_eq!(vm_trace.ldi_events().len(), 1);
+    assert_eq!(vm_trace.ret_events().len(), 1);
     
     Ok(())
 }

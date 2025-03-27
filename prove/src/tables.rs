@@ -11,8 +11,9 @@ use bytemuck::Pod;
 
 use crate::{
     channels::ZkVMChannels,
-    model::{Instruction, LdiEvent, RetEvent},
+    model::Instruction,
 };
+use zcrayvm_assembly::{LDIEvent, RetEvent};
 
 /// PROM (Program ROM) table for storing program instructions.
 pub struct PromTable {
@@ -196,7 +197,7 @@ impl<U> TableFiller<U> for LdiTable
 where
     U: Pod + PackScalar<B32>,
 {
-    type Event = LdiEvent;
+    type Event = LDIEvent;
     
     fn id(&self) -> TableId {
         self.id

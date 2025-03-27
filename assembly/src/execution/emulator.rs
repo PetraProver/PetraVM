@@ -74,16 +74,16 @@ pub(crate) struct Interpreter {
 
 /// An `Instruction` is composed of an opcode and up to three 16-bit arguments
 /// to be used by this operation.
-pub(crate) type Instruction = [BinaryField16b; 4];
+pub type Instruction = [BinaryField16b; 4];
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct InterpreterInstruction {
-    pub(crate) instruction: Instruction,
-    pub(crate) field_pc: BinaryField32b,
+    pub instruction: Instruction,
+    pub field_pc: BinaryField32b,
 }
 
 impl InterpreterInstruction {
-    pub(crate) const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
+    pub const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
         Self {
             instruction,
             field_pc,
@@ -91,6 +91,11 @@ impl InterpreterInstruction {
     }
     pub fn opcode(&self) -> Opcode {
         Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
+    }
+    
+    /// Get the arguments of this instruction.
+    pub fn args(&self) -> [BinaryField16b; 3] {
+        [self.instruction[1], self.instruction[2], self.instruction[3]]
     }
 }
 

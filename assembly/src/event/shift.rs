@@ -2,8 +2,8 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 
 use crate::{
     event::Event,
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
-    fire_non_jump_event, ZCrayTrace,
+    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, trace::ZCrayTrace},
+    fire_non_jump_event,
 };
 
 /// Enum to distinguish between the different kinds of shifts.

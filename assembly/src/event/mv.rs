@@ -527,12 +527,12 @@ impl_mv_fire!(MVIHEvent);
 
 // Event for LDI.
 #[derive(Debug, Clone)]
-pub(crate) struct LDIEvent {
-    pc: BinaryField32b,
-    fp: u32,
-    timestamp: u32,
-    dst: u16,
-    imm: u32,
+pub struct LDIEvent {
+    pub pc: BinaryField32b,
+    pub fp: u32,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub imm: u32,
 }
 
 impl LDIEvent {
@@ -583,7 +583,7 @@ mod tests {
         memory::{Memory, VromPendingUpdates, VromUpdate},
         opcodes::Opcode,
         util::code_to_prom,
-        ValueRom, ZCrayTrace,
+        ValueRom, execution::trace::ZCrayTrace,
     };
 
     #[test]

@@ -43,10 +43,10 @@ impl ZkVMProver {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
         
         // Fill LDI table
-        witness.fill_table_sequential(&self.circuit.ldi_table, &trace.ldi_events)?;
+        witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
         
         // Fill RET table
-        witness.fill_table_sequential(&self.circuit.ret_table, &trace.ret_events)?;
+        witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
         
         // Convert witness to MLE for validation
         let mle_witness = witness.into_multilinear_extension_index(&statement);
