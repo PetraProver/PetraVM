@@ -5,7 +5,6 @@
 
 use binius_field::arch::OptimalUnderlier128b;
 use bumpalo::Bump;
-use zcrayvm_assembly::ZCrayTrace;
 
 use crate::{
     model::ZkVMTrace,
@@ -62,14 +61,4 @@ impl ZkVMProver {
         Ok(())
     }
     
-    /// Convert a ZCrayTrace to a ZkVMTrace suitable for proving
-    pub fn create_zkvm_trace_from_zcray_trace(&self, trace: &ZCrayTrace) -> anyhow::Result<ZkVMTrace> {
-        ZkVMTrace::from_zcray_trace(trace)
-    }
-    
-    /// Generate a proof for a simple LDI+RET program.
-    pub fn prove_simple_ldi_ret(&self, value: u32) -> anyhow::Result<()> {
-        let trace = ZkVMTrace::generate_ldi_ret_example(value);
-        self.prove(&trace)
-    }
 }

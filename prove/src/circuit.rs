@@ -61,7 +61,7 @@ impl ZkVMCircuit {
         let initial_state = Boundary {
             values: vec![
                 B128::from(BinaryField32b::from(generator)), // Initial PC = G
-                B128::from(BinaryField32b::from(10)), // Initial FP = 10
+                B128::from(BinaryField32b::ZERO), // Initial FP = 0
             ],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
