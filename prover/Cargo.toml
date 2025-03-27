@@ -1,5 +1,5 @@
 [package]
-name = "zcrayvm-prove"
+name = "zcrayvm-prover"
 version.workspace = true
 edition.workspace = true
 authors = ["zCray Team"]

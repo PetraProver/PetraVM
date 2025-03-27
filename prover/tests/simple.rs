@@ -1,8 +1,8 @@
 //! Test the simple proving system with LDI and RET instructions.
 
 use anyhow::Result;
-use zcrayvm_prove::prover::ZkVMProver;
-use zcrayvm_prove::model::{ZkVMTrace, Instruction};
+use zcrayvm_prover::prover::ZkVMProver;
+use zcrayvm_prover::model::{ZkVMTrace, Instruction};
 use binius_field::{BinaryField, BinaryField32b};
 use zcrayvm_assembly::{Opcode, ZCrayTrace, LDIEvent, RetEvent};
 
