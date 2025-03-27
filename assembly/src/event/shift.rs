@@ -309,6 +309,13 @@ impl<S: ShiftSource, O: ShiftOperation<S>> Event for ShiftEvent<S, O> {
     }
 }
 
+pub type SlliEvent = ShiftEvent<ImmediateShift, LogicalLeft>;
+pub type SrliEvent = ShiftEvent<ImmediateShift, LogicalRight>;
+pub type SraiEvent = ShiftEvent<ImmediateShift, ArithmeticRight>;
+pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
+pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
+pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
+
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;

@@ -214,44 +214,44 @@ impl Interpreter {
 
         match opcode {
             Opcode::Bnz => Self::generate_bnz(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpi => Self::generate_jumpi(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpv => Self::generate_jumpv(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xori => Self::generate_xori(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xor => Self::generate_xor(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slli => Self::generate_slli(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srli => Self::generate_srli(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srai => Self::generate_srai(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sll => Self::generate_sll(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srl => Self::generate_srl(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sra => Self::generate_sra(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Jumpi => JumpiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Jumpv => JumpvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Xori => XoriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Xor => XorEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slli => SlliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srli => SrliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srai => SraiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sll => SllEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Srl => SrlEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sra => SraEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Addi => Self::generate_addi(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Add => Self::generate_add(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sub => Self::generate_sub(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slt => Self::generate_slt(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slti => Self::generate_slti(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltu => Self::generate_sltu(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltiu => Self::generate_sltiu(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Muli => Self::generate_muli(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulu => Self::generate_mulu(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulsu => Self::generate_mulsu(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mul => Self::generate_mul(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ret => Self::generate_ret(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Taili => Self::generate_taili(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Tailv => Self::generate_tailv(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Calli => Self::generate_calli(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Callv => Self::generate_callv(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::And => Self::generate_and(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Andi => Self::generate_andi(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Or => Self::generate_or(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ori => Self::generate_ori(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvih => Self::generate_mvih(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvw => Self::generate_mvvw(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvl => Self::generate_mvvl(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ldi => Self::generate_ldi(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Mul => Self::generate_b32_mul(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Muli => Self::generate_b32_muli(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Add => Self::generate_b128_add(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Mul => Self::generate_b128_mul(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sub => SubEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slt => SltEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Slti => SltiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sltu => SltuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Sltiu => SltiuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Muli => MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mulu => MuluEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mulsu => SignedMulEvent::<MulsuOp>::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mul => SignedMulEvent::<MulOp>::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ret => RetEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Taili => TailiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Tailv => TailVEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Calli => CalliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Callv => CallvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::And => AndEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Andi => AndiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Or => OrEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ori => OriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvih => MVIHEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvvw => MVVWEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Mvvl => MVVLEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Ldi => LDIEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B32Mul => B32MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B32Muli => B32MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B128Add => B128AddEvent::generate(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::B128Mul => B128MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
         self.timestamp += 1;
@@ -264,6 +264,7 @@ impl Interpreter {
         target_low: BinaryField16b,
         target_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
+        // TODO: group events?
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
 
         if cond_val != 0 {
@@ -271,294 +272,6 @@ impl Interpreter {
         } else {
             BzEvent::generate(ctx, cond, target_low, target_high)
         }
-    }
-
-    fn generate_jumpi(
-        ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        _unused: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        JumpiEvent::generate(ctx, target_low, target_high, _unused)
-    }
-
-    fn generate_jumpv(
-        ctx: &mut EventContext,
-        offset: BinaryField16b,
-        _unused: BinaryField16b,
-        _unused2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        JumpvEvent::generate(ctx, offset, _unused, _unused2)
-    }
-
-    fn generate_xori(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        XoriEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_xor(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        XorEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_ret(
-        ctx: &mut EventContext,
-        _unused1: BinaryField16b,
-        _unused2: BinaryField16b,
-        _unused3: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        RetEvent::generate(ctx, _unused1, _unused2, _unused3)
-    }
-
-    fn generate_slli(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::ImmediateShift, shift::LogicalLeft>::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_srli(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::ImmediateShift, shift::LogicalRight>::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_srai(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::ImmediateShift, shift::ArithmeticRight>::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_sll(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::VromOffsetShift, shift::LogicalLeft>::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_srl(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::VromOffsetShift, shift::LogicalRight>::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_sra(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        ShiftEvent::<shift::VromOffsetShift, shift::ArithmeticRight>::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_tailv(
-        ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        TailVEvent::generate(ctx, offset, next_fp, _unused)
-    }
-
-    fn generate_taili(
-        ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        TailiEvent::generate(ctx, target_low, target_high, next_fp)
-    }
-
-    fn generate_calli(
-        ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        CalliEvent::generate(ctx, target_low, target_high, next_fp)
-    }
-
-    fn generate_callv(
-        ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        CallvEvent::generate(ctx, offset, next_fp, _unused)
-    }
-
-    fn generate_and(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        AndEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_andi(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        AndiEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_sub(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SubEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_slt(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SltEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_slti(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SltiEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_sltu(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SltuEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_sltiu(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SltiuEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_or(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        OrEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_ori(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        OriEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_muli(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        MuliEvent::generate(ctx, dst, src, imm)
-    }
-
-    fn generate_mulu(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        MuluEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_mul(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SignedMulEvent::<integer_ops::MulOp>::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_mulsu(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        SignedMulEvent::<integer_ops::MulsuOp>::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_b32_mul(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        B32MulEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_b32_muli(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm_low: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        B32MuliEvent::generate(ctx, dst, src, imm_low)
-    }
-
-    fn generate_b128_add(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        B128AddEvent::generate(ctx, dst, src1, src2)
-    }
-
-    fn generate_b128_mul(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        B128MulEvent::generate(ctx, dst, src1, src2)
     }
 
     fn generate_add(
@@ -602,42 +315,6 @@ impl Interpreter {
         ctx.trace.add32.push(new_add32_gadget);
 
         Ok(())
-    }
-
-    fn generate_mvvw(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        MVVWEvent::generate(ctx, dst, offset, src)
-    }
-
-    fn generate_mvvl(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        MVVLEvent::generate(ctx, dst, offset, src)
-    }
-
-    fn generate_mvih(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        MVIHEvent::generate(ctx, dst, offset, imm)
-    }
-
-    fn generate_ldi(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        imm_low: BinaryField16b,
-        imm_high: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        LDIEvent::generate(ctx, dst, imm_low, imm_high)
     }
 
     pub(crate) fn allocate_new_frame(
