@@ -3,7 +3,7 @@
 //! This module defines the complete M3 circuit for zCrayVM, combining
 //! all the individual tables and channels.
 
-use binius_field::{BinaryField, BinaryField32b, Field};
+use binius_field::{BinaryField32b, Field};
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 
 use crate::{
@@ -76,7 +76,7 @@ impl ZkVMCircuit {
     /// * A Statement that defines boundaries and table sizes
     pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
         // Build the statement with boundary values
-        let generator = BinaryField32b::MULTIPLICATIVE_GENERATOR;
+        // let generator = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
         // Define the initial state boundary (program starts at PC=G, FP=0)
         let initial_state = Boundary {
