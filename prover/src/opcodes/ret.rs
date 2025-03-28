@@ -54,32 +54,21 @@ impl RetTable {
         // Pull from state channel
         table.pull(channels.state_channel, [pc, fp]);
 
-        // Pull from PROM channel (get instruction) instead of pushing
-        let instr_pc = table.add_committed::<B32, 1>("instr_pc");
-        let instr_opcode = table.add_committed::<B32, 1>("instr_opcode");
+        let ret_opcode = table.add_constant("ret_opcode", [B32::from(0x0b)]);
         let zero_arg = table.add_constant("zero_arg", [B32::ZERO]);
 
         // Pull instruction from PROM channel
         table.pull(
             channels.prom_channel,
-            [instr_pc, instr_opcode, zero_arg, zero_arg, zero_arg],
+            [pc, ret_opcode, zero_arg, zero_arg, zero_arg],
         );
 
-        // Verify PC matches instruction PC
-        // table.assert_zero("pc_matches_instruction", (pc - instr_pc).into());
-
-        // Verify this is a RET instruction (opcode = 0x0b)
-        let ret_opcode = table.add_constant("ret_opcode", [B32::from(0x0b)]);
-        table.assert_zero("is_ret", instr_opcode - ret_opcode);
-
         // Compute addresses for return PC and FP
-        let zero = table.add_constant("zero", [B32::ZERO]);
         let one = table.add_constant("one", [B32::ONE]);
-        let addr_0 = table.add_computed("addr_0", fp + zero);
         let addr_1 = table.add_computed("addr_1", fp + one);
 
         // Pull return PC and FP values from VROM channel (instead of pushing)
-        table.pull(channels.vrom_channel, [addr_0, fp_0_val]);
+        table.pull(channels.vrom_channel, [fp, fp_0_val]);
         table.pull(channels.vrom_channel, [addr_1, fp_1_val]);
 
         // Push updated state (new PC and FP)
@@ -120,6 +109,7 @@ where
             fp_col[i] = event.fp;
             fp_0_val_col[i] = event.fp_0_val;
             fp_1_val_col[i] = event.fp_1_val;
+            dbg!("Ret fill", &pc_col[i], &fp_col[i], &fp_0_val_col[i], &fp_1_val_col[i]);
         }
 
         Ok(())

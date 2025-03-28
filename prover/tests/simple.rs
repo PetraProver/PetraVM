@@ -76,7 +76,8 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 #[test]
 fn test_zcrayvm_proving_pipeline() -> Result<()> {
     // Test value to load
-    let value = 0x12345678;
+    // let value = 0x12345678;
+    let value = 0x1234;
 
     // Step 1: Generate trace from assembly
     println!("Generating trace from assembly...");

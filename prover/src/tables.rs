@@ -94,6 +94,8 @@ where
             arg1_col[i] = instr.args.first().copied().unwrap_or(0) as u32;
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0) as u32;
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0) as u32;
+
+            dbg!("Prom fill", &pc_col[i], &opcode_col[i], &arg1_col[i], &arg2_col[i], &arg3_col[i]);
         }
 
         Ok(())
@@ -166,6 +168,7 @@ where
         for (i, (addr, value)) in rows.enumerate() {
             addr_col[i] = *addr;
             value_col[i] = *value;
+            dbg!("VromWrite fill", &addr_col[i], &value_col[i]);
         }
 
         Ok(())
@@ -229,6 +232,7 @@ where
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
             addr_col[i] = *addr;
+            dbg!("VromSkip fill", &addr_col[i]);
         }
 
         Ok(())
@@ -294,6 +298,7 @@ where
         // Fill the addresses from the provided rows
         for (i, &addr) in rows.enumerate() {
             addr_col[i] = addr;
+            dbg!("VromAddrSpace fill", &addr_col[i]);
         }
 
         Ok(())
