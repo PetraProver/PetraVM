@@ -5,7 +5,7 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32, B128, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
@@ -37,6 +37,16 @@ pub struct RetTable {
     pub fp_0_val: Col<B32, 1>,
     /// Return FP value from VROM[fp+1]
     pub fp_1_val: Col<B32, 1>,
+    /// State channel pull value
+    pub state_pull: Col<B128, 1>,
+    /// PROM channel pull value
+    pub prom_pull: Col<B128, 1>,
+    /// VROM channel pull value for fp+0
+    pub vrom_pull_0: Col<B64, 1>,
+    /// VROM channel pull value for fp+1
+    pub vrom_pull_1: Col<B64, 1>,
+    /// State channel push value
+    pub state_push: Col<B128, 1>,
 }
 
 impl RetTable {
@@ -101,6 +111,11 @@ impl RetTable {
             fp,
             fp_0_val,
             fp_1_val,
+            state_pull,
+            prom_pull,
+            vrom_pull_0,
+            vrom_pull_1,
+            state_push,
         }
     }
 }

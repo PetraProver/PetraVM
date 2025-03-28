@@ -6,7 +6,7 @@
 use binius_field::as_packed_field::PackScalar;
 use binius_m3::builder::B1;
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B16, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B16, B32, B64, B128,
 };
 use bytemuck::Pod;
 
@@ -37,6 +37,8 @@ pub struct PromTable {
     pub arg2: Col<B16, 1>,
     /// Argument 3 column
     pub arg3: Col<B16, 1>,
+    /// Packed instruction for PROM channel
+    pub prom_entry: Col<B128, 1>,
 }
 
 impl PromTable {
@@ -68,6 +70,7 @@ impl PromTable {
             arg1,
             arg2,
             arg3,
+            prom_entry,
         }
     }
 }
@@ -130,6 +133,8 @@ pub struct VromWriteTable {
     pub addr: Col<B32, 1>,
     /// Value column (from VROM channel)
     pub value: Col<B32, 1>,
+    /// Packed address and value for VROM channel
+    pub addr_value: Col<B64, 1>,
 }
 
 impl VromWriteTable {
@@ -160,6 +165,7 @@ impl VromWriteTable {
             id: table.id(),
             addr,
             value,
+            addr_value,
         }
     }
 }

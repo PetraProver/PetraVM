@@ -6,7 +6,7 @@
 use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16,
-    B32,
+    B32, B64, B128,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::LDIEvent;
@@ -41,6 +41,14 @@ pub struct LdiTable {
     pub imm_low: Col<B16, 1>,
     /// Immediate value high bits column
     pub imm_high: Col<B16, 1>,
+    /// State channel pull value
+    pub state_pull: Col<B128, 1>,
+    /// PROM channel pull value
+    pub prom_pull: Col<B128, 1>,
+    /// VROM channel push value
+    pub vrom_push: Col<B64, 1>,
+    /// State channel push value
+    pub state_push: Col<B128, 1>,
 }
 
 impl LdiTable {
@@ -60,7 +68,7 @@ impl LdiTable {
         let imm_high = table.add_committed::<B16, 1>("imm_high");
 
         // Pack FP and PC for state channel pull
-                let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
+        let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
 
         // Pull from state channel (get current state)
         table.pull(channels.state_channel, [state_pull]);
@@ -112,6 +120,10 @@ impl LdiTable {
             dst,
             imm_low,
             imm_high,
+            state_pull,
+            prom_pull,
+            vrom_push,
+            state_push,
         }
     }
 }
