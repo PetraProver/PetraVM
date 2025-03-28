@@ -20,7 +20,7 @@ pub struct ZkVMCircuit {
     pub channels: ZkVMChannels,
     /// Program ROM table
     pub prom_table: PromTable,
-    /// VROM Address Space table
+    // TODO: We should not have this table in prover
     pub vrom_addr_space_table: VromAddrSpaceTable,
     /// VROM Write table
     pub vrom_write_table: VromWriteTable,
@@ -75,7 +75,7 @@ impl ZkVMCircuit {
         // Define the initial state boundary (program starts at PC=G, FP=0)
         let initial_state = Boundary {
             values: vec![
-                B128::from(generator),            // Initial PC = G
+                B128::from(BinaryField32b::ONE),  // Initial PC = 1
                 B128::from(BinaryField32b::ZERO), // Initial FP = 0
             ],
             channel_id: self.channels.state_channel,

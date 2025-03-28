@@ -14,7 +14,7 @@ The proving system is built using an M3 arithmetic circuit with the following co
    - Connected to instruction tables through `prom_channel`
 
 2. **VROM Tables**
-   - `VromAddrSpaceTable`: Pushes the full address space (0-31) into `vrom_addr_space_channel`
+   - `VromAddrSpaceTable`: Pushes the full address space into `vrom_addr_space_channel`
    - `VromWriteTable`: Handles writing values to VROM addresses
    - `VromSkipTable`: Handles skipping unused VROM addresses
    - Format: [Address, Value]
@@ -54,10 +54,12 @@ The proving system is built using an M3 arithmetic circuit with the following co
 ### Design Considerations
 
 1. **VROM Memory Model**
-   - Write-once semantics enforced by channel balancing
-   - Each address can only be pulled once from `vrom_addr_space_channel`
-   - Prover must either write a value or skip each address
-   - All addresses (0-31) must be accounted for
+   - The verifier pushes all possible addresses (power of two) into the VROM address space channel
+   - Each address must be pulled exactly once to balance the channel
+   - Two specialized tables handle address consumption:
+     - VROM Write Table: Pulls an address and pushes a (address, value) pair when data needs to be written
+     - VROM Skip Table: Pulls an address without pushing any value for unused addresses
+   - This design ensures complete coverage of the address space while maintaining write-once semantics
 
 2. **Channel Balancing**
    - All pushes must be matched by pulls

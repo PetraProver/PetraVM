@@ -49,6 +49,22 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     // Convert to ZkVMTrace format for the prover
     let mut zkvm_trace = ZkVMTrace::from_zcray_trace(zcray_trace);
 
+    // Add debug logging for trace values
+    println!("\nDebug: Trace Generation:");
+    println!("1. LDI Event:");
+    println!("   - PC = {:?}", zkvm_trace.ldi_events()[0].pc);
+    println!("   - FP = {:?}", zkvm_trace.ldi_events()[0].fp);
+    println!("   - DST = {:?}", zkvm_trace.ldi_events()[0].dst);
+    println!("   - IMM = {:?}", zkvm_trace.ldi_events()[0].imm);
+
+    println!("\n2. Program Instructions:");
+    for (i, instr) in program.iter().enumerate() {
+        println!("   Instruction {}:", i);
+        println!("   - PC = {:?}", instr.field_pc);
+        println!("   - Opcode = {:?}", instr.opcode());
+        println!("   - Args = {:?}", instr.args());
+    }
+
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program.into_iter());
 
@@ -56,7 +72,12 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     let vrom_writes: Vec<_> = zkvm_trace
         .ldi_events()
         .iter()
-        .map(|event| (event.dst as u32, event.imm))
+        .map(|event| {
+            println!("\n3. VROM Write:");
+            println!("   - DST = {:?}", event.dst);
+            println!("   - IMM = {:?}", event.imm);
+            (event.dst as u32, event.imm)
+        })
         .collect();
     for (dst, imm) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm);

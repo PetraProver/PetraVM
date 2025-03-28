@@ -243,6 +243,7 @@ where
 /// VromWriteTable or VromSkipTable.
 ///
 /// Format: [Address]
+// TODO: The verifier should push the full address space
 pub struct VromAddrSpaceTable {
     /// Table ID
     pub id: TableId,
