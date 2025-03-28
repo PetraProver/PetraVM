@@ -78,16 +78,6 @@ impl RetTable {
         let addr_0 = table.add_computed("addr_0", fp + zero);
         let addr_1 = table.add_computed("addr_1", fp + one);
 
-        // Pull addresses from VROM address space channel
-        let addr_space_0 = table.add_committed("addr_space_0");
-        let addr_space_1 = table.add_committed("addr_space_1");
-        table.pull(channels.vrom_addr_space_channel, [addr_space_0]);
-        table.pull(channels.vrom_addr_space_channel, [addr_space_1]);
-
-        // Verify addresses match
-        table.assert_zero("addr_0_matches", addr_0 - addr_space_0);
-        table.assert_zero("addr_1_matches", addr_1 - addr_space_1);
-
         // Pull return PC and FP values from VROM channel (instead of pushing)
         table.pull(channels.vrom_channel, [addr_0, fp_0_val]);
         table.pull(channels.vrom_channel, [addr_1, fp_1_val]);

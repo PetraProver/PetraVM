@@ -77,10 +77,6 @@ impl LdiTable {
             ],
         );
 
-        // Pull address from VROM address space channel
-        let addr_space = table.add_committed::<B32, 1>("addr_space");
-        table.pull(channels.vrom_addr_space_channel, [addr_space]);
-
         // Compute absolute address: cur_fp + instr_dst
         // Since arithmetic is XOR in binary fields, this is cur_fp ^ instr_dst
         let abs_addr = table.add_computed::<B32, 1>("abs_addr", cur_fp + instr_dst);
@@ -96,9 +92,6 @@ impl LdiTable {
         // Verify this is a LDI instruction
         table.assert_zero("is_ldi", instr_opcode - ldi_opcode_const);
 
-        // Verify absolute address matches VROM address space lookup address
-        table.assert_zero("addr_matches", abs_addr - addr_space);
-
         // Verify witness destination offset matches instruction destination offset
         // table.assert_zero("dst_matches", (dst - instr_dst).into());
 
@@ -106,7 +99,7 @@ impl LdiTable {
         // table.assert_zero("imm_computation_correct", (imm - computed_imm).into());
 
         // Push value to VROM write table using absolute address
-        table.push(channels.vrom_channel, [abs_addr, imm]);
+        table.pull(channels.vrom_channel, [abs_addr, imm]);
 
         // Update state: PC = PC * G (moves to next instruction multiplicatively)
         let g_const = table.add_constant("generator", [G]);
