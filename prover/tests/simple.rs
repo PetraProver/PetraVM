@@ -66,7 +66,7 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     }
 
     // Add the program instructions to the trace
-    zkvm_trace.add_instructions(program.into_iter());
+    zkvm_trace.add_instructions(program);
 
     // Add VROM writes from LDI events
     let vrom_writes: Vec<_> = zkvm_trace

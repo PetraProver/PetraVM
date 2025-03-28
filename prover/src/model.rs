@@ -57,6 +57,12 @@ pub struct ZkVMTrace {
     pub vrom_writes: Vec<(u32, u32)>,
 }
 
+impl Default for ZkVMTrace {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZkVMTrace {
     /// Creates a new empty execution trace.
     pub fn new() -> Self {

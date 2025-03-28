@@ -26,6 +26,12 @@ pub struct ZkVMProver {
     circuit: ZkVMCircuit,
 }
 
+impl Default for ZkVMProver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZkVMProver {
     /// Create a new zCrayVM prover.
     pub fn new() -> Self {

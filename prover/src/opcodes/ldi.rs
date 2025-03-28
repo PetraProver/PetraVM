@@ -3,8 +3,7 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
-use binius_core::oracle::ShiftVariant;
-use binius_field::{as_packed_field::PackScalar, BinaryField, BinaryField32b, Field};
+use binius_field::{as_packed_field::PackScalar, BinaryField, BinaryField32b};
 use binius_m3::builder::{
     Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B32,
 };
@@ -95,10 +94,10 @@ impl LdiTable {
         // table.assert_zero("pc_matches_instruction", (pc - instr_pc).into());
 
         // Verify this is a LDI instruction
-        table.assert_zero("is_ldi", (instr_opcode - ldi_opcode_const).into());
+        table.assert_zero("is_ldi", instr_opcode - ldi_opcode_const);
 
         // Verify absolute address matches VROM address space lookup address
-        table.assert_zero("addr_matches", (abs_addr - addr_space).into());
+        table.assert_zero("addr_matches", abs_addr - addr_space);
 
         // Verify witness destination offset matches instruction destination offset
         // table.assert_zero("dst_matches", (dst - instr_dst).into());

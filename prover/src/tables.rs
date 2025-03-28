@@ -91,7 +91,7 @@ where
             opcode_col[i] = instr.opcode as u16 as u32;
 
             // Fill arguments, using 0 if the argument doesn't exist
-            arg1_col[i] = instr.args.get(0).copied().unwrap_or(0) as u32;
+            arg1_col[i] = instr.args.first().copied().unwrap_or(0) as u32;
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0) as u32;
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0) as u32;
         }
@@ -164,8 +164,8 @@ where
 
         // Fill in values from events
         for (i, (addr, value)) in rows.enumerate() {
-            addr_col[i] = *addr as u32;
-            value_col[i] = *value as u32;
+            addr_col[i] = *addr;
+            value_col[i] = *value;
         }
 
         Ok(())
@@ -228,7 +228,7 @@ where
 
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
-            addr_col[i] = *addr as u32;
+            addr_col[i] = *addr;
         }
 
         Ok(())

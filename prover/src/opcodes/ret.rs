@@ -70,7 +70,7 @@ impl RetTable {
 
         // Verify this is a RET instruction (opcode = 0x0b)
         let ret_opcode = table.add_constant("ret_opcode", [B32::from(0x0b)]);
-        table.assert_zero("is_ret", (instr_opcode - ret_opcode).into());
+        table.assert_zero("is_ret", instr_opcode - ret_opcode);
 
         // Compute addresses for return PC and FP
         let zero = table.add_constant("zero", [B32::ZERO]);
@@ -85,8 +85,8 @@ impl RetTable {
         table.pull(channels.vrom_addr_space_channel, [addr_space_1]);
 
         // Verify addresses match
-        table.assert_zero("addr_0_matches", (addr_0 - addr_space_0).into());
-        table.assert_zero("addr_1_matches", (addr_1 - addr_space_1).into());
+        table.assert_zero("addr_0_matches", addr_0 - addr_space_0);
+        table.assert_zero("addr_1_matches", addr_1 - addr_space_1);
 
         // Get return PC and FP from VROM write table
         table.push(channels.vrom_channel, [addr_0, fp_0_val]);

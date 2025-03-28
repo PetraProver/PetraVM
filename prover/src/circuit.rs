@@ -32,6 +32,12 @@ pub struct ZkVMCircuit {
     pub ret_table: RetTable,
 }
 
+impl Default for ZkVMCircuit {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ZkVMCircuit {
     /// Create a new zCrayVM circuit.
     ///
