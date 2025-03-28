@@ -73,12 +73,21 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
         .ldi_events()
         .iter()
         .map(|event| {
-            println!("\n3. VROM Write:");
+            println!("\n3. VROM Write from LDI:");
             println!("   - DST = {:?}", event.dst);
             println!("   - IMM = {:?}", event.imm);
             (event.dst as u32, event.imm)
         })
         .collect();
+
+    // Add initial VROM values for return PC and return FP
+    println!("\n4. Initial VROM Values:");
+    println!("   - Address 0 = 0 (return PC)");
+    println!("   - Address 1 = 0 (return FP)");
+    zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
+    zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
+
+    // Add other VROM writes from LDI events
     for (dst, imm) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm);
     }
@@ -90,8 +99,9 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 fn test_zcrayvm_proving_pipeline() -> Result<()> {
     // Test value to load
     let value = 0x12345678;
-    
-    // VROM size for the test (must be a power of 2 and >= number of VROM addresses used)
+
+    // VROM size for the test (must be a power of 2 and >= number of VROM addresses
+    // used)
     const VROM_SIZE: usize = 32;
 
     // Step 1: Generate trace from assembly
@@ -116,8 +126,8 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     );
     assert_eq!(
         trace.vrom_writes.len(),
-        1,
-        "Should have exactly one VROM write"
+        3,
+        "Should have three VROM writes"
     );
 
     // Step 2: Validate trace

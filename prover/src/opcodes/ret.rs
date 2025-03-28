@@ -54,13 +54,13 @@ impl RetTable {
         // Pull from state channel
         table.pull(channels.state_channel, [pc, fp]);
 
-        // Pull from PROM channel
+        // Pull from PROM channel (get instruction) instead of pushing
         let instr_pc = table.add_committed::<B32, 1>("instr_pc");
         let instr_opcode = table.add_committed::<B32, 1>("instr_opcode");
         let zero_arg = table.add_constant("zero_arg", [B32::ZERO]);
 
-        // Get instruction from PROM
-        table.push(
+        // Pull instruction from PROM channel
+        table.pull(
             channels.prom_channel,
             [instr_pc, instr_opcode, zero_arg, zero_arg, zero_arg],
         );
@@ -88,9 +88,9 @@ impl RetTable {
         table.assert_zero("addr_0_matches", addr_0 - addr_space_0);
         table.assert_zero("addr_1_matches", addr_1 - addr_space_1);
 
-        // Get return PC and FP from VROM write table
-        table.push(channels.vrom_channel, [addr_0, fp_0_val]);
-        table.push(channels.vrom_channel, [addr_1, fp_1_val]);
+        // Pull return PC and FP values from VROM channel (instead of pushing)
+        table.pull(channels.vrom_channel, [addr_0, fp_0_val]);
+        table.pull(channels.vrom_channel, [addr_1, fp_1_val]);
 
         // Push updated state (new PC and FP)
         table.push(channels.state_channel, [fp_0_val, fp_1_val]);

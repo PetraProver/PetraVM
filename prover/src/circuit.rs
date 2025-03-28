@@ -109,6 +109,28 @@ impl ZkVMCircuit {
             multiplicity: 1,
         };
 
+        // Define initial VROM values for return PC (0) and return FP (0)
+        // These are typically at FP+0 and FP+1 in the VROM
+        let initial_vrom_pc = Boundary {
+            values: vec![
+                B128::from(BinaryField32b::ZERO), // Address 0
+                B128::from(BinaryField32b::ZERO), // Value 0 (return PC = 0)
+            ],
+            channel_id: self.channels.vrom_channel,
+            direction: FlushDirection::Push,
+            multiplicity: 1,
+        };
+
+        let initial_vrom_fp = Boundary {
+            values: vec![
+                B128::from(BinaryField32b::ONE),  // Address 1
+                B128::from(BinaryField32b::ZERO), // Value 0 (return FP = 0)
+            ],
+            channel_id: self.channels.vrom_channel,
+            direction: FlushDirection::Push,
+            multiplicity: 1,
+        };
+
         let prom_size = trace.program.len();
 
         // Use the provided VROM address space size
@@ -133,9 +155,9 @@ impl ZkVMCircuit {
             ret_size,             // RET table size
         ];
 
-        // Create the statement
+        // Create the statement with all boundaries
         let statement = Statement {
-            boundaries: vec![initial_state, final_state],
+            boundaries: vec![initial_state, final_state, initial_vrom_pc, initial_vrom_fp],
             table_sizes,
         };
 
