@@ -3,16 +3,15 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
-use binius_field::{as_packed_field::PackScalar, BinaryField, BinaryField32b};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, BinaryField, BinaryField32b};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment,
-    B32, B64,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{LDIEvent, Opcode};
 
 use super::{
-    cpu::{CpuColumns, CpuColumnsOptions, NextPc},
+    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
     util::{pack_b16_into_b32, pack_b32_into_b64},
 };
 use crate::channels::ZkVMChannels;
@@ -98,9 +97,9 @@ impl LdiTable {
     }
 }
 
-impl<U> TableFiller<U> for LdiTable
+impl<U: UnderlierType> TableFiller<U> for LdiTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B1>,
 {
     type Event = LDIEvent;
 
@@ -115,7 +114,7 @@ where
     ) -> anyhow::Result<()> {
         {
             let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
-            for (i, event) in rows.enumerate() {
+            for (i, event) in rows.clone().enumerate() {
                 vrom_push[i] = (event.imm as u64) << 32 | event.fp as u64 + event.dst as u64;
                 dbg!(
                     "Ldi fill",
@@ -123,7 +122,15 @@ where
                 );
             }
         }
-
-        Ok(())
+        let cpu_rows = rows.map(|event| CpuEvent {
+            pc: event.pc.val(),
+            next_pc: None,
+            fp: event.fp,
+            next_fp: None,
+            arg0: event.dst,
+            arg1: (event.imm >> 16) as u16,
+            arg2: event.imm as u16 & 0xFFFF,
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
     }
 }
