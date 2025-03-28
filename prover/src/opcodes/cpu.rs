@@ -41,6 +41,7 @@ pub(crate) struct CpuColumnsOptions {
     // TODO: Maybe add options for reading/writng from/to to the args
 }
 
+#[derive(Default)]
 pub(crate) struct CpuEvent {
     pub(crate) pc: u32,
     // TODO: This is only necessary for ret because when filling it can't be read from target in

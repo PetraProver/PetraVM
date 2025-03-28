@@ -13,9 +13,13 @@ mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use event::mv::LDIEvent;
-pub use event::ret::RetEvent;
-pub use event::branch::{BnzEvent, BzEvent};
+pub use event::{
+    branch::{BnzEvent, BzEvent},
+    mv::LDIEvent,
+    ret::RetEvent,
+    binary_ops::b32::XoriEvent,
+    integer_ops::{AddEvent, AddiEvent},
+};
 pub use execution::emulator::{Instruction, InterpreterInstruction};
 pub use execution::trace::BoundaryValues;
 pub use execution::trace::ZCrayTrace;
