@@ -289,7 +289,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         AddEvent::generate(ctx, dst, src1, src2)?;
 
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
         let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
@@ -309,7 +309,7 @@ impl Interpreter {
     ) -> Result<(), InterpreterError> {
         AddiEvent::generate(ctx, dst, src, imm)?;
 
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
         let new_addi_event = ctx
@@ -547,10 +547,10 @@ mod tests {
             "Generated an incorrect number of even cases."
         );
         for (i, &even) in expected_evens.iter().enumerate() {
-            let event = traces.shifts[i]
-                .as_any()
-                .downcast_ref::<SrliEvent>()
-                .unwrap();
+            let event = match traces.shifts[i].as_any() {
+                AnyShiftEvent::Srli(ev) => ev,
+                _ => panic!("Expected SrliEvent"),
+            };
 
             assert!(event.src_val == even, "Incorrect input to an even case.");
         }

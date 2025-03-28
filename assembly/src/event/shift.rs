@@ -218,6 +218,7 @@ impl<S, O> Event for ShiftEvent<S, O>
 where
     S: ShiftSource + Send + Sync + 'static,
     O: ShiftOperation<S> + Send + Sync + 'static,
+    ShiftEvent<S, O>: GenericShiftEvent,
 {
     fn generate(
         ctx: &mut EventContext,
@@ -240,18 +241,28 @@ where
     }
 }
 
-pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> &dyn Any;
+/// Group of all shift events for convenient downcasting.
+pub enum AnyShiftEvent {
+    Slli(SlliEvent),
+    Srli(SrliEvent),
+    Srai(SraiEvent),
+    Sll(SllEvent),
+    Srl(SrlEvent),
+    Sra(SraEvent),
 }
 
-impl<S, O> GenericShiftEvent for ShiftEvent<S, O>
-where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
+    fn as_any(&self) -> AnyShiftEvent;
+}
+
+macro_rules! impl_generic_shift_event {
+    ($variant:ident, $ty:ty) => {
+        impl GenericShiftEvent for $ty {
+            fn as_any(&self) -> AnyShiftEvent {
+                AnyShiftEvent::$variant(self.clone())
+            }
+        }
+    };
 }
 
 pub type SlliEvent = ShiftEvent<ImmediateShift, LogicalLeft>;
@@ -260,6 +271,13 @@ pub type SraiEvent = ShiftEvent<ImmediateShift, ArithmeticRight>;
 pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
 pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
 pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
+
+impl_generic_shift_event!(Slli, SlliEvent);
+impl_generic_shift_event!(Srli, SrliEvent);
+impl_generic_shift_event!(Srai, SraiEvent);
+impl_generic_shift_event!(Sll, SllEvent);
+impl_generic_shift_event!(Srl, SrlEvent);
+impl_generic_shift_event!(Sra, SraEvent);
 
 #[cfg(test)]
 mod test {

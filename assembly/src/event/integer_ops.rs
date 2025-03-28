@@ -427,18 +427,28 @@ impl SignedMulOperation for MulOp {
     }
 }
 
-pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> &dyn Any;
+/// Group of all shift events for convenient downcasting.
+pub enum AnySignedMulEvent {
+    Mul(MulEvent),
+    Mulsu(MulsuEvent),
 }
 
-impl<T> GenericSignedMulEvent for SignedMulEvent<T>
-where
-    T: SignedMulOperation + Send + Sync + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
+pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
+    fn as_any(&self) -> AnySignedMulEvent;
 }
+
+macro_rules! impl_generic_signed_mul_event {
+    ($variant:ident, $ty:ty) => {
+        impl GenericSignedMulEvent for $ty {
+            fn as_any(&self) -> AnySignedMulEvent {
+                AnySignedMulEvent::$variant(self.clone())
+            }
+        }
+    };
+}
+
+impl_generic_signed_mul_event!(Mul, MulEvent);
+impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
 
 /// Event for MUL or MULSU.
 ///
@@ -567,7 +577,6 @@ define_bin32_op_event!(
     SubEvent,
     sub,
     // SUB is checked using a specific gadget, similarly to ADD.
-    // TODO: add support for signed values.
     |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
 );
 
@@ -826,14 +835,10 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = env
-                .trace
-                .signed_mul
-                .last()
-                .unwrap()
-                .as_any()
-                .downcast_ref::<SignedMulEvent<MulOp>>()
-                .unwrap();
+            let event = match env.trace.signed_mul.last().unwrap().as_any() {
+                AnySignedMulEvent::Mul(ev) => ev,
+                _ => panic!("Expected MulEvent"),
+            };
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -877,14 +882,10 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = env
-                .trace
-                .signed_mul
-                .last()
-                .unwrap()
-                .as_any()
-                .downcast_ref::<SignedMulEvent<MulsuOp>>()
-                .unwrap();
+            let event = match env.trace.signed_mul.last().unwrap().as_any() {
+                AnySignedMulEvent::Mulsu(ev) => ev,
+                _ => panic!("Expected MulsuEvent"),
+            };
 
             assert_eq!(
                 event.dst_val, mulsu_expected,
