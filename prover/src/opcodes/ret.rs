@@ -109,7 +109,13 @@ where
             fp_col[i] = event.fp;
             fp_0_val_col[i] = event.fp_0_val;
             fp_1_val_col[i] = event.fp_1_val;
-            dbg!("Ret fill", &pc_col[i], &fp_col[i], &fp_0_val_col[i], &fp_1_val_col[i]);
+            dbg!(
+                "Ret fill",
+                &pc_col[i],
+                &fp_col[i],
+                &fp_0_val_col[i],
+                &fp_1_val_col[i]
+            );
         }
 
         Ok(())

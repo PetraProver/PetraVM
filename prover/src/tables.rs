@@ -95,7 +95,14 @@ where
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0) as u32;
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0) as u32;
 
-            dbg!("Prom fill", &pc_col[i], &opcode_col[i], &arg1_col[i], &arg2_col[i], &arg3_col[i]);
+            dbg!(
+                "Prom fill",
+                &pc_col[i],
+                &opcode_col[i],
+                &arg1_col[i],
+                &arg2_col[i],
+                &arg3_col[i]
+            );
         }
 
         Ok(())

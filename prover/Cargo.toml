@@ -5,6 +5,8 @@ edition.workspace = true
 authors = ["zCray Team"]
 
 [dependencies]
+log = "0.4"
+env_logger = "0.11.7"
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
 binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }
 binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "main" }

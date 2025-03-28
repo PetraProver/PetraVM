@@ -122,12 +122,19 @@ where
             pc_col[i] = event.pc;
             fp_col[i] = event.fp;
             dst_col[i] = event.dst as u32;
-            
+
             // Split the immediate value into low and high parts
             imm_low_col[i] = event.imm & 0xFFFF;
             imm_high_col[i] = (event.imm >> 16) & 0xFFFF;
-            
-            dbg!("Ldi fill", &pc_col[i], &fp_col[i], &dst_col[i], &imm_low_col[i], &imm_high_col[i]);
+
+            dbg!(
+                "Ldi fill",
+                &pc_col[i],
+                &fp_col[i],
+                &dst_col[i],
+                &imm_low_col[i],
+                &imm_high_col[i]
+            );
         }
 
         Ok(())
