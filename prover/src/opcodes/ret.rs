@@ -22,15 +22,16 @@ pub struct RetTable {
 
 impl RetTable {
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+        let mut table = cs.add_table("ret");
+        let next_pc = table.add_committed("next_pc");
+        let next_fp = table.add_committed("next_fp");
+
         let ZkVMChannels {
             state_channel,
             prom_channel,
             vrom_channel,
-            vrom_addr_space_channel: _,
+            ..
         } = *channels;
-        let mut table = cs.add_table("ret");
-        let next_pc = table.add_committed("next_pc");
-        let next_fp = table.add_committed("next_fp");
 
         let cpu_cols = CpuColumns::new(
             &mut table,

@@ -28,14 +28,15 @@ pub struct BnzTable {
 
 impl BnzTable {
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+        let mut table = cs.add_table("bnz");
+        let cond_val = table.add_committed("cond_val");
+
         let ZkVMChannels {
             state_channel,
             prom_channel,
             vrom_channel,
-            vrom_addr_space_channel: _,
+            ..
         } = *channels;
-        let mut table = cs.add_table("bnz");
-        let cond_val = table.add_committed("cond_val");
 
         // TODO: Assert cond_val is != 0
 
@@ -112,13 +113,14 @@ pub(crate) struct BzTable {
 
 impl BzTable {
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+        let mut table = cs.add_table("bz");
+
         let ZkVMChannels {
             state_channel,
             prom_channel,
             vrom_channel,
-            vrom_addr_space_channel: _,
+            ..
         } = *channels;
-        let mut table = cs.add_table("bz");
 
         let cpu_cols = CpuColumns::new(
             &mut table,

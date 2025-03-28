@@ -5,11 +5,16 @@
 
 use binius_field::{as_packed_field::PackScalar, BinaryField, BinaryField32b};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B32,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment,
+    B32, B64,
 };
 use bytemuck::Pod;
-use zcrayvm_assembly::LDIEvent;
+use zcrayvm_assembly::{LDIEvent, Opcode};
 
+use super::{
+    cpu::{CpuColumns, CpuColumnsOptions, NextPc},
+    util::{pack_b16_into_b32, pack_b32_into_b64},
+};
 use crate::channels::ZkVMChannels;
 
 const LDI_OPCODE: u32 = 0x0f;
@@ -30,16 +35,10 @@ const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 pub struct LdiTable {
     /// Table ID
     pub id: TableId,
-    /// PC column
-    pub pc: Col<B32, 1>,
-    /// Frame pointer column
-    pub fp: Col<B32, 1>,
-    /// Destination VROM offset column
-    pub dst: Col<B32, 1>,
-    /// Immediate value low bits column
-    pub imm_low: Col<B32, 1>,
-    /// Immediate value high bits column
-    pub imm_high: Col<B32, 1>,
+    /// CPU columns
+    cpu_cols: CpuColumns<{ Opcode::Ldi as u16 }>,
+    vrom_push: Col<B64>, // Virtual
+    abs_addr: Col<B32>,  // Virtual
 }
 
 impl LdiTable {
@@ -51,48 +50,50 @@ impl LdiTable {
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("ldi_table");
 
-        // Add columns for PC, FP, and other instruction components
-        let pc = table.add_committed::<B32, 1>("pc");
-        let fp = table.add_committed::<B32, 1>("cur_fp");
-        let dst = table.add_committed::<B32, 1>("dst");
-        let imm_low = table.add_committed::<B32, 1>("imm_low");
-        let imm_high = table.add_committed::<B32, 1>("imm_high");
+        let ZkVMChannels {
+            state_channel,
+            prom_channel,
+            ..
+        } = *channels;
 
-        // Pull from state channel (get current state)
-        table.pull(channels.state_channel, [pc, fp]);
-
-        let ldi_opcode_const = table.add_constant("ldi_opcode", [B32::from(LDI_OPCODE)]);
-
-        // Pull from PROM channel in the same order as PromTable::fill
-        table.pull(
-            channels.prom_channel,
-            [
-                pc,
-                ldi_opcode_const,
-                dst,      // Arg1 = dst
-                imm_low,  // Arg2 = imm_low
-                imm_high, // Arg3 = imm_high
-            ],
+        let cpu_cols = CpuColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            CpuColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
         );
 
-        let abs_addr = table.add_computed::<B32, 1>("abs_addr", fp + dst);
-        let computed_imm = table.add_computed::<B32, 1>("computed_imm", imm_low + imm_high); // TODO: FIX IT
+        let CpuColumns {
+            fp,
+            arg0: dst,
+            arg1: imm_low,
+            arg2: imm_high,
+            ..
+        } = cpu_cols;
+
+        let abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
         // Push value to VROM write table using absolute address
-        table.pull(channels.vrom_channel, [abs_addr, computed_imm]);
 
-        // Update state: PC = PC * G (moves to next instruction multiplicatively)
-        let g_const = table.add_constant("generator", [G]);
-        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * g_const);
-        table.push(channels.state_channel, [next_pc, fp]); // FP remains the same
+        // let computed_imm = table.add_computed::<B32, 1>("computed_imm", imm_low.int()
+        // + imm_high); // TODO: FIX IT
+        let vrom_push = table.add_computed(
+            "vrom_push",
+            pack_b32_into_b64([
+                abs_addr.into(),
+                pack_b16_into_b32([imm_low.into(), imm_high.into()]),
+            ]),
+        );
+        table.pull(channels.vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
-            pc,
-            fp,
-            dst,
-            imm_low,
-            imm_high,
+            cpu_cols,
+            vrom_push,
+            abs_addr,
         }
     }
 }
@@ -109,32 +110,18 @@ where
 
     fn fill<'a>(
         &'a self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_mut_as(self.pc)?;
-        let mut fp_col = witness.get_mut_as(self.fp)?;
-        let mut dst_col = witness.get_mut_as(self.dst)?;
-        let mut imm_low_col = witness.get_mut_as(self.imm_low)?;
-        let mut imm_high_col = witness.get_mut_as(self.imm_high)?;
-
-        for (i, event) in rows.enumerate() {
-            pc_col[i] = event.pc;
-            fp_col[i] = event.fp;
-            dst_col[i] = event.dst as u32;
-
-            // Split the immediate value into low and high parts
-            imm_low_col[i] = event.imm & 0xFFFF;
-            imm_high_col[i] = (event.imm >> 16) & 0xFFFF;
-
-            dbg!(
-                "Ldi fill",
-                &pc_col[i],
-                &fp_col[i],
-                &dst_col[i],
-                &imm_low_col[i],
-                &imm_high_col[i]
-            );
+        {
+            let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
+            for (i, event) in rows.enumerate() {
+                vrom_push[i] = (event.imm as u64) << 32 | event.fp as u64 + event.dst as u64;
+                dbg!(
+                    "Ldi fill",
+                    &vrom_push[i]
+                );
+            }
         }
 
         Ok(())
