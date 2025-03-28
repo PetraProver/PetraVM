@@ -1,10 +1,14 @@
-use binius_core::{constraint_system::channel::ChannelId};
+use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, BinaryField, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, Expr, TableBuilder, TableWitnessIndexSegment,
-    B1, B128, B16, B32, B64,
+    upcast_col, upcast_expr, Col, Expr, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32,
+    B64,
 };
 use bytemuck::Pod;
+
+use super::util::{
+    pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128, B64_B16_BASIS,
+};
 
 /// A gadget for reading the instruction from the prom and
 /// setting the next program counter and timestamp
@@ -68,37 +72,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let arg1 = table.add_committed("arg1");
         let arg2 = table.add_committed("arg2");
 
-        // Pakc pc and instruction into a single value. We should eventually import this
-        // from some utility module.
-        let b128_basis: [_; 2] = std::array::from_fn(|i| {
-            <B128 as ExtensionField<B64>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-        let b64_16basis: [_; 4] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B16>>::basis(i).expect("i in range 0..4; extension degree is 4")
-        });
-        let b64_32basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-        let b32_basis: [_; 2] = std::array::from_fn(|i| {
-            <B32 as ExtensionField<B16>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-        let pack_b16_into_b32 = move |limbs: [Expr<B16, 1>; 2]| {
-            limbs
-                .into_iter()
-                .enumerate()
-                .map(|(i, limb)| upcast_expr(limb) * b32_basis[i])
-                .reduce(|a, b| a + b)
-                .expect("limbs has length 2")
-        };
-        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
-            limbs
-                .into_iter()
-                .enumerate()
-                .map(|(i, limb)| upcast_expr(limb) * b64_32basis[i])
-                .reduce(|a, b| a + b)
-                .expect("limbs has length 2")
-        };
-
         let next_pc = match options.next_pc {
             NextPc::Increment => table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR),
             NextPc::Target(target) => target,
@@ -107,25 +80,13 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             }
         };
 
-        let pc_instruction = move |pc: Expr<B32, 1>, instruction: [Expr<B16, 1>; 4]| {
-            let pc = upcast_expr(pc);
-            let instruction = instruction.into_iter().map(upcast_expr).collect::<Vec<_>>();
-            let instruction_64 = instruction
-                .into_iter()
-                .enumerate()
-                .map(|(i, limb)| limb * b64_16basis[i])
-                .reduce(|a, b| a + b)
-                .expect("instruction has length 4");
-            pc * b128_basis[1] + upcast_expr(instruction_64) * b128_basis[0]
-        };
-
         // Push the current pc and instruction to the prom channel
         let prom_push = table.add_computed(
             "prom_push",
-            pc_instruction(
-                pc.into(),
-                [opcode.into(), arg0.into(), arg1.into(), arg2.into()],
-            ),
+            pack_b64_into_b128([
+                upcast_expr(pc.into()),
+                pack_b16_into_b64([opcode.into(), arg0.into(), arg1.into(), arg2.into()]),
+            ]),
         );
         table.push(prom_channel, [prom_push]);
 
@@ -205,9 +166,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
             next_pc_col[i] = match self.options.next_pc {
                 NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
-                NextPc::Target(_) => {
-                    next_pc.expect("next_pc must be Some when NextPc::Target")
-                }
+                NextPc::Target(_) => next_pc.expect("next_pc must be Some when NextPc::Target"),
                 NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,
             };
 

@@ -7,7 +7,7 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, RetEvent};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use super::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc}, util::pack_b32_into_b64};
 use crate::channels::ZkVMChannels;
 pub struct RetTable {
     id: TableId,
@@ -44,19 +44,6 @@ impl RetTable {
 
         let fp0 = cpu_cols.fp;
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
-
-        // TODO: Load this from some utility module
-        let b64_basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
-            limbs
-                .into_iter()
-                .enumerate()
-                .map(|(i, limb)| upcast_expr(limb) * b64_basis[i])
-                .reduce(|a, b| a + b)
-                .expect("limbs has length 2")
-        };
 
         // Read the next_pc
         let vrom_next_pc = table.add_computed(

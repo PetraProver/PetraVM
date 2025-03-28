@@ -9,7 +9,7 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use super::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc}, util::pack_b32_into_b64};
 use crate::channels::ZkVMChannels;
 
 /// Table for BNZ.
@@ -19,7 +19,7 @@ use crate::channels::ZkVMChannels;
 /// Logic:
 ///   1. if FP[cond] <> 0, then PC = target
 ///   2. if FP[cond] == 0, then increment PC
-pub(crate) struct BnzTable {
+pub struct BnzTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
     cond_val: Col<B32>,
@@ -50,20 +50,7 @@ impl BnzTable {
         );
 
         let cond = cpu_cols.arg0;
-
-        // TODO: Load this from some utility module
-        let b64_basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-        let pack_b32_into_b64 = move |limbs: [Expr<B32, 1>; 2]| {
-            limbs
-                .into_iter()
-                .enumerate()
-                .map(|(i, limb)| upcast_expr(limb) * b64_basis[i])
-                .reduce(|a, b| a + b)
-                .expect("limbs has length 2")
-        };
-
+        
         let vrom_push = table.add_computed(
             "vrom_push",
             pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),

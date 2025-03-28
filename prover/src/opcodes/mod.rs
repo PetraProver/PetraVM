@@ -8,6 +8,7 @@ pub mod branch;
 pub mod cpu;
 pub mod binary_ops;
 pub mod integer_ops;
+pub mod util;
 
 pub use ldi::LdiTable;
 pub use ret::RetTable;

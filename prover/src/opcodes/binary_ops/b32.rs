@@ -7,7 +7,7 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, XoriEvent};
 
-use crate::opcodes::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent};
+use crate::opcodes::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent}, util::B64_B32_BASIS};
 
 pub struct XoriTable {
     id: TableId,
@@ -38,24 +38,19 @@ impl XoriTable {
         let src = cpu_cols.arg1;
         let imm = cpu_cols.arg2;
 
-        // TODO: Load this from some utility module
-        let b64_basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-
         let dst_val = table.add_computed("dst_val", src_val + upcast_expr(imm.into()));
 
         // Read dst_val
         let vrom_dst = table.add_computed(
             "vrom_dst",
-            upcast_expr(dst.into()) * b64_basis[0] + upcast_expr(dst_val.into()) * b64_basis[1],
+            upcast_expr(dst.into()) * B64_B32_BASIS[0] + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
         );
         table.push(vrom_channel, [vrom_dst]);
 
         // Read src_val
         let vrom_src = table.add_computed(
             "vrom_src",
-            upcast_expr(src.into()) * b64_basis[0] + upcast_expr(src_val.into()) * b64_basis[1],
+            upcast_expr(src.into()) * B64_B32_BASIS[0] + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
         );
         table.push(vrom_channel, [vrom_src]);
 
