@@ -5,7 +5,7 @@
 
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, BinaryField, BinaryField32b};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{LDIEvent, Opcode};

@@ -3,7 +3,7 @@ use binius_field::{
     ExtensionField,
 };
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableFiller, TableId,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId,
     TableWitnessIndexSegment, B1, B32, B64,
 };
 use bytemuck::Pod;

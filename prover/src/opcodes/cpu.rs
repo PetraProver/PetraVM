@@ -1,13 +1,13 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, BinaryField, ExtensionField};
+use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, Expr, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32,
+    upcast_expr, Col, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32,
     B64,
 };
 use bytemuck::Pod;
 
 use super::util::{
-    pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128, B64_B16_BASIS,
+    pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128,
 };
 
 /// A gadget for reading the instruction from the prom and

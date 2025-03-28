@@ -1,13 +1,13 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1,
     B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, XoriEvent};
 
-use crate::opcodes::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent}, util::B64_B32_BASIS};
+use crate::{channels::ZkVMChannels, opcodes::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent}, util::B64_B32_BASIS}};
 
 pub struct XoriTable {
     id: TableId,
@@ -21,12 +21,17 @@ pub struct XoriTable {
 impl XoriTable {
     pub fn new(
         cs: &mut ConstraintSystem,
-        state_channel: ChannelId,
-        vrom_channel: ChannelId,
-        prom_channel: ChannelId,
+        channels: &ZkVMChannels,
     ) -> Self {
         let mut table = cs.add_table("ret");
         let src_val = table.add_committed("src_val");
+
+        let ZkVMChannels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
 
         let cpu_cols = CpuColumns::new(
             &mut table,

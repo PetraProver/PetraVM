@@ -1,13 +1,14 @@
-use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField, Field};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, Field};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableFiller, TableId,
-    TableWitnessIndexSegment, B1, B16, B32, B64,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, RetEvent};
 
-use super::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc}, util::pack_b32_into_b64};
+use super::{
+    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
+    util::pack_b32_into_b64,
+};
 use crate::channels::ZkVMChannels;
 pub struct RetTable {
     id: TableId,

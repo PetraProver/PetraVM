@@ -1,16 +1,21 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType};
 use binius_m3::{
     builder::{
-        upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableFiller, TableId,
-        TableWitnessIndexSegment, B1, B16, B32, B64,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16,
+        B32, B64,
     },
     gadgets::u32::{U32Add, U32AddFlags},
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{AddEvent, AddiEvent, Opcode};
 
-use super::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc}, util::pack_b32_into_b64};
+use crate::channels::ZkVMChannels;
+
+use super::{
+    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
+    util::pack_b32_into_b64,
+};
 
 pub struct AddTable {
     id: TableId,
@@ -31,11 +36,16 @@ pub struct AddTable {
 impl AddTable {
     pub fn new(
         cs: &mut ConstraintSystem,
-        state_channel: ChannelId,
-        vrom_channel: ChannelId,
-        prom_channel: ChannelId,
+        channels: &ZkVMChannels
     ) -> Self {
         let mut table = cs.add_table("add");
+
+        let ZkVMChannels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
 
         let cpu = CpuColumns::new(
             &mut table,
