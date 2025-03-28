@@ -71,14 +71,23 @@ impl ZkVMCircuit {
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace
+    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
-    pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
-        // Build the statement with boundary values
-        // let generator = BinaryField32b::MULTIPLICATIVE_GENERATOR;
+    pub fn create_statement(
+        &self,
+        trace: &ZkVMTrace,
+        vrom_size: usize,
+    ) -> anyhow::Result<Statement> {
+        // Verify that vrom_size is a power of 2
+        if !vrom_size.is_power_of_two() || vrom_size == 0 {
+            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
+        }
 
-        // Define the initial state boundary (program starts at PC=G, FP=0)
+        // Build the statement with boundary values
+
+        // Define the initial state boundary (program starts at PC=1, FP=0)
         let initial_state = Boundary {
             values: vec![
                 B128::from(BinaryField32b::ONE),  // Initial PC = 1
@@ -102,8 +111,8 @@ impl ZkVMCircuit {
 
         let prom_size = trace.program.len();
 
-        // TODO: Get actual size
-        let vrom_addr_space_size = 32;
+        // Use the provided VROM address space size
+        let vrom_addr_space_size = vrom_size;
 
         // VROM write size is the number of addresses we write to
         let vrom_write_size = trace.vrom_writes.len();

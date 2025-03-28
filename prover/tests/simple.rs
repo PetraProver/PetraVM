@@ -90,6 +90,9 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 fn test_zcrayvm_proving_pipeline() -> Result<()> {
     // Test value to load
     let value = 0x12345678;
+    
+    // VROM size for the test (must be a power of 2 and >= number of VROM addresses used)
+    const VROM_SIZE: usize = 32;
 
     // Step 1: Generate trace from assembly
     println!("Generating trace from assembly...");
@@ -127,11 +130,11 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     // Step 4: Generate proof
     println!("Generating proof...");
-    let proof = prover.prove(&trace)?;
+    let proof = prover.prove(&trace, VROM_SIZE)?;
 
     // Step 5: Verify proof
     println!("Verifying proof...");
-    prover.verify(&trace, &proof)?;
+    prover.verify(&trace, &proof, VROM_SIZE)?;
 
     println!("All steps completed successfully!");
     Ok(())

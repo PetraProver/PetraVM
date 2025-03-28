@@ -51,12 +51,18 @@ impl ZkVMProver {
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace to prove
+    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * Result containing the proof or error
-    pub fn prove(&self, trace: &ZkVMTrace) -> Result<Proof> {
+    pub fn prove(&self, trace: &ZkVMTrace, vrom_size: usize) -> Result<Proof> {
+        // Verify that vrom_size is a power of 2
+        if !vrom_size.is_power_of_two() || vrom_size == 0 {
+            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
+        }
+
         // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace)?;
+        let statement = self.circuit.create_statement(trace, vrom_size)?;
 
         // Compile the constraint system
         let compiled_cs = self.circuit.compile(&statement)?;
@@ -75,10 +81,28 @@ impl ZkVMProver {
         // 1. Fill PROM table with program instructions
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
-        // 2. Fill LDI table with load immediate events
+        // 2. Fill VROM address space table with the full address space
+        let vrom_addr_space: Vec<u32> = (0..vrom_size as u32).collect();
+        witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
+
+        // 3. Fill VROM write table with writes
+        witness.fill_table_sequential(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
+
+        // 4. Fill VROM skip table with skipped addresses
+        // Generate the list of skipped addresses (addresses not in vrom_writes)
+        let write_addrs: std::collections::HashSet<u32> =
+            trace.vrom_writes.iter().map(|(addr, _)| *addr).collect();
+
+        let vrom_skips: Vec<u32> = (0..vrom_size as u32)
+            .filter(|addr| !write_addrs.contains(addr))
+            .collect();
+
+        witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
+
+        // 5. Fill LDI table with load immediate events
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
 
-        // 3. Fill RET table with return events
+        // 6. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
 
         // Convert witness to multilinear extension format for validation
@@ -117,12 +141,18 @@ impl ZkVMProver {
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace
     /// * `proof` - The proof to verify
+    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * Result indicating success or error
-    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof) -> Result<()> {
+    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof, vrom_size: usize) -> Result<()> {
+        // Verify that vrom_size is a power of 2
+        if !vrom_size.is_power_of_two() || vrom_size == 0 {
+            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
+        }
+
         // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace)?;
+        let statement = self.circuit.create_statement(trace, vrom_size)?;
 
         // Compile the constraint system
         let compiled_cs = self.circuit.compile(&statement)?;

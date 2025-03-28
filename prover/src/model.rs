@@ -31,7 +31,6 @@ impl From<InterpreterInstruction> for Instruction {
         // Extract arguments from the interpreter instruction
         let args_array = instr.args();
 
-        // Convert to our simplified format
         Self {
             pc: instr.field_pc,
             opcode: instr.opcode(),
@@ -154,6 +153,12 @@ impl ZkVMTrace {
 
         if self.ret_events().is_empty() {
             return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
+        }
+
+        if self.vrom_writes.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Trace must contain at least one VROM write"
+            ));
         }
 
         Ok(())

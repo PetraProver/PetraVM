@@ -286,14 +286,14 @@ where
 
     fn fill<'a>(
         &'a self,
-        _rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_mut_as(self.addr)?;
 
-        // TODO: use the actual size
-        for i in 0..32 {
-            addr_col[i] = i as u32;
+        // Fill the addresses from the provided rows
+        for (i, &addr) in rows.enumerate() {
+            addr_col[i] = addr;
         }
 
         Ok(())
