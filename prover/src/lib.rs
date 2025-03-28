@@ -4,6 +4,7 @@
 //! arithmetization. The design is modular, with each opcode
 //! instruction having its own M3 table implementation.
 
+pub mod channel_utils;
 pub mod channels;
 pub mod circuit;
 pub mod model;

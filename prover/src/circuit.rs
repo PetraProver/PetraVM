@@ -3,7 +3,6 @@
 //! This module defines the complete M3 circuit for zCrayVM, combining
 //! all the individual tables and channels.
 
-use binius_field::{BinaryField32b, Field};
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 
 use crate::{
@@ -81,10 +80,10 @@ impl ZkVMCircuit {
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
+        // Pack PC and FP into a single value: (PC << 32) | FP
         let initial_state = Boundary {
             values: vec![
-                B128::from(BinaryField32b::ONE),  // Initial PC = 1
-                B128::from(BinaryField32b::ZERO), // Initial FP = 0
+                B128::from(1 << 96u128), // PC=1, FP=0
             ],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
@@ -94,8 +93,8 @@ impl ZkVMCircuit {
         // Define the final state boundary (program ends with PC=0, FP=0)
         let final_state = Boundary {
             values: vec![
-                B128::from(BinaryField32b::ZERO), // Final PC = 0
-                B128::from(BinaryField32b::ZERO), // Final FP = 0
+                // Format: (PC << 32) | FP
+                B128::new(0), // PC=0, FP=0
             ],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,

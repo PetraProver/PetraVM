@@ -5,12 +5,15 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
 
-use crate::channels::ZkVMChannels;
+use crate::{
+    channel_utils::{pack_b32_into_b64, pack_prom_entry, pack_state_b32_into_b128},
+    channels::ZkVMChannels,
+};
 
 /// RET (Return) table.
 ///
@@ -51,28 +54,46 @@ impl RetTable {
         let fp_0_val = table.add_committed("fp_0_val");
         let fp_1_val = table.add_committed("fp_1_val");
 
+        // Pack FP and PC for state channel pull
+        let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
+
         // Pull from state channel
-        table.pull(channels.state_channel, [pc, fp]);
+        table.pull(channels.state_channel, [state_pull]);
 
-        let ret_opcode = table.add_constant("ret_opcode", [B32::from(0x0b)]);
-        let zero_arg = table.add_constant("zero_arg", [B32::ZERO]);
+        let ret_opcode = table.add_constant("ret_opcode", [B16::from(0x0b)]);
+        let zero_arg = table.add_constant("zero_arg", [B16::ZERO]);
 
-        // Pull instruction from PROM channel
-        table.pull(
-            channels.prom_channel,
-            [pc, ret_opcode, zero_arg, zero_arg, zero_arg],
+        // Pack instruction for PROM channel pull
+        let prom_pull = pack_prom_entry(
+            &mut table,
+            "prom_pull",
+            pc,
+            ret_opcode,
+            [zero_arg, zero_arg, zero_arg],
         );
 
-        // Compute addresses for return PC and FP
-        let one = table.add_constant("one", [B32::ONE]);
-        let addr_1 = table.add_computed("addr_1", fp + one);
+        // Pull instruction from PROM channel
+        table.pull(channels.prom_channel, [prom_pull]);
 
-        // Pull return PC and FP values from VROM channel (instead of pushing)
-        table.pull(channels.vrom_channel, [fp, fp_0_val]);
-        table.pull(channels.vrom_channel, [addr_1, fp_1_val]);
+        // Compute address for fp+1
+        let one = table.add_constant("one", [B32::ONE]);
+        let fp_plus_one = table.add_computed("fp_plus_one", fp + one);
+
+        // Pack addresses and values for VROM channel pull
+        // Format: [addr (lower 32 bits), value (upper 32 bits)]
+        let vrom_pull_0 = pack_b32_into_b64(&mut table, "vrom_pull_0", fp, fp_0_val);
+
+        let vrom_pull_1 = pack_b32_into_b64(&mut table, "vrom_pull_1", fp_plus_one, fp_1_val);
+
+        // Pull return PC and FP values from VROM channel
+        table.pull(channels.vrom_channel, [vrom_pull_0]);
+        table.pull(channels.vrom_channel, [vrom_pull_1]);
+
+        // Pack next FP and next PC for state channel push
+        let state_push = pack_state_b32_into_b128(&mut table, "state_push", fp_0_val, fp_1_val);
 
         // Push updated state (new PC and FP)
-        table.push(channels.state_channel, [fp_0_val, fp_1_val]);
+        table.push(channels.state_channel, [state_push]);
 
         Self {
             id: table.id(),
@@ -86,7 +107,7 @@ impl RetTable {
 
 impl<U> TableFiller<U> for RetTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B1>,
 {
     type Event = RetEvent;
 
@@ -109,6 +130,7 @@ where
             fp_col[i] = event.fp;
             fp_0_val_col[i] = event.fp_0_val;
             fp_1_val_col[i] = event.fp_1_val;
+
             dbg!(
                 "Ret fill",
                 &pc_col[i],
