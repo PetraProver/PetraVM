@@ -49,22 +49,6 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     // Convert to ZkVMTrace format for the prover
     let mut zkvm_trace = ZkVMTrace::from_zcray_trace(zcray_trace);
 
-    // Add debug logging for trace values
-    println!("\nDebug: Trace Generation:");
-    println!("1. LDI Event:");
-    println!("   - PC = {:?}", zkvm_trace.ldi_events()[0].pc);
-    println!("   - FP = {:?}", zkvm_trace.ldi_events()[0].fp);
-    println!("   - DST = {:?}", zkvm_trace.ldi_events()[0].dst);
-    println!("   - IMM = {:?}", zkvm_trace.ldi_events()[0].imm);
-
-    println!("\n2. Program Instructions:");
-    for (i, instr) in program.iter().enumerate() {
-        println!("   Instruction {}:", i);
-        println!("   - PC = {:?}", instr.field_pc);
-        println!("   - Opcode = {:?}", instr.opcode());
-        println!("   - Args = {:?}", instr.args());
-    }
-
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program);
 
@@ -72,18 +56,10 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     let vrom_writes: Vec<_> = zkvm_trace
         .ldi_events()
         .iter()
-        .map(|event| {
-            println!("\n3. VROM Write from LDI:");
-            println!("   - DST = {:?}", event.dst);
-            println!("   - IMM = {:?}", event.imm);
-            (event.dst as u32, event.imm)
-        })
+        .map(|event| (event.dst as u32, event.imm))
         .collect();
 
     // Add initial VROM values for return PC and return FP
-    println!("\n4. Initial VROM Values:");
-    println!("   - Address 0 = 0 (return PC)");
-    println!("   - Address 1 = 0 (return FP)");
     zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
     zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
 
@@ -92,6 +68,8 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
         zkvm_trace.add_vrom_write(dst, imm);
     }
 
+    dbg!(&zkvm_trace);
+
     Ok(zkvm_trace)
 }
 
@@ -99,10 +77,6 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 fn test_zcrayvm_proving_pipeline() -> Result<()> {
     // Test value to load
     let value = 0x12345678;
-
-    // VROM size for the test (must be a power of 2 and >= number of VROM addresses
-    // used)
-    const VROM_SIZE: usize = 32;
 
     // Step 1: Generate trace from assembly
     println!("Generating trace from assembly...");
@@ -124,11 +98,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
         1,
         "Should have exactly one RET event"
     );
-    assert_eq!(
-        trace.vrom_writes.len(),
-        3,
-        "Should have three VROM writes"
-    );
+    assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
     println!("Validating trace...");
@@ -140,11 +110,11 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     // Step 4: Generate proof
     println!("Generating proof...");
-    let proof = prover.prove(&trace, VROM_SIZE)?;
+    let proof = prover.prove(&trace)?;
 
     // Step 5: Verify proof
     println!("Verifying proof...");
-    prover.verify(&trace, &proof, VROM_SIZE)?;
+    prover.verify(&trace, &proof)?;
 
     println!("All steps completed successfully!");
     Ok(())

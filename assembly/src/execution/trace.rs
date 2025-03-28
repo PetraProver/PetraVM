@@ -177,6 +177,10 @@ impl ZCrayTrace {
         assert!(channels.state_channel.is_balanced());
     }
 
+    pub fn vrom_size(&self) -> usize {
+        self.memory.vrom().size()
+    }
+
     /// Sets a u32 value at the specified index.
     pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.memory.set_vrom_u32(index, value)?;

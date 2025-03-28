@@ -51,18 +51,12 @@ impl ZkVMProver {
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace to prove
-    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * Result containing the proof or error
-    pub fn prove(&self, trace: &ZkVMTrace, vrom_size: usize) -> Result<Proof> {
-        // Verify that vrom_size is a power of 2
-        if !vrom_size.is_power_of_two() || vrom_size == 0 {
-            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
-        }
-
+    pub fn prove(&self, trace: &ZkVMTrace) -> Result<Proof> {
         // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace, vrom_size)?;
+        let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
         let compiled_cs = self.circuit.compile(&statement)?;
@@ -82,6 +76,7 @@ impl ZkVMProver {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
+        let vrom_size = trace.trace.vrom_size().next_power_of_two();
         let vrom_addr_space: Vec<u32> = (0..vrom_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
@@ -141,18 +136,13 @@ impl ZkVMProver {
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace
     /// * `proof` - The proof to verify
-    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * Result indicating success or error
-    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof, vrom_size: usize) -> Result<()> {
-        // Verify that vrom_size is a power of 2
-        if !vrom_size.is_power_of_two() || vrom_size == 0 {
-            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
-        }
-
+    // TODO: should not use trace to create statement
+    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof) -> Result<()> {
         // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace, vrom_size)?;
+        let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
         let compiled_cs = self.circuit.compile(&statement)?;

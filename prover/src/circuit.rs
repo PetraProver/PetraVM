@@ -75,15 +75,8 @@ impl ZkVMCircuit {
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
-    pub fn create_statement(
-        &self,
-        trace: &ZkVMTrace,
-        vrom_size: usize,
-    ) -> anyhow::Result<Statement> {
-        // Verify that vrom_size is a power of 2
-        if !vrom_size.is_power_of_two() || vrom_size == 0 {
-            return Err(anyhow::anyhow!("VROM size must be a positive power of 2"));
-        }
+    pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
+        let vrom_size = trace.trace.vrom_size().next_power_of_two();
 
         // Build the statement with boundary values
 
@@ -106,28 +99,6 @@ impl ZkVMCircuit {
             ],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,
-            multiplicity: 1,
-        };
-
-        // Define initial VROM values for return PC (0) and return FP (0)
-        // These are typically at FP+0 and FP+1 in the VROM
-        let initial_vrom_pc = Boundary {
-            values: vec![
-                B128::from(BinaryField32b::ZERO), // Address 0
-                B128::from(BinaryField32b::ZERO), // Value 0 (return PC = 0)
-            ],
-            channel_id: self.channels.vrom_channel,
-            direction: FlushDirection::Push,
-            multiplicity: 1,
-        };
-
-        let initial_vrom_fp = Boundary {
-            values: vec![
-                B128::from(BinaryField32b::ONE),  // Address 1
-                B128::from(BinaryField32b::ZERO), // Value 0 (return FP = 0)
-            ],
-            channel_id: self.channels.vrom_channel,
-            direction: FlushDirection::Push,
             multiplicity: 1,
         };
 
@@ -157,7 +128,7 @@ impl ZkVMCircuit {
 
         // Create the statement with all boundaries
         let statement = Statement {
-            boundaries: vec![initial_state, final_state, initial_vrom_pc, initial_vrom_fp],
+            boundaries: vec![initial_state, final_state],
             table_sizes,
         };
 
