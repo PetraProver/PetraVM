@@ -1,6 +1,6 @@
 # zCrayVM Prover
 
-This crate implements the proving system for zCrayVM, which is designed to efficiently execute WebAssembly code within Zero-Knowledge proof systems. The key innovation is the use of a specialized virtual machine (zCrayVM) that is optimized for recursive proof verification.
+This crate implements the proving system for zCrayVM.
 
 ## Architecture
 
@@ -23,7 +23,6 @@ The proving system is built using an M3 arithmetic circuit with the following co
 3. **Instruction Tables**
    - `LdiTable`: Handles Load Immediate instructions
    - `RetTable`: Handles Return instructions
-   - Each table pulls addresses from `vrom_addr_space_channel` and verifies they match computed addresses
 
 ### Channels
 
@@ -63,13 +62,10 @@ The proving system is built using an M3 arithmetic circuit with the following co
 
 2. **Channel Balancing**
    - All pushes must be matched by pulls
-   - Each address from `vrom_addr_space_channel` must be pulled exactly once
-   - Instruction tables verify pulled addresses match computed addresses
 
 3. **Table Organization**
-   - Separate tables for different operations (write vs skip)
-   - Each table has a focused responsibility
-   - Tables communicate through channels to maintain separation of concerns
+   - Separate tables for different operations
+   - Tables communicate through channels
 
 ## Usage
 
@@ -91,21 +87,9 @@ prover.verify(&trace, &proof)?;
 
 ## Testing
 
-The crate includes integration tests that verify the complete proving pipeline:
-
-1. Assembly to trace generation
-2. Trace validation
-3. Proof generation
-4. Proof verification
+The crate includes integration tests that verify the complete proving pipeline.
 
 Run the tests with:
 ```bash
 cargo test
 ```
-
-## Future Work
-
-1. Support for more instruction types
-2. Optimization of table sizes and channel interactions
-3. Improved error messages and debugging tools
-4. Performance optimizations for recursive proof verification
