@@ -60,7 +60,7 @@ impl LdiTable {
         let imm_high = table.add_committed::<B16, 1>("imm_high");
 
         // Pack FP and PC for state channel pull
-        let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
+                let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
 
         // Pull from state channel (get current state)
         table.pull(channels.state_channel, [state_pull]);
@@ -96,8 +96,8 @@ impl LdiTable {
         table.pull(channels.vrom_channel, [vrom_push]);
 
         // Compute next PC
-        let g_const = table.add_constant("generator", [B32::MULTIPLICATIVE_GENERATOR]);
-        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * g_const);
+        let G =  B32::MULTIPLICATIVE_GENERATOR;
+        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * G);
 
         // Pack FP and next PC for state channel push
         let state_push = pack_state_b32_into_b128(&mut table, "state_push", next_pc, fp);

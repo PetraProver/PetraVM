@@ -139,41 +139,32 @@ pub fn pack_prom_entry(
 
 /// Pack PC and FP values into a B128 value with zeros in upper positions.
 ///
-/// Format: [zero (0-31), zero (32-63), pc (64-95), fp (96-127)]
+/// Format: [zero (0-31), zero (32-63), fp (64-95), pc (96-127)]
 ///
 /// # Arguments
 /// * `table` - The table builder
 /// * `name` - The name for the packed column
-/// * `pc` - The PC value (B32)
-/// * `fp` - The FP value (B32)
+/// * `pc` - The PC value (B32) for high bits (positions 96-127)
+/// * `fp` - The FP value (B32) for lower bits (positions 64-95)
 ///
 /// # Returns
-/// * A Col<B128, 1> representing the packed state
+/// * A Col<B128, 1> representing the packed state with format [0, 0, fp, pc]
 pub fn pack_state_b32_into_b128(
     table: &mut TableBuilder,
     name: &str,
     pc: Col<B32, 1>,
     fp: Col<B32, 1>,
 ) -> Col<B128, 1> {
-    // Create zero constants - using the same format as seen in other code
-    let zero_b32 = table.add_constant("zero_b32", [B32::from(0)]);
+    // Create zero constant
+    let zero_b64 = table.add_constant("zero_b64", [B64::from(0)]);
 
-    // Get the basis for B128 extension of B32
-    let basis: [_; 4] = std::array::from_fn(|i| {
-        <B128 as ExtensionField<B32>>::basis(i).expect("i in range 0..4; extension degree is 4")
-    });
+    let state_b64 = pack_b32_into_b64(
+        table,
+        &format!("{}_state_b64", name),
+        fp,
+        pc,
+    );
 
-    // Create expressions for each value in the format [zero, zero, pc, fp]
-    let exprs: [Expr<B32, 1>; 4] = [zero_b32.into(), zero_b32.into(), pc.into(), fp.into()];
-
-    // Compute the packed value
-    table.add_computed(
-        name,
-        exprs
-            .into_iter()
-            .enumerate()
-            .map(|(i, expr)| upcast_expr(expr) * basis[i])
-            .reduce(|a, b| a + b)
-            .expect("exprs has length 4"),
-    )
+    // Pack the two B64 values into a B128
+    pack_b64_into_b128(table, name, zero_b64, state_b64)
 }
