@@ -1,13 +1,10 @@
-use std::cell::RefMut;
-
-use binius_core::{constraint_system::channel::ChannelId, oracle::ShiftVariant};
+use binius_core::{constraint_system::channel::ChannelId};
 use binius_field::{as_packed_field::PackScalar, BinaryField, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, Expr, TableBuilder, TableWitnessIndexSegment,
+    upcast_col, upcast_expr, Col, Expr, TableBuilder, TableWitnessIndexSegment,
     B1, B128, B16, B32, B64,
 };
 use bytemuck::Pod;
-use zcrayvm_assembly::Opcode;
 
 /// A gadget for reading the instruction from the prom and
 /// setting the next program counter and timestamp
@@ -44,19 +41,13 @@ pub(crate) struct CpuColumnsOptions {
     // TODO: Maybe add options for reading/writng from/to to the args
 }
 
-pub(crate) struct CpuRow {
+pub(crate) struct CpuEvent {
     pub(crate) pc: u32,
     // TODO: This is only necessary for ret because when filling it can't be read from target in
     // NextPc::Target(target)
     pub(crate) next_pc: Option<u32>,
     pub(crate) fp: u32,
     pub(crate) next_fp: Option<u32>,
-    pub(crate) instruction: Instruction,
-}
-
-#[derive(Default)]
-pub(crate) struct Instruction {
-    pub(crate) opcode: Opcode,
     pub(crate) arg0: u16,
     pub(crate) arg1: u16,
     pub(crate) arg2: u16,
@@ -108,9 +99,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         };
 
         let next_pc = match options.next_pc {
-            NextPc::Increment => {
-                table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR)
-            }
+            NextPc::Increment => table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR),
             NextPc::Target(target) => target,
             NextPc::Immediate => {
                 table.add_computed("next_pc", pack_b16_into_b32([arg1.into(), arg2.into()]))
@@ -177,7 +166,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
     ) -> Result<(), anyhow::Error>
     where
         U: Pod + PackScalar<B1>,
-        T: Iterator<Item = CpuRow>,
+        T: Iterator<Item = CpuEvent>,
     {
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
@@ -195,18 +184,14 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
         for (
             i,
-            CpuRow {
+            CpuEvent {
                 pc,
                 next_pc,
                 fp,
                 next_fp,
-                instruction:
-                    Instruction {
-                        opcode,
-                        arg0,
-                        arg1,
-                        arg2,
-                    },
+                arg0,
+                arg1,
+                arg2,
             },
         ) in rows.enumerate()
         {
@@ -219,7 +204,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
             next_pc_col[i] = match self.options.next_pc {
                 NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
-                NextPc::Target(target) => {
+                NextPc::Target(_) => {
                     next_pc.expect("next_pc must be Some when NextPc::Target")
                 }
                 NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,

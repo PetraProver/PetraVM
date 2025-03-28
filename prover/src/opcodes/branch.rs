@@ -13,9 +13,8 @@ use bytemuck::Pod;
 use env_logger::fmt::Timestamp;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
 use crate::channels::ZkVMChannels;
-
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction, NextPc};
 
 /// Table for BNZ.
 ///
@@ -26,7 +25,7 @@ use super::cpu::{CpuColumns, CpuColumnsOptions, CpuRow, Instruction, NextPc};
 ///   2. if FP[cond] == 0, then increment PC
 pub(crate) struct BnzTable {
     id: TableId,
-    cpu_cols: CpuColumns::<{ Opcode::Bnz as u16 }>,
+    cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
     cond_val: Col<B32>,
     vrom_push: Col<B64>, // Virtual;
 }
@@ -108,17 +107,14 @@ where
                 vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
             }
         }
-        let cpu_rows = rows.map(|event| CpuRow {
+        let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.val(),
             next_pc: Some((event.target_high.val() as u32) << 16 | event.target_low.val() as u32),
             fp: event.fp,
             next_fp: None,
-            instruction: Instruction {
-                opcode: Opcode::Bnz,
-                arg0: event.cond,
-                arg1: event.target_low.val(),
-                arg2: event.target_high.val(),
-            },
+            arg0: event.cond,
+            arg1: event.target_low.val(),
+            arg2: event.target_high.val(),
         });
         self.cpu_cols.populate(witness, cpu_rows)?;
         Ok(())
@@ -127,7 +123,7 @@ where
 
 pub(crate) struct BzTable {
     id: TableId,
-    cpu_cols: CpuColumns::<{ Opcode::Bnz as u16 }>,
+    cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
     vrom_push: Col<B64>, // Virtual
 }
 
@@ -195,19 +191,14 @@ where
                 vrom_push[i] = event.cond as u64; //  cond_val is 0
             }
         }
-        let cpu_rows = rows.map(|event| {
-            CpuRow {
-                pc: event.pc.val(),
-                next_pc: None,
-                fp: event.fp,
-                next_fp: None,
-                instruction: Instruction {
-                    opcode: Opcode::Bnz,
-                    arg0: event.cond,
-                    arg1: event.target_low.val(),
-                    arg2: event.target_high.val(),
-                },
-            }
+        let cpu_rows = rows.map(|event| CpuEvent {
+            pc: event.pc.val(),
+            next_pc: None,
+            fp: event.fp,
+            next_fp: None,
+            arg0: event.cond,
+            arg1: event.target_low.val(),
+            arg2: event.target_high.val(),
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }
