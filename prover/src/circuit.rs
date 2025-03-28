@@ -7,9 +7,7 @@ use binius_field::{BinaryField32b, Field};
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 
 use crate::{
-    channels::ZkVMChannels,
-    model::ZkVMTrace,
-    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    channels::ZkVMChannels, model::ZkVMTrace, opcodes::branch::{BnzTable, BzTable}, tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable}
 };
 
 /// Complete zCrayVM circuit with all tables for the proving system.
@@ -30,6 +28,10 @@ pub struct ZkVMCircuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
+    /// BNZ non zero branch instruction
+    pub bnz_table: BnzTable,
+    /// BNZ zero branch instruction
+    pub bz_table: BzTable,
 }
 
 impl Default for ZkVMCircuit {
@@ -54,6 +56,9 @@ impl ZkVMCircuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
+        let bnz_table = BnzTable::new(&mut cs, &channels);
+        let bz_table = BzTable::new(&mut cs, &channels);
+
 
         Self {
             cs,
@@ -64,6 +69,8 @@ impl ZkVMCircuit {
             vrom_skip_table,
             ldi_table,
             ret_table,
+            bnz_table,
+            bz_table,
         }
     }
 

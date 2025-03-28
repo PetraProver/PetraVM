@@ -320,14 +320,14 @@ impl Interpreter {
         target_low: BinaryField16b,
         target_high: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let target = (BinaryField32b::from_bases([target_low, target_high]))
-            .map_err(|_| InterpreterError::InvalidInput)?;
         let cond_val = trace.get_vrom_u32(self.fp ^ cond.val() as u32)?;
         if cond_val != 0 {
-            let new_bnz_event = BnzEvent::generate_event(self, trace, cond, target, field_pc)?;
+            let new_bnz_event =
+                BnzEvent::generate_event(self, trace, cond, target_low, target_high, field_pc)?;
             trace.bnz.push(new_bnz_event);
         } else {
-            let new_bz_event = BzEvent::generate_event(self, trace, cond, target, field_pc)?;
+            let new_bz_event =
+                BzEvent::generate_event(self, trace, cond, target_low, target_high, field_pc)?;
             trace.bz.push(new_bz_event);
         }
 

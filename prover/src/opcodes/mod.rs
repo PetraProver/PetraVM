@@ -4,6 +4,8 @@
 
 pub mod ldi;
 pub mod ret;
+pub mod branch;
+pub mod cpu;
 
 pub use ldi::LdiTable;
 pub use ret::RetTable;

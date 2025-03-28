@@ -1,4 +1,4 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b as B16, BinaryField32b as B32, ExtensionField};
 
 use super::Event;
 use crate::{
@@ -18,22 +18,25 @@ use crate::{
 #[derive(Debug, Default, Clone)]
 pub struct BnzEvent {
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: u32,
     pub cond: u16,
-    pub con_val: u32,
-    pub target: BinaryField32b,
+    pub cond_val: u32,
+    pub target_low: B16,
+    pub target_high: B16,
 }
 
 impl Event for BnzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_ne!(self.cond, 0);
+        assert_ne!(self.cond_val, 0);
         channels
             .state_channel
             .pull((self.pc, self.fp, self.timestamp));
-        channels
-            .state_channel
-            .push((self.target, self.fp, self.timestamp));
+        channels.state_channel.push((
+            B32::from_bases([self.target_low, self.target_high]).unwrap(),
+            self.fp,
+            self.timestamp,
+        ));
     }
 }
 
@@ -41,9 +44,10 @@ impl BnzEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
-        cond: BinaryField16b,
-        target: BinaryField32b,
-        field_pc: BinaryField32b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
+        field_pc: B32,
     ) -> Result<Self, InterpreterError> {
         let cond_val = trace.get_vrom_u32(interpreter.fp ^ cond.val() as u32)?;
 
@@ -56,10 +60,11 @@ impl BnzEvent {
             pc: field_pc,
             fp: interpreter.fp,
             cond: cond.val(),
-            con_val: cond_val,
-            target,
+            cond_val,
+            target_low,
+            target_high,
         };
-        interpreter.jump_to(target);
+        interpreter.jump_to(B32::from_bases([target_low, target_high]).unwrap());
         Ok(event)
     }
 }
@@ -68,16 +73,15 @@ impl BnzEvent {
 #[derive(Debug, Default, Clone)]
 pub struct BzEvent {
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: u32,
     pub cond: u16,
-    pub cond_val: u32,
-    pub target: BinaryField32b,
+    pub target_low: B16,
+    pub target_high: B16,
 }
 
 impl Event for BzEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);
     }
 }
@@ -86,9 +90,10 @@ impl BzEvent {
     pub fn generate_event(
         interpreter: &mut Interpreter,
         trace: &mut ZCrayTrace,
-        cond: BinaryField16b,
-        target: BinaryField32b,
-        field_pc: BinaryField32b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
+        field_pc: B32,
     ) -> Result<Self, InterpreterError> {
         let fp = interpreter.fp;
         let cond_val = trace.get_vrom_u32(fp ^ cond.val() as u32)?;
@@ -97,8 +102,8 @@ impl BzEvent {
             pc: field_pc,
             fp,
             cond: cond.val(),
-            cond_val,
-            target,
+            target_low,
+            target_high,
         };
         interpreter.incr_pc();
         Ok(event)

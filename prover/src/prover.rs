@@ -11,8 +11,10 @@ use binius_core::{
 };
 use binius_field::arch::OptimalUnderlier128b;
 use binius_hal::make_portable_backend;
-use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_hash::compress::Groestl256ByteCompression;
+use binius_math::DefaultEvaluationDomainFactory;
 use bumpalo::Bump;
+use groestl_crypto::Groestl256;
 
 use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
 
@@ -107,9 +109,10 @@ impl ZkVMProver {
         validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
 
         // Generate the proof
-        let proof = prove::<
-            OptimalUnderlier128b,
+        let proof = binius_core::constraint_system::prove::<
+            _,
             CanonicalTowerFamily,
+            _,
             Groestl256,
             Groestl256ByteCompression,
             HasherChallenger<Groestl256>,
@@ -120,8 +123,26 @@ impl ZkVMProver {
             SECURITY_BITS,
             &statement.boundaries,
             mle_witness,
-            &make_portable_backend(),
-        )?;
+            &DefaultEvaluationDomainFactory::default(),
+            &binius_hal::make_portable_backend(),
+        )
+        .unwrap();
+
+        // let proof = prove::<
+        //     OptimalUnderlier128b,
+        //     CanonicalTowerFamily,
+        //     Groestl256,
+        //     Groestl256ByteCompression,
+        //     HasherChallenger<Groestl256>,
+        //     _,
+        // >(
+        //     &compiled_cs,
+        //     LOG_INV_RATE,
+        //     SECURITY_BITS,
+        //     &statement.boundaries,
+        //     mle_witness,
+        //     &make_portable_backend(),
+        // )?;
 
         Ok(proof)
     }
