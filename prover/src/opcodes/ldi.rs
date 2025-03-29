@@ -13,7 +13,7 @@ use zcrayvm_assembly::LDIEvent;
 
 use crate::{
     channels::ZkVMChannels,
-    utils::{pack_prom_entry, pack_prom_entry_b128, pack_prom_opcode},
+    utils::{pack_prom_entry_b128, pack_prom_opcode},
 };
 
 const LDI_OPCODE: u32 = 0x0f;
@@ -158,7 +158,7 @@ where
                 imm_high_col[i],
             );
             vrom_abs_addr_col[i] = fp_col[i] + dst_col[i] as u32;
-            computed_imm_col[i] = event.imm as u32;
+            computed_imm_col[i] = event.imm;
 
             dbg!(
                 "Ldi fill",

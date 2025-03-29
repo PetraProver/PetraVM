@@ -4,14 +4,8 @@
 //! zCrayVM execution traces.
 
 use anyhow::Result;
-use binius_core::{
-    constraint_system::{prove, validate, Proof},
-    fiat_shamir::HasherChallenger,
-    tower::CanonicalTowerFamily,
-};
+use binius_core::constraint_system::validate;
 use binius_field::arch::OptimalUnderlier128b;
-use binius_hal::make_portable_backend;
-use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use bumpalo::Bump;
 
 use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};

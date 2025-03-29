@@ -112,7 +112,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     // Step 4: Validate trace
     println!("Validating trace...");
-    let _ = prover.validate(&trace)?;
+    prover.validate(&trace)?;
 
     // TODO: Prove trace and verify proof when binius is working.
 

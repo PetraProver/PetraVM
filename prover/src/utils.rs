@@ -1,7 +1,7 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
-use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32, B64};
+use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
 
 pub fn pack_prom_opcode(
     table: &mut TableBuilder,

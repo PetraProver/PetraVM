@@ -5,15 +5,14 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128,
-    B16, B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128, B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
 
 use crate::{
     channels::ZkVMChannels,
-    utils::{pack_prom_entry, pack_prom_entry_b128},
+    utils::pack_prom_entry_b128,
 };
 
 const RET_OPCODE: u32 = 0x0b;
