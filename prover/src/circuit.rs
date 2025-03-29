@@ -80,11 +80,8 @@ impl ZkVMCircuit {
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
-        // Pack PC and FP into a single value: (PC << 32) | FP
         let initial_state = Boundary {
-            values: vec![
-                B128::from(1 << 96u128), // PC=1, FP=0
-            ],
+            values: vec![B128::new(1), B128::new(0)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
             multiplicity: 1,
@@ -92,10 +89,7 @@ impl ZkVMCircuit {
 
         // Define the final state boundary (program ends with PC=0, FP=0)
         let final_state = Boundary {
-            values: vec![
-                // Format: (PC << 32) | FP
-                B128::new(0), // PC=0, FP=0
-            ],
+            values: vec![B128::new(0), B128::new(0)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,
             multiplicity: 1,

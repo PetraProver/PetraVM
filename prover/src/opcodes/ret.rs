@@ -5,13 +5,13 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16, B32, B128, B64,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128, B16, B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
 
 use crate::{
-    channel_utils::{pack_b32_into_b64, pack_prom_entry, pack_state_b32_into_b128},
+    channel_utils::{pack_prom_entry, pack_prom_entry_b128},
     channels::ZkVMChannels,
 };
 
@@ -37,16 +37,9 @@ pub struct RetTable {
     pub fp_0_val: Col<B32, 1>,
     /// Return FP value from VROM[fp+1]
     pub fp_1_val: Col<B32, 1>,
-    /// State channel pull value
-    pub state_pull: Col<B128, 1>,
     /// PROM channel pull value
     pub prom_pull: Col<B128, 1>,
-    /// VROM channel pull value for fp+0
-    pub vrom_pull_0: Col<B64, 1>,
-    /// VROM channel pull value for fp+1
-    pub vrom_pull_1: Col<B64, 1>,
-    /// State channel push value
-    pub state_push: Col<B128, 1>,
+    pub fp_plus_one: Col<B32, 1>,
 }
 
 impl RetTable {
@@ -64,11 +57,8 @@ impl RetTable {
         let fp_0_val = table.add_committed("fp_0_val");
         let fp_1_val = table.add_committed("fp_1_val");
 
-        // Pack FP and PC for state channel pull
-        let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
-
         // Pull from state channel
-        table.pull(channels.state_channel, [state_pull]);
+        table.pull(channels.state_channel, [pc, fp]);
 
         let ret_opcode = table.add_constant("ret_opcode", [B16::from(0x0b)]);
         let zero_arg = table.add_constant("zero_arg", [B16::ZERO]);
@@ -86,24 +76,14 @@ impl RetTable {
         table.pull(channels.prom_channel, [prom_pull]);
 
         // Compute address for fp+1
-        let one = table.add_constant("one", [B32::ONE]);
-        let fp_plus_one = table.add_computed("fp_plus_one", fp + one);
-
-        // Pack addresses and values for VROM channel pull
-        // Format: [addr (lower 32 bits), value (upper 32 bits)]
-        let vrom_pull_0 = pack_b32_into_b64(&mut table, "vrom_pull_0", fp, fp_0_val);
-
-        let vrom_pull_1 = pack_b32_into_b64(&mut table, "vrom_pull_1", fp_plus_one, fp_1_val);
+        let fp_plus_one = table.add_computed("fp_plus_one", fp + B32::ONE);
 
         // Pull return PC and FP values from VROM channel
-        table.pull(channels.vrom_channel, [vrom_pull_0]);
-        table.pull(channels.vrom_channel, [vrom_pull_1]);
-
-        // Pack next FP and next PC for state channel push
-        let state_push = pack_state_b32_into_b128(&mut table, "state_push", fp_0_val, fp_1_val);
+        table.pull(channels.vrom_channel, [fp, fp_0_val]);
+        table.pull(channels.vrom_channel, [fp_plus_one, fp_1_val]);
 
         // Push updated state (new PC and FP)
-        table.push(channels.state_channel, [state_push]);
+        table.push(channels.state_channel, [fp_0_val, fp_1_val]);
 
         Self {
             id: table.id(),
@@ -111,11 +91,8 @@ impl RetTable {
             fp,
             fp_0_val,
             fp_1_val,
-            state_pull,
             prom_pull,
-            vrom_pull_0,
-            vrom_pull_1,
-            state_push,
+            fp_plus_one,
         }
     }
 }
@@ -139,19 +116,25 @@ where
         let mut fp_col = witness.get_mut_as(self.fp)?;
         let mut fp_0_val_col = witness.get_mut_as(self.fp_0_val)?;
         let mut fp_1_val_col = witness.get_mut_as(self.fp_1_val)?;
+        let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
+        let mut fp_plus_one_col = witness.get_mut_as(self.fp_plus_one)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
             fp_col[i] = event.fp;
             fp_0_val_col[i] = event.fp_0_val;
             fp_1_val_col[i] = event.fp_1_val;
+            prom_pull_col[i] = pack_prom_entry_b128(pc_col[i].val(), 0x0b as u16, 0, 0, 0);
+            fp_plus_one_col[i] = fp_col[i] + 1;
 
             dbg!(
                 "Ret fill",
                 &pc_col[i],
                 &fp_col[i],
                 &fp_0_val_col[i],
-                &fp_1_val_col[i]
+                &fp_1_val_col[i],
+                &prom_pull_col[i],
+                &fp_plus_one_col[i]
             );
         }
 

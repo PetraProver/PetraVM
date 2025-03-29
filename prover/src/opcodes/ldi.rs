@@ -5,14 +5,14 @@
 
 use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16,
-    B32, B64, B128,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128,
+    B16, B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::LDIEvent;
 
 use crate::{
-    channel_utils::{pack_b32_into_b64, pack_prom_entry, pack_state_b32_into_b128},
+    channel_utils::{pack_prom_entry, pack_prom_entry_b128},
     channels::ZkVMChannels,
 };
 
@@ -41,14 +41,12 @@ pub struct LdiTable {
     pub imm_low: Col<B16, 1>,
     /// Immediate value high bits column
     pub imm_high: Col<B16, 1>,
-    /// State channel pull value
-    pub state_pull: Col<B128, 1>,
     /// PROM channel pull value
     pub prom_pull: Col<B128, 1>,
-    /// VROM channel push value
-    pub vrom_push: Col<B64, 1>,
-    /// State channel push value
-    pub state_push: Col<B128, 1>,
+    /// Next PC column
+    pub next_pc: Col<B32, 1>,
+    pub vrom_abs_addr: Col<B32, 1>,
+    pub computed_imm: Col<B32, 1>,
 }
 
 impl LdiTable {
@@ -67,11 +65,8 @@ impl LdiTable {
         let imm_low = table.add_committed::<B16, 1>("imm_low");
         let imm_high = table.add_committed::<B16, 1>("imm_high");
 
-        // Pack FP and PC for state channel pull
-        let state_pull = pack_state_b32_into_b128(&mut table, "state_pull", pc, fp);
-
         // Pull from state channel (get current state)
-        table.pull(channels.state_channel, [state_pull]);
+        table.pull(channels.state_channel, [pc, fp]);
 
         let ldi_opcode_const = table.add_constant("ldi_opcode", [B16::from(0x0f)]);
 
@@ -94,24 +89,16 @@ impl LdiTable {
         );
 
         // Compute absolute address for VROM
-        let abs_addr = table.add_computed::<B32, 1>("abs_addr", fp + upcast_expr(dst.into()));
-
-        // Pack address and value for VROM channel push
-        // Format: [addr (lower 32 bits), value (upper 32 bits)]
-        let vrom_push = pack_b32_into_b64(&mut table, "vrom_push", abs_addr, computed_imm);
+        let vrom_abs_addr = table.add_computed::<B32, 1>("abs_addr", fp + upcast_expr(dst.into()));
 
         // Pull from VROM channel
-        table.pull(channels.vrom_channel, [vrom_push]);
+        table.pull(channels.vrom_channel, [vrom_abs_addr, computed_imm]);
 
         // Compute next PC
-        let G =  B32::MULTIPLICATIVE_GENERATOR;
-        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * G);
-
-        // Pack FP and next PC for state channel push
-        let state_push = pack_state_b32_into_b128(&mut table, "state_push", next_pc, fp);
+        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
 
         // Push to state channel
-        table.push(channels.state_channel, [state_push]);
+        table.push(channels.state_channel, [next_pc, fp]);
 
         Self {
             id: table.id(),
@@ -120,10 +107,10 @@ impl LdiTable {
             dst,
             imm_low,
             imm_high,
-            state_pull,
             prom_pull,
-            vrom_push,
-            state_push,
+            next_pc,
+            vrom_abs_addr,
+            computed_imm,
         }
     }
 }
@@ -148,6 +135,10 @@ where
         let mut dst_col = witness.get_mut_as(self.dst)?;
         let mut imm_low_col = witness.get_mut_as(self.imm_low)?;
         let mut imm_high_col = witness.get_mut_as(self.imm_high)?;
+        let mut next_pc_col = witness.get_mut_as(self.next_pc)?;
+        let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
+        let mut vrom_abs_addr_col = witness.get_mut_as(self.vrom_abs_addr)?;
+        let mut computed_imm_col = witness.get_mut_as(self.computed_imm)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
@@ -155,8 +146,19 @@ where
             dst_col[i] = event.dst;
 
             // Split the immediate value into low and high parts
-            imm_low_col[i] = event.imm & 0xFFFF;
-            imm_high_col[i] = (event.imm >> 16) & 0xFFFF;
+            imm_low_col[i] = (event.imm & 0xFFFF) as u16;
+            imm_high_col[i] = ((event.imm >> 16) & 0xFFFF) as u16;
+
+            next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
+            prom_pull_col[i] = pack_prom_entry_b128(
+                pc_col[i].val(),
+                0x0f as u16,
+                dst_col[i],
+                imm_low_col[i],
+                imm_high_col[i],
+            );
+            vrom_abs_addr_col[i] = fp_col[i] + dst_col[i] as u32;
+            computed_imm_col[i] = event.imm as u32;
 
             dbg!(
                 "Ldi fill",
@@ -164,7 +166,11 @@ where
                 &fp_col[i],
                 &dst_col[i],
                 &imm_low_col[i],
-                &imm_high_col[i]
+                &imm_high_col[i],
+                &next_pc_col[i],
+                &prom_pull_col[i],
+                &vrom_abs_addr_col[i],
+                &computed_imm_col[i]
             );
         }
 

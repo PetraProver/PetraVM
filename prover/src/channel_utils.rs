@@ -4,36 +4,6 @@
 use binius_field::ExtensionField;
 use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32, B64};
 
-/// Pack two B32 values into a B64 value.
-///
-/// Format: [val1 (lower 32 bits), val2 (upper 32 bits)]
-///
-/// # Arguments
-/// * `table` - The table builder
-/// * `name` - The name for the packed column
-/// * `val1` - Value for lower 32 bits (e.g., FP)
-/// * `val2` - Value for upper 32 bits (e.g., PC)
-///
-/// # Returns
-/// * A Col<B64, 1> representing the packed values
-pub fn pack_b32_into_b64(
-    table: &mut TableBuilder,
-    name: &str,
-    val1: Col<B32, 1>,
-    val2: Col<B32, 1>,
-) -> Col<B64, 1> {
-    // Get the basis for B64 extension of B32
-    let basis: [_; 2] = std::array::from_fn(|i| {
-        <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-    });
-
-    // Compute the packed value
-    table.add_computed(
-        name,
-        upcast_expr(val1.into()) * basis[0] + upcast_expr(val2.into()) * basis[1],
-    )
-}
-
 /// Pack four B16 values into a B64 value.
 ///
 /// # Arguments
@@ -137,34 +107,9 @@ pub fn pack_prom_entry(
     pack_b64_into_b128(table, name, instr, pc_upcast)
 }
 
-/// Pack PC and FP values into a B128 value with zeros in upper positions.
-///
-/// Format: [zero (0-31), zero (32-63), fp (64-95), pc (96-127)]
-///
-/// # Arguments
-/// * `table` - The table builder
-/// * `name` - The name for the packed column
-/// * `pc` - The PC value (B32) for high bits (positions 96-127)
-/// * `fp` - The FP value (B32) for lower bits (positions 64-95)
-///
-/// # Returns
-/// * A Col<B128, 1> representing the packed state with format [0, 0, fp, pc]
-pub fn pack_state_b32_into_b128(
-    table: &mut TableBuilder,
-    name: &str,
-    pc: Col<B32, 1>,
-    fp: Col<B32, 1>,
-) -> Col<B128, 1> {
-    // Create zero constant
-    let zero_b64 = table.add_constant("zero_b64", [B64::from(0)]);
-
-    let state_b64 = pack_b32_into_b64(
-        table,
-        &format!("{}_state_b64", name),
-        fp,
-        pc,
-    );
-
-    // Pack the two B64 values into a B128
-    pack_b64_into_b128(table, name, zero_b64, state_b64)
+pub fn pack_prom_entry_b128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> B128 {
+    let pc_upcast = pc as u64;
+    let instr =
+        (opcode as u64) | ((arg1 as u64) << 16) | ((arg2 as u64) << 32) | ((arg3 as u64) << 48);
+    B128::from((instr as u128) | (pc_upcast as u128) << 64)
 }

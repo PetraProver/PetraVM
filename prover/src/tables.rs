@@ -6,17 +6,14 @@
 use binius_field::as_packed_field::PackScalar;
 use binius_m3::builder::B1;
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B16, B32, B64, B128,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B128, B16, B32,
 };
 use bytemuck::Pod;
 
+use crate::channel_utils::pack_prom_entry_b128;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
-use crate::{
-    channel_utils::{pack_b32_into_b64, pack_prom_entry},
-    channels::ZkVMChannels,
-    model::Instruction,
-};
+use crate::{channel_utils::pack_prom_entry, channels::ZkVMChannels, model::Instruction};
 
 /// PROM (Program ROM) table for storing program instructions.
 ///
@@ -52,10 +49,10 @@ impl PromTable {
 
         // Add columns for PC and instruction components
         let pc = table.add_committed("pc");
-        let opcode = table.add_committed::<B16, 1>("opcode");
-        let arg1 = table.add_committed::<B16, 1>("arg1");
-        let arg2 = table.add_committed::<B16, 1>("arg2");
-        let arg3 = table.add_committed::<B16, 1>("arg3");
+        let opcode = table.add_committed("opcode");
+        let arg1 = table.add_committed("arg1");
+        let arg2 = table.add_committed("arg2");
+        let arg3 = table.add_committed("arg3");
 
         // Pack the values for the PROM channel
         let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
@@ -95,6 +92,7 @@ where
         let mut arg1_col = witness.get_mut_as(self.arg1)?;
         let mut arg2_col = witness.get_mut_as(self.arg2)?;
         let mut arg3_col = witness.get_mut_as(self.arg3)?;
+        let mut prom_entry_col = witness.get_mut_as(self.prom_entry)?;
 
         for (i, instr) in rows.enumerate() {
             pc_col[i] = instr.pc;
@@ -104,6 +102,14 @@ where
             arg1_col[i] = instr.args.first().copied().unwrap_or(0);
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
+
+            prom_entry_col[i] = pack_prom_entry_b128(
+                pc_col[i].val(),
+                opcode_col[i],
+                arg1_col[i],
+                arg2_col[i],
+                arg3_col[i],
+            );
 
             dbg!(
                 "Prom fill",
@@ -133,8 +139,6 @@ pub struct VromWriteTable {
     pub addr: Col<B32, 1>,
     /// Value column (from VROM channel)
     pub value: Col<B32, 1>,
-    /// Packed address and value for VROM channel
-    pub addr_value: Col<B64, 1>,
 }
 
 impl VromWriteTable {
@@ -154,18 +158,13 @@ impl VromWriteTable {
         // Pull from VROM address space channel (verifier pushes full address space)
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
-        // Pack addr and value for the VROM channel
-        // Format: [addr (lower 32 bits), value (upper 32 bits)]
-        let addr_value = pack_b32_into_b64(&mut table, "addr_value", addr, value);
-
         // Push to VROM channel (address+value)
-        table.push(channels.vrom_channel, [addr_value]);
+        table.push(channels.vrom_channel, [addr, value]);
 
         Self {
             id: table.id(),
             addr,
             value,
-            addr_value,
         }
     }
 }
