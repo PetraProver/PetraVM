@@ -50,7 +50,7 @@ impl RetTable {
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
-        let mut table = cs.add_table("ret_table");
+        let mut table = cs.add_table("ret");
 
         // Add columns for PC, FP, and return values
         let pc = table.add_committed("pc");

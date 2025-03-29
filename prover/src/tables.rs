@@ -254,7 +254,7 @@ where
     }
 }
 
-/// VROM Address Space table that pushes all possible addresses (0-31) into the
+/// VROM Address Space table that pushes all possible addresses into the
 /// vrom_addr_space_channel.
 ///
 /// This table is used by the verifier to push the full address space into the

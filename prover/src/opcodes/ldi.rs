@@ -60,7 +60,7 @@ impl LdiTable {
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
-        let mut table = cs.add_table("ldi_table");
+        let mut table = cs.add_table("ldi");
 
         // Add columns for PC, FP, and other instruction components
         let pc = table.add_committed("pc");
