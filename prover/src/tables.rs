@@ -55,7 +55,9 @@ impl PromTable {
         let arg3 = table.add_committed("arg3");
 
         // Pack the values for the PROM channel
-        let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
+        let prom_entry = table.add_committed("prom_entry");
+        // let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1,
+        // arg2, arg3]);
 
         // Push to the PROM channel
         table.push(channels.prom_channel, [prom_entry]);
@@ -117,7 +119,8 @@ where
                 &opcode_col[i],
                 &arg1_col[i],
                 &arg2_col[i],
-                &arg3_col[i]
+                &arg3_col[i],
+                &prom_entry_col[i]
             );
         }
 

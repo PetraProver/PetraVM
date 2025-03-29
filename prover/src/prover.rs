@@ -54,7 +54,7 @@ impl ZkVMProver {
     ///
     /// # Returns
     /// * Result containing the proof or error
-    pub fn prove(&self, trace: &ZkVMTrace) -> Result<Proof> {
+    pub fn validate(&self, trace: &ZkVMTrace) -> Result<()> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
@@ -105,62 +105,6 @@ impl ZkVMProver {
 
         // Validate the witness against the constraint system
         validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
-
-        // Generate the proof
-        let proof = prove::<
-            OptimalUnderlier128b,
-            CanonicalTowerFamily,
-            Groestl256,
-            Groestl256ByteCompression,
-            HasherChallenger<Groestl256>,
-            _,
-        >(
-            &compiled_cs,
-            LOG_INV_RATE,
-            SECURITY_BITS,
-            &statement.boundaries,
-            mle_witness,
-            &make_portable_backend(),
-        )?;
-
-        Ok(proof)
-    }
-
-    /// Verify a zCrayVM execution proof.
-    ///
-    /// This function:
-    /// 1. Creates a statement from the trace
-    /// 2. Compiles the constraint system
-    /// 3. Verifies the proof against the statement
-    ///
-    /// # Arguments
-    /// * `trace` - The zCrayVM execution trace
-    /// * `proof` - The proof to verify
-    ///
-    /// # Returns
-    /// * Result indicating success or error
-    // TODO: should not use trace to create statement
-    pub fn verify(&self, trace: &ZkVMTrace, proof: &Proof) -> Result<()> {
-        // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace)?;
-
-        // Compile the constraint system
-        let compiled_cs = self.circuit.compile(&statement)?;
-
-        // Verify the proof
-        binius_core::constraint_system::verify::<
-            OptimalUnderlier128b,
-            CanonicalTowerFamily,
-            Groestl256,
-            Groestl256ByteCompression,
-            HasherChallenger<Groestl256>,
-        >(
-            &compiled_cs,
-            LOG_INV_RATE,
-            SECURITY_BITS,
-            &statement.boundaries,
-            proof.clone(),
-        )?;
 
         Ok(())
     }

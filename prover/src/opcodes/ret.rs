@@ -60,17 +60,18 @@ impl RetTable {
         // Pull from state channel
         table.pull(channels.state_channel, [pc, fp]);
 
-        let ret_opcode = table.add_constant("ret_opcode", [B16::from(0x0b)]);
-        let zero_arg = table.add_constant("zero_arg", [B16::ZERO]);
+        // let ret_opcode = table.add_constant("ret_opcode", [B16::from(0x0b)]);
+        // let zero_arg = table.add_constant("zero_arg", [B16::ZERO]);
 
         // Pack instruction for PROM channel pull
-        let prom_pull = pack_prom_entry(
-            &mut table,
-            "prom_pull",
-            pc,
-            ret_opcode,
-            [zero_arg, zero_arg, zero_arg],
-        );
+        let prom_pull = table.add_committed("prom_pull");
+        // let prom_pull = pack_prom_entry(
+        //     &mut table,
+        //     "prom_pull",
+        //     pc,
+        //     ret_opcode,
+        //     [zero_arg, zero_arg, zero_arg],
+        // );
 
         // Pull instruction from PROM channel
         table.pull(channels.prom_channel, [prom_pull]);

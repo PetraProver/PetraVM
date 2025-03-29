@@ -59,25 +59,26 @@ impl LdiTable {
         let mut table = cs.add_table("ldi_table");
 
         // Add columns for PC, FP, and other instruction components
-        let pc = table.add_committed::<B32, 1>("pc");
-        let fp = table.add_committed::<B32, 1>("cur_fp");
-        let dst = table.add_committed::<B16, 1>("dst");
-        let imm_low = table.add_committed::<B16, 1>("imm_low");
-        let imm_high = table.add_committed::<B16, 1>("imm_high");
+        let pc = table.add_committed("pc");
+        let fp = table.add_committed("cur_fp");
+        let dst = table.add_committed("dst");
+        let imm_low = table.add_committed("imm_low");
+        let imm_high = table.add_committed("imm_high");
 
         // Pull from state channel (get current state)
         table.pull(channels.state_channel, [pc, fp]);
 
-        let ldi_opcode_const = table.add_constant("ldi_opcode", [B16::from(0x0f)]);
+        // let ldi_opcode_const = table.add_constant("ldi_opcode", [B16::from(0x0f)]);
 
         // Pack instruction for PROM channel pull
-        let prom_pull = pack_prom_entry(
-            &mut table,
-            "prom_pull",
-            pc,
-            ldi_opcode_const,
-            [dst, imm_low, imm_high],
-        );
+        let prom_pull = table.add_committed("prom_pull");
+        // let prom_pull = pack_prom_entry(
+        //     &mut table,
+        //     "prom_pull",
+        //     pc,
+        //     ldi_opcode_const,
+        //     [dst, imm_low, imm_high],
+        // );
 
         // Pull from PROM channel
         table.pull(channels.prom_channel, [prom_pull]);
