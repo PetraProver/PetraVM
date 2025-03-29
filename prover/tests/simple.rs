@@ -103,18 +103,16 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace...");
+    println!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
     println!("Creating prover...");
     let prover = ZkVMProver::new();
 
-    // Step 4: Validate trace
-    println!("Validating trace...");
+    // Step 4: Validate trace -> Prove trace when binius is working.
+    println!("Validating trace with prover...");
     prover.validate(&trace)?;
-
-    // TODO: Prove trace and verify proof when binius is working.
 
     println!("All steps completed successfully!");
     Ok(())
