@@ -12,9 +12,11 @@ use bytemuck::Pod;
 use zcrayvm_assembly::LDIEvent;
 
 use crate::{
-    channel_utils::{pack_prom_entry, pack_prom_entry_b128},
     channels::ZkVMChannels,
+    utils::{pack_prom_entry, pack_prom_entry_b128, pack_prom_opcode},
 };
+
+const LDI_OPCODE: u32 = 0x0f;
 
 /// LDI (Load Immediate) table.
 ///
@@ -68,17 +70,14 @@ impl LdiTable {
         // Pull from state channel (get current state)
         table.pull(channels.state_channel, [pc, fp]);
 
-        // let ldi_opcode_const = table.add_constant("ldi_opcode", [B16::from(0x0f)]);
-
         // Pack instruction for PROM channel pull
-        let prom_pull = table.add_committed("prom_pull");
-        // let prom_pull = pack_prom_entry(
-        //     &mut table,
-        //     "prom_pull",
-        //     pc,
-        //     ldi_opcode_const,
-        //     [dst, imm_low, imm_high],
-        // );
+        let prom_pull = pack_prom_opcode(
+            &mut table,
+            "prom_pull",
+            pc,
+            LDI_OPCODE,
+            [dst, imm_low, imm_high],
+        );
 
         // Pull from PROM channel
         table.pull(channels.prom_channel, [prom_pull]);
@@ -153,7 +152,7 @@ where
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
             prom_pull_col[i] = pack_prom_entry_b128(
                 pc_col[i].val(),
-                0x0f as u16,
+                LDI_OPCODE as u16,
                 dst_col[i],
                 imm_low_col[i],
                 imm_high_col[i],
