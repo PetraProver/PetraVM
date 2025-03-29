@@ -78,11 +78,8 @@ use zcrayvm_prover::model::ZkVMTrace;
 // Create a prover
 let prover = ZkVMProver::new();
 
-// Generate a proof for a trace
-let proof = prover.prove(&trace)?;
-
-// Verify the proof
-prover.verify(&trace, &proof)?;
+// Validate a trace
+prover.validate(&trace)?;
 ```
 
 ## Testing

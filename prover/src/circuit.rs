@@ -20,6 +20,7 @@ pub struct ZkVMCircuit {
     /// Program ROM table
     pub prom_table: PromTable,
     // TODO: We should not have this table in prover
+    /// VROM address space table
     pub vrom_addr_space_table: VromAddrSpaceTable,
     /// VROM Write table
     pub vrom_write_table: VromWriteTable,

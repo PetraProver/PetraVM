@@ -113,16 +113,6 @@ where
                 arg2_col[i],
                 arg3_col[i],
             );
-
-            dbg!(
-                "Prom fill",
-                &pc_col[i],
-                &opcode_col[i],
-                &arg1_col[i],
-                &arg2_col[i],
-                &arg3_col[i],
-                &prom_entry_col[i]
-            );
         }
 
         Ok(())
@@ -195,8 +185,6 @@ where
         for (i, (addr, value)) in rows.enumerate() {
             addr_col[i] = *addr;
             value_col[i] = *value;
-
-            dbg!("VromWrite fill", &addr_col[i], &value_col[i]);
         }
 
         Ok(())
@@ -260,7 +248,6 @@ where
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
             addr_col[i] = *addr;
-            dbg!("VromSkip fill", &addr_col[i]);
         }
 
         Ok(())
@@ -275,7 +262,6 @@ where
 /// VromWriteTable or VromSkipTable.
 ///
 /// Format: [Address]
-// TODO: The verifier should push the full address space
 pub struct VromAddrSpaceTable {
     /// Table ID
     pub id: TableId,
@@ -326,7 +312,6 @@ where
         // Fill the addresses from the provided rows
         for (i, &addr) in rows.enumerate() {
             addr_col[i] = addr;
-            dbg!("VromAddrSpace fill", &addr_col[i]);
         }
 
         Ok(())

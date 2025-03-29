@@ -5,15 +5,13 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128, B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128,
+    B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
 
-use crate::{
-    channels::ZkVMChannels,
-    utils::pack_prom_entry_b128,
-};
+use crate::{channels::ZkVMChannels, utils::pack_prom_entry_b128};
 
 const RET_OPCODE: u32 = 0x0b;
 
@@ -41,6 +39,7 @@ pub struct RetTable {
     pub fp_1_val: Col<B32, 1>,
     /// PROM channel pull value
     pub prom_pull: Col<B128, 1>,
+    /// FP + 1 column
     pub fp_plus_one: Col<B32, 1>,
 }
 
@@ -122,16 +121,6 @@ where
             fp_1_val_col[i] = event.fp_1_val;
             prom_pull_col[i] = pack_prom_entry_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
             fp_plus_one_col[i] = fp_col[i] + 1;
-
-            dbg!(
-                "Ret fill",
-                &pc_col[i],
-                &fp_col[i],
-                &fp_0_val_col[i],
-                &fp_1_val_col[i],
-                &prom_pull_col[i],
-                &fp_plus_one_col[i]
-            );
         }
 
         Ok(())

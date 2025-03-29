@@ -10,9 +10,6 @@ use bumpalo::Bump;
 
 use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
 
-const LOG_INV_RATE: usize = 1;
-const SECURITY_BITS: usize = 100;
-
 /// Main prover for zCrayVM.
 // TODO: should be customizable by supported opcodes
 pub struct ZkVMProver {
@@ -34,20 +31,19 @@ impl ZkVMProver {
         }
     }
 
-    /// Prove a zCrayVM execution trace.
+    /// Validate a zCrayVM execution trace.
     ///
     /// This function:
     /// 1. Creates a statement from the trace
     /// 2. Compiles the constraint system
     /// 3. Builds and fills the witness
     /// 4. Validates the witness against the constraints
-    /// 5. Generates a proof
     ///
     /// # Arguments
-    /// * `trace` - The zCrayVM execution trace to prove
+    /// * `trace` - The zCrayVM execution trace to validate
     ///
     /// # Returns
-    /// * Result containing the proof or error
+    /// * Result containing success or error
     pub fn validate(&self, trace: &ZkVMTrace) -> Result<()> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;

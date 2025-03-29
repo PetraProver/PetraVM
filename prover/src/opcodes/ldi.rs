@@ -47,7 +47,9 @@ pub struct LdiTable {
     pub prom_pull: Col<B128, 1>,
     /// Next PC column
     pub next_pc: Col<B32, 1>,
+    /// VROM absolute address column
     pub vrom_abs_addr: Col<B32, 1>,
+    /// Computed immediate value column
     pub computed_imm: Col<B32, 1>,
 }
 
@@ -159,19 +161,6 @@ where
             );
             vrom_abs_addr_col[i] = fp_col[i] + dst_col[i] as u32;
             computed_imm_col[i] = event.imm;
-
-            dbg!(
-                "Ldi fill",
-                &pc_col[i],
-                &fp_col[i],
-                &dst_col[i],
-                &imm_low_col[i],
-                &imm_high_col[i],
-                &next_pc_col[i],
-                &prom_pull_col[i],
-                &vrom_abs_addr_col[i],
-                &computed_imm_col[i]
-            );
         }
 
         Ok(())
