@@ -10,3 +10,4 @@ pub mod model;
 pub mod opcodes;
 pub mod prover;
 pub mod tables;
+pub mod utils;

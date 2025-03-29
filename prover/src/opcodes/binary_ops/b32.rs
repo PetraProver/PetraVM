@@ -1,13 +1,19 @@
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1,
-    B32, B64,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32,
+    B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, XoriEvent};
 
-use crate::{channels::ZkVMChannels, opcodes::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent}, util::B64_B32_BASIS}};
+use crate::{
+    channels::ZkVMChannels,
+    opcodes::{
+        cpu::{CpuColumns, CpuColumnsOptions, CpuEvent},
+        util::B64_B32_BASIS,
+    },
+};
 
 pub struct XoriTable {
     id: TableId,
@@ -19,10 +25,7 @@ pub struct XoriTable {
 }
 
 impl XoriTable {
-    pub fn new(
-        cs: &mut ConstraintSystem,
-        channels: &ZkVMChannels,
-    ) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("ret");
         let src_val = table.add_committed("src_val");
 
@@ -48,14 +51,16 @@ impl XoriTable {
         // Read dst_val
         let vrom_dst = table.add_computed(
             "vrom_dst",
-            upcast_expr(dst.into()) * B64_B32_BASIS[0] + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(dst.into()) * B64_B32_BASIS[0]
+                + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
         );
         table.push(vrom_channel, [vrom_dst]);
 
         // Read src_val
         let vrom_src = table.add_computed(
             "vrom_src",
-            upcast_expr(src.into()) * B64_B32_BASIS[0] + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(src.into()) * B64_B32_BASIS[0]
+                + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
         );
         table.push(vrom_channel, [vrom_src]);
 

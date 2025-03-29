@@ -121,13 +121,12 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
+            let mut src1_val = witness.get_mut_as(self.src1_val)?;
+            let mut src2_val = witness.get_mut_as(self.src2_val)?;
+            let mut vrom_src1 = witness.get_mut_as(self.vrom_src1)?;
+            let mut vrom_src2 = witness.get_mut_as(self.vrom_src2)?;
+            let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
             for (i, event) in rows.clone().enumerate() {
-                // TODO: Move this outside the loop
-                let mut src1_val = witness.get_mut_as(self.src1_val)?;
-                let mut src2_val = witness.get_mut_as(self.src2_val)?;
-                let mut vrom_src1 = witness.get_mut_as(self.vrom_src1)?;
-                let mut vrom_src2 = witness.get_mut_as(self.vrom_src2)?;
-                let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
                 vrom_src1[i] = (event.src1 as u64) << 32 | event.src1_val as u64;
@@ -135,7 +134,7 @@ where
                 vrom_dst[i] = (event.dst as u64) << 32 | event.dst_val as u64;
             }
         }
-        let cpu_rows = rows.clone().map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.into(),
             next_pc: None,
             next_fp: None,

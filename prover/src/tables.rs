@@ -4,35 +4,41 @@
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::as_packed_field::PackScalar;
+use binius_m3::builder::B1;
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B128, B16, B32,
 };
 use bytemuck::Pod;
 
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
-use crate::{channels::ZkVMChannels, model::Instruction};
+use crate::{
+    channels::ZkVMChannels,
+    model::Instruction,
+    utils::{pack_prom_entry, pack_prom_entry_b128},
+};
 
 /// PROM (Program ROM) table for storing program instructions.
 ///
 /// This table stores all the instructions in the program and makes them
 /// available to the instruction-specific tables.
 ///
-/// Format: [PC, Opcode, Arg1, Arg2, Arg3]
-/// TODO: B16 for arg1, arg2, arg3?
+/// Format: [PC, Opcode, Arg1, Arg2, Arg3] packed into B128
 pub struct PromTable {
     /// Table ID
     pub id: TableId,
     /// PC column
     pub pc: Col<B32, 1>,
     /// Opcode column
-    pub opcode: Col<B32, 1>,
+    pub opcode: Col<B16, 1>,
     /// Argument 1 column
-    pub arg1: Col<B32, 1>,
+    pub arg1: Col<B16, 1>,
     /// Argument 2 column
-    pub arg2: Col<B32, 1>,
+    pub arg2: Col<B16, 1>,
     /// Argument 3 column
-    pub arg3: Col<B32, 1>,
+    pub arg3: Col<B16, 1>,
+    /// Packed instruction for PROM channel
+    pub prom_entry: Col<B128, 1>,
 }
 
 impl PromTable {
@@ -51,8 +57,11 @@ impl PromTable {
         let arg2 = table.add_committed("arg2");
         let arg3 = table.add_committed("arg3");
 
+        // Pack the values for the PROM channel
+        let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
+
         // Push to the PROM channel
-        table.push(channels.prom_channel, [pc, opcode, arg1, arg2, arg3]);
+        table.push(channels.prom_channel, [prom_entry]);
 
         Self {
             id: table.id(),
@@ -61,13 +70,14 @@ impl PromTable {
             arg1,
             arg2,
             arg3,
+            prom_entry,
         }
     }
 }
 
 impl<U> TableFiller<U> for PromTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B1>,
 {
     type Event = Instruction;
 
@@ -85,23 +95,23 @@ where
         let mut arg1_col = witness.get_mut_as(self.arg1)?;
         let mut arg2_col = witness.get_mut_as(self.arg2)?;
         let mut arg3_col = witness.get_mut_as(self.arg3)?;
+        let mut prom_entry_col = witness.get_mut_as(self.prom_entry)?;
 
         for (i, instr) in rows.enumerate() {
             pc_col[i] = instr.pc;
-            opcode_col[i] = instr.opcode as u16 as u32;
+            opcode_col[i] = instr.opcode as u16;
 
             // Fill arguments, using 0 if the argument doesn't exist
-            arg1_col[i] = instr.args.first().copied().unwrap_or(0) as u32;
-            arg2_col[i] = instr.args.get(1).copied().unwrap_or(0) as u32;
-            arg3_col[i] = instr.args.get(2).copied().unwrap_or(0) as u32;
+            arg1_col[i] = instr.args.first().copied().unwrap_or(0);
+            arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
+            arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
 
-            dbg!(
-                "Prom fill",
-                &pc_col[i],
-                &opcode_col[i],
-                &arg1_col[i],
-                &arg2_col[i],
-                &arg3_col[i]
+            prom_entry_col[i] = pack_prom_entry_b128(
+                pc_col[i].val(),
+                opcode_col[i],
+                arg1_col[i],
+                arg2_col[i],
+                arg3_col[i],
             );
         }
 
@@ -115,7 +125,7 @@ where
 /// It pulls an address from the address space channel and pushes the
 /// address+value to the VROM channel.
 ///
-/// Format: [Address, Value]
+/// Format: [Address, Value] packed into B64
 pub struct VromWriteTable {
     /// Table ID
     pub id: TableId,
@@ -175,7 +185,6 @@ where
         for (i, (addr, value)) in rows.enumerate() {
             addr_col[i] = *addr;
             value_col[i] = *value;
-            dbg!("VromWrite fill", &addr_col[i], &value_col[i]);
         }
 
         Ok(())
@@ -239,14 +248,13 @@ where
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
             addr_col[i] = *addr;
-            dbg!("VromSkip fill", &addr_col[i]);
         }
 
         Ok(())
     }
 }
 
-/// VROM Address Space table that pushes all possible addresses (0-31) into the
+/// VROM Address Space table that pushes all possible addresses into the
 /// vrom_addr_space_channel.
 ///
 /// This table is used by the verifier to push the full address space into the
@@ -254,7 +262,6 @@ where
 /// VromWriteTable or VromSkipTable.
 ///
 /// Format: [Address]
-// TODO: The verifier should push the full address space
 pub struct VromAddrSpaceTable {
     /// Table ID
     pub id: TableId,
@@ -305,7 +312,6 @@ where
         // Fill the addresses from the provided rows
         for (i, &addr) in rows.enumerate() {
             addr_col[i] = addr;
-            dbg!("VromAddrSpace fill", &addr_col[i]);
         }
 
         Ok(())

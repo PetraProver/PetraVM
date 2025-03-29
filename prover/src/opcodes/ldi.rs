@@ -17,7 +17,6 @@ use super::{
 use crate::channels::ZkVMChannels;
 
 const LDI_OPCODE: u32 = 0x0f;
-const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
 /// LDI (Load Immediate) table.
 ///
@@ -47,7 +46,7 @@ impl LdiTable {
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
-        let mut table = cs.add_table("ldi_table");
+        let mut table = cs.add_table("ldi");
 
         let ZkVMChannels {
             state_channel,
