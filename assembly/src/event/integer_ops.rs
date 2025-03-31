@@ -584,6 +584,7 @@ define_bin32_op_event!(
 mod tests {
     use super::*;
     use crate::event::binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation};
+    use crate::{Memory, ProgramRom, ValueRom};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -614,17 +615,17 @@ mod tests {
         for (src1_val, src2_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = BinaryField16b::new(2);
             let src2_offset = BinaryField16b::new(3);
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
             let event =
-                AddEvent::generate_event(&mut env, dst_offset, src1_offset, src2_offset).unwrap();
+                AddEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
@@ -678,17 +679,17 @@ mod tests {
         for (src1_val, src2_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = BinaryField16b::new(2);
             let src2_offset = BinaryField16b::new(3);
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
             let event =
-                SubEvent::generate_event(&mut env, dst_offset, src1_offset, src2_offset).unwrap();
+                SubEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
@@ -729,15 +730,15 @@ mod tests {
         for (src_val, imm_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = BinaryField16b::new(2);
             let dst_offset = BinaryField16b::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_vrom(src_offset.val(), src_val);
+            ctx.set_vrom(src_offset.val(), src_val);
             let imm = BinaryField16b::new(imm_val);
 
-            let event = AddiEvent::generate_event(&mut env, dst_offset, src_offset, imm).unwrap();
+            let event = AddiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
@@ -822,20 +823,20 @@ mod tests {
             // Test MUL (sign * sign)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = BinaryField16b::new(2);
             let src2_offset = BinaryField16b::new(3);
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SignedMulEvent::<MulOp>::generate(&mut env, dst_offset, src1_offset, src2_offset)
+            SignedMulEvent::<MulOp>::generate(&mut ctx, dst_offset, src1_offset, src2_offset)
                 .unwrap();
 
             // Extract the event
-            let event = match env.trace.signed_mul.last().unwrap().as_any() {
+            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
                 AnySignedMulEvent::Mul(ev) => ev,
                 _ => panic!("Expected MulEvent"),
             };
@@ -848,8 +849,6 @@ mod tests {
 
             // Test MULU (unsigned * unsigned)
 
-            use crate::{Memory, ProgramRom, ValueRom};
-
             let mut interpreter = Interpreter::default();
             interpreter.timestamp = 0;
             interpreter.pc = 1;
@@ -858,12 +857,12 @@ mod tests {
 
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
             let event =
-                MuluEvent::generate_event(&mut env, dst_offset, src1_offset, src2_offset).unwrap();
+                MuluEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
 
             assert_eq!(
                 event.dst_val, mulu_expected,
@@ -874,15 +873,15 @@ mod tests {
             // Test MULSU (sign * unsigned)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SignedMulEvent::<MulsuOp>::generate(&mut env, dst_offset, src1_offset, src2_offset)
+            SignedMulEvent::<MulsuOp>::generate(&mut ctx, dst_offset, src1_offset, src2_offset)
                 .unwrap();
 
             // Extract the event
-            let event = match env.trace.signed_mul.last().unwrap().as_any() {
+            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
                 AnySignedMulEvent::Mulsu(ev) => ev,
                 _ => panic!("Expected MulsuEvent"),
             };
@@ -942,18 +941,18 @@ mod tests {
         for (src_val, imm_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = BinaryField16b::new(2);
             let dst_offset = BinaryField16b::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_vrom(src_offset.val(), src_val);
+            ctx.set_vrom(src_offset.val(), src_val);
             let imm = BinaryField16b::new(imm_val);
 
-            MuliEvent::generate(&mut env, dst_offset, src_offset, imm).unwrap();
+            MuliEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             // Extract the event
-            let event = env.trace.muli.last().unwrap();
+            let event = ctx.trace.muli.last().unwrap();
 
             assert_eq!(
                 event.dst_val, expected,
@@ -997,17 +996,17 @@ mod tests {
             // Test SLT (Signed Less Than)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = BinaryField16b::new(2);
             let src2_offset = BinaryField16b::new(3);
             let dst_offset = BinaryField16b::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
             let event =
-                SltEvent::generate_event(&mut env, dst_offset, src1_offset, src2_offset).unwrap();
+                SltEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
 
             assert_eq!(
                 event.dst_val, slt_expected,
@@ -1018,13 +1017,13 @@ mod tests {
             // Test SLTU (Unsigned Less Than)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set values in VROM at the computed addresses (FP ^ offset)
-            env.set_vrom(src1_offset.val(), src1_val);
-            env.set_vrom(src2_offset.val(), src2_val);
+            ctx.set_vrom(src1_offset.val(), src1_val);
+            ctx.set_vrom(src2_offset.val(), src2_val);
 
             let event =
-                SltuEvent::generate_event(&mut env, dst_offset, src1_offset, src2_offset).unwrap();
+                SltuEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
 
             assert_eq!(
                 event.dst_val, sltu_expected,
@@ -1093,15 +1092,15 @@ mod tests {
             // Test SLTI (Signed Less Than Immediate)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = BinaryField16b::new(2);
             let dst_offset = BinaryField16b::new(4);
             let imm = BinaryField16b::new(imm_val);
 
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_vrom(src_offset.val(), src_val);
+            ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiEvent::generate_event(&mut env, dst_offset, src_offset, imm).unwrap();
+            let event = SltiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             assert_eq!(
                 event.dst_val, slti_expected,
@@ -1112,11 +1111,11 @@ mod tests {
             // Test SLTIU (Unsigned Less Than Immediate)
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
-            let mut env = EventContext::new(&mut interpreter, &mut trace);
+            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set value in VROM at the computed address (FP ^ offset)
-            env.set_vrom(src_offset.val(), src_val);
+            ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiuEvent::generate_event(&mut env, dst_offset, src_offset, imm).unwrap();
+            let event = SltiuEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             assert_eq!(
                 event.dst_val, sltiu_expected,
