@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField32b, Field, PackedField};
 
+use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
 use crate::{
@@ -74,7 +75,7 @@ pub struct ZCrayTrace {
 
 pub struct BoundaryValues {
     pub(crate) final_pc: BinaryField32b,
-    pub(crate) final_fp: u32,
+    pub(crate) final_fp: FramePointer,
     pub(crate) timestamp: u32,
 }
 
@@ -134,7 +135,7 @@ impl ZCrayTrace {
         // Final boundary pull.
         channels.state_channel.pull((
             boundary_values.final_pc,
-            boundary_values.final_fp,
+            *boundary_values.final_fp,
             boundary_values.timestamp,
         ));
 
@@ -190,7 +191,7 @@ impl ZCrayTrace {
                     parent,
                     opcode,
                     field_pc,
-                    fp,
+                    fp.into(),
                     timestamp,
                     dst,
                     src,
@@ -216,7 +217,7 @@ impl ZCrayTrace {
                     parent,
                     opcode,
                     field_pc,
-                    fp,
+                    fp.into(),
                     timestamp,
                     dst,
                     src,
@@ -239,7 +240,15 @@ impl ZCrayTrace {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
                 self.set_vrom_u128(parent, value)?;
                 let event_out = MVEventOutput::new(
-                    parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
+                    parent,
+                    opcode,
+                    field_pc,
+                    fp.into(),
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                    value,
                 );
                 event_out.push_mv_event(self);
             }

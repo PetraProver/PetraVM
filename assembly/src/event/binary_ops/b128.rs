@@ -5,7 +5,8 @@ use crate::{
     define_bin128_op_event,
     event::{context::EventContext, Event},
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace, G,
     },
 };
 

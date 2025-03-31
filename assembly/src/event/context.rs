@@ -22,11 +22,10 @@ pub(crate) struct EventContext<'a> {
 }
 
 impl EventContext<'_> {
-    // TODO: merge with #70 if it goes through
     /// Computes a VROM address from a provided offset, by scaling the frame
     /// pointer accordingly.
     pub fn addr(&self, offset: impl Into<u32>) -> u32 {
-        self.fp ^ offset.into()
+        *self.fp ^ offset.into()
     }
 
     /// Loads a `u32` value stored in VROM at the provided address.

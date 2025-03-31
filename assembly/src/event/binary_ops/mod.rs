@@ -3,7 +3,10 @@ use core::fmt::Debug;
 use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::context::EventContext;
-use crate::{execution::InterpreterError, ZCrayTrace};
+use crate::{
+    execution::{FramePointer, InterpreterError},
+    ZCrayTrace,
+};
 
 pub(crate) mod b128;
 pub(crate) mod b32;
@@ -37,7 +40,7 @@ pub(crate) trait ImmediateBinaryOperation:
     fn new(
         timestamp: u32,
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         dst: u16,
         dst_val: u32,
         src: u16,
@@ -76,7 +79,7 @@ pub(crate) trait NonImmediateBinaryOperation:
     fn new(
         timestamp: u32,
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         dst: u16,
         dst_val: u32,
         src1: u16,

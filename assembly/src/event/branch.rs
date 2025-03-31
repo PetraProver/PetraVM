@@ -3,7 +3,8 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 use super::{context::EventContext, Event};
 use crate::{
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace,
     },
     fire_non_jump_event,
 };
@@ -19,7 +20,7 @@ use crate::{
 pub(crate) struct BnzEvent {
     timestamp: u32,
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     cond: u16,
     con_val: u32,
     target: BinaryField32b,
@@ -59,10 +60,10 @@ impl Event for BnzEvent {
         assert_ne!(self.cond, 0);
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.target, self.fp, self.timestamp));
+            .push((self.target, *self.fp, self.timestamp));
     }
 }
 
@@ -71,7 +72,7 @@ impl Event for BnzEvent {
 pub(crate) struct BzEvent {
     timestamp: u32,
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     cond: u16,
     cond_val: u32,
     target: BinaryField32b,

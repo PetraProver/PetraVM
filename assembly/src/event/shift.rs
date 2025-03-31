@@ -6,7 +6,9 @@ use binius_field::{BinaryField16b, BinaryField32b, Field};
 use super::context::EventContext;
 use crate::{
     event::{binary_ops::*, Event},
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+    },
     fire_non_jump_event, Opcode, ZCrayTrace,
 };
 
@@ -87,7 +89,7 @@ where
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,                // 16-bit destination VROM offset
     dst_val: u32,            // 32-bit result value
@@ -104,7 +106,7 @@ where
 {
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_val: u32,

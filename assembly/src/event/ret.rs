@@ -2,7 +2,7 @@ use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::{context::EventContext, Event};
 use crate::execution::{
-    Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+    FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
 };
 
 /// Event for RET.
@@ -15,7 +15,7 @@ use crate::execution::{
 #[derive(Debug, PartialEq)]
 pub struct RetEvent {
     pub(crate) pc: BinaryField32b,
-    pub(crate) fp: u32,
+    pub(crate) fp: FramePointer,
     pub(crate) timestamp: u32,
     pub(crate) fp_0_val: u32,
     pub(crate) fp_1_val: u32,
@@ -45,7 +45,7 @@ impl Event for RetEvent {
 
         let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
         ctx.jump_to(BinaryField32b::new(target));
-        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?.into();
 
         ctx.trace.ret.push(ret_event);
         Ok(())
@@ -54,7 +54,7 @@ impl Event for RetEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.fp_0_val),
             self.fp_1_val,

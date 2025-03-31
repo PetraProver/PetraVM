@@ -2,7 +2,11 @@
 //! Instruction Memory (PROM). It processes events and updates the machine state
 //! accordingly.
 
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::HashMap,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 use binius_field::{
     BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField,
@@ -49,7 +53,35 @@ pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
-// TODO: Add some structured execution tracing
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct FramePointer(u32);
+
+impl FramePointer {
+    #[inline(always)]
+    pub fn addr<T: Into<u32>>(&self, offset: T) -> u32 {
+        self.0 ^ offset.into()
+    }
+}
+
+impl From<u32> for FramePointer {
+    fn from(fp: u32) -> Self {
+        Self(fp)
+    }
+}
+
+impl Deref for FramePointer {
+    type Target = u32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FramePointer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct Interpreter {
@@ -59,7 +91,7 @@ pub(crate) struct Interpreter {
     /// (which is not in the multiplicative group), we shift all powers by
     /// 1, and 0 can be the halting value.
     pub(crate) pc: u32,
-    pub(crate) fp: u32,
+    pub(crate) fp: FramePointer,
     /// The system timestamp. Only RAM operations increase it.
     pub(crate) timestamp: u32,
     frames: LabelsFrameSizes,
@@ -79,7 +111,7 @@ impl Default for Interpreter {
     fn default() -> Self {
         Self {
             pc: 1, // default starting value for PC
-            fp: 0,
+            fp: FramePointer(0),
             timestamp: 0,
             frames: HashMap::new(),
             pc_field_to_int: HashMap::new(),
@@ -135,7 +167,7 @@ impl Interpreter {
     ) -> Self {
         Self {
             pc: 1,
-            fp: 0,
+            fp: FramePointer(0),
             timestamp: 0,
             frames,
             pc_field_to_int,

@@ -2,7 +2,9 @@ use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
 use super::{context::EventContext, Event};
 use crate::{
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables},
+    execution::{
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+    },
     ZCrayTrace,
 };
 
@@ -15,7 +17,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub(crate) struct JumpvEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     offset: u16,
     target: u32,
@@ -51,10 +53,10 @@ impl Event for JumpvEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels
             .state_channel
-            .push((BinaryField32b::new(self.target), self.fp, self.timestamp));
+            .push((BinaryField32b::new(self.target), *self.fp, self.timestamp));
     }
 }
 
@@ -67,7 +69,7 @@ impl Event for JumpvEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct JumpiEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     target: BinaryField32b,
 }
@@ -102,10 +104,10 @@ impl Event for JumpiEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target.val()),
-            self.fp,
+            *self.fp,
             self.timestamp,
         ));
     }

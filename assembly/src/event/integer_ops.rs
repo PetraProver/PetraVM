@@ -9,7 +9,8 @@ use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, Event},
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace,
     },
     fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
     impl_immediate_binary_operation, Opcode,
@@ -115,7 +116,7 @@ define_bin32_op_event!(
 #[derive(Debug, Clone)]
 pub(crate) struct MuliEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_val: u64,
@@ -174,7 +175,7 @@ impl Event for MuliEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct MuluEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_val: u64,
@@ -456,7 +457,7 @@ impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
 #[derive(Debug, Clone)]
 pub(crate) struct SignedMulEvent<SignedMulOperation> {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_val: u64,

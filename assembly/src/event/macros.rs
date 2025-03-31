@@ -8,7 +8,7 @@ macro_rules! impl_binary_operation {
             fn new(
                 timestamp: u32,
                 pc: BinaryField32b,
-                fp: u32,
+                fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
                 src1: u16,
@@ -116,10 +116,10 @@ macro_rules! fire_non_jump_event {
     ($intrp:ident, $channels:ident) => {
         $channels
             .state_channel
-            .pull(($intrp.pc, $intrp.fp, $intrp.timestamp));
+            .pull(($intrp.pc, *$intrp.fp, $intrp.timestamp));
         $channels.state_channel.push((
             $intrp.pc * $crate::execution::G,
-            $intrp.fp,
+            *$intrp.fp,
             $intrp.timestamp,
         ));
     };
@@ -133,7 +133,7 @@ macro_rules! impl_immediate_binary_operation {
             fn new(
                 timestamp: u32,
                 pc: BinaryField32b,
-                fp: u32,
+                fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
                 src: u16,
@@ -164,7 +164,7 @@ macro_rules! impl_32b_immediate_binary_operation {
             const fn new(
                 timestamp: u32,
                 pc: BinaryField32b,
-                fp: u32,
+                fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
                 src: u16,
@@ -194,7 +194,7 @@ macro_rules! define_bin32_op_event {
         pub(crate) struct $name {
             pub(crate) timestamp: u32,
             pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
+            pub(crate) fp: FramePointer,
             pub(crate) dst: u16,
             pub(crate) dst_val: u32,
             pub(crate) src1: u16,
@@ -223,7 +223,7 @@ macro_rules! define_bin32_imm_op_event {
         pub(crate) struct $name {
             pub(crate) timestamp: u32,
             pub(crate) pc: BinaryField32b,
-            pub(crate) fp: u32,
+            pub(crate) fp: FramePointer,
             pub(crate) dst: u16,
             pub(crate) dst_val: u32,
             pub(crate) src: u16,
@@ -251,7 +251,7 @@ macro_rules! define_bin128_op_event {
         pub(crate) struct $name {
             timestamp: u32,
             pc: BinaryField32b,
-            fp: u32,
+            fp: FramePointer,
             dst: u16,
             dst_val: u128,
             src1: u16,
@@ -328,10 +328,10 @@ macro_rules! define_bin128_op_event {
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
 
                 // Update state channel
-                channels.state_channel.pull((self.pc, self.fp, self.timestamp));
+                channels.state_channel.pull((self.pc, *self.fp, self.timestamp));
                 channels
                     .state_channel
-                    .push((self.pc * G, self.fp, self.timestamp));
+                    .push((self.pc * G, *self.fp, self.timestamp));
             }
         }
     };

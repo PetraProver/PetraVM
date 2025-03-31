@@ -102,7 +102,7 @@ define_bin32_op_event!(
 pub(crate) struct B32MuliEvent {
     timestamp: u32,
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     dst: u16,
     dst_val: u32,
     src: u16,
@@ -171,10 +171,10 @@ impl Event for B32MuliEvent {
 
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels
             .state_channel
-            .push((self.pc * G * G, self.fp, self.timestamp));
+            .push((self.pc * G * G, *self.fp, self.timestamp));
     }
 }
 

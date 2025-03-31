@@ -4,7 +4,8 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace, G,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace, G,
     },
 };
 
@@ -20,7 +21,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub(crate) struct TailiEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     target: u32,
     next_fp: u16,
@@ -50,7 +51,7 @@ impl Event for TailiEvent {
         let fp = ctx.fp;
         let timestamp = ctx.timestamp;
 
-        ctx.fp = next_fp_val;
+        ctx.fp = next_fp_val.into();
         ctx.jump_to(target);
 
         ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
@@ -74,7 +75,7 @@ impl Event for TailiEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
@@ -95,7 +96,7 @@ impl Event for TailiEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct TailVEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     offset: u16,
     next_fp: u16,
@@ -131,7 +132,7 @@ impl Event for TailVEvent {
         let fp = ctx.fp;
         let timestamp = ctx.timestamp;
 
-        ctx.fp = next_fp_val;
+        ctx.fp = next_fp_val.into();
         // Jump to the target,
         ctx.jump_to(BinaryField32b::new(target));
 
@@ -157,7 +158,7 @@ impl Event for TailVEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
@@ -179,7 +180,7 @@ impl Event for TailVEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct CalliEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     target: u32,
     next_fp: u16,
@@ -205,12 +206,12 @@ impl Event for CalliEvent {
         let fp = ctx.fp;
         let timestamp = ctx.timestamp;
 
-        ctx.fp = next_fp_val;
+        ctx.fp = next_fp_val.into();
         ctx.jump_to(target);
 
         let return_pc = (ctx.field_pc * G).val();
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: ctx.field_pc,
@@ -228,7 +229,7 @@ impl Event for CalliEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,
@@ -249,7 +250,7 @@ impl Event for CalliEvent {
 #[derive(Debug, Clone)]
 pub(crate) struct CallvEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     offset: u16,
     next_fp: u16,
@@ -284,13 +285,13 @@ impl Event for CallvEvent {
         let fp = ctx.fp;
         let timestamp = ctx.timestamp;
 
-        ctx.fp = next_fp_val;
+        ctx.fp = next_fp_val.into();
         // Jump to the target,
         ctx.jump_to(BinaryField32b::new(target));
 
         let return_pc = (ctx.field_pc * G).val();
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), fp)?;
+        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: ctx.field_pc,
@@ -309,7 +310,7 @@ impl Event for CallvEvent {
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target),
             self.next_fp_val,

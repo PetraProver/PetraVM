@@ -4,7 +4,8 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace,
     },
     fire_non_jump_event,
     memory::MemoryError,
@@ -57,7 +58,7 @@ pub(crate) struct MVEventOutput {
     pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: BinaryField32b, // field PC
-    pub(crate) fp: u32,                  // fp
+    pub(crate) fp: FramePointer,         // fp
     pub(crate) timestamp: u32,           // timestamp
     pub(crate) dst: BinaryField16b,      // dst
     pub(crate) src: BinaryField16b,      // src
@@ -71,7 +72,7 @@ impl MVEventOutput {
         parent: u32, // parent addr
         opcode: Opcode,
         field_pc: BinaryField32b, // field PC
-        fp: u32,                  // fp
+        fp: FramePointer,         // fp
         timestamp: u32,           // timestamp
         dst: BinaryField16b,      // dst
         src: BinaryField16b,      // src
@@ -145,7 +146,7 @@ impl MVEventOutput {
 #[derive(Debug, Clone)]
 pub(crate) struct MVVWEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -160,7 +161,7 @@ impl MVVWEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_addr: u32,
@@ -186,7 +187,7 @@ impl MVVWEvent {
         ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
@@ -218,7 +219,7 @@ impl MVVWEvent {
             // also set the value at `src_addr` and generate the MOVE event.
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvw, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -286,7 +287,7 @@ impl_mv_event!(MVVWEvent, mvvw);
 #[derive(Debug, Clone)]
 pub(crate) struct MVVLEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -299,7 +300,7 @@ impl MVVLEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_addr: u32,
@@ -325,7 +326,7 @@ impl MVVLEvent {
         ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
@@ -357,7 +358,7 @@ impl MVVLEvent {
             // also set the value at `src_addr` and generate the MOVE event.
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvl, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
@@ -424,7 +425,7 @@ impl_mv_event!(MVVLEvent, mvvl);
 #[derive(Debug, Clone)]
 pub(crate) struct MVIHEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -441,7 +442,7 @@ impl MVIHEvent {
         ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
@@ -514,7 +515,7 @@ impl_mv_event!(MVIHEvent, mvih);
 #[derive(Debug, Clone)]
 pub(crate) struct LDIEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     imm: u32,
