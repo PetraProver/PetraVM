@@ -10,11 +10,13 @@ use binius_m3::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{AddEvent, AddiEvent, Opcode};
 
-use crate::channels::ZkVMChannels;
-
 use super::{
     cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
     util::pack_b32_into_b64,
+};
+use crate::{
+    channels::ZkVMChannels,
+    utils::{pack_vrom_entry, pack_vrom_entry_u64},
 };
 
 pub struct AddTable {
@@ -34,10 +36,7 @@ pub struct AddTable {
 }
 
 impl AddTable {
-    pub fn new(
-        cs: &mut ConstraintSystem,
-        channels: &ZkVMChannels
-    ) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
         let mut table = cs.add_table("add");
 
         let ZkVMChannels {
@@ -65,29 +64,25 @@ impl AddTable {
         let src2_val = table.add_committed("src2_val");
 
         let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
-        let src2_val_packed = table.add_packed("src2_val_packed", src1_val);
+        let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
         let u32_add = U32Add::new(&mut table, src1_val, src2_val, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
         // Read src1
-        let vrom_src1 = table.add_computed(
-            "src1_src1_val",
-            pack_b32_into_b64([upcast_col(src1).into(), src1_val_packed.into()]),
-        );
-        table.push(vrom_channel, [vrom_src1]);
+        let vrom_src1 = pack_vrom_entry(&mut table, "vrom_src1", upcast_col(src1), src1_val_packed);
+        table.pull(vrom_channel, [vrom_src1]);
         // Read src2
-        let vrom_src2 = table.add_computed(
-            "src2_src2_val",
-            pack_b32_into_b64([upcast_col(src2).into(), src2_val_packed.into()]),
-        );
-        table.push(vrom_channel, [vrom_src2]);
+        let vrom_src2 = pack_vrom_entry(&mut table, "vrom_src2", upcast_col(src2), src2_val_packed);
+        table.pull(vrom_channel, [vrom_src2]);
         // Write dst
-        let vrom_dst = table.add_computed(
-            "dst_dst_val",
-            pack_b32_into_b64([upcast_col(dst).into(), dst_val_packed.into()]),
+        let vrom_dst = pack_vrom_entry(
+            &mut table,
+            "vrom_dst",
+            upcast_col(dst),
+            dst_val_packed.into(),
         );
-        table.push(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [vrom_dst]);
 
         Self {
             id: table.id(),
@@ -129,9 +124,21 @@ where
             for (i, event) in rows.clone().enumerate() {
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
-                vrom_src1[i] = (event.src1 as u64) << 32 | event.src1_val as u64;
-                vrom_src2[i] = (event.src2 as u64) << 32 | event.src2_val as u64;
-                vrom_dst[i] = (event.dst as u64) << 32 | event.dst_val as u64;
+                vrom_src1[i] = pack_vrom_entry_u64(event.src1 as u32, event.src1_val);
+                vrom_src2[i] = pack_vrom_entry_u64(event.src2 as u32, event.src2_val);
+                vrom_dst[i] = pack_vrom_entry_u64(event.dst as u32, event.dst_val);
+                dbg!(
+                    "Add fill",
+                    src1_val[i],
+                    src2_val[i],
+                    vrom_src1[i],
+                    vrom_src2[i],
+                    vrom_dst[i],
+                );
+                println!(
+                    "vrom_scr1 = {:x}, vrom_src2 = {:x}, vrom_dst = {:x}",
+                    vrom_src1[i], vrom_src2[i], vrom_dst[i]
+                );
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {

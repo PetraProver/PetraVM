@@ -91,6 +91,9 @@ impl ZkVMProver {
         // 6. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
 
+        // 7. Fill ADD table with return events
+        witness.fill_table_sequential(&self.circuit.add_table, trace.add_events())?;
+
         // Convert witness to multilinear extension format for validation
         let mle_witness = witness.into_multilinear_extension_index(&statement);
 

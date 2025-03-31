@@ -1,9 +1,9 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
-use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
+use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32, B64};
 
-use crate::opcodes::util::{pack_b16_into_b64, pack_b64_into_b128};
+use crate::opcodes::util::{pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128};
 
 pub fn pack_prom_opcode(
     table: &mut TableBuilder,
@@ -50,4 +50,18 @@ pub fn pack_prom_entry_u128(pc: u32, opcode: u16, arg0: u16, arg1: u16, arg2: u1
         | (arg0 as u128) << 16
         | (arg1 as u128) << 32
         | (arg2 as u128) << 48
+}
+
+pub fn pack_vrom_entry(table: &mut TableBuilder,
+    name: &str,
+    addr: Col<B32, 1>,
+    value: Col<B32, 1>,
+) -> Col<B64, 1> {
+    table.add_computed(
+        name,
+        pack_b32_into_b64([addr.into(), value.into()]))
+}
+
+pub fn pack_vrom_entry_u64(addr: u32, value: u32) -> u64{
+    addr as u64 | (value as u64) << 32
 }

@@ -13,6 +13,7 @@ use bytemuck::Pod;
 use crate::opcodes::util::pack_b32_into_b64;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
+use crate::utils::{pack_vrom_entry, pack_vrom_entry_u64};
 use crate::{
     channels::ZkVMChannels,
     model::Instruction,
@@ -103,7 +104,10 @@ where
             opcode_col[i] = instr.opcode as u16;
 
             // Fill arguments, using 0 if the argument doesn't exist
-            println!("instr.args = [{:x}, {:x}, {:x}]", instr.args[0], instr.args[1], instr.args[2]);
+            println!(
+                "instr.args = [{:x}, {:x}, {:x}]",
+                instr.args[0], instr.args[1], instr.args[2]
+            );
             arg1_col[i] = instr.args.first().copied().unwrap_or(0);
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
@@ -157,10 +161,7 @@ impl VromWriteTable {
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
         // Push to VROM channel (address+value)
-        let vrom_push = table.add_computed(
-            "vrom_push",
-            pack_b32_into_b64([upcast_expr(addr.into()), upcast_expr(value.into())]),
-        );
+        let vrom_push = pack_vrom_entry(&mut table, "vrom_push", addr, value);
         table.push(channels.vrom_channel, [vrom_push]);
 
         Self {
@@ -195,7 +196,7 @@ where
         for (i, &(addr, value)) in rows.enumerate() {
             addr_col[i] = addr;
             value_col[i] = value;
-            vrom_push[i] = addr as u64 | (value as u64) << 32;
+            vrom_push[i] = pack_vrom_entry_u64(addr, value);
         }
 
         Ok(())

@@ -132,7 +132,7 @@ impl ZkVMCircuit {
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
-        let add_size = trace.trace.add.len(); // TODO: We need the add_events() function?
+        let add_size = trace.add_events().len(); // TODO: We need the add_events() function?
         let xori_size = trace.trace.xori.len();
         let bnz_size = trace.trace.bnz.len();
         let bz_size = trace.trace.bz.len();

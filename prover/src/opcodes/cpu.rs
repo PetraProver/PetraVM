@@ -171,7 +171,18 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             };
             state_push[i] = (next_pc_col[i] as u64) << 32 | next_fp as u64;
             state_pull[i] = (pc as u64) << 32 | fp as u64;
-            println!("pc = {pc}, opcode = {OPCODE}, arg0 = {:x}, arg1 = {:x}, arg2 = {:x}", arg0, arg1, arg2);
+            dbg!(
+                "Cpu fill",
+                &pc_col[i],
+                fp_col[i],
+                opcode_col[i],
+                arg0_col[i],
+                arg1_col[i],
+                arg2_col[i],
+                next_pc_col[i],
+                state_push[i],
+                state_pull[i]
+            );
         }
 
         Ok(())

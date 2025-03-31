@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use binius_field::BinaryField32b;
-use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
+use zcrayvm_assembly::{AddEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
 /// High-level representation of a zCrayVM instruction with its PC and
 /// arguments.
@@ -101,6 +101,13 @@ impl ZkVMTrace {
         &self.trace.ret
     }
 
+    /// Returns a reference to the ADD events from the trace.
+    ///
+    /// These events represent each LDI instruction executed during the trace.
+    pub fn add_events(&self) -> &Vec<AddEvent> {
+        &self.trace.add
+    }
+
     /// Add an interpreter instruction to the program.
     ///
     /// This converts the interpreter instruction to our simplified format.
@@ -147,13 +154,13 @@ impl ZkVMTrace {
             ));
         }
 
-        if self.ldi_events().is_empty() {
-            return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
-        }
+        // if self.ldi_events().is_empty() {
+        //     return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
+        // }
 
-        if self.ret_events().is_empty() {
-            return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
-        }
+        // if self.ret_events().is_empty() {
+        //     return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
+        // }
 
         if self.vrom_writes.is_empty() {
             return Err(anyhow::anyhow!(
