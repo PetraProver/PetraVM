@@ -9,7 +9,9 @@ use crate::{
     channels::ZkVMChannels,
     model::ZkVMTrace,
     opcodes::{
-        branch::{BnzTable, BzTable}, integer_ops::AddTable, XoriTable
+        branch::{BnzTable, BzTable},
+        integer_ops::AddTable,
+        XoriTable,
     },
     tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
@@ -101,7 +103,9 @@ impl ZkVMCircuit {
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
         let initial_state = Boundary {
-            values: vec![B128::new(1), B128::new(0)],
+            // first_pc = 1, first_fp = 0
+            //                                       |..pc..||..fp..|
+            values: vec![B128::new(0x00000000000000000000000100000000)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
             multiplicity: 1,
@@ -109,7 +113,7 @@ impl ZkVMCircuit {
 
         // Define the final state boundary (program ends with PC=0, FP=0)
         let final_state = Boundary {
-            values: vec![B128::new(0), B128::new(0)],
+            values: vec![B128::new(0)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,
             multiplicity: 1,

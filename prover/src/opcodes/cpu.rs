@@ -1,14 +1,12 @@
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
-    upcast_expr, Col, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32,
-    B64,
+    upcast_expr, Col, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32, B64,
 };
 use bytemuck::Pod;
 
-use super::util::{
-    pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128,
-};
+use super::util::{pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128};
+use crate::utils::{pack_prom_entry, pack_prom_entry_u128};
 
 /// A gadget for reading the instruction from the prom and
 /// setting the next program counter and timestamp
@@ -22,7 +20,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) arg2: Col<B16>,
     options: CpuColumnsOptions,
     // Virtual columns for communication with the channels
-    prom_push: Col<B128>,
+    prom_pull: Col<B128>,
     state_push: Col<B64>,
     state_pull: Col<B64>,
 }
@@ -81,14 +79,8 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         };
 
         // Push the current pc and instruction to the prom channel
-        let prom_push = table.add_computed(
-            "prom_push",
-            pack_b64_into_b128([
-                upcast_expr(pc.into()),
-                pack_b16_into_b64([opcode.into(), arg0.into(), arg1.into(), arg2.into()]),
-            ]),
-        );
-        table.push(prom_channel, [prom_push]);
+        let prom_pull = pack_prom_entry(table, "prom_pull", pc, opcode, [arg0, arg1, arg2]);
+        table.pull(prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
         let state_pull =
@@ -115,7 +107,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             arg1,
             arg2,
             options,
-            prom_push,
+            prom_pull,
             state_push,
             state_pull,
         }
@@ -140,7 +132,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let mut arg1_col = index.get_mut_as(self.arg1)?;
         let mut arg2_col = index.get_mut_as(self.arg2)?;
 
-        let mut prom_push = index.get_mut_as(self.prom_push)?;
+        let mut prom_pull = index.get_mut_as(self.prom_pull)?;
         let mut state_push = index.get_mut_as(self.state_push)?;
         let mut state_pull = index.get_mut_as(self.state_pull)?;
 
@@ -170,11 +162,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
                 NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,
             };
 
-            prom_push[i] = (pc as u128) << 64
-                | OPCODE as u128
-                | (arg0 as u128) << 16
-                | (arg1 as u128) << 32
-                | (arg2 as u128) << 48;
+            prom_pull[i] = pack_prom_entry_u128(pc, OPCODE, arg0, arg1, arg2);
 
             let next_fp = if let Some(next_fp) = next_fp {
                 next_fp
@@ -183,6 +171,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             };
             state_push[i] = (next_pc_col[i] as u64) << 32 | next_fp as u64;
             state_pull[i] = (pc as u64) << 32 | fp as u64;
+            println!("pc = {pc}, opcode = {OPCODE}, arg0 = {:x}, arg1 = {:x}, arg2 = {:x}", arg0, arg1, arg2);
         }
 
         Ok(())

@@ -113,8 +113,10 @@ where
     ) -> anyhow::Result<()> {
         {
             let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
+            let mut abs_addr = witness.get_mut_as(self.abs_addr)?;
             for (i, event) in rows.clone().enumerate() {
                 vrom_push[i] = (event.imm as u64) << 32 | event.fp as u64 + event.dst as u64;
+                abs_addr[i] = event.fp ^ (event.dst as u32);
                 dbg!(
                     "Ldi fill",
                     &vrom_push[i]
@@ -127,8 +129,8 @@ where
             fp: event.fp,
             next_fp: None,
             arg0: event.dst,
-            arg1: (event.imm >> 16) as u16,
-            arg2: event.imm as u16 & 0xFFFF,
+            arg1: event.imm as u16 & 0xFFFF,
+            arg2: (event.imm >> 16) as u16,
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }

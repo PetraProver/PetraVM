@@ -52,14 +52,14 @@ impl RetTable {
             "fp0_next_pc",
             pack_b32_into_b64([next_pc.into(), fp0.into()]),
         );
-        table.push(vrom_channel, [vrom_next_pc]);
+        table.pull(vrom_channel, [vrom_next_pc]);
 
         //Read the next_fp
         let vrom_next_fp = table.add_computed(
             "vrom_next_fp",
             pack_b32_into_b64([fp_xor_1.into(), next_fp.into()]),
         );
-        table.push(vrom_channel, [vrom_next_fp]);
+        table.pull(vrom_channel, [vrom_next_fp]);
 
         Self {
             id: table.id(),

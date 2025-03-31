@@ -30,6 +30,7 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
+    println!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
     let program = compiled_program.prom.clone();

@@ -4,18 +4,19 @@
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::as_packed_field::PackScalar;
-use binius_m3::builder::B1;
+use binius_m3::builder::{upcast_expr, B1, B64};
 use binius_m3::builder::{
     Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B128, B16, B32,
 };
 use bytemuck::Pod;
 
+use crate::opcodes::util::pack_b32_into_b64;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
     channels::ZkVMChannels,
     model::Instruction,
-    utils::{pack_prom_entry, pack_prom_entry_b128},
+    utils::{pack_prom_entry, pack_prom_entry_u128},
 };
 
 /// PROM (Program ROM) table for storing program instructions.
@@ -102,11 +103,12 @@ where
             opcode_col[i] = instr.opcode as u16;
 
             // Fill arguments, using 0 if the argument doesn't exist
+            println!("instr.args = [{:x}, {:x}, {:x}]", instr.args[0], instr.args[1], instr.args[2]);
             arg1_col[i] = instr.args.first().copied().unwrap_or(0);
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
 
-            prom_entry_col[i] = pack_prom_entry_b128(
+            prom_entry_col[i] = pack_prom_entry_u128(
                 pc_col[i].val(),
                 opcode_col[i],
                 arg1_col[i],
@@ -133,6 +135,8 @@ pub struct VromWriteTable {
     pub addr: Col<B32, 1>,
     /// Value column (from VROM channel)
     pub value: Col<B32, 1>,
+    /// Virtual column with the value pushed into the VROM channel
+    pub vrom_push: Col<B64, 1>,
 }
 
 impl VromWriteTable {
@@ -153,12 +157,17 @@ impl VromWriteTable {
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
         // Push to VROM channel (address+value)
-        table.push(channels.vrom_channel, [addr, value]);
+        let vrom_push = table.add_computed(
+            "vrom_push",
+            pack_b32_into_b64([upcast_expr(addr.into()), upcast_expr(value.into())]),
+        );
+        table.push(channels.vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
             addr,
             value,
+            vrom_push,
         }
     }
 }
@@ -180,11 +189,13 @@ where
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_mut_as(self.addr)?;
         let mut value_col = witness.get_mut_as(self.value)?;
+        let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
 
         // Fill in values from events
-        for (i, (addr, value)) in rows.enumerate() {
-            addr_col[i] = *addr;
-            value_col[i] = *value;
+        for (i, &(addr, value)) in rows.enumerate() {
+            addr_col[i] = addr;
+            value_col[i] = value;
+            vrom_push[i] = addr as u64 | (value as u64) << 32;
         }
 
         Ok(())
