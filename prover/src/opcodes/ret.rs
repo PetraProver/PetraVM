@@ -5,8 +5,7 @@
 
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B128,
-    B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B32,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
@@ -105,7 +104,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_mut_as(self.pc)?;
         let mut fp_col = witness.get_mut_as(self.fp)?;

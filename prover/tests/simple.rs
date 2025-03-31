@@ -6,7 +6,7 @@
 use anyhow::Result;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::ZkVMTrace;
-use zcrayvm_prover::prover::ZkVMProver;
+use zcrayvm_prover::prover::{verify_proof, ZkVMProver};
 
 /// Creates a basic execution trace with just LDI and RET instructions.
 ///
@@ -68,8 +68,6 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
         zkvm_trace.add_vrom_write(dst, imm);
     }
 
-    dbg!(&zkvm_trace);
-
     Ok(zkvm_trace)
 }
 
@@ -110,9 +108,13 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     println!("Creating prover...");
     let prover = ZkVMProver::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    println!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
+
+    // Step 5: Verify proof
+    println!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
 
     println!("All steps completed successfully!");
     Ok(())
