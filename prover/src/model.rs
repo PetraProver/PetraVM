@@ -20,9 +20,6 @@ pub struct Instruction {
     /// Opcode of the instruction
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
-    /// - For most instructions, these map directly to the instruction arguments
-    /// - For LDI, args = [dst, imm_low, imm_high]
-    /// - For RET, args is empty
     pub args: Vec<u16>,
 }
 
@@ -79,6 +76,10 @@ impl Trace {
     ///
     /// Note: This creates an empty program vector. You'll need to populate
     /// the program instructions separately using add_instructions().
+    ///
+    /// TODO: Refactor this approach to directly obtain the zkVMTrace from
+    /// program emulation rather than requiring separate population of
+    /// program instructions.
     pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
         Self {
             trace,
