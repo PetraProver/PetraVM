@@ -36,28 +36,28 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
+    let mut trace = Trace::from_zcray_trace(zcray_trace);
 
     // Add the program instructions to the trace
-    zkvm_trace.add_instructions(program);
+    trace.add_instructions(program);
 
     // Add VROM writes from LDI events
-    let vrom_writes: Vec<_> = zkvm_trace
+    let vrom_writes: Vec<_> = trace
         .ldi_events()
         .iter()
         .map(|event| (event.dst as u32, event.imm))
         .collect();
 
     // Add initial VROM values for return PC and return FP
-    zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
-    zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
+    trace.add_vrom_write(0, 0); // Initial return PC = 0
+    trace.add_vrom_write(1, 0); // Initial return FP = 0
 
     // Add other VROM writes from LDI events
     for (dst, imm) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, imm);
+        trace.add_vrom_write(dst, imm);
     }
 
-    Ok(zkvm_trace)
+    Ok(trace)
 }
 
 #[test]
