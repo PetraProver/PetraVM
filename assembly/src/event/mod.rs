@@ -28,7 +28,7 @@ pub(crate) trait Event {
     /// Generates a new event and pushes it to its corresponding list in the set
     /// of traces.
     fn generate(
-        ctx: &mut context::EventContext,
+        ctx: &mut EventContext,
         arg0: BinaryField16b,
         arg1: BinaryField16b,
         arg2: BinaryField16b,
