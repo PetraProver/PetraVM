@@ -275,12 +275,12 @@ mod tests {
         let mut allocator = VromAllocator::new();
         let mut allocations = Vec::new();
         let mut total_requested = 0u32;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Generate 1000 random allocations.
         for _ in 0..1000 {
             // Random requested size between 1 and 1024.
-            let requested: u32 = rng.gen_range(1..=1024);
+            let requested: u32 = rng.random_range(1..=1024);
             total_requested += requested;
             let addr = allocator.alloc(requested);
             allocations.push((addr, requested));
