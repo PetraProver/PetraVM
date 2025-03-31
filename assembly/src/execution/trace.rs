@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use binius_field::{BinaryField32b, Field, PackedField};
 
+use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
 use crate::{
@@ -17,13 +18,14 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Event, Add64Event, AddEvent, AddiEvent, MuliEvent, MuluEvent, SignedMulEvent,
-            SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            Add32Gadget, Add64Gadget, AddEvent, AddiEvent, GenericSignedMulEvent, MulOp, MuliEvent,
+            MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
+            SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::ShiftEvent,
+        shift::{self, GenericShiftEvent, ShiftEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
@@ -31,50 +33,50 @@ use crate::{
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
-    pub bnz: Vec<BnzEvent>,
-    pub jumpi: Vec<JumpiEvent>,
-    pub jumpv: Vec<JumpvEvent>,
-    pub xor: Vec<XorEvent>,
-    pub bz: Vec<BzEvent>,
-    pub or: Vec<OrEvent>,
-    pub ori: Vec<OriEvent>,
-    pub xori: Vec<XoriEvent>,
-    pub and: Vec<AndEvent>,
-    pub andi: Vec<AndiEvent>,
-    pub sub: Vec<SubEvent>,
-    pub slt: Vec<SltEvent>,
-    pub slti: Vec<SltiEvent>,
-    pub sltu: Vec<SltuEvent>,
-    pub sltiu: Vec<SltiuEvent>,
-    pub shifts: Vec<ShiftEvent>,
-    pub add: Vec<AddEvent>,
-    pub addi: Vec<AddiEvent>,
-    pub add32: Vec<Add32Event>,
-    pub add64: Vec<Add64Event>,
-    pub muli: Vec<MuliEvent>,
-    pub signed_mul: Vec<SignedMulEvent>,
-    pub mulu: Vec<MuluEvent>,
-    pub taili: Vec<TailiEvent>,
-    pub tailv: Vec<TailVEvent>,
-    pub calli: Vec<CalliEvent>,
-    pub callv: Vec<CallvEvent>,
-    pub ret: Vec<RetEvent>,
-    pub mvih: Vec<MVIHEvent>,
-    pub mvvw: Vec<MVVWEvent>,
-    pub mvvl: Vec<MVVLEvent>,
-    pub ldi: Vec<LDIEvent>,
-    pub b32_mul: Vec<B32MulEvent>,
-    pub b32_muli: Vec<B32MuliEvent>,
-    pub b128_add: Vec<B128AddEvent>,
-    pub b128_mul: Vec<B128MulEvent>,
+    pub(crate) bnz: Vec<BnzEvent>,
+    pub(crate) jumpi: Vec<JumpiEvent>,
+    pub(crate) jumpv: Vec<JumpvEvent>,
+    pub(crate) xor: Vec<XorEvent>,
+    pub(crate) bz: Vec<BzEvent>,
+    pub(crate) or: Vec<OrEvent>,
+    pub(crate) ori: Vec<OriEvent>,
+    pub(crate) xori: Vec<XoriEvent>,
+    pub(crate) and: Vec<AndEvent>,
+    pub(crate) andi: Vec<AndiEvent>,
+    pub(crate) sub: Vec<SubEvent>,
+    pub(crate) slt: Vec<SltEvent>,
+    pub(crate) slti: Vec<SltiEvent>,
+    pub(crate) sltu: Vec<SltuEvent>,
+    pub(crate) sltiu: Vec<SltiuEvent>,
+    pub(crate) shifts: Vec<Box<dyn GenericShiftEvent>>,
+    pub(crate) add: Vec<AddEvent>,
+    pub(crate) addi: Vec<AddiEvent>,
+    pub(crate) add32: Vec<Add32Gadget>,
+    pub(crate) add64: Vec<Add64Gadget>,
+    pub(crate) muli: Vec<MuliEvent>,
+    pub(crate) signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
+    pub(crate) mulu: Vec<MuluEvent>,
+    pub(crate) taili: Vec<TailiEvent>,
+    pub(crate) tailv: Vec<TailVEvent>,
+    pub(crate) calli: Vec<CalliEvent>,
+    pub(crate) callv: Vec<CallvEvent>,
+    pub(crate) ret: Vec<RetEvent>,
+    pub(crate) mvih: Vec<MVIHEvent>,
+    pub(crate) mvvw: Vec<MVVWEvent>,
+    pub(crate) mvvl: Vec<MVVLEvent>,
+    pub(crate) ldi: Vec<LDIEvent>,
+    pub(crate) b32_mul: Vec<B32MulEvent>,
+    pub(crate) b32_muli: Vec<B32MuliEvent>,
+    pub(crate) b128_add: Vec<B128AddEvent>,
+    pub(crate) b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
 }
 
 pub struct BoundaryValues {
-    pub final_pc: BinaryField32b,
-    pub final_fp: u32,
-    pub timestamp: u32,
+    pub(crate) final_pc: BinaryField32b,
+    pub(crate) final_fp: FramePointer,
+    pub(crate) timestamp: u32,
 }
 
 /// Convenience macro to `fire` all events logged.
@@ -133,7 +135,7 @@ impl ZCrayTrace {
         // Final boundary pull.
         channels.state_channel.pull((
             boundary_values.final_pc,
-            boundary_values.final_fp,
+            *boundary_values.final_fp,
             boundary_values.timestamp,
         ));
 
@@ -155,8 +157,8 @@ impl ZCrayTrace {
         fire_events!(self.shifts, &mut channels, &tables);
         fire_events!(self.add, &mut channels, &tables);
         fire_events!(self.addi, &mut channels, &tables);
-        fire_events!(self.add32, &mut channels, &tables);
-        fire_events!(self.add64, &mut channels, &tables);
+        // add32 gadgets do not incur any flushes
+        // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels, &tables);
         fire_events!(self.signed_mul, &mut channels, &tables);
         fire_events!(self.mulu, &mut channels, &tables);
@@ -193,7 +195,7 @@ impl ZCrayTrace {
                     parent,
                     opcode,
                     field_pc,
-                    fp,
+                    fp.into(),
                     timestamp,
                     dst,
                     src,
@@ -219,7 +221,7 @@ impl ZCrayTrace {
                     parent,
                     opcode,
                     field_pc,
-                    fp,
+                    fp.into(),
                     timestamp,
                     dst,
                     src,
@@ -242,7 +244,15 @@ impl ZCrayTrace {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
                 self.set_vrom_u128(parent, value)?;
                 let event_out = MVEventOutput::new(
-                    parent, opcode, field_pc, fp, timestamp, dst, src, offset, value,
+                    parent,
+                    opcode,
+                    field_pc,
+                    fp.into(),
+                    timestamp,
+                    dst,
+                    src,
+                    offset,
+                    value,
                 );
                 event_out.push_mv_event(self);
             }

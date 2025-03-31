@@ -1,9 +1,11 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
+use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{
-        Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        ZCrayTrace,
     },
     fire_non_jump_event,
     memory::MemoryError,
@@ -28,9 +30,23 @@ pub struct MVInfo {
 }
 
 /// Convenience macro to implement the `Event` trait for MV events.
-macro_rules! impl_mv_fire {
-    ($event:ty) => {
+macro_rules! impl_mv_event {
+    ($event:ty, $trace_field:ident) => {
         impl Event for $event {
+            fn generate(
+                ctx: &mut EventContext,
+                arg0: BinaryField16b,
+                arg1: BinaryField16b,
+                arg2: BinaryField16b,
+            ) -> Result<(), InterpreterError> {
+                let opt_event = Self::generate_event(ctx, arg0, arg1, arg2)?;
+                if let Some(event) = opt_event {
+                    ctx.trace.$trace_field.push(event);
+                }
+
+                Ok(())
+            }
+
             fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
                 fire_non_jump_event!(self, channels);
             }
@@ -42,7 +58,7 @@ pub(crate) struct MVEventOutput {
     pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: BinaryField32b, // field PC
-    pub(crate) fp: u32,                  // fp
+    pub(crate) fp: FramePointer,         // fp
     pub(crate) timestamp: u32,           // timestamp
     pub(crate) dst: BinaryField16b,      // dst
     pub(crate) src: BinaryField16b,      // src
@@ -56,7 +72,7 @@ impl MVEventOutput {
         parent: u32, // parent addr
         opcode: Opcode,
         field_pc: BinaryField32b, // field PC
-        fp: u32,                  // fp
+        fp: FramePointer,         // fp
         timestamp: u32,           // timestamp
         dst: BinaryField16b,      // dst
         src: BinaryField16b,      // src
@@ -130,7 +146,7 @@ impl MVEventOutput {
 #[derive(Debug, Clone)]
 pub struct MVVWEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -145,7 +161,7 @@ impl MVVWEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_addr: u32,
@@ -167,26 +183,24 @@ impl MVVWEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_vrom_opt_u32(src_addr)?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let src_addr = ctx.addr(src.val());
+        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            trace.set_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -203,29 +217,26 @@ impl MVVWEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
-            trace.insert_pending(
+            ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvw, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
-        let pc = interpreter.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
+        let pc = ctx.pc;
 
-        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_vrom_opt_u32(src_addr)?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
@@ -236,24 +247,24 @@ impl MVVWEvent {
                 dst,
                 offset,
                 src,
-                pc: field_pc,
+                pc: ctx.field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_apply.push(new_mv_info);
-            interpreter.incr_pc();
+            ctx.moves_to_apply.push(new_mv_info);
+            ctx.incr_pc();
             return Ok(None);
         }
 
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        interpreter.incr_pc();
+        ctx.incr_pc();
 
-        trace.set_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
+        ctx.store_vrom_u32(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -265,7 +276,7 @@ impl MVVWEvent {
     }
 }
 
-impl_mv_fire!(MVVWEvent);
+impl_mv_event!(MVVWEvent, mvvw);
 
 /// Event for MVV.L.
 ///
@@ -276,7 +287,7 @@ impl_mv_fire!(MVVWEvent);
 #[derive(Debug, Clone)]
 pub struct MVVLEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -289,7 +300,7 @@ impl MVVLEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_addr: u32,
@@ -311,26 +322,24 @@ impl MVVLEvent {
 
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_vrom_opt_u128(src_addr)?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let src_addr = ctx.addr(src.val());
+        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            trace.set_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.store_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -343,29 +352,30 @@ impl MVVLEvent {
                 offset: offset.val(),
             }))
         } else {
-            trace.insert_pending(
+            // `src_val` is not yet known, which is means it's a return value from the
+            // function called. So we insert `dst_addr ^ offset` to the addresses to track
+            // in `pending_updates`. As soon as it is set in the called function, we can
+            // also set the value at `src_addr` and generate the MOVE event.
+            ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvl, pc, fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
             );
             Ok(None)
         }
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         src: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
-        let fp = interpreter.fp;
+        let pc = ctx.pc;
+        let timestamp = ctx.timestamp;
+        let fp = ctx.fp;
 
-        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
-        let src_addr = fp ^ src.val() as u32;
-        let opt_src_val = trace.get_vrom_opt_u128(src_addr)?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
 
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
@@ -376,22 +386,22 @@ impl MVVLEvent {
                 dst,
                 offset,
                 src,
-                pc: field_pc,
+                pc: ctx.field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_apply.push(new_mv_info);
-            interpreter.incr_pc();
+            ctx.moves_to_apply.push(new_mv_info);
+            ctx.incr_pc();
             return Ok(None);
         }
 
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        trace.set_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
+        ctx.store_vrom_u128(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
-            pc: field_pc,
+            pc: ctx.field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -403,7 +413,7 @@ impl MVVLEvent {
     }
 }
 
-impl_mv_fire!(MVVLEvent);
+impl_mv_event!(MVVLEvent, mvvl);
 
 /// Event for MVI.H.
 ///
@@ -415,7 +425,7 @@ impl_mv_fire!(MVVLEvent);
 #[derive(Debug, Clone)]
 pub struct MVIHEvent {
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,
     dst_addr: u32,
@@ -426,35 +436,13 @@ pub struct MVIHEvent {
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
 // zero-extended. So it needs to be updated once we have multi-granularity.
 impl MVIHEvent {
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        dst: u16,
-        dst_addr: u32,
-        imm: u16,
-        offset: u16,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            dst_addr,
-            imm,
-            offset,
-        }
-    }
-
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate_event_from_info(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         pc: BinaryField32b,
         timestamp: u32,
-        fp: u32,
+        fp: FramePointer,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
@@ -462,9 +450,9 @@ impl MVIHEvent {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = trace.get_vrom_u32(fp ^ dst.val() as u32)?;
+        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
 
-        trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -478,27 +466,25 @@ impl MVIHEvent {
     }
 
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
         imm: BinaryField16b,
-        field_pc: BinaryField32b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let fp = interpreter.fp;
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
+        let fp = ctx.fp;
+        let pc = ctx.pc;
+        let timestamp = ctx.timestamp;
 
-        let opt_dst_addr = trace.get_vrom_opt_u32(fp ^ dst.val() as u32)?;
+        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            trace.set_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
-            interpreter.incr_pc();
+            ctx.store_vrom_u32(ctx.addr(offset.val()), imm.val() as u32)?;
+            ctx.incr_pc();
 
             Ok(Some(Self {
-                pc: field_pc,
+                pc: ctx.field_pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -512,65 +498,57 @@ impl MVIHEvent {
                 dst,
                 offset,
                 src: imm,
-                pc: field_pc,
+                pc: ctx.field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
-            interpreter.moves_to_apply.push(new_mv_info);
-            interpreter.incr_pc();
+            ctx.moves_to_apply.push(new_mv_info);
+            ctx.incr_pc();
             Ok(None)
         }
     }
 }
 
-impl_mv_fire!(MVIHEvent);
+impl_mv_event!(MVIHEvent, mvih);
 
 // Event for LDI.
 #[derive(Debug, Clone)]
-pub struct LDIEvent {
-    pub pc: BinaryField32b,
-    pub fp: u32,
-    pub timestamp: u32,
-    pub dst: u16,
-    pub imm: u32,
+pub(crate) struct LDIEvent {
+    pc: BinaryField32b,
+    fp: FramePointer,
+    timestamp: u32,
+    dst: u16,
+    imm: u32,
 }
 
 impl LDIEvent {
-    pub const fn new(pc: BinaryField32b, fp: u32, timestamp: u32, dst: u16, imm: u32) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            dst,
-            imm,
-        }
-    }
-
     pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
-        imm: BinaryField32b,
-        field_pc: BinaryField32b,
-    ) -> Result<Self, InterpreterError> {
-        let fp = interpreter.fp;
-        let pc = interpreter.pc;
-        let timestamp = interpreter.timestamp;
+        imm_low: BinaryField16b,
+        imm_high: BinaryField16b,
+    ) -> Result<Option<Self>, InterpreterError> {
+        let fp = ctx.fp;
+        let pc = ctx.pc;
+        let timestamp = ctx.timestamp;
 
-        trace.set_vrom_u32(fp ^ dst.val() as u32, imm.val())?;
-        interpreter.incr_pc();
+        let imm = BinaryField32b::from_bases([imm_low, imm_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
 
-        Ok(Self {
-            pc: field_pc,
+        ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
+        ctx.incr_pc();
+
+        Ok(Some(Self {
+            pc: ctx.field_pc,
             fp,
             timestamp,
             dst: dst.val(),
             imm: imm.val(),
-        })
+        }))
     }
 }
 
-impl_mv_fire!(LDIEvent);
+impl_mv_event!(LDIEvent, ldi);
 
 mod tests {
     use std::collections::HashMap;
