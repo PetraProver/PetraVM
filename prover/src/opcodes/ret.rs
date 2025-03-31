@@ -115,11 +115,11 @@ where
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
-            fp_col[i] = event.fp;
+            fp_col[i] = B32::new(*event.fp);
             fp_0_val_col[i] = event.fp_0_val;
             fp_1_val_col[i] = event.fp_1_val;
             prom_pull_col[i] = pack_prom_entry_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
-            fp_plus_one_col[i] = fp_col[i] + 1;
+            fp_plus_one_col[i] = B32::new(event.fp.addr(1u32));
         }
 
         Ok(())

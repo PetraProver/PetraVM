@@ -24,11 +24,11 @@ pub(crate) mod shift;
 pub(crate) use binary_ops::{b128, b32};
 
 /// An `Event` represents an instruction that can be executed by the VM.
-pub trait Event {
+pub(crate) trait Event {
     /// Generates a new event and pushes it to its corresponding list in the set
     /// of traces.
     fn generate(
-        ctx: &mut EventContext,
+        ctx: &mut context::EventContext,
         arg0: BinaryField16b,
         arg1: BinaryField16b,
         arg2: BinaryField16b,

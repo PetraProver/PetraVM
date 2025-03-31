@@ -144,7 +144,7 @@ where
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
-            fp_col[i] = event.fp;
+            fp_col[i] = B32::new(*event.fp); // Convert to B32 using deref
             dst_col[i] = event.dst;
 
             // Split the immediate value into low and high parts
@@ -159,7 +159,7 @@ where
                 imm_low_col[i],
                 imm_high_col[i],
             );
-            vrom_abs_addr_col[i] = fp_col[i] + dst_col[i] as u32;
+            vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i] as u32));
             computed_imm_col[i] = event.imm;
         }
 

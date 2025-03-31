@@ -511,18 +511,23 @@ impl MVIHEvent {
 
 impl_mv_event!(MVIHEvent, mvih);
 
-// Event for LDI.
+/// Event for LDI (Load Immediate).
+///
+/// Performs a load of an immediate value into a VROM address.
+///
+/// Logic:
+///   1. FP[dst] = imm
 #[derive(Debug, Clone)]
-pub(crate) struct LDIEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    imm: u32,
+pub struct LDIEvent {
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub imm: u32,
 }
 
 impl LDIEvent {
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         imm_low: BinaryField16b,

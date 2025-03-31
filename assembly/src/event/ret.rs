@@ -14,15 +14,15 @@ use crate::execution::{
 ///   2. FP = FP[1]
 #[derive(Debug, PartialEq, Clone)]
 pub struct RetEvent {
-    pub(crate) pc: BinaryField32b,
-    pub(crate) fp: FramePointer,
-    pub(crate) timestamp: u32,
-    pub(crate) fp_0_val: u32,
-    pub(crate) fp_1_val: u32,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub fp_0_val: u32,
+    pub fp_1_val: u32,
 }
 
 impl RetEvent {
-    pub fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
+    pub(crate) fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
         let fp = ctx.fp;
         Ok(Self {
             pc: ctx.field_pc,
