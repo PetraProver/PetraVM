@@ -15,29 +15,29 @@ use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::Statement;
 use bumpalo::Bump;
 
-use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
+use crate::{circuit::Circuit, model::Trace};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
 
 /// Main prover for zCrayVM.
 // TODO: should be customizable by supported opcodes
-pub struct ZkVMProver {
+pub struct Prover {
     /// Arithmetic circuit for zCrayVM
-    circuit: ZkVMCircuit,
+    circuit: Circuit,
 }
 
-impl Default for ZkVMProver {
+impl Default for Prover {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMProver {
+impl Prover {
     /// Create a new zCrayVM prover.
     pub fn new() -> Self {
         Self {
-            circuit: ZkVMCircuit::new(),
+            circuit: Circuit::new(),
         }
     }
 
@@ -57,7 +57,7 @@ impl ZkVMProver {
     /// * Result containing the proof, statement, and compiled constraint system
     pub fn prove(
         &self,
-        trace: &ZkVMTrace,
+        trace: &Trace,
     ) -> Result<(
         Proof,
         Statement,

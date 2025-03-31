@@ -4,23 +4,12 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use log::info;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
-use zcrayvm_prover::model::ZkVMTrace;
-use zcrayvm_prover::prover::{verify_proof, ZkVMProver};
+use zcrayvm_prover::model::Trace;
+use zcrayvm_prover::prover::{verify_proof, Prover};
 
-/// Creates a basic execution trace with just LDI and RET instructions.
-///
-/// # Arguments
-/// * `value` - The immediate value to load with the LDI instruction
-///
-/// # Returns
-/// * A ZkVMTrace containing an LDI instruction that loads `value` into VROM at
-///   address fp+2, followed by a RET instruction
-fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
+fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     let asm_code = format!(
         "#[framesize(0x10)]\n\
          _start: LDI.W @2, #{}\n\
@@ -46,8 +35,8 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
-    // Convert to ZkVMTrace format for the prover
-    let mut zkvm_trace = ZkVMTrace::from_zcray_trace(zcray_trace);
+    // Convert to Trace format for the prover
+    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
 
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program);
@@ -79,7 +68,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     let value = 0x12345678;
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_ldi_ret_trace(value)?;
 
     // Verify trace has correct structure
@@ -101,21 +90,21 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
     // Step 4: Generate proof
-    println!("Generating proof...");
+    info!("Generating proof...");
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
     // Step 5: Verify proof
-    println!("Verifying proof...");
+    info!("Verifying proof...");
     verify_proof(&statement, &compiled_cs, proof)?;
 
-    println!("All steps completed successfully!");
+    info!("All steps completed successfully!");
     Ok(())
 }

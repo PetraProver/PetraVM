@@ -12,7 +12,7 @@ use bytemuck::Pod;
 use zcrayvm_assembly::LDIEvent;
 
 use crate::{
-    channels::ZkVMChannels,
+    channels::Channels,
     utils::{pack_prom_entry_b128, pack_prom_opcode},
 };
 
@@ -59,7 +59,7 @@ impl LdiTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ldi");
 
         // Add columns for PC, FP, and other instruction components

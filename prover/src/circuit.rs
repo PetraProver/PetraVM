@@ -6,17 +6,16 @@
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 
 use crate::{
-    channels::ZkVMChannels,
-    model::ZkVMTrace,
+    channels::Channels,
+    model::Trace,
     tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
-/// Complete zCrayVM circuit with all tables for the proving system.
-pub struct ZkVMCircuit {
+pub struct Circuit {
     /// Constraint system
     pub cs: ConstraintSystem,
     /// Channels for connecting tables
-    pub channels: ZkVMChannels,
+    pub channels: Channels,
     /// Program ROM table
     pub prom_table: PromTable,
     // TODO: We should not have this table in prover
@@ -32,20 +31,20 @@ pub struct ZkVMCircuit {
     pub ret_table: RetTable,
 }
 
-impl Default for ZkVMCircuit {
+impl Default for Circuit {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMCircuit {
+impl Circuit {
     /// Create a new zCrayVM circuit.
     ///
     /// This initializes the constraint system, channels, and all tables
     /// needed for the zCrayVM execution.
     pub fn new() -> Self {
         let mut cs = ConstraintSystem::new();
-        let channels = ZkVMChannels::new(&mut cs);
+        let channels = Channels::new(&mut cs);
 
         // Create all the tables
         let prom_table = PromTable::new(&mut cs, &channels);
@@ -75,7 +74,7 @@ impl ZkVMCircuit {
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
-    pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
+    pub fn create_statement(&self, trace: &Trace) -> anyhow::Result<Statement> {
         let vrom_size = trace.trace.vrom_size().next_power_of_two();
 
         // Build the statement with boundary values

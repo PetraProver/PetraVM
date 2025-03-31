@@ -11,7 +11,7 @@ use bytemuck::Pod;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
-    channels::ZkVMChannels,
+    channels::Channels,
     model::Instruction,
     utils::{pack_prom_entry, pack_prom_entry_b128},
 };
@@ -45,7 +45,7 @@ impl PromTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
 
         // Add columns for PC and instruction components
@@ -140,7 +140,7 @@ impl VromWriteTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
 
         // Add columns for address and value
@@ -210,7 +210,7 @@ impl VromSkipTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_skip");
 
         // Add column for address
@@ -274,7 +274,7 @@ impl VromAddrSpaceTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_addr_space");
 
         // Add column for address

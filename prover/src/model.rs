@@ -47,7 +47,7 @@ impl From<InterpreterInstruction> for Instruction {
 /// 2. The original ZCrayTrace with all execution events and memory state
 /// 3. A list of VROM writes (address, value) pairs
 #[derive(Debug)]
-pub struct ZkVMTrace {
+pub struct Trace {
     /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
@@ -56,13 +56,13 @@ pub struct ZkVMTrace {
     pub vrom_writes: Vec<(u32, u32)>,
 }
 
-impl Default for ZkVMTrace {
+impl Default for Trace {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMTrace {
+impl Trace {
     /// Creates a new empty execution trace.
     pub fn new() -> Self {
         Self {
@@ -72,7 +72,7 @@ impl ZkVMTrace {
         }
     }
 
-    /// Creates a ZkVMTrace from an existing ZCrayTrace.
+    /// Creates a Trace from an existing ZCrayTrace.
     ///
     /// This is useful when you have a trace from the interpreter and want
     /// to convert it to the proving format.

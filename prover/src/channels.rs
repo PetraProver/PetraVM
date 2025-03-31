@@ -8,7 +8,7 @@ use binius_m3::builder::ConstraintSystem;
 
 /// Holds all channel IDs used in the zCrayVM proving system.
 #[derive(Debug, Clone)]
-pub struct ZkVMChannels {
+pub struct Channels {
     /// Channel for state transitions (PC, FP)
     /// Follows format [PC, FP]
     pub state_channel: ChannelId,
@@ -28,7 +28,7 @@ pub struct ZkVMChannels {
     pub vrom_addr_space_channel: ChannelId,
 }
 
-impl ZkVMChannels {
+impl Channels {
     /// Create all channels needed for the proving system.
     pub fn new(cs: &mut ConstraintSystem) -> Self {
         Self {

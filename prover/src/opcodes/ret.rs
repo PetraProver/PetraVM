@@ -10,7 +10,7 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::RetEvent;
 
-use crate::{channels::ZkVMChannels, utils::pack_prom_entry_b128};
+use crate::{channels::Channels, utils::pack_prom_entry_b128};
 
 const RET_OPCODE: u32 = 0x0b;
 
@@ -48,7 +48,7 @@ impl RetTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
 
         // Add columns for PC, FP, and return values

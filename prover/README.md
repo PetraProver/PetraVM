@@ -72,11 +72,11 @@ The proving system is built using an M3 arithmetic circuit with the following co
 The proving system is used to generate and verify proofs of zCrayVM execution:
 
 ```rust
-use zcrayvm_prover::prover::{ZkVMProver, verify_proof};
-use zcrayvm_prover::model::ZkVMTrace;
+use zcrayvm_prover::prover::{Prover, verify_proof};
+use zcrayvm_prover::model::Trace;
 
 // Create a prover
-let prover = ZkVMProver::new();
+let prover = Prover::new();
 
 // Generate a proof
 let (proof, statement, compiled_cs) = prover.prove(&trace)?;
