@@ -27,9 +27,8 @@ const LDI_OPCODE: u32 = Opcode::Ldi as u32;
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is an LDI instruction
-/// 4. Compute the immediate value from the low and high parts
-/// 5. Store the immediate value at FP + dst in VROM
-/// 6. Update PC to move to the next instruction
+/// 4. Store the 32-bit immediate value at FP + dst in VROM
+/// 5. Update PC to move to the next instruction
 pub struct LdiTable {
     /// Table ID
     pub id: TableId,

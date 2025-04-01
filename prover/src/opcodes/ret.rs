@@ -23,8 +23,8 @@ const RET_OPCODE: u32 = Opcode::Ret as u32;
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is a RET instruction
-/// 4. Load the return PC and FP from VROM at addresses FP+0 and FP+1
-/// 5. Update the state with the new PC and FP
+/// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
+/// 5. Update the state with the new PC and FP values
 pub struct RetTable {
     /// Table ID
     pub id: TableId,

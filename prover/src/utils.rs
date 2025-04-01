@@ -20,6 +20,8 @@ macro_rules! pack_instruction_common {
 /// Packs an instruction with a 32-bit immediate value.
 ///
 /// Format: [PC (32 bits) | imm (32 bits) | arg (16 bits) | opcode (16 bits)]
+/// 
+/// The immediate value is stored as a full 32-bit value, not split into high/low parts.
 pub fn pack_instruction_with_32bits_imm(
     table: &mut TableBuilder,
     name: &str,
@@ -79,6 +81,8 @@ pub fn pack_instruction_b128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u
 /// immediate value.
 ///
 /// Format: [PC (32 bits) | imm (32 bits) | arg (16 bits) | opcode (16 bits)]
+/// 
+/// The immediate value is stored as a full 32-bit value, not split into high/low parts.
 pub fn pack_instruction_with_32bits_imm_b128(pc: u32, opcode: u16, arg: u16, imm: u32) -> B128 {
     let instr = (opcode as u64) | ((arg as u64) << 16) | ((imm as u64) << 32);
     B128::from((instr as u128) | ((pc as u128) << 64))
