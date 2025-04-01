@@ -57,7 +57,7 @@ pub(crate) trait ImmediateBinaryOperation:
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
 
-        let (_, field_pc, fp, timestamp) = ctx.execution_state();
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
 
         let event = Self::new(
             timestamp,
@@ -101,7 +101,7 @@ pub(crate) trait NonImmediateBinaryOperation:
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
 
-        let (_, field_pc, fp, timestamp) = ctx.execution_state();
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
 
         let event = Self::new(
             timestamp,

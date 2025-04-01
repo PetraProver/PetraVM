@@ -231,7 +231,7 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
@@ -368,7 +368,7 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
@@ -467,7 +467,7 @@ impl MVIHEvent {
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
 
@@ -522,7 +522,7 @@ impl LDIEvent {
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;

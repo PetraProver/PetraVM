@@ -79,7 +79,7 @@ impl AddiEvent {
         let dst_val = AddiEvent::operation(src_val.into(), imm).val();
         ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         Ok(Self {
@@ -137,7 +137,7 @@ impl Event for MuliEvent {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
@@ -204,7 +204,7 @@ impl MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
         Ok(Self {
             pc: field_pc,
@@ -244,7 +244,7 @@ impl Event for MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let mulu_event = Self {
@@ -475,7 +475,7 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {

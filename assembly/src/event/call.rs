@@ -37,7 +37,7 @@ impl Event for TailiEvent {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
@@ -111,7 +111,7 @@ impl Event for TailVEvent {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
@@ -184,7 +184,7 @@ impl Event for CalliEvent {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -251,7 +251,7 @@ impl Event for CallvEvent {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;

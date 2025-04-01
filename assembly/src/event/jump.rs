@@ -32,7 +32,7 @@ impl Event for JumpvEvent {
     ) -> Result<(), InterpreterError> {
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         ctx.jump_to(target.into());
 
@@ -79,7 +79,7 @@ impl Event for JumpiEvent {
         target_high: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;

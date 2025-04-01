@@ -124,7 +124,7 @@ impl Event for B32MuliEvent {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // B32_MULI spans over two rows in the PROM
         let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;

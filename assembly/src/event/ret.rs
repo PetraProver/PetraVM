@@ -23,7 +23,7 @@ pub struct RetEvent {
 
 impl RetEvent {
     pub fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
-        let (_, field_pc, fp, timestamp) = ctx.execution_state();
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
 
         Ok(Self {
             pc: field_pc,

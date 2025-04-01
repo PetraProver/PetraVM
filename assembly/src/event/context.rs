@@ -28,12 +28,12 @@ impl EventContext<'_> {
         *self.fp ^ offset.into()
     }
 
-    /// Outputs the current execution context tuple, containing:
+    /// Outputs the current program state tuple, containing:
     ///   - the integer program counter PC, as `u32`
     ///   - the field program counter PC, as `B32`
     ///   - the frame pointer FP, as `u32`
-    ///   - the timestamp, as `u32`
-    pub fn execution_state(&self) -> (u32, BinaryField32b, FramePointer, u32) {
+    ///   - the timestamp TS, as `u32`
+    pub fn program_state(&self) -> (u32, BinaryField32b, FramePointer, u32) {
         (self.pc, self.field_pc, self.fp, self.timestamp)
     }
 
