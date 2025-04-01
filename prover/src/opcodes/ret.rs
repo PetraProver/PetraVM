@@ -8,11 +8,11 @@ use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B32,
 };
 use bytemuck::Pod;
-use zcrayvm_assembly::RetEvent;
+use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::{channels::Channels, utils::pack_prom_entry_b128};
 
-const RET_OPCODE: u32 = 0x0b;
+const RET_OPCODE: u32 = Opcode::Ret as u32;
 
 /// RET (Return) table.
 ///
@@ -33,9 +33,9 @@ pub struct RetTable {
     /// Frame pointer column
     pub fp: Col<B32, 1>,
     /// Return PC value from VROM[fp+0]
-    pub fp_0_val: Col<B32, 1>,
+    pub next_pc: Col<B32, 1>,
     /// Return FP value from VROM[fp+1]
-    pub fp_1_val: Col<B32, 1>,
+    pub next_fp: Col<B32, 1>,
     /// PROM channel pull value
     pub prom_pull: Col<B128, 1>,
     /// FP + 1 column
@@ -54,8 +54,8 @@ impl RetTable {
         // Add columns for PC, FP, and return values
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
-        let fp_0_val = table.add_committed("fp_0_val");
-        let fp_1_val = table.add_committed("fp_1_val");
+        let next_pc = table.add_committed("next_pc");
+        let next_fp = table.add_committed("next_fp");
 
         // Pull from state channel
         table.pull(channels.state_channel, [pc, fp]);
@@ -73,18 +73,18 @@ impl RetTable {
         let fp_plus_one = table.add_computed("fp_plus_one", fp + B32::ONE);
 
         // Pull return PC and FP values from VROM channel
-        table.pull(channels.vrom_channel, [fp, fp_0_val]);
-        table.pull(channels.vrom_channel, [fp_plus_one, fp_1_val]);
+        table.pull(channels.vrom_channel, [fp, next_pc]);
+        table.pull(channels.vrom_channel, [fp_plus_one, next_fp]);
 
         // Push updated state (new PC and FP)
-        table.push(channels.state_channel, [fp_0_val, fp_1_val]);
+        table.push(channels.state_channel, [next_pc, next_fp]);
 
         Self {
             id: table.id(),
             pc,
             fp,
-            fp_0_val,
-            fp_1_val,
+            next_pc,
+            next_fp,
             prom_pull,
             fp_plus_one,
         }
@@ -108,16 +108,16 @@ where
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_mut_as(self.pc)?;
         let mut fp_col = witness.get_mut_as(self.fp)?;
-        let mut fp_0_val_col = witness.get_mut_as(self.fp_0_val)?;
-        let mut fp_1_val_col = witness.get_mut_as(self.fp_1_val)?;
+        let mut next_pc_col = witness.get_mut_as(self.next_pc)?;
+        let mut next_fp_col = witness.get_mut_as(self.next_fp)?;
         let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
         let mut fp_plus_one_col = witness.get_mut_as(self.fp_plus_one)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
             fp_col[i] = B32::new(*event.fp);
-            fp_0_val_col[i] = event.fp_0_val;
-            fp_1_val_col[i] = event.fp_1_val;
+            next_pc_col[i] = event.fp_0_val;
+            next_fp_col[i] = event.fp_1_val;
             prom_pull_col[i] = pack_prom_entry_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
             fp_plus_one_col[i] = B32::new(event.fp.addr(1u32));
         }

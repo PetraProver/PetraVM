@@ -9,14 +9,14 @@ use binius_m3::builder::{
     B32,
 };
 use bytemuck::Pod;
-use zcrayvm_assembly::LDIEvent;
+use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
     utils::{pack_prom_entry_b128, pack_prom_opcode},
 };
 
-const LDI_OPCODE: u32 = 0x0f;
+const LDI_OPCODE: u32 = Opcode::Ldi as u32;
 
 /// LDI (Load Immediate) table.
 ///

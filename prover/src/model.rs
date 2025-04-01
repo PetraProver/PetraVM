@@ -7,6 +7,20 @@ use anyhow::Result;
 use binius_field::BinaryField32b;
 use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
+/// Macro to generate event accessors
+macro_rules! impl_event_accessor {
+    ($name:ident, $event_type:ty, $field:ident) => {
+        impl Trace {
+            /// Returns a reference to the $name events from the trace.
+            ///
+            /// These events represent each $name instruction executed during the trace.
+            pub fn $name(&self) -> &Vec<$event_type> {
+                &self.trace.$field
+            }
+        }
+    };
+}
+
 /// High-level representation of a zCrayVM instruction with its PC and
 /// arguments.
 ///
@@ -88,20 +102,6 @@ impl Trace {
         }
     }
 
-    /// Returns a reference to the LDI events from the trace.
-    ///
-    /// These events represent each LDI instruction executed during the trace.
-    pub fn ldi_events(&self) -> &Vec<LDIEvent> {
-        &self.trace.ldi
-    }
-
-    /// Returns a reference to the RET events from the trace.
-    ///
-    /// These events represent each RET instruction executed during the trace.
-    pub fn ret_events(&self) -> &Vec<RetEvent> {
-        &self.trace.ret
-    }
-
     /// Add an interpreter instruction to the program.
     ///
     /// This converts the interpreter instruction to our simplified format.
@@ -165,3 +165,7 @@ impl Trace {
         Ok(())
     }
 }
+
+// Generate event accessors
+impl_event_accessor!(ldi_events, LDIEvent, ldi);
+impl_event_accessor!(ret_events, RetEvent, ret);
