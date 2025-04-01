@@ -10,7 +10,7 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use crate::{channels::Channels, utils::pack_prom_entry_b128};
+use crate::{channels::Channels, utils::pack_instruction_b128};
 
 const RET_OPCODE: u32 = Opcode::Ret as u32;
 
@@ -118,7 +118,7 @@ where
             fp_col[i] = B32::new(*event.fp);
             next_pc_col[i] = event.fp_0_val;
             next_fp_col[i] = event.fp_1_val;
-            prom_pull_col[i] = pack_prom_entry_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
+            prom_pull_col[i] = pack_instruction_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
             fp_plus_one_col[i] = B32::new(event.fp.addr(1u32));
         }
 

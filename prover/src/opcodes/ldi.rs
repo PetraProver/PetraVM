@@ -13,7 +13,7 @@ use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
-    utils::{pack_prom_entry_b128, pack_prom_opcode},
+    utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };
 
 const LDI_OPCODE: u32 = Opcode::Ldi as u32;
@@ -39,18 +39,14 @@ pub struct LdiTable {
     pub fp: Col<B32, 1>,
     /// Destination VROM offset column
     pub dst: Col<B16, 1>,
-    /// Immediate value low bits column
-    pub imm_low: Col<B16, 1>,
-    /// Immediate value high bits column
-    pub imm_high: Col<B16, 1>,
+    /// Immediate value
+    pub imm: Col<B32, 1>,
     /// PROM channel pull value
     pub prom_pull: Col<B128, 1>,
     /// Next PC column
     pub next_pc: Col<B32, 1>,
     /// VROM absolute address column
     pub vrom_abs_addr: Col<B32, 1>,
-    /// Computed immediate value column
-    pub computed_imm: Col<B32, 1>,
 }
 
 impl LdiTable {
@@ -66,35 +62,23 @@ impl LdiTable {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("cur_fp");
         let dst = table.add_committed("dst");
-        let imm_low = table.add_committed("imm_low");
-        let imm_high = table.add_committed("imm_high");
+        let imm = table.add_committed("imm");
 
         // Pull from state channel (get current state)
         table.pull(channels.state_channel, [pc, fp]);
 
         // Pack instruction for PROM channel pull
-        let prom_pull = pack_prom_opcode(
-            &mut table,
-            "prom_pull",
-            pc,
-            LDI_OPCODE,
-            [dst, imm_low, imm_high],
-        );
+        let prom_pull =
+            pack_instruction_with_32bits_imm(&mut table, "prom_pull", pc, LDI_OPCODE, dst, imm);
 
         // Pull from PROM channel
         table.pull(channels.prom_channel, [prom_pull]);
-
-        // Compute the immediate value (combine low and high parts)
-        let computed_imm = table.add_computed::<B32, 1>(
-            "computed_imm",
-            upcast_expr(imm_low.into()) + upcast_expr(imm_high.into()) * B32::from(65536), // 2^16
-        );
 
         // Compute absolute address for VROM
         let vrom_abs_addr = table.add_computed::<B32, 1>("abs_addr", fp + upcast_expr(dst.into()));
 
         // Pull from VROM channel
-        table.pull(channels.vrom_channel, [vrom_abs_addr, computed_imm]);
+        table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
 
         // Compute next PC
         let next_pc = table.add_computed::<B32, 1>("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
@@ -107,12 +91,10 @@ impl LdiTable {
             pc,
             fp,
             dst,
-            imm_low,
-            imm_high,
+            imm,
             prom_pull,
             next_pc,
             vrom_abs_addr,
-            computed_imm,
         }
     }
 }
@@ -135,32 +117,25 @@ where
         let mut pc_col = witness.get_mut_as(self.pc)?;
         let mut fp_col = witness.get_mut_as(self.fp)?;
         let mut dst_col = witness.get_mut_as(self.dst)?;
-        let mut imm_low_col = witness.get_mut_as(self.imm_low)?;
-        let mut imm_high_col = witness.get_mut_as(self.imm_high)?;
+        let mut imm_col = witness.get_mut_as(self.imm)?;
         let mut next_pc_col = witness.get_mut_as(self.next_pc)?;
         let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
         let mut vrom_abs_addr_col = witness.get_mut_as(self.vrom_abs_addr)?;
-        let mut computed_imm_col = witness.get_mut_as(self.computed_imm)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
             fp_col[i] = B32::new(*event.fp); // Convert to B32 using deref
             dst_col[i] = event.dst;
-
-            // Split the immediate value into low and high parts
-            imm_low_col[i] = (event.imm & 0xFFFF) as u16;
-            imm_high_col[i] = ((event.imm >> 16) & 0xFFFF) as u16;
+            imm_col[i] = event.imm;
 
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
-            prom_pull_col[i] = pack_prom_entry_b128(
+            prom_pull_col[i] = pack_instruction_with_32bits_imm_b128(
                 pc_col[i].val(),
                 LDI_OPCODE as u16,
                 dst_col[i],
-                imm_low_col[i],
-                imm_high_col[i],
+                imm_col[i],
             );
             vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i] as u32));
-            computed_imm_col[i] = event.imm;
         }
 
         Ok(())

@@ -13,7 +13,7 @@ pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
     channels::Channels,
     model::Instruction,
-    utils::{pack_prom_entry, pack_prom_entry_b128},
+    utils::{pack_instruction, pack_instruction_b128},
 };
 
 /// PROM (Program ROM) table for storing program instructions.
@@ -56,7 +56,7 @@ impl PromTable {
         let arg3 = table.add_committed("arg3");
 
         // Pack the values for the PROM channel
-        let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
+        let prom_entry = pack_instruction(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
 
         // Push to the PROM channel
         table.push(channels.prom_channel, [prom_entry]);
@@ -104,7 +104,7 @@ where
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
 
-            prom_entry_col[i] = pack_prom_entry_b128(
+            prom_entry_col[i] = pack_instruction_b128(
                 pc_col[i].val(),
                 opcode_col[i],
                 arg1_col[i],
