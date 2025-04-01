@@ -35,7 +35,7 @@ pub fn pack_instruction_with_32bits_imm(
     table: &mut TableBuilder,
     name: &str,
     pc: Col<B32>,
-    opcode: u32,
+    opcode: u16,
     arg: Col<B16>,
     imm: Col<B32>,
 ) -> Col<B128> {
@@ -84,7 +84,7 @@ pub fn pack_instruction_no_args(
     table: &mut TableBuilder,
     name: &str,
     pc: Col<B32>,
-    opcode: u32,
+    opcode: u16,
 ) -> Col<B128> {
     table.add_computed(
         name,

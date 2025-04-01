@@ -15,7 +15,7 @@ use crate::{
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };
 
-const LDI_OPCODE: u32 = Opcode::Ldi as u32;
+const LDI_OPCODE: u16 = Opcode::Ldi as u16;
 
 /// LDI (Load Immediate) table.
 ///
@@ -129,7 +129,7 @@ where
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
             prom_pull_col[i] = pack_instruction_with_32bits_imm_b128(
                 pc_col[i],
-                B16::new(LDI_OPCODE as u16),
+                B16::new(LDI_OPCODE),
                 dst_col[i],
                 imm_col[i],
             );

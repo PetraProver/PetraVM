@@ -15,7 +15,7 @@ use crate::{
     utils::{pack_instruction_b128, pack_instruction_no_args},
 };
 
-const RET_OPCODE: u32 = Opcode::Ret as u32;
+const RET_OPCODE: u16 = Opcode::Ret as u16;
 
 /// RET (Return) table.
 ///
