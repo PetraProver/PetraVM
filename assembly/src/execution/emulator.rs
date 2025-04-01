@@ -25,9 +25,8 @@ use crate::{
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         context::EventContext,
         integer_ops::{
-            self, Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent,
-            MulsuEvent, MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent,
-            SltuEvent, SubEvent,
+            self, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent, MulsuEvent, MulsuOp, MuluEvent,
+            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -36,6 +35,7 @@ use crate::{
         Event,
     },
     execution::{StateChannel, ZCrayTrace},
+    gadgets::{Add32Gadget, Add64Gadget},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };

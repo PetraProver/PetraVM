@@ -7,6 +7,7 @@
 mod assembler;
 mod event;
 mod execution;
+mod gadgets;
 mod memory;
 mod opcodes;
 mod parser;
