@@ -120,7 +120,7 @@ where
             next_fp_col[i] = B32::new(event.fp_next);
             prom_pull_col[i] = pack_instruction_b128(
                 pc_col[i],
-                B16::new(RET_OPCODE as u16),
+                B16::new(RET_OPCODE),
                 B16::ZERO,
                 B16::ZERO,
                 B16::ZERO,
