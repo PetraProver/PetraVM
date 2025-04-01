@@ -26,11 +26,11 @@ macro_rules! pack_instruction_common {
 pub fn pack_instruction_with_32bits_imm(
     table: &mut TableBuilder,
     name: &str,
-    pc: Col<B32, 1>,
+    pc: Col<B32>,
     opcode: u32,
-    arg: Col<B16, 1>,
-    imm: Col<B32, 1>,
-) -> Col<B128, 1> {
+    arg: Col<B16>,
+    imm: Col<B32>,
+) -> Col<B128> {
     table.add_computed(
         name,
         upcast_expr(arg.into()) * B128::from(1u128 << 16)
@@ -47,10 +47,10 @@ pub fn pack_instruction_with_32bits_imm(
 pub fn pack_instruction_with_fixed_opcode(
     table: &mut TableBuilder,
     name: &str,
-    pc: Col<B32, 1>,
+    pc: Col<B32>,
     opcode: u32,
-    args: [Col<B16, 1>; 3],
-) -> Col<B128, 1> {
+    args: [Col<B16>; 3],
+) -> Col<B128> {
     pack_instruction_common!(table, name, pc, args, B128::new(opcode as u128))
 }
 
@@ -61,10 +61,10 @@ pub fn pack_instruction_with_fixed_opcode(
 pub fn pack_instruction(
     table: &mut TableBuilder,
     name: &str,
-    pc: Col<B32, 1>,
-    opcode: Col<B16, 1>,
-    args: [Col<B16, 1>; 3],
-) -> Col<B128, 1> {
+    pc: Col<B32>,
+    opcode: Col<B16>,
+    args: [Col<B16>; 3],
+) -> Col<B128> {
     pack_instruction_common!(table, name, pc, args, upcast_expr(opcode.into()))
 }
 

@@ -3,6 +3,7 @@
 //! This module contains the RET table which handles return operations
 //! in the zCrayVM execution.
 
+use binius_field::underlier::Divisible;
 use binius_field::{as_packed_field::PackScalar, Field};
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B32,
@@ -29,17 +30,17 @@ pub struct RetTable {
     /// Table ID
     pub id: TableId,
     /// PC column
-    pub pc: Col<B32, 1>,
+    pub pc: Col<B32>,
     /// Frame pointer column
-    pub fp: Col<B32, 1>,
+    pub fp: Col<B32>,
     /// Return PC value from VROM[fp+0]
-    pub next_pc: Col<B32, 1>,
+    pub next_pc: Col<B32>,
     /// Return FP value from VROM[fp+1]
-    pub next_fp: Col<B32, 1>,
+    pub next_fp: Col<B32>,
     /// PROM channel pull value
-    pub prom_pull: Col<B128, 1>,
+    pub prom_pull: Col<B128>,
     /// FP + 1 column
-    pub fp_plus_one: Col<B32, 1>,
+    pub fp_plus_one: Col<B32>,
 }
 
 impl RetTable {
@@ -93,7 +94,7 @@ impl RetTable {
 
 impl<U> TableFiller<U> for RetTable
 where
-    U: Pod + PackScalar<B1>,
+    U: Pod + PackScalar<B32> + PackScalar<B128> + PackScalar<B1> + Divisible<u32> + Divisible<u128>,
 {
     type Event = RetEvent;
 
@@ -106,18 +107,18 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_mut_as(self.pc)?;
-        let mut fp_col = witness.get_mut_as(self.fp)?;
-        let mut next_pc_col = witness.get_mut_as(self.next_pc)?;
-        let mut next_fp_col = witness.get_mut_as(self.next_fp)?;
-        let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
-        let mut fp_plus_one_col = witness.get_mut_as(self.fp_plus_one)?;
+        let mut pc_col = witness.get_scalars_mut(self.pc)?;
+        let mut fp_col = witness.get_scalars_mut(self.fp)?;
+        let mut next_pc_col = witness.get_scalars_mut(self.next_pc)?;
+        let mut next_fp_col = witness.get_scalars_mut(self.next_fp)?;
+        let mut prom_pull_col = witness.get_scalars_mut(self.prom_pull)?;
+        let mut fp_plus_one_col = witness.get_scalars_mut(self.fp_plus_one)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
             fp_col[i] = B32::new(*event.fp);
-            next_pc_col[i] = event.fp_0_val;
-            next_fp_col[i] = event.fp_1_val;
+            next_pc_col[i] = B32::new(event.pc_next);
+            next_fp_col[i] = B32::new(event.fp_next);
             prom_pull_col[i] = pack_instruction_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
             fp_plus_one_col[i] = B32::new(event.fp.addr(1u32));
         }

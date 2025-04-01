@@ -4,6 +4,7 @@
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::as_packed_field::PackScalar;
+use binius_field::underlier::Divisible;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 use binius_m3::builder::{TableWitnessSegment, B1};
 use bytemuck::Pod;
@@ -26,17 +27,17 @@ pub struct PromTable {
     /// Table ID
     pub id: TableId,
     /// PC column
-    pub pc: Col<B32, 1>,
+    pub pc: Col<B32>,
     /// Opcode column
-    pub opcode: Col<B16, 1>,
+    pub opcode: Col<B16>,
     /// Argument 1 column
-    pub arg1: Col<B16, 1>,
+    pub arg1: Col<B16>,
     /// Argument 2 column
-    pub arg2: Col<B16, 1>,
+    pub arg2: Col<B16>,
     /// Argument 3 column
-    pub arg3: Col<B16, 1>,
+    pub arg3: Col<B16>,
     /// Packed instruction for PROM channel
-    pub instruction: Col<B128, 1>,
+    pub instruction: Col<B128>,
 }
 
 impl PromTable {
@@ -76,7 +77,14 @@ impl PromTable {
 
 impl<U> TableFiller<U> for PromTable
 where
-    U: Pod + PackScalar<B1>,
+    U: Pod
+        + PackScalar<B32>
+        + PackScalar<B16>
+        + PackScalar<B128>
+        + PackScalar<B1>
+        + Divisible<u32>
+        + Divisible<u16>
+        + Divisible<u128>,
 {
     type Event = Instruction;
 
@@ -89,28 +97,28 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_mut_as(self.pc)?;
-        let mut opcode_col = witness.get_mut_as(self.opcode)?;
-        let mut arg1_col = witness.get_mut_as(self.arg1)?;
-        let mut arg2_col = witness.get_mut_as(self.arg2)?;
-        let mut arg3_col = witness.get_mut_as(self.arg3)?;
-        let mut instruction_col = witness.get_mut_as(self.instruction)?;
+        let mut pc_col = witness.get_scalars_mut(self.pc)?;
+        let mut opcode_col = witness.get_scalars_mut(self.opcode)?;
+        let mut arg1_col = witness.get_scalars_mut(self.arg1)?;
+        let mut arg2_col = witness.get_scalars_mut(self.arg2)?;
+        let mut arg3_col = witness.get_scalars_mut(self.arg3)?;
+        let mut instruction_col = witness.get_scalars_mut(self.instruction)?;
 
         for (i, instr) in rows.enumerate() {
-            pc_col[i] = instr.pc;
-            opcode_col[i] = instr.opcode as u16;
+            pc_col[i] = B32::new(instr.pc.val());
+            opcode_col[i] = B16::new(instr.opcode as u16);
 
             // Fill arguments, using 0 if the argument doesn't exist
-            arg1_col[i] = instr.args.first().copied().unwrap_or(0);
-            arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
-            arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
+            arg1_col[i] = B16::new(instr.args.first().copied().unwrap_or(0));
+            arg2_col[i] = B16::new(instr.args.get(1).copied().unwrap_or(0));
+            arg3_col[i] = B16::new(instr.args.get(2).copied().unwrap_or(0));
 
             instruction_col[i] = pack_instruction_b128(
                 pc_col[i].val(),
-                opcode_col[i],
-                arg1_col[i],
-                arg2_col[i],
-                arg3_col[i],
+                opcode_col[i].val(),
+                arg1_col[i].val(),
+                arg2_col[i].val(),
+                arg3_col[i].val(),
             );
         }
 
@@ -129,9 +137,9 @@ pub struct VromWriteTable {
     /// Table ID
     pub id: TableId,
     /// Address column (from address space channel)
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
     /// Value column (from VROM channel)
-    pub value: Col<B32, 1>,
+    pub value: Col<B32>,
 }
 
 impl VromWriteTable {
@@ -164,7 +172,7 @@ impl VromWriteTable {
 
 impl<U> TableFiller<U> for VromWriteTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B32> + Divisible<u32>,
 {
     type Event = (u32, u32);
 
@@ -177,13 +185,13 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
-        let mut value_col = witness.get_mut_as(self.value)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
+        let mut value_col = witness.get_scalars_mut(self.value)?;
 
         // Fill in values from events
         for (i, (addr, value)) in rows.enumerate() {
-            addr_col[i] = *addr;
-            value_col[i] = *value;
+            addr_col[i] = B32::new(*addr);
+            value_col[i] = B32::new(*value);
         }
 
         Ok(())
@@ -201,7 +209,7 @@ pub struct VromSkipTable {
     /// Table ID
     pub id: TableId,
     /// Address column (from address space channel)
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
 }
 
 impl VromSkipTable {
@@ -229,7 +237,7 @@ impl VromSkipTable {
 
 impl<U> TableFiller<U> for VromSkipTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B32> + Divisible<u32>,
 {
     type Event = u32;
 
@@ -242,11 +250,11 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
 
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
-            addr_col[i] = *addr;
+            addr_col[i] = B32::new(*addr);
         }
 
         Ok(())
@@ -265,7 +273,7 @@ pub struct VromAddrSpaceTable {
     /// Table ID
     pub id: TableId,
     /// Address column
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
 }
 
 impl VromAddrSpaceTable {
@@ -293,7 +301,7 @@ impl VromAddrSpaceTable {
 
 impl<U> TableFiller<U> for VromAddrSpaceTable
 where
-    U: Pod + PackScalar<B32>,
+    U: Pod + PackScalar<B32> + Divisible<u32>,
 {
     type Event = u32;
 
@@ -306,11 +314,11 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
 
         // Fill the addresses from the provided rows
         for (i, &addr) in rows.enumerate() {
-            addr_col[i] = addr;
+            addr_col[i] = B32::new(addr);
         }
 
         Ok(())

@@ -17,8 +17,8 @@ pub struct RetEvent {
     pub pc: BinaryField32b,
     pub fp: FramePointer,
     pub timestamp: u32,
-    pub fp_0_val: u32,
-    pub fp_1_val: u32,
+    pub pc_next: u32,
+    pub fp_next: u32,
 }
 
 impl RetEvent {
@@ -28,8 +28,8 @@ impl RetEvent {
             pc: ctx.field_pc,
             fp,
             timestamp: ctx.timestamp,
-            fp_0_val: ctx.load_vrom_u32(ctx.addr(0u32))?,
-            fp_1_val: ctx.load_vrom_u32(ctx.addr(1u32))?,
+            pc_next: ctx.load_vrom_u32(ctx.addr(0u32))?,
+            fp_next: ctx.load_vrom_u32(ctx.addr(1u32))?,
         })
     }
 }
@@ -56,8 +56,8 @@ impl Event for RetEvent {
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
-            BinaryField32b::new(self.fp_0_val),
-            self.fp_1_val,
+            BinaryField32b::new(self.pc_next),
+            self.fp_next,
             self.timestamp,
         ));
     }

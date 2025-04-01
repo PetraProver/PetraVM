@@ -3,6 +3,7 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
+use binius_field::underlier::Divisible;
 use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B16,
@@ -33,19 +34,19 @@ pub struct LdiTable {
     /// Table ID
     pub id: TableId,
     /// PC column
-    pub pc: Col<B32, 1>,
+    pub pc: Col<B32>,
     /// Frame pointer column
-    pub fp: Col<B32, 1>,
+    pub fp: Col<B32>,
     /// Destination VROM offset column
-    pub dst: Col<B16, 1>,
+    pub dst: Col<B16>,
     /// Immediate value
-    pub imm: Col<B32, 1>,
+    pub imm: Col<B32>,
     /// PROM channel pull value
-    pub prom_pull: Col<B128, 1>,
+    pub prom_pull: Col<B128>,
     /// Next PC column
-    pub next_pc: Col<B32, 1>,
+    pub next_pc: Col<B32>,
     /// VROM absolute address column
-    pub vrom_abs_addr: Col<B32, 1>,
+    pub vrom_abs_addr: Col<B32>,
 }
 
 impl LdiTable {
@@ -100,7 +101,14 @@ impl LdiTable {
 
 impl<U> TableFiller<U> for LdiTable
 where
-    U: Pod + PackScalar<B1>,
+    U: Pod
+        + PackScalar<B32>
+        + PackScalar<B16>
+        + PackScalar<B128>
+        + PackScalar<B1>
+        + Divisible<u32>
+        + Divisible<u16>
+        + Divisible<u128>,
 {
     type Event = LDIEvent;
 
@@ -113,28 +121,28 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_mut_as(self.pc)?;
-        let mut fp_col = witness.get_mut_as(self.fp)?;
-        let mut dst_col = witness.get_mut_as(self.dst)?;
-        let mut imm_col = witness.get_mut_as(self.imm)?;
-        let mut next_pc_col = witness.get_mut_as(self.next_pc)?;
-        let mut prom_pull_col = witness.get_mut_as(self.prom_pull)?;
-        let mut vrom_abs_addr_col = witness.get_mut_as(self.vrom_abs_addr)?;
+        let mut pc_col = witness.get_scalars_mut(self.pc)?;
+        let mut fp_col = witness.get_scalars_mut(self.fp)?;
+        let mut dst_col = witness.get_scalars_mut(self.dst)?;
+        let mut imm_col = witness.get_scalars_mut(self.imm)?;
+        let mut next_pc_col = witness.get_scalars_mut(self.next_pc)?;
+        let mut prom_pull_col = witness.get_scalars_mut(self.prom_pull)?;
+        let mut vrom_abs_addr_col = witness.get_scalars_mut(self.vrom_abs_addr)?;
 
         for (i, event) in rows.enumerate() {
             pc_col[i] = event.pc;
-            fp_col[i] = B32::new(*event.fp); // Convert to B32 using deref
-            dst_col[i] = event.dst;
-            imm_col[i] = event.imm;
+            fp_col[i] = B32::new(*event.fp);
+            dst_col[i] = B16::new(event.dst);
+            imm_col[i] = B32::new(event.imm);
 
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
             prom_pull_col[i] = pack_instruction_with_32bits_imm_b128(
                 pc_col[i].val(),
                 LDI_OPCODE as u16,
-                dst_col[i],
-                imm_col[i],
+                dst_col[i].val(),
+                imm_col[i].val(),
             );
-            vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i] as u32));
+            vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i].val()));
         }
 
         Ok(())
