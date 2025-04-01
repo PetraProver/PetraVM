@@ -4,15 +4,19 @@
 
 // TODO: Add doc
 
-mod assembler;
-mod event;
-mod execution;
-mod memory;
-mod opcodes;
+pub mod assembler;
+pub mod event;
+pub mod execution;
+pub mod memory;
+pub mod opcodes;
 mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use execution::ZCrayTrace;
+pub use event::mv::LDIEvent;
+pub use event::ret::RetEvent;
+pub use execution::emulator::{Instruction, InterpreterInstruction};
+pub use execution::trace::BoundaryValues;
+pub use execution::trace::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
 pub use opcodes::Opcode;

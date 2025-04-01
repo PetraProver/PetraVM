@@ -93,7 +93,7 @@ pub(crate) struct Interpreter {
     pub(crate) pc: u32,
     pub(crate) fp: FramePointer,
     /// The system timestamp. Only RAM operations increase it.
-    pub(crate) timestamp: u32,
+    pub timestamp: u32,
     frames: LabelsFrameSizes,
     /// Before a CALL, there are a few move operations used to populate the next
     /// frame. But the next frame pointer is not necessarily known at this
@@ -101,7 +101,7 @@ pub(crate) struct Interpreter {
     /// used to store the move operations that need to be handled once we
     /// have enough information. Stores all move operations that should be
     /// handles during the current call procedure.
-    pub(crate) moves_to_apply: Vec<MVInfo>,
+    pub moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
     pc_field_to_int: HashMap<BinaryField32b, u32>,
@@ -122,16 +122,16 @@ impl Default for Interpreter {
 
 /// An `Instruction` is composed of an opcode and up to three 16-bit arguments
 /// to be used by this operation.
-pub(crate) type Instruction = [BinaryField16b; 4];
+pub type Instruction = [BinaryField16b; 4];
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct InterpreterInstruction {
-    pub(crate) instruction: Instruction,
-    pub(crate) field_pc: BinaryField32b,
+    pub instruction: Instruction,
+    pub field_pc: BinaryField32b,
 }
 
 impl InterpreterInstruction {
-    pub(crate) const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
+    pub const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
         Self {
             instruction,
             field_pc,
@@ -139,6 +139,15 @@ impl InterpreterInstruction {
     }
     pub fn opcode(&self) -> Opcode {
         Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
+    }
+
+    /// Get the arguments of this instruction.
+    pub fn args(&self) -> [BinaryField16b; 3] {
+        [
+            self.instruction[1],
+            self.instruction[2],
+            self.instruction[3],
+        ]
     }
 }
 

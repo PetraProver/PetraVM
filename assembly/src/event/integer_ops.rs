@@ -169,7 +169,7 @@ impl Event for MuliEvent {
 /// Performs a MULU between two unsigned 32-bit integers. Returns a 64-bit
 /// result.
 #[derive(Debug, Clone)]
-pub(crate) struct MuluEvent {
+pub struct MuluEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,

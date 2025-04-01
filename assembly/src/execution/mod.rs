@@ -1,7 +1,7 @@
-mod channels;
-mod emulator;
-mod trace;
+pub mod channels;
+pub mod emulator;
+pub mod trace;
 
-pub(crate) use channels::*;
-pub(crate) use emulator::*;
+pub use channels::*;
+pub use emulator::*;
 pub use trace::ZCrayTrace;
