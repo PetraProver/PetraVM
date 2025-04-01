@@ -3,17 +3,15 @@
 //! This module contains the definitions of all the arithmetic tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
-use binius_field::as_packed_field::PackScalar;
-use binius_field::underlier::Divisible;
+use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
-use binius_m3::builder::{TableWitnessSegment, B1};
-use bytemuck::Pod;
 
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
     channels::Channels,
     model::Instruction,
+    types::CommonTableBounds,
     utils::{pack_instruction, pack_instruction_b128},
 };
 
@@ -77,14 +75,7 @@ impl PromTable {
 
 impl<U> TableFiller<U> for PromTable
 where
-    U: Pod
-        + PackScalar<B32>
-        + PackScalar<B16>
-        + PackScalar<B128>
-        + PackScalar<B1>
-        + Divisible<u32>
-        + Divisible<u16>
-        + Divisible<u128>,
+    U: CommonTableBounds,
 {
     type Event = Instruction;
 
@@ -172,7 +163,7 @@ impl VromWriteTable {
 
 impl<U> TableFiller<U> for VromWriteTable
 where
-    U: Pod + PackScalar<B32> + Divisible<u32>,
+    U: CommonTableBounds,
 {
     type Event = (u32, u32);
 
@@ -237,7 +228,7 @@ impl VromSkipTable {
 
 impl<U> TableFiller<U> for VromSkipTable
 where
-    U: Pod + PackScalar<B32> + Divisible<u32>,
+    U: CommonTableBounds,
 {
     type Event = u32;
 
@@ -301,7 +292,7 @@ impl VromAddrSpaceTable {
 
 impl<U> TableFiller<U> for VromAddrSpaceTable
 where
-    U: Pod + PackScalar<B32> + Divisible<u32>,
+    U: CommonTableBounds,
 {
     type Event = u32;
 

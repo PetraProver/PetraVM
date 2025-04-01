@@ -3,15 +3,13 @@
 //! This module contains the RET table which handles return operations
 //! in the zCrayVM execution.
 
-use binius_field::underlier::Divisible;
-use binius_field::{as_packed_field::PackScalar, Field};
+use binius_field::Field;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B32,
 };
-use bytemuck::Pod;
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use crate::{channels::Channels, utils::pack_instruction_b128};
+use crate::{channels::Channels, types::CommonTableBounds, utils::pack_instruction_b128};
 
 const RET_OPCODE: u32 = Opcode::Ret as u32;
 
@@ -94,7 +92,7 @@ impl RetTable {
 
 impl<U> TableFiller<U> for RetTable
 where
-    U: Pod + PackScalar<B32> + PackScalar<B128> + PackScalar<B1> + Divisible<u32> + Divisible<u128>,
+    U: CommonTableBounds,
 {
     type Event = RetEvent;
 

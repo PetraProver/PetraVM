@@ -3,17 +3,15 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
-use binius_field::underlier::Divisible;
-use binius_field::{as_packed_field::PackScalar, BinaryField};
+use binius_field::BinaryField;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B128, B16,
-    B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
 };
-use bytemuck::Pod;
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
+    types::CommonTableBounds,
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };
 
@@ -101,14 +99,7 @@ impl LdiTable {
 
 impl<U> TableFiller<U> for LdiTable
 where
-    U: Pod
-        + PackScalar<B32>
-        + PackScalar<B16>
-        + PackScalar<B128>
-        + PackScalar<B1>
-        + Divisible<u32>
-        + Divisible<u16>
-        + Divisible<u128>,
+    U: CommonTableBounds,
 {
     type Event = LDIEvent;
 
