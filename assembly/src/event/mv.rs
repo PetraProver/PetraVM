@@ -542,6 +542,7 @@ impl LDIEvent {
 
 impl_mv_event!(LDIEvent, ldi);
 
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 

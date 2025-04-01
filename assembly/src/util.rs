@@ -47,6 +47,7 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
     (evens, odds)
 }
 
+#[cfg(test)]
 /// Helper method to convert Instructions to a program ROM.
 pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
     let mut prom = ProgramRom::new();

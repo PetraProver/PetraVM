@@ -375,20 +375,8 @@ mod tests {
 
     use super::*;
     use crate::parser::parse_program;
-    use crate::util::get_binary_slot;
+    use crate::util::{code_to_prom, get_binary_slot};
     use crate::util::{collatz_orbits, init_logger};
-
-    pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
-        let mut prom = ProgramRom::new();
-        let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
-        for (i, &instruction) in code.iter().enumerate() {
-            let interp_inst = InterpreterInstruction::new(instruction, pc);
-            prom.push(interp_inst);
-            pc *= G;
-        }
-
-        prom
-    }
 
     #[test]
     fn test_zcray() {
