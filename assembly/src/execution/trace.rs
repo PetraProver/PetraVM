@@ -60,11 +60,11 @@ pub struct ZCrayTrace {
     pub(crate) tailv: Vec<TailVEvent>,
     pub(crate) calli: Vec<CalliEvent>,
     pub(crate) callv: Vec<CallvEvent>,
-    pub(crate) ret: Vec<RetEvent>,
+    pub ret: Vec<RetEvent>,
     pub(crate) mvih: Vec<MVIHEvent>,
     pub(crate) mvvw: Vec<MVVWEvent>,
     pub(crate) mvvl: Vec<MVVLEvent>,
-    pub(crate) ldi: Vec<LDIEvent>,
+    pub ldi: Vec<LDIEvent>,
     pub(crate) b32_mul: Vec<B32MulEvent>,
     pub(crate) b32_muli: Vec<B32MuliEvent>,
     pub(crate) b128_add: Vec<B128AddEvent>,
@@ -177,6 +177,10 @@ impl ZCrayTrace {
         fire_events!(self.b128_mul, &mut channels, &tables);
 
         assert!(channels.state_channel.is_balanced());
+    }
+
+    pub fn vrom_size(&self) -> usize {
+        self.memory.vrom().size()
     }
 
     /// Sets a u32 value at the specified index.

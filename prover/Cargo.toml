@@ -1,0 +1,25 @@
+[package]
+name = "zcrayvm-prover"
+version.workspace = true
+edition.workspace = true
+authors = ["zCray Team"]
+
+[dependencies]
+log = "0.4"
+env_logger = "0.11.7"
+binius_core.workspace = true
+binius_field.workspace = true
+binius_m3.workspace = true
+binius_hash.workspace = true
+binius_hal.workspace = true
+anyhow = "1.0"
+zcrayvm-assembly = { path = "../assembly" }
+bumpalo = { version = "3.16.0", features = ["collections"] }
+bytemuck = { version = "1.18.0", features = [
+    "derive",
+    "min_const_generics",
+] }
+thiserror = "2.0.11"
+
+[dev-dependencies]
+zcrayvm-assembly = { path = "../assembly" }

@@ -20,7 +20,7 @@ pub(crate) enum MVKind {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct MVInfo {
+pub struct MVInfo {
     pub(crate) mv_kind: MVKind,
     pub(crate) dst: BinaryField16b,
     pub(crate) offset: BinaryField16b,
@@ -144,7 +144,7 @@ impl MVEventOutput {
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
-pub(crate) struct MVVWEvent {
+pub struct MVVWEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -285,7 +285,7 @@ impl_mv_event!(MVVWEvent, mvvw);
 /// Logic:
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
-pub(crate) struct MVVLEvent {
+pub struct MVVLEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -423,7 +423,7 @@ impl_mv_event!(MVVLEvent, mvvl);
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
-pub(crate) struct MVIHEvent {
+pub struct MVIHEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -511,18 +511,23 @@ impl MVIHEvent {
 
 impl_mv_event!(MVIHEvent, mvih);
 
-// Event for LDI.
+/// Event for LDI (Load Immediate).
+///
+/// Performs a load of an immediate value into a VROM address.
+///
+/// Logic:
+///   1. FP[dst] = imm
 #[derive(Debug, Clone)]
-pub(crate) struct LDIEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    imm: u32,
+pub struct LDIEvent {
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub imm: u32,
 }
 
 impl LDIEvent {
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         imm_low: BinaryField16b,
@@ -557,11 +562,12 @@ mod tests {
 
     use crate::{
         event::mv::{MVInfo, MVKind},
+        execution::trace::ZCrayTrace,
         execution::{Interpreter, G},
         memory::{Memory, VromPendingUpdates, VromUpdate},
         opcodes::Opcode,
         util::code_to_prom,
-        ValueRom, ZCrayTrace,
+        ValueRom,
     };
 
     #[test]

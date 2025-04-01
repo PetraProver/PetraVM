@@ -99,7 +99,7 @@ define_bin32_op_event!(
 /// Logic:
 ///   1. FP[dst] = __b32_mul(FP[src], imm)
 #[derive(Debug, Default, Clone)]
-pub(crate) struct B32MuliEvent {
+pub struct B32MuliEvent {
     timestamp: u32,
     pc: BinaryField32b,
     fp: FramePointer,

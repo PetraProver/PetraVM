@@ -19,7 +19,7 @@ use crate::{
 ///   3. FP = FP[next_fp]
 ///   4. PC = target
 #[derive(Debug, Clone)]
-pub(crate) struct TailiEvent {
+pub struct TailiEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -94,7 +94,7 @@ impl Event for TailiEvent {
 ///   3. FP = FP[next_fp]
 ///   4. PC = FP[offset]
 #[derive(Debug, Clone)]
-pub(crate) struct TailVEvent {
+pub struct TailVEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -178,7 +178,7 @@ impl Event for TailVEvent {
 ///   4. PC = target
 
 #[derive(Debug, Clone)]
-pub(crate) struct CalliEvent {
+pub struct CalliEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,
@@ -248,7 +248,7 @@ impl Event for CalliEvent {
 ///   3. FP = FP[next_fp]
 ///   4. PC = FP[offset]
 #[derive(Debug, Clone)]
-pub(crate) struct CallvEvent {
+pub struct CallvEvent {
     pc: BinaryField32b,
     fp: FramePointer,
     timestamp: u32,

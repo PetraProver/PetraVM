@@ -39,5 +39,5 @@ impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadg
     }
 }
 
-pub type Add32Gadget = AddGadget<u32>;
-pub type Add64Gadget = AddGadget<u64>;
+pub(crate) type Add32Gadget = AddGadget<u32>;
+pub(crate) type Add64Gadget = AddGadget<u64>;

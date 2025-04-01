@@ -27,6 +27,11 @@ impl VromAllocator {
         }
     }
 
+    /// Get the size of the VROM.
+    pub fn size(&self) -> usize {
+        self.pos as usize
+    }
+
     /// Set the current position of the allocator.
     pub fn set_pos(&mut self, pos: u32) {
         self.pos = pos;
