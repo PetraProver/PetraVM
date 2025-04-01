@@ -54,7 +54,7 @@ impl XoriTable {
             upcast_expr(dst.into()) * B64_B32_BASIS[0]
                 + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
         );
-        table.push(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [vrom_dst]);
 
         // Read src_val
         let vrom_src = table.add_computed(
@@ -62,7 +62,7 @@ impl XoriTable {
             upcast_expr(src.into()) * B64_B32_BASIS[0]
                 + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
         );
-        table.push(vrom_channel, [vrom_src]);
+        table.pull(vrom_channel, [vrom_src]);
 
         Self {
             id: table.id(),

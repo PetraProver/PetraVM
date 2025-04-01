@@ -1,15 +1,15 @@
-use binius_field::{
-    as_packed_field::PackScalar, underlier::UnderlierType,
-    ExtensionField,
-};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId,
-    TableWitnessIndexSegment, B1, B32, B64,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment,
+    B1, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
-use super::{cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc}, util::pack_b32_into_b64};
+use super::{
+    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
+    util::{pack_b32_into_b64, B64_B32_BASIS},
+};
 use crate::channels::ZkVMChannels;
 
 /// Table for BNZ.
@@ -51,7 +51,7 @@ impl BnzTable {
         );
 
         let cond = cpu_cols.arg0;
-        
+
         let vrom_push = table.add_computed(
             "vrom_push",
             pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),
@@ -89,11 +89,7 @@ where
             for (i, event) in rows.clone().enumerate() {
                 cond_val[i] = event.cond_val;
                 vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
-                dbg!(
-                    "Bnz fill",
-                    cond_val[i],
-                    vrom_push[i],
-                );
+                dbg!("Bnz fill", cond_val[i], vrom_push[i],);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
@@ -139,18 +135,13 @@ impl BzTable {
 
         let cond = cpu_cols.arg0;
 
-        // TODO: Load this from some utility module
-        let b64_basis: [_; 2] = std::array::from_fn(|i| {
-            <B64 as ExtensionField<B32>>::basis(i).expect("i in range 0..2; extension degree is 2")
-        });
-
         let vrom_push = table.add_computed(
             "vrom_push",
             // cond_val is zero in this case
-            upcast_expr(cond.into()) * b64_basis[0],
+            upcast_expr(cond.into()) * B64_B32_BASIS[0],
         );
         // Read cond_val
-        table.push(vrom_channel, [vrom_push]);
+        table.pull(vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
