@@ -57,7 +57,7 @@ impl BnzTable {
             pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),
         );
         // Read cond_val
-        table.push(vrom_channel, [vrom_push]);
+        table.pull(vrom_channel, [vrom_push]);
 
         Self {
             id: table.id(),
@@ -89,6 +89,11 @@ where
             for (i, event) in rows.clone().enumerate() {
                 cond_val[i] = event.cond_val;
                 vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
+                dbg!(
+                    "Bnz fill",
+                    cond_val[i],
+                    vrom_push[i],
+                );
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {

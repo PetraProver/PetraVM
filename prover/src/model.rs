@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use binius_field::BinaryField32b;
-use zcrayvm_assembly::{AddEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
+use zcrayvm_assembly::{AddEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
 /// High-level representation of a zCrayVM instruction with its PC and
 /// arguments.
@@ -100,6 +100,21 @@ impl ZkVMTrace {
     pub fn ret_events(&self) -> &Vec<RetEvent> {
         &self.trace.ret
     }
+
+    /// Returns a reference to the BNZ non zero branch events from the trace.
+    ///
+    /// These events represent each BNZ instruction executed during the trace.
+    pub fn bnz_events(&self) -> &Vec<BnzEvent> {
+        &self.trace.bnz
+    }
+
+    /// Returns a reference to the BNZ zero branch events from the trace.
+    ///
+    /// These events represent each BNZ instruction executed during the trace.
+    pub fn bz_events(&self) -> &Vec<BzEvent> {
+        &self.trace.bz
+    }
+
 
     /// Returns a reference to the ADD events from the trace.
     ///

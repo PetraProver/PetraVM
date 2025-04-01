@@ -94,6 +94,12 @@ impl ZkVMProver {
         // 7. Fill ADD table with return events
         witness.fill_table_sequential(&self.circuit.add_table, trace.add_events())?;
 
+        // 8. Fill BNZ non zero branch
+        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
+
+        // 9. Fill BNZ zero branch
+        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+
         // Convert witness to multilinear extension format for validation
         let mle_witness = witness.into_multilinear_extension_index(&statement);
 
