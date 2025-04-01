@@ -74,18 +74,16 @@ impl AddiEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let fp = ctx.fp;
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = AddiEvent::operation(src_val.into(), imm).val();
         ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
         ctx.incr_pc();
 
         Ok(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -132,7 +130,6 @@ impl Event for MuliEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
@@ -140,12 +137,11 @@ impl Event for MuliEvent {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
         ctx.incr_pc();
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -198,7 +194,6 @@ impl MuluEvent {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -209,11 +204,10 @@ impl MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
         ctx.incr_pc();
         Ok(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -240,7 +234,6 @@ impl Event for MuluEvent {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -251,12 +244,11 @@ impl Event for MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
         ctx.incr_pc();
 
         let mulu_event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -476,7 +468,6 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -484,12 +475,11 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.execution_state();
         ctx.incr_pc();
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),

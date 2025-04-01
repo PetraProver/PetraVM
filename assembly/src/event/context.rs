@@ -4,7 +4,7 @@ use binius_field::BinaryField32b;
 
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
-    execution::{Interpreter, InterpreterError},
+    execution::{FramePointer, Interpreter, InterpreterError},
     memory::MemoryError,
     ZCrayTrace,
 };
@@ -26,6 +26,19 @@ impl EventContext<'_> {
     /// pointer accordingly.
     pub fn addr(&self, offset: impl Into<u32>) -> u32 {
         *self.fp ^ offset.into()
+    }
+
+    /// Outputs the current execution context tuple, containing:
+    ///   - the integer program counter PC, as `u32`
+    ///   - the field program counter PC, as `B32`
+    ///   - the frame pointer FP, as `u32`
+    ///   - the timestamp, as `u32`
+    pub fn execution_state(&self) -> (u32, BinaryField32b, FramePointer, u32) {
+        (self.pc, self.field_pc, self.fp, self.timestamp)
+    }
+
+    pub fn set_fp<T: Into<FramePointer>>(&mut self, fp: T) {
+        self.fp = fp.into();
     }
 
     /// Loads a `u32` value stored in VROM at the provided address.
