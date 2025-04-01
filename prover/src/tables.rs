@@ -36,7 +36,7 @@ pub struct PromTable {
     /// Argument 3 column
     pub arg3: Col<B16, 1>,
     /// Packed instruction for PROM channel
-    pub prom_entry: Col<B128, 1>,
+    pub instruction: Col<B128, 1>,
 }
 
 impl PromTable {
@@ -56,10 +56,11 @@ impl PromTable {
         let arg3 = table.add_committed("arg3");
 
         // Pack the values for the PROM channel
-        let prom_entry = pack_instruction(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
+        let instruction =
+            pack_instruction(&mut table, "instruction", pc, opcode, [arg1, arg2, arg3]);
 
         // Push to the PROM channel
-        table.push(channels.prom_channel, [prom_entry]);
+        table.push(channels.prom_channel, [instruction]);
 
         Self {
             id: table.id(),
@@ -68,7 +69,7 @@ impl PromTable {
             arg1,
             arg2,
             arg3,
-            prom_entry,
+            instruction,
         }
     }
 }
@@ -93,7 +94,7 @@ where
         let mut arg1_col = witness.get_mut_as(self.arg1)?;
         let mut arg2_col = witness.get_mut_as(self.arg2)?;
         let mut arg3_col = witness.get_mut_as(self.arg3)?;
-        let mut prom_entry_col = witness.get_mut_as(self.prom_entry)?;
+        let mut instruction_col = witness.get_mut_as(self.instruction)?;
 
         for (i, instr) in rows.enumerate() {
             pc_col[i] = instr.pc;
@@ -104,7 +105,7 @@ where
             arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
             arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
 
-            prom_entry_col[i] = pack_instruction_b128(
+            instruction_col[i] = pack_instruction_b128(
                 pc_col[i].val(),
                 opcode_col[i],
                 arg1_col[i],
