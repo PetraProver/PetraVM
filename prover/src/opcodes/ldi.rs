@@ -3,9 +3,11 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, BinaryField, BinaryField32b};
+use binius_field::{
+    as_packed_field::PackScalar, underlier::UnderlierType, BinaryField, BinaryField32b,
+};
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{LDIEvent, Opcode};
@@ -15,8 +17,6 @@ use super::{
     util::{pack_b16_into_b32, pack_b32_into_b64},
 };
 use crate::channels::ZkVMChannels;
-
-const LDI_OPCODE: u32 = 0x0f;
 
 /// LDI (Load Immediate) table.
 ///
@@ -117,10 +117,7 @@ where
             for (i, event) in rows.clone().enumerate() {
                 vrom_push[i] = (event.imm as u64) << 32 | event.fp as u64 + event.dst as u64;
                 abs_addr[i] = event.fp ^ (event.dst as u32);
-                dbg!(
-                    "Ldi fill",
-                    &vrom_push[i]
-                );
+                dbg!("Ldi fill", &vrom_push[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {

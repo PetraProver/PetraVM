@@ -22,6 +22,7 @@ use crate::channels::ZkVMChannels;
 pub struct BnzTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
+    cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
     vrom_push: Col<B64>, // Virtual;
 }
@@ -50,11 +51,11 @@ impl BnzTable {
             },
         );
 
-        let cond = cpu_cols.arg0;
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
 
         let vrom_push = table.add_computed(
             "vrom_push",
-            pack_b32_into_b64([upcast_col(cond).into(), cond_val.into()]),
+            pack_b32_into_b64([upcast_col(cond_abs).into(), cond_val.into()]),
         );
         // Read cond_val
         table.pull(vrom_channel, [vrom_push]);
@@ -62,6 +63,7 @@ impl BnzTable {
         Self {
             id: table.id(),
             cpu_cols,
+            cond_abs,
             cond_val,
             vrom_push,
         }
@@ -84,9 +86,11 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
+            let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
             let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
             for (i, event) in rows.clone().enumerate() {
+                cond_abs[i] = event.fp ^ (event.cond as u32);
                 cond_val[i] = event.cond_val;
                 vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
                 dbg!("Bnz fill", cond_val[i], vrom_push[i],);

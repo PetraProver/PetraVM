@@ -23,9 +23,12 @@ pub struct AddTable {
     id: TableId,
     // TODO: Use the cpu gadget
     cpu_cols: CpuColumns<{ Opcode::Add as u16 }>,
+    dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
+    src1_abs: Col<B32>, // Virtual
     src1_val: Col<B1, 32>,
     src1_val_packed: Col<B32>,
+    src2_abs: Col<B32>, // Virtual
     src2_val: Col<B1, 32>,
     src2_val_packed: Col<B32>,
     u32_add: U32Add,
@@ -46,7 +49,7 @@ impl AddTable {
             ..
         } = *channels;
 
-        let cpu = CpuColumns::new(
+        let cpu_cols = CpuColumns::new(
             &mut table,
             state_channel,
             prom_channel,
@@ -56,9 +59,9 @@ impl AddTable {
             },
         );
 
-        let dst = cpu.arg0;
-        let src1 = cpu.arg1;
-        let src2 = cpu.arg2;
+        let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let src1_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let src2_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg2));
 
         let src1_val = table.add_committed("src1_val");
         let src2_val = table.add_committed("src2_val");
@@ -70,24 +73,22 @@ impl AddTable {
         let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
         // Read src1
-        let vrom_src1 = pack_vrom_entry(&mut table, "vrom_src1", upcast_col(src1), src1_val_packed);
+        let vrom_src1 = pack_vrom_entry(&mut table, "vrom_src1", src1_abs, src1_val_packed);
         table.pull(vrom_channel, [vrom_src1]);
         // Read src2
-        let vrom_src2 = pack_vrom_entry(&mut table, "vrom_src2", upcast_col(src2), src2_val_packed);
+        let vrom_src2 = pack_vrom_entry(&mut table, "vrom_src2", src2_abs, src2_val_packed);
         table.pull(vrom_channel, [vrom_src2]);
         // Write dst
-        let vrom_dst = pack_vrom_entry(
-            &mut table,
-            "vrom_dst",
-            upcast_col(dst),
-            dst_val_packed.into(),
-        );
+        let vrom_dst = pack_vrom_entry(&mut table, "vrom_dst", dst_abs, dst_val_packed.into());
         table.pull(vrom_channel, [vrom_dst]);
 
         Self {
             id: table.id(),
-            cpu_cols: cpu,
+            cpu_cols,
+            dst_abs,
+            src1_abs,
             src1_val,
+            src2_abs,
             src2_val,
             src1_val_packed,
             src2_val_packed,
@@ -116,12 +117,18 @@ where
         witness: &'a mut TableWitnessIndexSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
+            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
+            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
             let mut vrom_src1 = witness.get_mut_as(self.vrom_src1)?;
             let mut vrom_src2 = witness.get_mut_as(self.vrom_src2)?;
             let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
             for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = event.fp ^ (event.dst as u32);
+                src1_abs[i] = event.fp ^ (event.src1 as u32);
+                src2_abs[i] = event.fp ^ (event.src2 as u32);
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
                 vrom_src1[i] = pack_vrom_entry_u64(event.src1 as u32, event.src1_val);
