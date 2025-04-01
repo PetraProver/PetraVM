@@ -9,7 +9,11 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use crate::{channels::Channels, types::CommonTableBounds, utils::pack_instruction_b128};
+use crate::{
+    channels::Channels,
+    types::CommonTableBounds,
+    utils::{b128_basis, pack_instruction_b128},
+};
 
 const RET_OPCODE: u32 = Opcode::Ret as u32;
 
@@ -62,7 +66,7 @@ impl RetTable {
         // Pack instruction for PROM channel pull
         let prom_pull = table.add_computed(
             "prom_pull",
-            upcast_expr(pc.into()) * B128::from(1u128 << 64) + B128::new(RET_OPCODE as u128),
+            upcast_expr(pc.into()) * b128_basis(4) + B128::new(RET_OPCODE as u128),
         );
 
         // Pull instruction from PROM channel

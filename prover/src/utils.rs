@@ -1,18 +1,25 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
+use binius_field::ExtensionField;
 use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
+
+/// Get a B128 basis element by index
+#[inline]
+pub fn b128_basis(index: usize) -> B128 {
+    <B128 as ExtensionField<B16>>::basis(index).unwrap_or_else(|_| panic!("basis({}) is valid", index))
+}
 
 macro_rules! pack_instruction_common {
     ($table:expr, $name:expr, $pc:expr, $args:expr, $opcode_expr:expr) => {
         $table.add_computed(
             $name,
             // Instruction part (lower 64 bits)
-            upcast_expr($args[0].into()) * B128::from(1u128 << 16) +
-            upcast_expr($args[1].into()) * B128::from(1u128 << 32) +
-            upcast_expr($args[2].into()) * B128::from(1u128 << 48) +
+            upcast_expr($args[0].into()) * b128_basis(1) +
+            upcast_expr($args[1].into()) * b128_basis(2) +
+            upcast_expr($args[2].into()) * b128_basis(3) +
             // PC part (upper 64 bits)
-            upcast_expr($pc.into()) * B128::from(1u128 << 64) + $opcode_expr,
+            upcast_expr($pc.into()) * b128_basis(4) + $opcode_expr,
         )
     };
 }
@@ -33,9 +40,9 @@ pub fn pack_instruction_with_32bits_imm(
 ) -> Col<B128> {
     table.add_computed(
         name,
-        upcast_expr(arg.into()) * B128::from(1u128 << 16)
-            + upcast_expr(imm.into()) * B128::from(1u128 << 32)
-            + upcast_expr(pc.into()) * B128::from(1u128 << 64)
+        upcast_expr(arg.into()) * b128_basis(1)
+            + upcast_expr(imm.into()) * b128_basis(2)
+            + upcast_expr(pc.into()) * b128_basis(4)
             + B128::new(opcode as u128),
     )
 }
