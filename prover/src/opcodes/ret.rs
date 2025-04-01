@@ -5,14 +5,14 @@
 
 use binius_field::Field;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::{
     channels::Channels,
     types::CommonTableBounds,
-    utils::{b128_basis, pack_instruction_b128},
+    utils::{pack_instruction_b128, pack_instruction_no_args},
 };
 
 const RET_OPCODE: u32 = Opcode::Ret as u32;
@@ -64,10 +64,7 @@ impl RetTable {
         table.pull(channels.state_channel, [pc, fp]);
 
         // Pack instruction for PROM channel pull
-        let prom_pull = table.add_computed(
-            "prom_pull",
-            upcast_expr(pc.into()) * b128_basis(4) + B128::new(RET_OPCODE as u128),
-        );
+        let prom_pull = pack_instruction_no_args(&mut table, "prom_pull", pc, RET_OPCODE);
 
         // Pull instruction from PROM channel
         table.pull(channels.prom_channel, [prom_pull]);
@@ -121,7 +118,13 @@ where
             fp_col[i] = B32::new(*event.fp);
             next_pc_col[i] = B32::new(event.pc_next);
             next_fp_col[i] = B32::new(event.fp_next);
-            prom_pull_col[i] = pack_instruction_b128(pc_col[i].val(), RET_OPCODE as u16, 0, 0, 0);
+            prom_pull_col[i] = pack_instruction_b128(
+                pc_col[i],
+                B16::new(RET_OPCODE as u16),
+                B16::ZERO,
+                B16::ZERO,
+                B16::ZERO,
+            );
             fp_plus_one_col[i] = B32::new(event.fp.addr(1u32));
         }
 

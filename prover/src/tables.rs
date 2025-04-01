@@ -3,6 +3,7 @@
 //! This module contains the definitions of all the arithmetic tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
+use binius_field::Field;
 use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 
@@ -99,17 +100,17 @@ where
             pc_col[i] = B32::new(instr.pc.val());
             opcode_col[i] = B16::new(instr.opcode as u16);
 
-            // Fill arguments, using 0 if the argument doesn't exist
-            arg1_col[i] = B16::new(instr.args.first().copied().unwrap_or(0));
-            arg2_col[i] = B16::new(instr.args.get(1).copied().unwrap_or(0));
-            arg3_col[i] = B16::new(instr.args.get(2).copied().unwrap_or(0));
+            // Fill arguments, using ZERO if the argument doesn't exist
+            arg1_col[i] = instr.args.first().map_or(B16::ZERO, |&arg| B16::new(arg));
+            arg2_col[i] = instr.args.get(1).map_or(B16::ZERO, |&arg| B16::new(arg));
+            arg3_col[i] = instr.args.get(2).map_or(B16::ZERO, |&arg| B16::new(arg));
 
             instruction_col[i] = pack_instruction_b128(
-                pc_col[i].val(),
-                opcode_col[i].val(),
-                arg1_col[i].val(),
-                arg2_col[i].val(),
-                arg3_col[i].val(),
+                pc_col[i],
+                opcode_col[i],
+                arg1_col[i],
+                arg2_col[i],
+                arg3_col[i],
             );
         }
 

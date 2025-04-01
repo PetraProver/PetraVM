@@ -128,10 +128,10 @@ where
 
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
             prom_pull_col[i] = pack_instruction_with_32bits_imm_b128(
-                pc_col[i].val(),
-                LDI_OPCODE as u16,
-                dst_col[i].val(),
-                imm_col[i].val(),
+                pc_col[i],
+                B16::new(LDI_OPCODE as u16),
+                dst_col[i],
+                imm_col[i],
             );
             vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i].val()));
         }

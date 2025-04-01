@@ -6,8 +6,9 @@ use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
 
 /// Get a B128 basis element by index
 #[inline]
-pub fn b128_basis(index: usize) -> B128 {
-    <B128 as ExtensionField<B16>>::basis(index).unwrap_or_else(|_| panic!("basis({}) is valid", index))
+fn b128_basis(index: usize) -> B128 {
+    <B128 as ExtensionField<B16>>::basis(index)
+        .unwrap_or_else(|_| panic!("basis({}) is valid", index))
 }
 
 macro_rules! pack_instruction_common {
@@ -75,14 +76,33 @@ pub fn pack_instruction(
     pack_instruction_common!(table, name, pc, args, upcast_expr(opcode.into()))
 }
 
+/// Adds a computed column that packs an instruction with just PC and opcode
+/// (zeroes for all arguments) in a table builder context.
+///
+/// Format: [PC (32 bits) | 0 | 0 | 0 | opcode (16 bits)]
+pub fn pack_instruction_no_args(
+    table: &mut TableBuilder,
+    name: &str,
+    pc: Col<B32>,
+    opcode: u32,
+) -> Col<B128> {
+    table.add_computed(
+        name,
+        upcast_expr(pc.into()) * b128_basis(4) + B128::new(opcode as u128),
+    )
+}
+
 /// Creates a B128 value by packing instruction components with constant values.
 ///
 /// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
 /// opcode (16 bits)]
-pub fn pack_instruction_b128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> B128 {
-    let instr =
-        (opcode as u64) | ((arg1 as u64) << 16) | ((arg2 as u64) << 32) | ((arg3 as u64) << 48);
-    B128::from((instr as u128) | ((pc as u128) << 64))
+pub fn pack_instruction_b128(pc: B32, opcode: B16, arg1: B16, arg2: B16, arg3: B16) -> B128 {
+    let b1 = B128::new(opcode.val() as u128);
+    let b2 = b128_basis(1) * arg1;
+    let b3 = b128_basis(2) * arg2;
+    let b4 = b128_basis(3) * arg3;
+    let b5 = b128_basis(4) * pc;
+    b1 + b2 + b3 + b4 + b5
 }
 
 /// Creates a B128 value by packing instruction components with a 32-bit
@@ -92,7 +112,10 @@ pub fn pack_instruction_b128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u
 ///
 /// The immediate value is stored as a full 32-bit value, not split into
 /// high/low parts.
-pub fn pack_instruction_with_32bits_imm_b128(pc: u32, opcode: u16, arg: u16, imm: u32) -> B128 {
-    let instr = (opcode as u64) | ((arg as u64) << 16) | ((imm as u64) << 32);
-    B128::from((instr as u128) | ((pc as u128) << 64))
+pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm: B32) -> B128 {
+    let b1 = B128::new(opcode.val() as u128);
+    let b2 = b128_basis(1) * arg;
+    let b3 = b128_basis(2) * imm;
+    let b4 = b128_basis(4) * pc;
+    b1 + b2 + b3 + b4
 }
