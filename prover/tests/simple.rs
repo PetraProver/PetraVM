@@ -222,6 +222,35 @@ fn generate_xori_ret_trace() -> Result<ZkVMTrace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
+fn generate_andi_ret_trace() -> Result<ZkVMTrace> {
+    let asm_code = "#[framesize(0x10)]\n\
+        _start:\n\
+        ANDI @3, @2, #1 \n\
+        ret:\n\
+            RET\n"
+        .to_string();
+
+    println!("asm_code:\n {:?}", asm_code);
+
+    let init_values = [0, 0, 5];
+
+    // Add VROM writes from ANDI events
+    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+        zkvm_trace
+            .andi_events()
+            .iter()
+            .flat_map(|event| {
+                [
+                    (event.dst as u32, event.dst_val),
+                    (event.src as u32, event.src_val),
+                ]
+            })
+            .collect()
+    };
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 #[test]
 fn test_ldi_ret() -> Result<()> {
     env_logger::init();
@@ -411,6 +440,48 @@ fn test_xori_ret() -> Result<()> {
         trace.xori_events().len(),
         1,
         "Should have exactly one BZ event"
+    );
+    assert_eq!(
+        trace.ret_events().len(),
+        1,
+        "Should have exactly one RET event"
+    );
+    assert_eq!(trace.vrom_writes.len(), 4, "Should have four VROM writes");
+
+    // Step 2: Validate trace
+    println!("Validating trace internal structure...");
+    trace.validate()?;
+
+    // Step 3: Create prover
+    println!("Creating prover...");
+    let prover = ZkVMProver::new();
+
+    // Step 4: Validate trace -> Prove trace when binius is working.
+    println!("Validating trace with prover...");
+    prover.validate(&trace)?;
+
+    println!("All steps completed successfully!");
+    Ok(())
+}
+
+#[test]
+fn test_andi_ret() -> Result<()> {
+    env_logger::init();
+
+    // Step 1: Generate trace from assembly
+    println!("Generating trace from assembly...");
+    let trace = generate_andi_ret_trace()?;
+
+    // Verify trace has correct structure
+    assert_eq!(
+        trace.program.len(),
+        2,
+        "Program should have exactly 2 instructions"
+    );
+    assert_eq!(
+        trace.andi_events().len(),
+        1,
+        "Should have exactly one ANDI event"
     );
     assert_eq!(
         trace.ret_events().len(),

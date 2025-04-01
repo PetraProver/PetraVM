@@ -6,8 +6,8 @@
 use anyhow::Result;
 use binius_field::BinaryField32b;
 use zcrayvm_assembly::{
-    AddEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, XoriEvent,
-    ZCrayTrace,
+    AddEvent, AndiEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent,
+    XoriEvent, ZCrayTrace,
 };
 
 /// High-level representation of a zCrayVM instruction with its PC and
@@ -130,6 +130,13 @@ impl ZkVMTrace {
     /// These events represent each LDI instruction executed during the trace.
     pub fn xori_events(&self) -> &Vec<XoriEvent> {
         &self.trace.xori
+    }
+
+    /// Returns a reference to the ANDI events from the trace.
+    ///
+    /// These events represent each ANDO instruction executed during the trace.
+    pub fn andi_events(&self) -> &Vec<AndiEvent> {
+        &self.trace.andi
     }
 
     /// Add an interpreter instruction to the program.

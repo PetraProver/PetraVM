@@ -106,7 +106,7 @@ where
     }
 }
 
-pub(crate) struct BzTable {
+pub struct BzTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
     vrom_push: Col<B64>, // Virtual

@@ -9,6 +9,7 @@ use crate::{
     channels::ZkVMChannels,
     model::ZkVMTrace,
     opcodes::{
+        binary_ops::b32::AndiTable,
         branch::{BnzTable, BzTable},
         integer_ops::AddTable,
         XoriTable,
@@ -43,6 +44,8 @@ pub struct ZkVMCircuit {
     pub bz_table: BzTable,
     /// XORI instruction table
     pub xori_table: XoriTable,
+    /// ANDI instruction table
+    pub andi_table: AndiTable,
 }
 
 impl Default for ZkVMCircuit {
@@ -71,6 +74,7 @@ impl ZkVMCircuit {
         let bnz_table = BnzTable::new(&mut cs, &channels);
         let bz_table = BzTable::new(&mut cs, &channels);
         let xori_table = XoriTable::new(&mut cs, &channels);
+        let andi_table = AndiTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -85,6 +89,7 @@ impl ZkVMCircuit {
             bz_table,
             xori_table,
             add_table,
+            andi_table,
         }
     }
 
@@ -136,6 +141,7 @@ impl ZkVMCircuit {
         let xori_size = trace.trace.xori.len();
         let bnz_size = trace.trace.bnz.len();
         let bz_size = trace.trace.bz.len();
+        let andi_size = trace.trace.andi.len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -149,6 +155,7 @@ impl ZkVMCircuit {
             bnz_size,             // BNZ !=0 table size
             bz_size,              // BNZ 0 table size
             xori_size,            // XORI table size
+            andi_size,            // ANDI table size
         ];
 
         // Create the statement with all boundaries

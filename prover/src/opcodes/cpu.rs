@@ -17,7 +17,8 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) opcode: Col<B16>, // Constant
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
-    pub(crate) arg2: Col<B16>,
+    pub(crate) arg2_unpacked: Col<B1, 16>,
+    pub(crate) arg2: Col<B16>, // Virtual,
     options: CpuColumnsOptions,
     // Virtual columns for communication with the channels
     prom_pull: Col<B128>,
@@ -68,7 +69,8 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let opcode = table.add_constant(format!("opcode_{OPCODE}"), [B16::new(OPCODE)]);
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
-        let arg2 = table.add_committed("arg2");
+        let arg2_unpacked = table.add_committed("arg2");
+        let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         let next_pc = match options.next_pc {
             NextPc::Increment => table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR),
@@ -105,6 +107,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             opcode,
             arg0,
             arg1,
+            arg2_unpacked,
             arg2,
             options,
             prom_pull,
