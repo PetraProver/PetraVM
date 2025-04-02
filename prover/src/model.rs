@@ -5,7 +5,9 @@
 
 use anyhow::Result;
 use binius_field::BinaryField32b;
-use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
+use zcrayvm_assembly::{
+    B32MulEvent, B32MuliEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+};
 
 /// Macro to generate event accessors
 macro_rules! impl_event_accessor {
@@ -169,3 +171,5 @@ impl Trace {
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);
+impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
+impl_event_accessor!(b32_muli_events, B32MuliEvent, b32_muli);

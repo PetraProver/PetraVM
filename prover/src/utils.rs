@@ -55,7 +55,7 @@ pub fn pack_instruction_with_fixed_opcode(
     table: &mut TableBuilder,
     name: &str,
     pc: Col<B32>,
-    opcode: u32,
+    opcode: u16,
     args: [Col<B16>; 3],
 ) -> Col<B128> {
     pack_instruction_common!(table, name, pc, args, B128::new(opcode as u128))

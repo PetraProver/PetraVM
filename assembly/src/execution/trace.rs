@@ -65,8 +65,8 @@ pub struct ZCrayTrace {
     pub(crate) mvvw: Vec<MVVWEvent>,
     pub(crate) mvvl: Vec<MVVLEvent>,
     pub ldi: Vec<LDIEvent>,
-    pub(crate) b32_mul: Vec<B32MulEvent>,
-    pub(crate) b32_muli: Vec<B32MuliEvent>,
+    pub b32_mul: Vec<B32MulEvent>,
+    pub b32_muli: Vec<B32MuliEvent>,
     pub(crate) b128_add: Vec<B128AddEvent>,
     pub(crate) b128_mul: Vec<B128MulEvent>,
 

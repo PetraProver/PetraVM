@@ -8,6 +8,7 @@ use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 
 // Re-export instruction-specific tables
+pub use crate::opcodes::binary::{B32MulTable, B32MuliTable};
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
     channels::Channels,

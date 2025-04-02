@@ -100,14 +100,14 @@ define_bin32_op_event!(
 ///   1. FP[dst] = __b32_mul(FP[src], imm)
 #[derive(Debug, Default, Clone)]
 pub struct B32MuliEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: FramePointer,
-    dst: u16,
-    dst_val: u32,
-    src: u16,
-    src_val: u32,
-    imm: u32,
+    pub timestamp: u32,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub dst: u16,
+    pub dst_val: u32,
+    pub src: u16,
+    pub src_val: u32,
+    pub imm: u32,
 }
 
 impl BinaryOperation for B32MuliEvent {

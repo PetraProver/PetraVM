@@ -102,11 +102,10 @@ impl Prover {
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
-        // 5. Fill LDI table with load immediate events
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
-
-        // 6. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
+        witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
+        witness.fill_table_sequential(&self.circuit.b32_muli_table, trace.b32_muli_events())?;
 
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();

@@ -8,7 +8,10 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    tables::{
+        B32MulTable, B32MuliTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
+        VromSkipTable, VromWriteTable,
+    },
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -34,6 +37,10 @@ pub struct Circuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
+    /// B32_MUL instruction table
+    pub b32_mul_table: B32MulTable,
+    /// B32_MULI instruction table
+    pub b32_muli_table: B32MuliTable,
 }
 
 impl Default for Circuit {
@@ -58,6 +65,8 @@ impl Circuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
+        let b32_mul_table = B32MulTable::new(&mut cs, &channels);
+        let b32_muli_table = B32MuliTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -68,6 +77,8 @@ impl Circuit {
             vrom_skip_table,
             ldi_table,
             ret_table,
+            b32_mul_table,
+            b32_muli_table,
         }
     }
 
@@ -113,6 +124,8 @@ impl Circuit {
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
+        let b32_mul_size = trace.b32_mul_events().len();
+        let b32_muli_size = trace.b32_muli_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -122,6 +135,8 @@ impl Circuit {
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
             ret_size,             // RET table size
+            b32_mul_size,         // B32_MUL table size
+            b32_muli_size,        // B32_MULI table size
         ];
 
         // Create the statement with all boundaries

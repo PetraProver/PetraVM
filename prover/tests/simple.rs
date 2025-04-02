@@ -1,19 +1,24 @@
-//! Test the zCrayVM proving system with LDI and RET instructions.
+//! Test the zCrayVM proving system with simple operations.
 //!
 //! This file contains an integration test that verifies the complete
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use binius_m3::builder::B32;
 use log::info;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
-fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
+fn generate_test_trace(value: u32) -> Result<Trace> {
     let asm_code = format!(
         "#[framesize(0x10)]\n\
-         _start: LDI.W @2, #{}\n\
-         RET\n",
+         _start:
+           LDI.W @2, #{}\n\
+           LDI.W @3, #2\n\
+           B32_MUL @4, @2, @3\n\
+           B32_MULI @5, @4, #3\n\
+           RET\n",
         value
     );
 
@@ -41,21 +46,20 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     // Add the program instructions to the trace
     trace.add_instructions(program);
 
-    // Add VROM writes from LDI events
-    let vrom_writes: Vec<_> = trace
-        .ldi_events()
-        .iter()
-        .map(|event| (event.dst as u32, event.imm))
-        .collect();
-
-    // Add initial VROM values for return PC and return FP
+    // Add VROM writes from events
+    // Initial values
     trace.add_vrom_write(0, 0); // Initial return PC = 0
     trace.add_vrom_write(1, 0); // Initial return FP = 0
 
-    // Add other VROM writes from LDI events
-    for (dst, imm) in vrom_writes {
-        trace.add_vrom_write(dst, imm);
-    }
+    // LDI events
+    trace.add_vrom_write(2, value); // First LDI - our input value
+    trace.add_vrom_write(3, 2); // Second LDI - constant 2
+
+    // B32_MUL event
+    trace.add_vrom_write(4, (B32::new(value) * B32::new(2)).val()); // Result of B32_MUL
+
+    // B32_MULI event
+    trace.add_vrom_write(5, (B32::new(value) * B32::new(2) * B32::new(3)).val()); // Result of B32_MULI
 
     Ok(trace)
 }
@@ -69,25 +73,35 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     // Step 1: Generate trace from assembly
     info!("Generating trace from assembly...");
-    let trace = generate_ldi_ret_trace(value)?;
+    let trace = generate_test_trace(value)?;
 
     // Verify trace has correct structure
     assert_eq!(
         trace.program.len(),
-        2,
-        "Program should have exactly 2 instructions"
+        5,
+        "Program should have exactly 5 instructions"
     );
     assert_eq!(
         trace.ldi_events().len(),
+        2,
+        "Should have exactly two LDI events"
+    );
+    assert_eq!(
+        trace.b32_mul_events().len(),
         1,
-        "Should have exactly one LDI event"
+        "Should have exactly one B32_MUL event"
+    );
+    assert_eq!(
+        trace.b32_muli_events().len(),
+        1,
+        "Should have exactly one B32_MULI event"
     );
     assert_eq!(
         trace.ret_events().len(),
         1,
         "Should have exactly one RET event"
     );
-    assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
+    assert_eq!(trace.vrom_writes.len(), 6, "Should have 6 VROM writes");
 
     // Step 2: Validate trace
     info!("Validating trace internal structure...");

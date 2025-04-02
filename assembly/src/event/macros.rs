@@ -191,16 +191,16 @@ macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: FramePointer,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src1: u16,
-            pub(crate) src1_val: u32,
-            pub(crate) src2: u16,
-            pub(crate) src2_val: u32,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: FramePointer,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src1: u16,
+            pub src1_val: u32,
+            pub src2: u16,
+            pub src2_val: u32,
         }
 
         impl BinaryOperation for $name {
