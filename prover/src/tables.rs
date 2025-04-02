@@ -6,7 +6,7 @@
 use binius_field::as_packed_field::PackScalar;
 use binius_m3::builder::{upcast_expr, B1, B64};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B128, B16, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
 };
 use bytemuck::Pod;
 
@@ -90,7 +90,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_mut_as(self.pc)?;
         let mut opcode_col = witness.get_mut_as(self.opcode)?;
@@ -186,7 +186,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_mut_as(self.addr)?;
         let mut value_col = witness.get_mut_as(self.value)?;
@@ -253,7 +253,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_mut_as(self.addr)?;
 
@@ -317,7 +317,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_mut_as(self.addr)?;
 

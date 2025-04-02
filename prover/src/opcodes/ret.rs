@@ -1,6 +1,6 @@
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, Field};
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{Opcode, RetEvent};
@@ -86,7 +86,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;

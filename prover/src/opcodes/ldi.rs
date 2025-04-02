@@ -7,7 +7,7 @@ use binius_field::{
     as_packed_field::PackScalar, underlier::UnderlierType, BinaryField, BinaryField32b,
 };
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B32, B64,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{LDIEvent, Opcode};
@@ -109,7 +109,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         {
             let mut vrom_push = witness.get_mut_as(self.vrom_push)?;

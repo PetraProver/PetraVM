@@ -1,14 +1,14 @@
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment,
-    B1, B32, B64,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
+    B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
 use super::{
     cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
-    util::{pack_b32_into_b64, B64_B32_BASIS},
+    util::pack_b32_into_b64,
 };
 use crate::channels::ZkVMChannels;
 
@@ -83,7 +83,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
@@ -142,7 +142,7 @@ impl BzTable {
         let vrom_push = table.add_computed(
             "vrom_push",
             // cond_val is zero in this case
-            upcast_expr(cond.into()) * B64_B32_BASIS[0],
+            upcast_expr(cond.into()) * <B64 as ExtensionField<B32>>::basis(0),
         );
         // Read cond_val
         table.pull(vrom_channel, [vrom_push]);
@@ -168,7 +168,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut vrom_push = witness.get_mut_as(self.vrom_push)?;

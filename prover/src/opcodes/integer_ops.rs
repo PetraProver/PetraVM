@@ -2,8 +2,8 @@ use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType};
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment, B1, B16,
-        B32, B64,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
+        B64,
     },
     gadgets::u32::{U32Add, U32AddFlags},
 };
@@ -114,7 +114,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
@@ -226,7 +226,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             for (i, event) in rows.clone().enumerate() {

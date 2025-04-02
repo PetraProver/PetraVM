@@ -1,7 +1,7 @@
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, BinaryField};
 use binius_m3::builder::{
-    upcast_expr, Col, TableBuilder, TableWitnessIndexSegment, B1, B128, B16, B32, B64,
+    upcast_expr, Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32, B64,
 };
 use bytemuck::Pod;
 
@@ -118,7 +118,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
     pub fn populate<U, T>(
         &self,
-        index: &mut TableWitnessIndexSegment<U>,
+        index: &mut TableWitnessSegment<U>,
         rows: T,
     ) -> Result<(), anyhow::Error>
     where

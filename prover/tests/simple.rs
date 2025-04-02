@@ -23,17 +23,6 @@ fn generate_test_trace<const N: usize, F: FnOnce(&ZkVMTrace) -> Vec<(u32, u32)>>
     init_values: [u32; N],
     vrom_writes: F,
 ) -> Result<ZkVMTrace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    // let asm_code = format!(
-    //     "#[framesize(0x10)]\n\
-    //      _start: LDI.W @2, #{}\n\
-    //      RET\n",
-    //     value
-    // );
-
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
     println!("compiled program = {:?}", compiled_program);
@@ -59,12 +48,6 @@ fn generate_test_trace<const N: usize, F: FnOnce(&ZkVMTrace) -> Vec<(u32, u32)>>
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program);
 
-    // Add VROM writes from LDI events
-    // let vrom_writes: Vec<_> = zkvm_trace
-    //     .ldi_events()
-    //     .iter()
-    //     .map(|event| (event.dst as u32, event.imm))
-    //     .collect();
     let vrom_writes: Vec<_> = vrom_writes(&zkvm_trace);
 
     // Add initial VROM values for return PC and return FP

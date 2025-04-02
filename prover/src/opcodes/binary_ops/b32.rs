@@ -1,18 +1,15 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessIndexSegment,
-    B1, B16, B32, B64,
+    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
+    B16, B32, B64,
 };
 use bytemuck::Pod;
 use zcrayvm_assembly::{AndiEvent, Opcode, XoriEvent};
 
 use crate::{
     channels::ZkVMChannels,
-    opcodes::{
-        cpu::{CpuColumns, CpuColumnsOptions, CpuEvent},
-        util::B64_B32_BASIS,
-    },
+    opcodes::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent},
 };
 
 pub struct XoriTable {
@@ -53,16 +50,16 @@ impl XoriTable {
         // Read dst_val
         let vrom_dst = table.add_computed(
             "vrom_dst",
-            upcast_expr(dst_abs.into()) * B64_B32_BASIS[0]
-                + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(dst_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
+                + upcast_expr(dst_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
         );
         table.pull(vrom_channel, [vrom_dst]);
 
         // Read src_val
         let vrom_src = table.add_computed(
             "vrom_src",
-            upcast_expr(src_abs.into()) * B64_B32_BASIS[0]
-                + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(src_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
+                + upcast_expr(src_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
         );
         table.pull(vrom_channel, [vrom_src]);
 
@@ -94,7 +91,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
@@ -169,16 +166,16 @@ impl AndiTable {
         // Read dst_val
         let vrom_dst = table.add_computed(
             "vrom_dst",
-            upcast_expr(dst_abs.into()) * B64_B32_BASIS[0]
-                + upcast_expr(dst_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(dst_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
+                + upcast_expr(dst_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
         );
         table.pull(vrom_channel, [vrom_dst]);
 
         // Read src_val
         let vrom_src = table.add_computed(
             "vrom_src",
-            upcast_expr(src_abs.into()) * B64_B32_BASIS[0]
-                + upcast_expr(src_val.into()) * B64_B32_BASIS[1],
+            upcast_expr(src_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
+                + upcast_expr(src_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
         );
         table.pull(vrom_channel, [vrom_src]);
 
@@ -210,7 +207,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessIndexSegment<U>,
+        witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;

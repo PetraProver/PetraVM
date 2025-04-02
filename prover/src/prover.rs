@@ -107,7 +107,7 @@ impl ZkVMProver {
         witness.fill_table_sequential(&self.circuit.andi_table, trace.andi_events())?;
 
         // Convert witness to multilinear extension format for validation
-        let mle_witness = witness.into_multilinear_extension_index(&statement);
+        let mle_witness = witness.into_multilinear_extension_index();
 
         // Validate the witness against the constraint system
         validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
