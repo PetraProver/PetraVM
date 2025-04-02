@@ -8,7 +8,6 @@ use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
 #[inline]
 fn b128_basis(index: usize) -> B128 {
     <B128 as ExtensionField<B16>>::basis(index)
-        .unwrap_or_else(|_| panic!("basis({}) is valid", index))
 }
 
 macro_rules! pack_instruction_common {
