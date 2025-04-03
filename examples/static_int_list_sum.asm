@@ -21,12 +21,12 @@ static_int_list_sum:
     ;; Slot 7: Local: new_curr_sum
 
     BNZ @3, list_size_gt_0
-    MVI.H @5, @4 ;; return curr_sum
+    MVV.H @5, @4 ;; return curr_sum
     RET
 
 list_size_gt_0:
     ;; Recursively call this function again
-    MOV.W @5[2], @2[1] ;; list[1..]
+    MVV.W @5[2], @2[1] ;; list[1..]
 
     SUBI @6, @3, #1 ;; list_size - 1
     ADD @7, @4, @2[0] ;; curr_sum + list[0]

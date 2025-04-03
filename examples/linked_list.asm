@@ -47,12 +47,12 @@ build_linked_list_of_ints:
     ;; Slot 4: ND Local: Next FP
     ;; Slot 5: Return value (We actually can't implement this yet, so until we have the instruction to store addresses, this function will just return `0`.)
     
-    MVI.W @4[2], @2
-    MVI.W @4[3], @3
+    MVV.W @4[2], @2
+    MVV.W @4[3], @3
     CALLI build_linked_list_of_ints_rec, @4
 
     BNZ @6, non_empty_list
-    MVI.W @5, #0 ;; `0` means an empty list.
+    MVI.H @5, #0 ;; `0` means an empty list.
     RET
 
     non_empty_list:
@@ -96,6 +96,6 @@ add_new_node:
 
     MVV.W @9 @2 ;; node.node_val = curr_val
 
-    MVV.W @5, #1 ;; Indicate to caller that there is another node.
+    MVI.H @5, #1 ;; Indicate to caller that there is another node.
     TAILI build_linked_list_of_ints_rec, @5
     RET
