@@ -95,7 +95,6 @@ where
             for (i, event) in rows.clone().enumerate() {
                 abs_addr[i] = event.fp.addr(event.dst);
                 imm[i] = event.imm;
-                dbg!("Ldi fill", &abs_addr[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
