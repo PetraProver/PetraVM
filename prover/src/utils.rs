@@ -1,67 +1,170 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
-use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32, B64};
+use binius_field::ExtensionField;
+use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32, B64};
 
-use crate::opcodes::util::{pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128};
+/// Get a B128 basis element by index
+#[inline]
+fn b128_basis(index: usize) -> B128 {
+    <B128 as ExtensionField<B16>>::basis(index)
+}
 
-pub fn pack_prom_opcode(
+macro_rules! pack_instruction_common {
+    ($table:expr, $name:expr, $pc:expr, $args:expr, $opcode_expr:expr) => {
+        $table.add_computed(
+            $name,
+            // Instruction part (lower 64 bits)
+            upcast_expr($args[0].into()) * b128_basis(1) +
+            upcast_expr($args[1].into()) * b128_basis(2) +
+            upcast_expr($args[2].into()) * b128_basis(3) +
+            // PC part (upper 64 bits)
+            upcast_expr($pc.into()) * b128_basis(4) + $opcode_expr,
+        )
+    };
+}
+
+/// Packs an instruction with a 32-bit immediate value.
+///
+/// Format: [PC (32 bits) | imm (32 bits) | arg (16 bits) | opcode (16 bits)]
+///
+/// The immediate value is stored as a full 32-bit value, not split into
+/// high/low parts.
+pub fn pack_instruction_with_32bits_imm(
     table: &mut TableBuilder,
     name: &str,
-    pc: Col<B32, 1>,
+    pc: Col<B32>,
+    opcode: u16,
+    arg: Col<B16>,
+    imm: Col<B32>,
+) -> Col<B128> {
+    table.add_computed(
+        name,
+        upcast_expr(arg.into()) * b128_basis(1)
+            + upcast_expr(imm.into()) * b128_basis(2)
+            + upcast_expr(pc.into()) * b128_basis(4)
+            + B128::new(opcode as u128),
+    )
+}
+
+/// Packs an instruction with a fixed opcode value.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+pub fn pack_instruction_with_fixed_opcode(
+    table: &mut TableBuilder,
+    name: &str,
+    pc: Col<B32>,
     opcode: u32,
-    args: [Col<B16, 1>; 3],
-) -> Col<B128, 1> {
-    table.add_computed(
-        name,
-        // Instruction part (lower 64 bits)
-        upcast_expr(args[0].into()) * B128::from(1u128 << 16) +
-        upcast_expr(args[1].into()) * B128::from(1u128 << 32) +
-        upcast_expr(args[2].into()) * B128::from(1u128 << 48) +
-        // PC part (upper 64 bits)
-        upcast_expr(pc.into()) * B128::from(1u128 << 64) + B128::new(opcode as u128),
-    )
+    args: [Col<B16>; 3],
+) -> Col<B128> {
+    pack_instruction_common!(table, name, pc, args, B128::new(opcode as u128))
 }
 
-pub fn pack_prom_entry(
+/// Packs an instruction with a variable opcode column.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+pub fn pack_instruction(
     table: &mut TableBuilder,
     name: &str,
-    pc: Col<B32, 1>,
-    opcode: Col<B16, 1>,
-    args: [Col<B16, 1>; 3],
-) -> Col<B128, 1> {
+    pc: Col<B32>,
+    opcode: Col<B16>,
+    args: [Col<B16>; 3],
+) -> Col<B128> {
+    pack_instruction_common!(table, name, pc, args, upcast_expr(opcode.into()))
+}
+
+/// Adds a computed column that packs an instruction with just PC and opcode
+/// (zeroes for all arguments) in a table builder context.
+///
+/// Format: [PC (32 bits) | 0 | 0 | 0 | opcode (16 bits)]
+pub fn pack_instruction_no_args(
+    table: &mut TableBuilder,
+    name: &str,
+    pc: Col<B32>,
+    opcode: u16,
+) -> Col<B128> {
     table.add_computed(
         name,
-        pack_b64_into_b128([
-            pack_b16_into_b64([
-                opcode.into(),
-                args[0].into(),
-                args[1].into(),
-                args[2].into(),
-            ]),
-            upcast_expr(pc.into()),
-        ]),
+        upcast_expr(pc.into()) * b128_basis(4) + B128::new(opcode as u128),
     )
 }
 
-pub fn pack_prom_entry_u128(pc: u32, opcode: u16, arg0: u16, arg1: u16, arg2: u16) -> u128 {
-    (pc as u128) << 64
-        | opcode as u128
-        | (arg0 as u128) << 16
-        | (arg1 as u128) << 32
-        | (arg2 as u128) << 48
+/// Creates a B128 value by packing instruction components with constant values.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+pub fn pack_instruction_b128(pc: B32, opcode: B16, arg1: B16, arg2: B16, arg3: B16) -> B128 {
+    let b1 = B128::new(opcode.val() as u128);
+    let b2 = b128_basis(1) * arg1;
+    let b3 = b128_basis(2) * arg2;
+    let b4 = b128_basis(3) * arg3;
+    let b5 = b128_basis(4) * pc;
+    b1 + b2 + b3 + b4 + b5
 }
 
-pub fn pack_vrom_entry(table: &mut TableBuilder,
-    name: &str,
-    addr: Col<B32, 1>,
-    value: Col<B32, 1>,
-) -> Col<B64, 1> {
-    table.add_computed(
-        name,
-        pack_b32_into_b64([addr.into(), value.into()]))
+/// Creates a u128 value by packing instruction components with constant values.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+pub fn pack_instruction_u128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> u128 {
+    opcode as u128
+        | (arg1 as u128) << 16
+        | (arg2 as u128) << 32
+        | (arg3 as u128) << 48
+        | (pc as u128) << 64
 }
 
-pub fn pack_vrom_entry_u64(addr: u32, value: u32) -> u64{
-    addr as u64 | (value as u64) << 32
+/// Creates a B128 value by packing instruction components with a 32-bit
+/// immediate value.
+///
+/// Format: [PC (32 bits) | imm (32 bits) | arg (16 bits) | opcode (16 bits)]
+///
+/// The immediate value is stored as a full 32-bit value, not split into
+/// high/low parts.
+pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm: B32) -> B128 {
+    let b1 = B128::new(opcode.val() as u128);
+    let b2 = b128_basis(1) * arg;
+    let b3 = b128_basis(2) * imm;
+    let b4 = b128_basis(4) * pc;
+    b1 + b2 + b3 + b4
+}
+
+pub(crate) fn pack_b16_into_b32(limbs: [Expr<B16, 1>; 2]) -> Expr<B32, 1> {
+    limbs
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| upcast_expr(limb) * <B32 as ExtensionField<B16>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("limbs has length 2")
+}
+
+pub(crate) fn pack_b16_into_b64(limbs: [Expr<B16, 1>; 4]) -> Expr<B64, 1> {
+    let instruction = limbs.into_iter().map(upcast_expr).collect::<Vec<_>>();
+    instruction
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| limb * <B64 as ExtensionField<B16>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("instruction has length 4")
+}
+
+pub(crate) fn pack_b32_into_b64(limbs: [Expr<B32, 1>; 2]) -> Expr<B64, 1> {
+    limbs
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| upcast_expr(limb) * <B64 as ExtensionField<B32>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("limbs has length 2")
+}
+
+pub(crate) fn pack_b64_into_b128(limbs: [Expr<B64, 1>; 2]) -> Expr<B128, 1> {
+    let instruction = limbs.into_iter().map(upcast_expr).collect::<Vec<_>>();
+    instruction
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| limb * <B128 as ExtensionField<B64>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("instruction has length 2")
 }

@@ -8,7 +8,7 @@ use bytemuck::Pod;
 use zcrayvm_assembly::{AndiEvent, Opcode, XoriEvent};
 
 use crate::{
-    channels::ZkVMChannels,
+    channels::Channels,
     opcodes::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent},
 };
 
@@ -19,16 +19,14 @@ pub struct XoriTable {
     dst_val: Col<B32>, // Virtual
     src_abs: Col<B32>, // Virtual
     src_val: Col<B32>,
-    vrom_dst: Col<B64>, // Virtual
-    vrom_src: Col<B64>, // Virtual
 }
 
 impl XoriTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
         let src_val = table.add_committed("src_val");
 
-        let ZkVMChannels {
+        let Channels {
             state_channel,
             prom_channel,
             vrom_channel,
@@ -48,20 +46,10 @@ impl XoriTable {
         let dst_val = table.add_computed("dst_val", src_val + upcast_expr(imm.into()));
 
         // Read dst_val
-        let vrom_dst = table.add_computed(
-            "vrom_dst",
-            upcast_expr(dst_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
-                + upcast_expr(dst_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
-        );
-        table.pull(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [dst_abs, dst_val]);
 
         // Read src_val
-        let vrom_src = table.add_computed(
-            "vrom_src",
-            upcast_expr(src_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
-                + upcast_expr(src_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
-        );
-        table.pull(vrom_channel, [vrom_src]);
+        table.pull(vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),
@@ -70,8 +58,6 @@ impl XoriTable {
             dst_val,
             src_abs,
             src_val,
-            vrom_dst,
-            vrom_src,
         }
     }
 }
@@ -98,21 +84,17 @@ where
             let mut dst_val = witness.get_mut_as(self.dst_val)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
-            let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
-            let mut vrom_src = witness.get_mut_as(self.vrom_src)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp ^ (event.dst as u32);
+                dst_abs[i] = *event.fp ^ (event.dst as u32);
                 dst_val[i] = event.dst_val;
-                src_abs[i] = event.fp ^ (event.src as u32);
+                src_abs[i] = *event.fp ^ (event.src as u32);
                 src_val[i] = event.src_val;
-                vrom_dst[i] = (event.dst_val as u64) << 32 | event.dst as u64;
-                vrom_src[i] = (event.src_val as u64) << 32 | event.src as u64;
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.into(),
             next_pc: None,
-            fp: event.fp,
+            fp: *event.fp,
             next_fp: None,
             arg0: event.dst,
             arg1: event.src,
@@ -131,18 +113,15 @@ pub struct AndiTable {
     src_val_unpacked: Col<B1, 16>, // Even though src_val is 32 bits, the high 16 bits are ignored
     dst_val: Col<B16>,             // Virtual
     src_val: Col<B16>,             // Virtual
-
-    vrom_dst: Col<B64>, // Virtual
-    vrom_src: Col<B64>, // Virtual
 }
 
 impl AndiTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("and");
         let src_val_unpacked: Col<B1, 16> = table.add_committed("src_val");
         let src_val = table.add_packed("src_val", src_val_unpacked);
 
-        let ZkVMChannels {
+        let Channels {
             state_channel,
             prom_channel,
             vrom_channel,
@@ -164,20 +143,10 @@ impl AndiTable {
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
-        let vrom_dst = table.add_computed(
-            "vrom_dst",
-            upcast_expr(dst_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
-                + upcast_expr(dst_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
-        );
-        table.pull(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [dst_abs, upcast_col(dst_val)]);
 
         // Read src_val
-        let vrom_src = table.add_computed(
-            "vrom_src",
-            upcast_expr(src_abs.into()) * <B64 as ExtensionField<B32>>::basis(0)
-                + upcast_expr(src_val.into()) * <B64 as ExtensionField<B32>>::basis(1),
-        );
-        table.pull(vrom_channel, [vrom_src]);
+        table.pull(vrom_channel, [src_abs, upcast_col(src_val)]);
 
         Self {
             id: table.id(),
@@ -186,8 +155,6 @@ impl AndiTable {
             src_abs,
             dst_val,
             src_val,
-            vrom_dst,
-            vrom_src,
             dst_val_unpacked,
             src_val_unpacked,
         }
@@ -214,21 +181,18 @@ where
             let mut dst_val = witness.get_mut_as(self.dst_val)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
-            let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
-            let mut vrom_src = witness.get_mut_as(self.vrom_src)?;
+            println!("rows: {:?}", rows.clone().collect::<Vec<_>>());
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp ^ (event.dst as u32);
+                dst_abs[i] = *event.fp ^ (event.dst as u32);
                 dst_val[i] = event.dst_val;
-                src_abs[i] = event.fp ^ (event.src as u32);
+                src_abs[i] = *event.fp ^ (event.src as u32);
                 src_val[i] = event.src_val;
-                vrom_dst[i] = (event.dst_val as u64) << 32 | event.dst as u64;
-                vrom_src[i] = (event.src_val as u64) << 32 | event.src as u64;
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.into(),
             next_pc: None,
-            fp: event.fp,
+            fp: *event.fp,
             next_fp: None,
             arg0: event.dst,
             arg1: event.src,

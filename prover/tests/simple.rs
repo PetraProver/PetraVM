@@ -4,9 +4,10 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use log::info;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
-use zcrayvm_prover::model::ZkVMTrace;
-use zcrayvm_prover::prover::ZkVMProver;
+use zcrayvm_prover::model::Trace;
+use zcrayvm_prover::prover::{verify_proof, Prover};
 
 /// Creates an execution trace for the instructions in `asm_code`.
 ///
@@ -16,16 +17,16 @@ use zcrayvm_prover::prover::ZkVMProver;
 /// * `vrom_writes` - The VROM writes to be added to the trace.
 ///
 /// # Returns
-/// * A ZkVMTrace containing executed instructions that loads `value` into VROM
-///   at address fp+2, followed by a RET instruction
-fn generate_test_trace<const N: usize, F: FnOnce(&ZkVMTrace) -> Vec<(u32, u32)>>(
+/// * A Trace containing executed instructions that loads `value` into VROM at
+///   address fp+2, followed by a RET instruction
+fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     asm_code: String,
     init_values: [u32; N],
     vrom_writes: F,
-) -> Result<ZkVMTrace> {
+) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    println!("compiled program = {:?}", compiled_program);
+    info!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
     let program = compiled_program.prom.clone();
@@ -42,8 +43,8 @@ fn generate_test_trace<const N: usize, F: FnOnce(&ZkVMTrace) -> Vec<(u32, u32)>>
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
-    // Convert to ZkVMTrace format for the prover
-    let mut zkvm_trace = ZkVMTrace::from_zcray_trace(zcray_trace);
+    // Convert to Trace format for the prover
+    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
 
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program);
@@ -64,7 +65,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&ZkVMTrace) -> Vec<(u32, u32)>>
     Ok(zkvm_trace)
 }
 
-fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
+fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
@@ -80,7 +81,7 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
     let init_values = [0, 0, value];
 
     // Add VROM writes from LDI eventsff
-    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+    let vrom_writes = |zkvm_trace: &Trace| {
         zkvm_trace
             .ldi_events()
             .iter()
@@ -94,9 +95,9 @@ fn generate_ldi_ret_trace(value: u32) -> Result<ZkVMTrace> {
 /// Creates a basic execution trace with just ADD and RET instructions.
 ///
 /// # Returns
-/// * A ZkVMTrace containing an LDI instruction that loads `value` into VROM at
+/// * A Trace containing an LDI instruction that loads `value` into VROM at
 ///   address fp+2, followed by a RET instruction
-fn generate_add_ret_trace() -> Result<ZkVMTrace> {
+fn generate_add_ret_trace() -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
@@ -110,7 +111,7 @@ fn generate_add_ret_trace() -> Result<ZkVMTrace> {
     let init_values = [0, 0, 1, 2];
 
     // Add VROM writes from ADD events
-    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+    let vrom_writes = |zkvm_trace: &Trace| {
         zkvm_trace
             .trace
             .add
@@ -134,9 +135,9 @@ fn generate_add_ret_trace() -> Result<ZkVMTrace> {
 /// * `con_val` - The condition checked by the BNZ instruction
 ///
 /// # Returns
-/// * A ZkVMTrace containing an BNZ instruction that loads `value` into VROM at
+/// * A Trace containing an BNZ instruction that loads `value` into VROM at
 ///   address fp+2, followed by a RET instruction
-fn generate_bnz_ret_trace(cond_val: u32) -> Result<ZkVMTrace> {
+fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
@@ -148,12 +149,12 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<ZkVMTrace> {
             RET\n"
         .to_string();
 
-    println!("asm_code:\n {:?}", asm_code);
+    info!("asm_code:\n {:?}", asm_code);
 
     let init_values = [0, 0, cond_val];
 
     // Add VROM writes from BNZ events
-    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+    let vrom_writes = |zkvm_trace: &Trace| {
         if cond_val != 0 {
             zkvm_trace
                 .bnz_events()
@@ -175,8 +176,8 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<ZkVMTrace> {
 /// Creates a basic execution trace with just XORI and RET instructions.
 ///
 /// # Returns
-/// * A ZkVMTrace containing a XORI qne RET instructions
-fn generate_xori_ret_trace() -> Result<ZkVMTrace> {
+/// * A Trace containing a XORI qne RET instructions
+fn generate_xori_ret_trace() -> Result<Trace> {
     let asm_code = "#[framesize(0x10)]\n\
         _start:\n\
         XORI @3, @2, #1 \n\
@@ -184,12 +185,12 @@ fn generate_xori_ret_trace() -> Result<ZkVMTrace> {
             RET\n"
         .to_string();
 
-    println!("asm_code:\n {:?}", asm_code);
+    info!("asm_code:\n {:?}", asm_code);
 
     let init_values = [0, 0, 5];
 
     // Add VROM writes from BNZ events
-    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+    let vrom_writes = |zkvm_trace: &Trace| {
         zkvm_trace
             .xori_events()
             .iter()
@@ -205,7 +206,7 @@ fn generate_xori_ret_trace() -> Result<ZkVMTrace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-fn generate_andi_ret_trace() -> Result<ZkVMTrace> {
+fn generate_andi_ret_trace() -> Result<Trace> {
     let asm_code = "#[framesize(0x10)]\n\
         _start:\n\
         ANDI @3, @2, #1 \n\
@@ -213,12 +214,12 @@ fn generate_andi_ret_trace() -> Result<ZkVMTrace> {
             RET\n"
         .to_string();
 
-    println!("asm_code:\n {:?}", asm_code);
+    info!("asm_code:\n {:?}", asm_code);
 
     let init_values = [0, 0, 5];
 
     // Add VROM writes from ANDI events
-    let vrom_writes = |zkvm_trace: &ZkVMTrace| {
+    let vrom_writes = |zkvm_trace: &Trace| {
         zkvm_trace
             .andi_events()
             .iter()
@@ -242,7 +243,7 @@ fn test_ldi_ret() -> Result<()> {
     let value = 0x12345678;
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_ldi_ret_trace(value)?;
 
     // Verify trace has correct structure
@@ -264,18 +265,22 @@ fn test_ldi_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }
 
@@ -284,7 +289,7 @@ fn test_add_ret() -> Result<()> {
     env_logger::init();
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_add_ret_trace()?;
 
     // Verify trace has correct structure
@@ -306,18 +311,22 @@ fn test_add_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 5, "Should have five VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }
 
@@ -326,7 +335,7 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
     env_logger::init();
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_bnz_ret_trace(1)?;
 
     // Verify trace has correct structure
@@ -348,18 +357,22 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }
 
@@ -368,7 +381,7 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
     env_logger::init();
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_bnz_ret_trace(0)?;
 
     // Verify trace has correct structure
@@ -390,18 +403,22 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have five VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }
 
@@ -410,7 +427,7 @@ fn test_xori_ret() -> Result<()> {
     env_logger::init();
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_xori_ret_trace()?;
 
     // Verify trace has correct structure
@@ -432,18 +449,22 @@ fn test_xori_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 4, "Should have four VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }
 
@@ -452,7 +473,7 @@ fn test_andi_ret() -> Result<()> {
     env_logger::init();
 
     // Step 1: Generate trace from assembly
-    println!("Generating trace from assembly...");
+    info!("Generating trace from assembly...");
     let trace = generate_andi_ret_trace()?;
 
     // Verify trace has correct structure
@@ -474,17 +495,21 @@ fn test_andi_ret() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 4, "Should have four VROM writes");
 
     // Step 2: Validate trace
-    println!("Validating trace internal structure...");
+    info!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    println!("Creating prover...");
-    let prover = ZkVMProver::new();
+    info!("Creating prover...");
+    let prover = Prover::new();
 
-    // Step 4: Validate trace -> Prove trace when binius is working.
-    println!("Validating trace with prover...");
-    prover.validate(&trace)?;
+    // Step 4: Generate proof
+    info!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
-    println!("All steps completed successfully!");
+    // Step 5: Verify proof
+    info!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    info!("All steps completed successfully!");
     Ok(())
 }

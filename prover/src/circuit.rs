@@ -6,8 +6,8 @@
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 
 use crate::{
-    channels::ZkVMChannels,
-    model::ZkVMTrace,
+    channels::Channels,
+    model::Trace,
     opcodes::{
         binary_ops::b32::AndiTable,
         branch::{BnzTable, BzTable},
@@ -18,11 +18,11 @@ use crate::{
 };
 
 /// Complete zCrayVM circuit with all tables for the proving system.
-pub struct ZkVMCircuit {
+pub struct Circuit {
     /// Constraint system
     pub cs: ConstraintSystem,
     /// Channels for connecting tables
-    pub channels: ZkVMChannels,
+    pub channels: Channels,
     /// Program ROM table
     pub prom_table: PromTable,
     // TODO: We should not have this table in prover
@@ -48,20 +48,20 @@ pub struct ZkVMCircuit {
     pub andi_table: AndiTable,
 }
 
-impl Default for ZkVMCircuit {
+impl Default for Circuit {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMCircuit {
+impl Circuit {
     /// Create a new zCrayVM circuit.
     ///
     /// This initializes the constraint system, channels, and all tables
     /// needed for the zCrayVM execution.
     pub fn new() -> Self {
         let mut cs = ConstraintSystem::new();
-        let channels = ZkVMChannels::new(&mut cs);
+        let channels = Channels::new(&mut cs);
 
         // Create all the tables
         let prom_table = PromTable::new(&mut cs, &channels);
@@ -101,16 +101,14 @@ impl ZkVMCircuit {
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
-    pub fn create_statement(&self, trace: &ZkVMTrace) -> anyhow::Result<Statement> {
+    pub fn create_statement(&self, trace: &Trace) -> anyhow::Result<Statement> {
         let vrom_size = trace.trace.vrom_size().next_power_of_two();
 
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
         let initial_state = Boundary {
-            // first_pc = 1, first_fp = 0
-            //                                       |..pc..||..fp..|
-            values: vec![B128::new(0x00000000000000000000000100000000)],
+            values: vec![B128::new(1), B128::new(0)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
             multiplicity: 1,
@@ -118,7 +116,7 @@ impl ZkVMCircuit {
 
         // Define the final state boundary (program ends with PC=0, FP=0)
         let final_state = Boundary {
-            values: vec![B128::new(0)],
+            values: vec![B128::new(0), B128::new(0)],
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,
             multiplicity: 1,
@@ -138,10 +136,10 @@ impl ZkVMCircuit {
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
         let add_size = trace.add_events().len(); // TODO: We need the add_events() function?
-        let xori_size = trace.trace.xori.len();
-        let bnz_size = trace.trace.bnz.len();
-        let bz_size = trace.trace.bz.len();
-        let andi_size = trace.trace.andi.len();
+        let xori_size = trace.xori_events().len();
+        let bnz_size = trace.bnz_events().len();
+        let bz_size = trace.bz_events().len();
+        let andi_size = trace.andi_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![

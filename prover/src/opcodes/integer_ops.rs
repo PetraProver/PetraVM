@@ -10,14 +10,8 @@ use binius_m3::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{AddEvent, AddiEvent, Opcode};
 
-use super::{
-    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
-    util::pack_b32_into_b64,
-};
-use crate::{
-    channels::ZkVMChannels,
-    utils::{pack_vrom_entry, pack_vrom_entry_u64},
-};
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::channels::Channels;
 
 pub struct AddTable {
     id: TableId,
@@ -32,17 +26,13 @@ pub struct AddTable {
     src2_val: Col<B1, 32>,
     src2_val_packed: Col<B32>,
     u32_add: U32Add,
-
-    vrom_src1: Col<B64>,
-    vrom_src2: Col<B64>,
-    vrom_dst: Col<B64>,
 }
 
 impl AddTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("add");
 
-        let ZkVMChannels {
+        let Channels {
             state_channel,
             prom_channel,
             vrom_channel,
@@ -73,14 +63,11 @@ impl AddTable {
         let dst_val_packed = table.add_packed("dst_val_packed", u32_add.zout);
 
         // Read src1
-        let vrom_src1 = pack_vrom_entry(&mut table, "vrom_src1", src1_abs, src1_val_packed);
-        table.pull(vrom_channel, [vrom_src1]);
+        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
         // Read src2
-        let vrom_src2 = pack_vrom_entry(&mut table, "vrom_src2", src2_abs, src2_val_packed);
-        table.pull(vrom_channel, [vrom_src2]);
+        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
         // Write dst
-        let vrom_dst = pack_vrom_entry(&mut table, "vrom_dst", dst_abs, dst_val_packed.into());
-        table.pull(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
 
         Self {
             id: table.id(),
@@ -94,9 +81,6 @@ impl AddTable {
             src2_val_packed,
             u32_add,
             dst_val_packed,
-            vrom_src1,
-            vrom_src2,
-            vrom_dst,
         }
     }
 }
@@ -122,37 +106,20 @@ where
             let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
-            let mut vrom_src1 = witness.get_mut_as(self.vrom_src1)?;
-            let mut vrom_src2 = witness.get_mut_as(self.vrom_src2)?;
-            let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp ^ (event.dst as u32);
-                src1_abs[i] = event.fp ^ (event.src1 as u32);
-                src2_abs[i] = event.fp ^ (event.src2 as u32);
+                dst_abs[i] = *event.fp ^ (event.dst as u32);
+                src1_abs[i] = *event.fp ^ (event.src1 as u32);
+                src2_abs[i] = *event.fp ^ (event.src2 as u32);
                 src1_val[i] = event.src1_val;
                 src2_val[i] = event.src2_val;
-                vrom_src1[i] = pack_vrom_entry_u64(event.src1 as u32, event.src1_val);
-                vrom_src2[i] = pack_vrom_entry_u64(event.src2 as u32, event.src2_val);
-                vrom_dst[i] = pack_vrom_entry_u64(event.dst as u32, event.dst_val);
-                dbg!(
-                    "Add fill",
-                    src1_val[i],
-                    src2_val[i],
-                    vrom_src1[i],
-                    vrom_src2[i],
-                    vrom_dst[i],
-                );
-                println!(
-                    "vrom_scr1 = {:x}, vrom_src2 = {:x}, vrom_dst = {:x}",
-                    vrom_src1[i], vrom_src2[i], vrom_dst[i]
-                );
+                dbg!("Add fill", src1_val[i], src2_val[i],);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.into(),
             next_pc: None,
             next_fp: None,
-            fp: event.fp,
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
@@ -239,7 +206,7 @@ where
         let cpu_rows = rows.clone().map(|event| CpuEvent {
             pc: event.pc.into(),
             next_pc: None,
-            fp: event.fp,
+            fp: *event.fp,
             next_fp: None,
             arg0: event.dst,
             arg1: event.src,

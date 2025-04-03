@@ -1,55 +1,117 @@
+use core::fmt::Debug;
+use std::{any::Any, marker::PhantomData};
+
 use binius_field::{BinaryField16b, BinaryField32b, Field};
 
+use super::context::EventContext;
 use crate::{
-    event::Event,
+    event::{binary_ops::*, Event},
     execution::{
-        trace::ZCrayTrace, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
     },
-    fire_non_jump_event,
+    fire_non_jump_event, Opcode, ZCrayTrace,
 };
 
-/// Enum to distinguish between the different kinds of shifts.
+/// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
+pub trait ShiftOperation<S: ShiftSource>: Debug + Clone + PartialEq {
+    fn shift_op(val: u32, shift: u32) -> u32;
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum ShiftOperation {
-    LogicalLeft,
-    LogicalRight,
-    ArithmeticRight,
+pub struct LogicalLeft;
+impl ShiftOperation<ImmediateShift> for LogicalLeft {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val << shift
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for LogicalLeft {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val << shift
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LogicalRight;
+impl ShiftOperation<ImmediateShift> for LogicalRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val >> shift
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for LogicalRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        val >> shift
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArithmeticRight;
+impl ShiftOperation<ImmediateShift> for ArithmeticRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        ((val as i32) >> shift) as u32
+    }
+}
+
+impl ShiftOperation<VromOffsetShift> for ArithmeticRight {
+    fn shift_op(val: u32, shift: u32) -> u32 {
+        ((val as i32) >> shift) as u32
+    }
 }
 
 /// Indicates the source of the shift amount.
+pub trait ShiftSource: Debug + Clone + PartialEq {
+    fn is_immediate() -> bool;
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum ShiftSource {
-    Immediate(u16),       // 16-bit immediate shift amount
-    VromOffset(u16, u32), // (16-bit VROM offset, 32-bit VROM value)
+pub struct ImmediateShift(u16);
+impl ShiftSource for ImmediateShift {
+    fn is_immediate() -> bool {
+        true
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VromOffsetShift((u16, u32));
+impl ShiftSource for VromOffsetShift {
+    fn is_immediate() -> bool {
+        false
+    }
 }
 
 /// Combined event for both logical and arithmetic shift operations.
-/// The type of shift is determined by the `op` field.
+/// The type of shift is determined by the `shift_op` field.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ShiftEvent {
+pub struct ShiftEvent<S, O>
+where
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
+{
     pc: BinaryField32b,
-    fp: u32,
+    fp: FramePointer,
     timestamp: u32,
     dst: u16,                // 16-bit destination VROM offset
     dst_val: u32,            // 32-bit result value
     src: u16,                // 16-bit source VROM offset
     pub(crate) src_val: u32, // 32-bit source value
-    shift_source: ShiftSource,
-    op: ShiftOperation, // Specifies which shift operation to perform
+
+    _phantom: PhantomData<(S, O)>,
 }
 
-impl ShiftEvent {
-    #[allow(clippy::too_many_arguments)]
+impl<S, O> ShiftEvent<S, O>
+where
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
+{
     pub const fn new(
         pc: BinaryField32b,
-        fp: u32,
+        fp: FramePointer,
         timestamp: u32,
         dst: u16,
         dst_val: u32,
         src: u16,
         src_val: u32,
-        shift_source: ShiftSource,
-        op: ShiftOperation,
     ) -> Self {
         Self {
             pc,
@@ -59,8 +121,7 @@ impl ShiftEvent {
             dst_val,
             src,
             src_val,
-            shift_source,
-            op,
+            _phantom: PhantomData,
         }
     }
 
@@ -69,19 +130,29 @@ impl ShiftEvent {
     /// The effective shift amount is determined by masking the provided shift
     /// amount to the lower 5 bits (i.e., `shift_amount & 0x1F`). If the
     /// effective shift amount is 0, the original `src_val` is returned.
-    /// Otherwise, the shift is performed based on the `op`:
+    /// Otherwise, the shift is performed based on the `shift_op`:
     /// - LogicalLeft: `src_val << effective_shift`
     /// - LogicalRight: `src_val >> effective_shift`
     /// - ArithmeticRight: arithmetic right shift preserving the sign bit.
-    pub fn calculate_result(src_val: u32, shift_amount: u32, op: &ShiftOperation) -> u32 {
+    pub fn calculate_result(src_val: u32, shift_amount: u32) -> u32 {
         let effective_shift = shift_amount & 0x1f;
         if effective_shift == 0 {
             return src_val;
         }
-        match op {
-            ShiftOperation::LogicalLeft => src_val << effective_shift,
-            ShiftOperation::LogicalRight => src_val >> effective_shift,
-            ShiftOperation::ArithmeticRight => ((src_val as i32) >> effective_shift) as u32,
+
+        O::shift_op(src_val, effective_shift)
+    }
+
+    fn generate_event(
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        arg1: BinaryField16b,
+        arg2: BinaryField16b,
+    ) -> Result<Self, InterpreterError> {
+        if S::is_immediate() {
+            Self::generate_immediate_event(ctx, dst, arg1, arg2)
+        } else {
+            Self::generate_vrom_event(ctx, dst, arg1, arg2)
         }
     }
 
@@ -91,32 +162,27 @@ impl ShiftEvent {
     /// directly from the instruction (as a 16-bit immediate) and masked to 5
     /// bits.
     pub fn generate_immediate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
         imm: BinaryField16b,
-        op: ShiftOperation,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
-        let new_val = Self::calculate_result(src_val, shift_amount, &op);
-        let timestamp = interpreter.timestamp;
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
-        interpreter.incr_pc();
+        let new_val = Self::calculate_result(src_val, shift_amount);
+        let timestamp = ctx.timestamp;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        ctx.incr_pc();
 
         Ok(Self::new(
-            field_pc,
-            interpreter.fp,
+            ctx.field_pc,
+            ctx.fp,
             timestamp,
             dst.val(),
             new_val,
             src.val(),
             src_val,
-            ShiftSource::Immediate(imm_val),
-            op,
         ))
     }
 
@@ -125,41 +191,95 @@ impl ShiftEvent {
     /// For VROM-based shifts (like SLL, SRL, SRA), the shift amount is read
     /// from another VROM location and masked to 5 bits.
     pub fn generate_vrom_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+        ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
         src2: BinaryField16b,
-        op: ShiftOperation,
-        field_pc: BinaryField32b,
     ) -> Result<Self, InterpreterError> {
-        let src_val = trace.get_vrom_u32(interpreter.fp ^ src1.val() as u32)?;
-        let shift_amount = trace.get_vrom_u32(interpreter.fp ^ src2.val() as u32)?;
+        let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
+        let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
-        let new_val = Self::calculate_result(src_val, shift_amount, &op);
-        let timestamp = interpreter.timestamp;
-        trace.set_vrom_u32(interpreter.fp ^ dst.val() as u32, new_val)?;
-        interpreter.incr_pc();
+        let new_val = Self::calculate_result(src_val, shift_amount);
+        let timestamp = ctx.timestamp;
+        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        ctx.incr_pc();
 
         Ok(Self::new(
-            field_pc,
-            interpreter.fp,
+            ctx.field_pc,
+            ctx.fp,
             timestamp,
             dst.val(),
             new_val,
             src1.val(),
             src_val,
-            ShiftSource::VromOffset(src2_offset, shift_amount),
-            op,
         ))
     }
 }
 
-impl Event for ShiftEvent {
+impl<S, O> Event for ShiftEvent<S, O>
+where
+    S: ShiftSource + Send + Sync + 'static,
+    O: ShiftOperation<S> + Send + Sync + 'static,
+    ShiftEvent<S, O>: GenericShiftEvent,
+{
+    fn generate(
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let event = if S::is_immediate() {
+            Self::generate_immediate_event(ctx, dst, src1, src2)?
+        } else {
+            Self::generate_vrom_event(ctx, dst, src1, src2)?
+        };
+
+        ctx.trace.shifts.push(Box::new(event));
+        Ok(())
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         fire_non_jump_event!(self, channels);
     }
 }
+
+/// Group of all shift events for convenient downcasting.
+pub enum AnyShiftEvent {
+    Slli(SlliEvent),
+    Srli(SrliEvent),
+    Srai(SraiEvent),
+    Sll(SllEvent),
+    Srl(SrlEvent),
+    Sra(SraEvent),
+}
+
+pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
+    fn as_any(&self) -> AnyShiftEvent;
+}
+
+macro_rules! impl_generic_shift_event {
+    ($variant:ident, $ty:ty) => {
+        impl GenericShiftEvent for $ty {
+            fn as_any(&self) -> AnyShiftEvent {
+                AnyShiftEvent::$variant(self.clone())
+            }
+        }
+    };
+}
+
+pub type SlliEvent = ShiftEvent<ImmediateShift, LogicalLeft>;
+pub type SrliEvent = ShiftEvent<ImmediateShift, LogicalRight>;
+pub type SraiEvent = ShiftEvent<ImmediateShift, ArithmeticRight>;
+pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
+pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
+pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
+
+impl_generic_shift_event!(Slli, SlliEvent);
+impl_generic_shift_event!(Srli, SrliEvent);
+impl_generic_shift_event!(Srai, SraiEvent);
+impl_generic_shift_event!(Sll, SllEvent);
+impl_generic_shift_event!(Srl, SrlEvent);
+impl_generic_shift_event!(Sra, SraEvent);
 
 #[cfg(test)]
 mod test {
@@ -169,14 +289,7 @@ mod test {
 
     use super::*;
     use crate::{
-        event::{
-            ret::RetEvent,
-            test_utils::{vrom_set_value_at_offset, TestEnv},
-        },
-        memory::Memory,
-        opcodes::Opcode,
-        util::code_to_prom,
-        ValueRom,
+        event::ret::RetEvent, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom,
     };
 
     #[test]
@@ -255,13 +368,12 @@ mod test {
             test_cases
         {
             let result_left =
-                ShiftEvent::calculate_result(src_val, shift_amount, &ShiftOperation::LogicalLeft);
+                ShiftEvent::<ImmediateShift, LogicalLeft>::calculate_result(src_val, shift_amount);
             let result_right =
-                ShiftEvent::calculate_result(src_val, shift_amount, &ShiftOperation::LogicalRight);
-            let result_arith = ShiftEvent::calculate_result(
+                ShiftEvent::<ImmediateShift, LogicalRight>::calculate_result(src_val, shift_amount);
+            let result_arith = ShiftEvent::<ImmediateShift, ArithmeticRight>::calculate_result(
                 src_val,
                 shift_amount,
-                &ShiftOperation::ArithmeticRight,
             );
 
             assert_eq!(
@@ -292,13 +404,13 @@ mod test {
         vrom.set_u32(1, 0).unwrap(); // Return FP
 
         // Create source value slots
-        let src_pos = vrom_set_value_at_offset(&mut vrom, 2, 0x00000003);
-        let src_neg = vrom_set_value_at_offset(&mut vrom, 3, 0x80000000);
+        let src_pos = vrom.set_value_at_offset(2, 0x00000003);
+        let src_neg = vrom.set_value_at_offset(3, 0x80000000);
 
         // Create shift amount slots
-        let shift_zero = vrom_set_value_at_offset(&mut vrom, 4, 0);
-        let shift_normal = vrom_set_value_at_offset(&mut vrom, 5, 3);
-        let shift_32 = vrom_set_value_at_offset(&mut vrom, 6, 32);
+        let shift_zero = vrom.set_value_at_offset(4, 0);
+        let shift_normal = vrom.set_value_at_offset(5, 3);
+        let shift_32 = vrom.set_value_at_offset(6, 32);
 
         // Create destination slots
         let slli_result = BinaryField16b::new(10);

@@ -8,7 +8,6 @@ pub mod cpu;
 pub mod integer_ops;
 pub mod ldi;
 pub mod ret;
-pub mod util;
 
 pub use binary_ops::b32::XoriTable;
 pub use ldi::LdiTable;

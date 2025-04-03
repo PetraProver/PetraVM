@@ -3,21 +3,17 @@
 //! This module contains the definitions of all the arithmetic tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
-use binius_field::as_packed_field::PackScalar;
-use binius_m3::builder::{upcast_expr, B1, B64};
-use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
-};
-use bytemuck::Pod;
+use binius_field::Field;
+use binius_m3::builder::TableWitnessSegment;
+use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 
-use crate::opcodes::util::pack_b32_into_b64;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
-use crate::utils::{pack_vrom_entry, pack_vrom_entry_u64};
 use crate::{
-    channels::ZkVMChannels,
+    channels::Channels,
     model::Instruction,
-    utils::{pack_prom_entry, pack_prom_entry_u128},
+    types::CommonTableBounds,
+    utils::{pack_instruction, pack_instruction_b128},
 };
 
 /// PROM (Program ROM) table for storing program instructions.
@@ -30,17 +26,17 @@ pub struct PromTable {
     /// Table ID
     pub id: TableId,
     /// PC column
-    pub pc: Col<B32, 1>,
+    pub pc: Col<B32>,
     /// Opcode column
-    pub opcode: Col<B16, 1>,
+    pub opcode: Col<B16>,
     /// Argument 1 column
-    pub arg1: Col<B16, 1>,
+    pub arg1: Col<B16>,
     /// Argument 2 column
-    pub arg2: Col<B16, 1>,
+    pub arg2: Col<B16>,
     /// Argument 3 column
-    pub arg3: Col<B16, 1>,
+    pub arg3: Col<B16>,
     /// Packed instruction for PROM channel
-    pub prom_entry: Col<B128, 1>,
+    pub instruction: Col<B128>,
 }
 
 impl PromTable {
@@ -49,7 +45,7 @@ impl PromTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
 
         // Add columns for PC and instruction components
@@ -60,10 +56,11 @@ impl PromTable {
         let arg3 = table.add_committed("arg3");
 
         // Pack the values for the PROM channel
-        let prom_entry = pack_prom_entry(&mut table, "prom_entry", pc, opcode, [arg1, arg2, arg3]);
+        let instruction =
+            pack_instruction(&mut table, "instruction", pc, opcode, [arg1, arg2, arg3]);
 
         // Push to the PROM channel
-        table.push(channels.prom_channel, [prom_entry]);
+        table.push(channels.prom_channel, [instruction]);
 
         Self {
             id: table.id(),
@@ -72,14 +69,14 @@ impl PromTable {
             arg1,
             arg2,
             arg3,
-            prom_entry,
+            instruction,
         }
     }
 }
 
 impl<U> TableFiller<U> for PromTable
 where
-    U: Pod + PackScalar<B1>,
+    U: CommonTableBounds,
 {
     type Event = Instruction;
 
@@ -92,28 +89,24 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_mut_as(self.pc)?;
-        let mut opcode_col = witness.get_mut_as(self.opcode)?;
-        let mut arg1_col = witness.get_mut_as(self.arg1)?;
-        let mut arg2_col = witness.get_mut_as(self.arg2)?;
-        let mut arg3_col = witness.get_mut_as(self.arg3)?;
-        let mut prom_entry_col = witness.get_mut_as(self.prom_entry)?;
+        let mut pc_col = witness.get_scalars_mut(self.pc)?;
+        let mut opcode_col = witness.get_scalars_mut(self.opcode)?;
+        let mut arg1_col = witness.get_scalars_mut(self.arg1)?;
+        let mut arg2_col = witness.get_scalars_mut(self.arg2)?;
+        let mut arg3_col = witness.get_scalars_mut(self.arg3)?;
+        let mut instruction_col = witness.get_scalars_mut(self.instruction)?;
 
         for (i, instr) in rows.enumerate() {
-            pc_col[i] = instr.pc;
-            opcode_col[i] = instr.opcode as u16;
+            pc_col[i] = B32::new(instr.pc.val());
+            opcode_col[i] = B16::new(instr.opcode as u16);
 
-            // Fill arguments, using 0 if the argument doesn't exist
-            println!(
-                "instr.args = [{:x}, {:x}, {:x}]",
-                instr.args[0], instr.args[1], instr.args[2]
-            );
-            arg1_col[i] = instr.args.first().copied().unwrap_or(0);
-            arg2_col[i] = instr.args.get(1).copied().unwrap_or(0);
-            arg3_col[i] = instr.args.get(2).copied().unwrap_or(0);
+            // Fill arguments, using ZERO if the argument doesn't exist
+            arg1_col[i] = instr.args.first().map_or(B16::ZERO, |&arg| B16::new(arg));
+            arg2_col[i] = instr.args.get(1).map_or(B16::ZERO, |&arg| B16::new(arg));
+            arg3_col[i] = instr.args.get(2).map_or(B16::ZERO, |&arg| B16::new(arg));
 
-            prom_entry_col[i] = pack_prom_entry_u128(
-                pc_col[i].val(),
+            instruction_col[i] = pack_instruction_b128(
+                pc_col[i],
                 opcode_col[i],
                 arg1_col[i],
                 arg2_col[i],
@@ -136,11 +129,9 @@ pub struct VromWriteTable {
     /// Table ID
     pub id: TableId,
     /// Address column (from address space channel)
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
     /// Value column (from VROM channel)
-    pub value: Col<B32, 1>,
-    /// Virtual column with the value pushed into the VROM channel
-    pub vrom_push: Col<B64, 1>,
+    pub value: Col<B32>,
 }
 
 impl VromWriteTable {
@@ -150,7 +141,7 @@ impl VromWriteTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
 
         // Add columns for address and value
@@ -161,21 +152,19 @@ impl VromWriteTable {
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
         // Push to VROM channel (address+value)
-        let vrom_push = pack_vrom_entry(&mut table, "vrom_push", addr, value);
-        table.push(channels.vrom_channel, [vrom_push]);
+        table.push(channels.vrom_channel, [addr, value]);
 
         Self {
             id: table.id(),
             addr,
             value,
-            vrom_push,
         }
     }
 }
 
 impl<U> TableFiller<U> for VromWriteTable
 where
-    U: Pod + PackScalar<B32>,
+    U: CommonTableBounds,
 {
     type Event = (u32, u32);
 
@@ -188,15 +177,13 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
-        let mut value_col = witness.get_mut_as(self.value)?;
-        let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
+        let mut value_col = witness.get_scalars_mut(self.value)?;
 
         // Fill in values from events
-        for (i, &(addr, value)) in rows.enumerate() {
-            addr_col[i] = addr;
-            value_col[i] = value;
-            vrom_push[i] = pack_vrom_entry_u64(addr, value);
+        for (i, (addr, value)) in rows.enumerate() {
+            addr_col[i] = B32::new(*addr);
+            value_col[i] = B32::new(*value);
         }
 
         Ok(())
@@ -214,7 +201,7 @@ pub struct VromSkipTable {
     /// Table ID
     pub id: TableId,
     /// Address column (from address space channel)
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
 }
 
 impl VromSkipTable {
@@ -224,7 +211,7 @@ impl VromSkipTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_skip");
 
         // Add column for address
@@ -242,7 +229,7 @@ impl VromSkipTable {
 
 impl<U> TableFiller<U> for VromSkipTable
 where
-    U: Pod + PackScalar<B32>,
+    U: CommonTableBounds,
 {
     type Event = u32;
 
@@ -255,11 +242,11 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
 
         // Fill in addresses from events
         for (i, addr) in rows.enumerate() {
-            addr_col[i] = *addr;
+            addr_col[i] = B32::new(*addr);
         }
 
         Ok(())
@@ -278,7 +265,7 @@ pub struct VromAddrSpaceTable {
     /// Table ID
     pub id: TableId,
     /// Address column
-    pub addr: Col<B32, 1>,
+    pub addr: Col<B32>,
 }
 
 impl VromAddrSpaceTable {
@@ -288,7 +275,7 @@ impl VromAddrSpaceTable {
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
     /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_addr_space");
 
         // Add column for address
@@ -306,7 +293,7 @@ impl VromAddrSpaceTable {
 
 impl<U> TableFiller<U> for VromAddrSpaceTable
 where
-    U: Pod + PackScalar<B32>,
+    U: CommonTableBounds,
 {
     type Event = u32;
 
@@ -319,11 +306,11 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_mut_as(self.addr)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
 
         // Fill the addresses from the provided rows
         for (i, &addr) in rows.enumerate() {
-            addr_col[i] = addr;
+            addr_col[i] = B32::new(addr);
         }
 
         Ok(())

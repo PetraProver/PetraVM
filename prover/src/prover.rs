@@ -4,48 +4,65 @@
 //! zCrayVM execution traces.
 
 use anyhow::Result;
-use binius_core::constraint_system::validate;
+use binius_core::{
+    constraint_system::{prove, validate, verify, ConstraintSystem, Proof},
+    fiat_shamir::HasherChallenger,
+    tower::CanonicalTowerFamily,
+};
 use binius_field::arch::OptimalUnderlier128b;
+use binius_hal::make_portable_backend;
+use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_m3::builder::Statement;
 use bumpalo::Bump;
-use groestl_crypto::Groestl256;
 
-use crate::{circuit::ZkVMCircuit, model::ZkVMTrace};
+use crate::{circuit::Circuit, model::Trace};
+
+const LOG_INV_RATE: usize = 1;
+const SECURITY_BITS: usize = 100;
 
 /// Main prover for zCrayVM.
 // TODO: should be customizable by supported opcodes
-pub struct ZkVMProver {
+pub struct Prover {
     /// Arithmetic circuit for zCrayVM
-    circuit: ZkVMCircuit,
+    circuit: Circuit,
 }
 
-impl Default for ZkVMProver {
+impl Default for Prover {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMProver {
+impl Prover {
     /// Create a new zCrayVM prover.
     pub fn new() -> Self {
         Self {
-            circuit: ZkVMCircuit::new(),
+            circuit: Circuit::new(),
         }
     }
 
-    /// Validate a zCrayVM execution trace.
+    /// Prove a zCrayVM execution trace.
     ///
     /// This function:
     /// 1. Creates a statement from the trace
     /// 2. Compiles the constraint system
     /// 3. Builds and fills the witness
     /// 4. Validates the witness against the constraints
+    /// 5. Generates a proof
     ///
     /// # Arguments
-    /// * `trace` - The zCrayVM execution trace to validate
+    /// * `trace` - The zCrayVM execution trace to prove
     ///
     /// # Returns
-    /// * Result containing success or error
-    pub fn validate(&self, trace: &ZkVMTrace) -> Result<()> {
+    /// * Result containing the proof, statement, and compiled constraint system
+    pub fn prove(
+        &self,
+        trace: &Trace,
+    ) -> Result<(
+        Proof,
+        Statement,
+        ConstraintSystem<binius_field::BinaryField128b>,
+    )> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
@@ -104,14 +121,69 @@ impl ZkVMProver {
         witness.fill_table_sequential(&self.circuit.xori_table, trace.xori_events())?;
 
         // 11. Fill ANDI table
+        println!("ANDI events: {:?}", trace.andi_events().len());
+        println!("ANDI events: {:?}", trace.andi_events());
         witness.fill_table_sequential(&self.circuit.andi_table, trace.andi_events())?;
 
         // Convert witness to multilinear extension format for validation
-        let mle_witness = witness.into_multilinear_extension_index();
+        let witness = witness.into_multilinear_extension_index();
 
         // Validate the witness against the constraint system
-        validate::validate_witness(&compiled_cs, &statement.boundaries, &mle_witness)?;
+        validate::validate_witness(&compiled_cs, &statement.boundaries, &witness)?;
 
-        Ok(())
+        // Generate the proof
+        let proof = prove::<
+            OptimalUnderlier128b,
+            CanonicalTowerFamily,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+            _,
+        >(
+            &compiled_cs,
+            LOG_INV_RATE,
+            SECURITY_BITS,
+            &statement.boundaries,
+            witness,
+            &make_portable_backend(),
+        )?;
+
+        Ok((proof, statement, compiled_cs))
     }
+}
+
+/// Verify a zCrayVM execution proof.
+///
+/// This function:
+/// 1. Uses the provided compiled constraint system
+/// 2. Verifies the proof against the statement
+///
+/// # Arguments
+/// * `statement` - The complete statement for verification
+/// * `compiled_cs` - The pre-compiled constraint system
+/// * `proof` - The proof to verify (taken by value)
+///
+/// # Returns
+/// * Result indicating success or error
+pub fn verify_proof(
+    statement: &Statement,
+    compiled_cs: &ConstraintSystem<binius_field::BinaryField128b>,
+    proof: Proof,
+) -> Result<()> {
+    // Verify the proof
+    verify::<
+        OptimalUnderlier128b,
+        CanonicalTowerFamily,
+        Groestl256,
+        Groestl256ByteCompression,
+        HasherChallenger<Groestl256>,
+    >(
+        compiled_cs,
+        LOG_INV_RATE,
+        SECURITY_BITS,
+        &statement.boundaries,
+        proof,
+    )?;
+
+    Ok(())
 }

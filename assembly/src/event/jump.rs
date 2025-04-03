@@ -1,8 +1,11 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
 
-use super::Event;
-use crate::execution::{
-    trace::ZCrayTrace, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+use super::{context::EventContext, Event};
+use crate::{
+    execution::{
+        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
+    },
+    ZCrayTrace,
 };
 
 /// Event for Jumpv.
@@ -12,63 +15,48 @@ use crate::execution::{
 /// Logic:
 /// 1. PC = FP[offset]
 #[derive(Debug, Clone)]
-pub struct JumpvEvent {
-    pub pc: BinaryField32b,
-    pub fp: u32,
-    pub timestamp: u32,
-    pub offset: u16,
-    pub target: u32,
+pub(crate) struct JumpvEvent {
+    pc: BinaryField32b,
+    fp: FramePointer,
+    timestamp: u32,
+    offset: u16,
+    target: u32,
 }
 
-impl JumpvEvent {
-    pub const fn new(
-        pc: BinaryField32b,
-        fp: u32,
-        timestamp: u32,
-        offset: u16,
-        target: u32,
-    ) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            offset,
-            target,
-        }
-    }
-
-    pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
+impl Event for JumpvEvent {
+    fn generate(
+        ctx: &mut EventContext,
         offset: BinaryField16b,
-        field_pc: BinaryField32b,
-    ) -> Result<Self, InterpreterError> {
-        let target = trace.get_vrom_u32(interpreter.fp ^ offset.val() as u32)?;
+        _unused0: BinaryField16b,
+        _unused1: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
 
-        interpreter.jump_to(target.into());
+        ctx.jump_to(target.into());
 
-        Ok(Self {
-            pc: field_pc,
+        let event = Self {
+            pc: ctx.field_pc,
             fp,
             timestamp,
             offset: offset.val(),
             target,
-        })
-    }
-}
+        };
 
-impl Event for JumpvEvent {
+        ctx.trace.jumpv.push(event);
+        Ok(())
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels
             .state_channel
-            .push((BinaryField32b::new(self.target), self.fp, self.timestamp));
+            .push((BinaryField32b::new(self.target), *self.fp, self.timestamp));
     }
 }
 
@@ -79,52 +67,47 @@ impl Event for JumpvEvent {
 /// Logic:
 /// 1. PC = target
 #[derive(Debug, Clone)]
-pub struct JumpiEvent {
-    pub pc: BinaryField32b,
-    pub fp: u32,
-    pub timestamp: u32,
-    pub target: BinaryField32b,
-}
-
-impl JumpiEvent {
-    pub const fn new(pc: BinaryField32b, fp: u32, timestamp: u32, target: BinaryField32b) -> Self {
-        Self {
-            pc,
-            fp,
-            timestamp,
-            target,
-        }
-    }
-
-    pub fn generate_event(
-        interpreter: &mut Interpreter,
-        trace: &mut ZCrayTrace,
-        target: BinaryField32b,
-        field_pc: BinaryField32b,
-    ) -> Result<Self, InterpreterError> {
-        let pc = interpreter.pc;
-        let fp = interpreter.fp;
-        let timestamp = interpreter.timestamp;
-
-        interpreter.jump_to(target);
-
-        Ok(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            target,
-        })
-    }
+pub(crate) struct JumpiEvent {
+    pc: BinaryField32b,
+    fp: FramePointer,
+    timestamp: u32,
+    target: BinaryField32b,
 }
 
 impl Event for JumpiEvent {
+    fn generate(
+        ctx: &mut EventContext,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+        _unused: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        let pc = ctx.pc;
+        let fp = ctx.fp;
+        let timestamp = ctx.timestamp;
+
+        let target = (BinaryField32b::from_bases([target_low, target_high]))
+            .map_err(|_| InterpreterError::InvalidInput)?;
+
+        ctx.jump_to(target);
+
+        let event = Self {
+            pc: ctx.field_pc,
+            fp,
+            timestamp,
+            target,
+        };
+
+        ctx.trace.jumpi.push(event);
+        Ok(())
+    }
+
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
         channels
             .state_channel
-            .pull((self.pc, self.fp, self.timestamp));
+            .pull((self.pc, *self.fp, self.timestamp));
         channels.state_channel.push((
             BinaryField32b::new(self.target.val()),
-            self.fp,
+            *self.fp,
             self.timestamp,
         ));
     }

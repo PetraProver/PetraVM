@@ -1,4 +1,4 @@
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField};
+use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, ExtensionField, Field};
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B32, B64,
@@ -6,11 +6,8 @@ use binius_m3::builder::{
 use bytemuck::Pod;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
-use super::{
-    cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc},
-    util::pack_b32_into_b64,
-};
-use crate::channels::ZkVMChannels;
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::channels::Channels;
 
 /// Table for BNZ.
 ///
@@ -24,15 +21,14 @@ pub struct BnzTable {
     cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
     cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
-    vrom_push: Col<B64>, // Virtual;
 }
 
 impl BnzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
 
-        let ZkVMChannels {
+        let Channels {
             state_channel,
             prom_channel,
             vrom_channel,
@@ -53,19 +49,14 @@ impl BnzTable {
 
         let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
 
-        let vrom_push = table.add_computed(
-            "vrom_push",
-            pack_b32_into_b64([upcast_col(cond_abs).into(), cond_val.into()]),
-        );
         // Read cond_val
-        table.pull(vrom_channel, [vrom_push]);
+        table.pull(vrom_channel, [upcast_col(cond_abs).into(), cond_val.into()]);
 
         Self {
             id: table.id(),
             cpu_cols,
             cond_abs,
             cond_val,
-            vrom_push,
         }
     }
 }
@@ -88,18 +79,16 @@ where
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
-            let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
             for (i, event) in rows.clone().enumerate() {
-                cond_abs[i] = event.fp ^ (event.cond as u32);
+                cond_abs[i] = *event.fp ^ (event.cond as u32);
                 cond_val[i] = event.cond_val;
-                vrom_push[i] = (event.cond_val as u64) << 32 | event.cond as u64;
-                dbg!("Bnz fill", cond_val[i], vrom_push[i],);
+                dbg!("Bnz fill", cond_val[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.val(),
             next_pc: Some((event.target_high.val() as u32) << 16 | event.target_low.val() as u32),
-            fp: event.fp,
+            fp: *event.fp,
             next_fp: None,
             arg0: event.cond,
             arg1: event.target_low.val(),
@@ -113,14 +102,14 @@ where
 pub struct BzTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
-    vrom_push: Col<B64>, // Virtual
+    cond_abs: Col<B32>, // Virtual
 }
 
 impl BzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &ZkVMChannels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bz");
 
-        let ZkVMChannels {
+        let Channels {
             state_channel,
             prom_channel,
             vrom_channel,
@@ -138,19 +127,15 @@ impl BzTable {
         );
 
         let cond = cpu_cols.arg0;
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let zero = table.add_constant("zero", [B32::ZERO]);
 
-        let vrom_push = table.add_computed(
-            "vrom_push",
-            // cond_val is zero in this case
-            upcast_expr(cond.into()) * <B64 as ExtensionField<B32>>::basis(0),
-        );
-        // Read cond_val
-        table.pull(vrom_channel, [vrom_push]);
+        table.pull(vrom_channel, [cond_abs.into(), zero]);
 
         Self {
             id: table.id(),
             cpu_cols,
-            vrom_push,
+            cond_abs,
         }
     }
 }
@@ -171,15 +156,15 @@ where
         witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut vrom_push = witness.get_mut_as(self.vrom_push)?;
+            let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             for (i, event) in rows.clone().enumerate() {
-                vrom_push[i] = event.cond as u64; //  cond_val is 0
+                cond_abs[i] = *event.fp ^ (event.cond as u32);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
             pc: event.pc.val(),
             next_pc: None,
-            fp: event.fp,
+            fp: *event.fp,
             next_fp: None,
             arg0: event.cond,
             arg1: event.target_low.val(),

@@ -10,6 +10,20 @@ use zcrayvm_assembly::{
     XoriEvent, ZCrayTrace,
 };
 
+/// Macro to generate event accessors
+macro_rules! impl_event_accessor {
+    ($name:ident, $event_type:ty, $field:ident) => {
+        impl Trace {
+            /// Returns a reference to the $name events from the trace.
+            ///
+            /// These events represent each $name instruction executed during the trace.
+            pub fn $name(&self) -> &Vec<$event_type> {
+                &self.trace.$field
+            }
+        }
+    };
+}
+
 /// High-level representation of a zCrayVM instruction with its PC and
 /// arguments.
 ///
@@ -50,7 +64,7 @@ impl From<InterpreterInstruction> for Instruction {
 /// 2. The original ZCrayTrace with all execution events and memory state
 /// 3. A list of VROM writes (address, value) pairs
 #[derive(Debug)]
-pub struct ZkVMTrace {
+pub struct Trace {
     /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
@@ -59,13 +73,13 @@ pub struct ZkVMTrace {
     pub vrom_writes: Vec<(u32, u32)>,
 }
 
-impl Default for ZkVMTrace {
+impl Default for Trace {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ZkVMTrace {
+impl Trace {
     /// Creates a new empty execution trace.
     pub fn new() -> Self {
         Self {
@@ -75,68 +89,23 @@ impl ZkVMTrace {
         }
     }
 
-    /// Creates a ZkVMTrace from an existing ZCrayTrace.
+    /// Creates a Trace from an existing ZCrayTrace.
     ///
     /// This is useful when you have a trace from the interpreter and want
     /// to convert it to the proving format.
     ///
     /// Note: This creates an empty program vector. You'll need to populate
     /// the program instructions separately using add_instructions().
+    ///
+    /// TODO: Refactor this approach to directly obtain the zkVMTrace from
+    /// program emulation rather than requiring separate population of
+    /// program instructions.
     pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
         Self {
             trace,
             program: Vec::new(),
             vrom_writes: Vec::new(),
         }
-    }
-
-    /// Returns a reference to the LDI events from the trace.
-    ///
-    /// These events represent each LDI instruction executed during the trace.
-    pub fn ldi_events(&self) -> &Vec<LDIEvent> {
-        &self.trace.ldi
-    }
-
-    /// Returns a reference to the RET events from the trace.
-    ///
-    /// These events represent each RET instruction executed during the trace.
-    pub fn ret_events(&self) -> &Vec<RetEvent> {
-        &self.trace.ret
-    }
-
-    /// Returns a reference to the BNZ non zero branch events from the trace.
-    ///
-    /// These events represent each BNZ instruction executed during the trace.
-    pub fn bnz_events(&self) -> &Vec<BnzEvent> {
-        &self.trace.bnz
-    }
-
-    /// Returns a reference to the BNZ zero branch events from the trace.
-    ///
-    /// These events represent each BNZ instruction executed during the trace.
-    pub fn bz_events(&self) -> &Vec<BzEvent> {
-        &self.trace.bz
-    }
-
-    /// Returns a reference to the ADD events from the trace.
-    ///
-    /// These events represent each LDI instruction executed during the trace.
-    pub fn add_events(&self) -> &Vec<AddEvent> {
-        &self.trace.add
-    }
-
-    /// Returns a reference to the ADD events from the trace.
-    ///
-    /// These events represent each LDI instruction executed during the trace.
-    pub fn xori_events(&self) -> &Vec<XoriEvent> {
-        &self.trace.xori
-    }
-
-    /// Returns a reference to the ANDI events from the trace.
-    ///
-    /// These events represent each ANDO instruction executed during the trace.
-    pub fn andi_events(&self) -> &Vec<AndiEvent> {
-        &self.trace.andi
     }
 
     /// Add an interpreter instruction to the program.
@@ -202,3 +171,12 @@ impl ZkVMTrace {
         Ok(())
     }
 }
+
+// Generate event accessors
+impl_event_accessor!(ldi_events, LDIEvent, ldi);
+impl_event_accessor!(ret_events, RetEvent, ret);
+impl_event_accessor!(add_events, AddEvent, add);
+impl_event_accessor!(xori_events, XoriEvent, xori);
+impl_event_accessor!(bnz_events, BnzEvent, bnz);
+impl_event_accessor!(bz_events, BzEvent, bz);
+impl_event_accessor!(andi_events, AndiEvent, andi);

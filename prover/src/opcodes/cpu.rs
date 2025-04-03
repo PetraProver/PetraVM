@@ -5,8 +5,9 @@ use binius_m3::builder::{
 };
 use bytemuck::Pod;
 
-use super::util::{pack_b16_into_b32, pack_b16_into_b64, pack_b32_into_b64, pack_b64_into_b128};
-use crate::utils::{pack_prom_entry, pack_prom_entry_u128};
+use crate::utils::{
+    pack_b16_into_b32, pack_instruction, pack_instruction_b128, pack_instruction_u128,
+};
 
 /// A gadget for reading the instruction from the prom and
 /// setting the next program counter and timestamp
@@ -21,9 +22,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) arg2: Col<B16>, // Virtual,
     options: CpuColumnsOptions,
     // Virtual columns for communication with the channels
-    prom_pull: Col<B128>,
-    state_push: Col<B64>,
-    state_pull: Col<B64>,
+    prom_pull: Col<B128>, // Virtual
 }
 
 #[derive(Default)]
@@ -81,24 +80,15 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         };
 
         // Push the current pc and instruction to the prom channel
-        let prom_pull = pack_prom_entry(table, "prom_pull", pc, opcode, [arg0, arg1, arg2]);
+        let prom_pull = pack_instruction(table, "prom_pull", pc, opcode, [arg0, arg1, arg2]);
         table.pull(prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
-        let state_pull =
-            table.add_computed("state_pull", pack_b32_into_b64([fp.into(), pc.into()]));
-        table.pull(state_channel, [state_pull]);
-        let state_push;
+        table.pull(state_channel, [pc.into(), fp.into()]);
         if let Some(next_fp) = options.next_fp {
-            state_push = table.add_computed(
-                "state_push",
-                pack_b32_into_b64([next_fp.into(), next_pc.into()]),
-            );
-            table.push(state_channel, [state_push]);
+            table.push(state_channel, [next_pc.into(), next_fp.into()]);
         } else {
-            state_push =
-                table.add_computed("state_push", pack_b32_into_b64([fp.into(), next_pc.into()]));
-            table.push(state_channel, [state_push]);
+            table.push(state_channel, [next_pc.into(), fp.into()]);
         }
         Self {
             pc,
@@ -111,8 +101,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             arg2,
             options,
             prom_pull,
-            state_push,
-            state_pull,
         }
     }
 
@@ -136,8 +124,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let mut arg2_col = index.get_mut_as(self.arg2)?;
 
         let mut prom_pull = index.get_mut_as(self.prom_pull)?;
-        let mut state_push = index.get_mut_as(self.state_push)?;
-        let mut state_pull = index.get_mut_as(self.state_pull)?;
 
         for (
             i,
@@ -165,15 +151,8 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
                 NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,
             };
 
-            prom_pull[i] = pack_prom_entry_u128(pc, OPCODE, arg0, arg1, arg2);
+            prom_pull[i] = pack_instruction_u128(pc, OPCODE, arg0, arg1, arg2);
 
-            let next_fp = if let Some(next_fp) = next_fp {
-                next_fp
-            } else {
-                fp
-            };
-            state_push[i] = (next_pc_col[i] as u64) << 32 | next_fp as u64;
-            state_pull[i] = (pc as u64) << 32 | fp as u64;
             dbg!(
                 "Cpu fill",
                 &pc_col[i],
@@ -183,8 +162,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
                 arg1_col[i],
                 arg2_col[i],
                 next_pc_col[i],
-                state_push[i],
-                state_pull[i]
             );
         }
 
