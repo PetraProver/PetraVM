@@ -74,7 +74,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
 ///
 /// # Returns
 /// * A trace containing an LDI instruction that loads `value` into VROM at
-/// address fp+2, followed by a RET instruction
+///   address fp+2, followed by a RET instruction
 fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
