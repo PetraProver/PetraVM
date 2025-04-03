@@ -172,21 +172,6 @@ where
                 src1_col[i],
                 src2_col[i],
             );
-            dbg!(
-                &pc_col[i],
-                &fp_col[i],
-                &dst_col[i],
-                &src1_col[i],
-                &src2_col[i],
-                &src1_val_col[i],
-                &src2_val_col[i],
-                &result_val_col[i],
-                &next_pc_col[i],
-                &prom_pull_col[i],
-                &src1_abs_addr_col[i],
-                &src2_abs_addr_col[i],
-                &dst_abs_addr_col[i],
-            );
         }
         Ok(())
     }

@@ -61,6 +61,8 @@ fn generate_test_trace(value: u32) -> Result<Trace> {
     let mul_result = (B32::new(value) * B32::new(2)).val();
     trace.add_vrom_write(4, mul_result, 1);
 
+    trace.add_vrom_write(5, 0, 0);
+
     Ok(trace)
 }
 
@@ -96,7 +98,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
         1,
         "Should have exactly one RET event"
     );
-    assert_eq!(trace.vrom_writes.len(), 5, "Should have 5 VROM writes");
+    assert_eq!(trace.vrom_writes.len(), 6, "Should have 6 VROM writes");
 
     // Step 2: Validate trace
     info!("Validating trace internal structure...");

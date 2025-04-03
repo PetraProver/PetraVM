@@ -57,9 +57,9 @@ impl Circuit {
         let channels = Channels::new(&mut cs);
 
         // Create all the tables
+        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let prom_table = PromTable::new(&mut cs, &channels);
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
-        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
@@ -68,9 +68,9 @@ impl Circuit {
         Self {
             cs,
             channels,
+            vrom_write_table,
             prom_table,
             vrom_addr_space_table,
-            vrom_write_table,
             vrom_skip_table,
             ldi_table,
             ret_table,
@@ -124,9 +124,9 @@ impl Circuit {
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
+            vrom_write_size,      // VROM write table size
             prom_size,            // PROM table size
             vrom_addr_space_size, // VROM address space table size
-            vrom_write_size,      // VROM write table size
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
             ret_size,             // RET table size
