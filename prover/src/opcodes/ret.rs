@@ -11,7 +11,7 @@ use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::{
     channels::Channels,
-    types::CommonTableBounds,
+    types::ProverPackedField,
     utils::{pack_instruction_b128, pack_instruction_no_args},
 };
 
@@ -91,10 +91,7 @@ impl RetTable {
     }
 }
 
-impl<U> TableFiller<U> for RetTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for RetTable {
     type Event = RetEvent;
 
     fn id(&self) -> TableId {
@@ -104,7 +101,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_scalars_mut(self.pc)?;
         let mut fp_col = witness.get_scalars_mut(self.fp)?;

@@ -5,8 +5,7 @@
 
 use binius_field::BinaryField;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16,
-    B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
