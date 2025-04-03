@@ -16,6 +16,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
     // This field will be used for opcodes like SRLI
+    #[allow(dead_code)]
     pub(crate) arg2_unpacked: Col<B1, 16>,
     pub(crate) arg2: Col<B16>, // Virtual,
     options: CpuColumnsOptions,
@@ -31,6 +32,7 @@ pub(crate) enum NextPc {
     /// Next pc is the value defined by target.
     Target(Col<B32>),
     /// Next pc is the value defined by arg1, arg2.
+    #[allow(dead_code)]
     Immediate, // This will be necessary for opcodes like BNZ
 }
 
@@ -79,11 +81,11 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         table.pull(prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
-        table.pull(state_channel, [pc.into(), fp.into()]);
+        table.pull(state_channel, [pc, fp]);
         if let Some(next_fp) = options.next_fp {
-            table.push(state_channel, [next_pc.into(), next_fp.into()]);
+            table.push(state_channel, [next_pc, next_fp]);
         } else {
-            table.push(state_channel, [next_pc.into(), fp.into()]);
+            table.push(state_channel, [next_pc, fp]);
         }
         Self {
             pc,

@@ -32,10 +32,10 @@ impl RetTable {
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
 
         // Read the next_pc
-        table.pull(channels.vrom_channel, [next_pc.into(), fp0.into()]);
+        table.pull(channels.vrom_channel, [next_pc, fp0]);
 
         //Read the next_fp
-        table.pull(channels.vrom_channel, [fp_xor_1.into(), next_fp.into()]);
+        table.pull(channels.vrom_channel, [fp_xor_1, next_fp]);
 
         Self {
             id: table.id(),

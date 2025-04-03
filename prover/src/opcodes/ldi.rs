@@ -103,7 +103,7 @@ where
             next_pc: None,
             fp: *event.fp,
             arg0: event.dst,
-            arg1: event.imm as u16 & 0xFFFF,
+            arg1: event.imm as u16,
             arg2: (event.imm >> 16) as u16,
         });
         self.cpu_cols.populate(witness, cpu_rows)
