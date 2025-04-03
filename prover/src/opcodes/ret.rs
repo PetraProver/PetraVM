@@ -34,7 +34,7 @@ impl RetTable {
         // Read the next_pc
         table.pull(channels.vrom_channel, [next_pc, fp0]);
 
-        //Read the next_fp
+        // Read the next_fp
         table.pull(channels.vrom_channel, [fp_xor_1, next_fp]);
 
         Self {
