@@ -40,7 +40,6 @@ pub(crate) enum NextPc {
 pub(crate) struct CpuColumnsOptions {
     pub(crate) next_pc: NextPc,
     pub(crate) next_fp: Option<Col<B32>>,
-    // TODO: Maybe add options for reading/writng from/to to the args
 }
 
 #[derive(Default)]
@@ -76,7 +75,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             }
         };
 
-        // Push the current pc and instruction to the prom channel
+        // Pull the current pc and instruction to the prom channel
         let prom_pull = pack_instruction(table, "prom_pull", pc, opcode, [arg0, arg1, arg2]);
         table.pull(prom_channel, [prom_pull]);
 
@@ -148,17 +147,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             };
 
             prom_pull[i] = pack_instruction_u128(pc, OPCODE, arg0, arg1, arg2);
-
-            dbg!(
-                "Cpu fill",
-                &pc_col[i],
-                fp_col[i],
-                opcode_col[i],
-                arg0_col[i],
-                arg1_col[i],
-                arg2_col[i],
-                next_pc_col[i],
-            );
         }
 
         Ok(())

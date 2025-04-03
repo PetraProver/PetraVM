@@ -61,7 +61,7 @@ impl LdiTable {
 
         let abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
-        // Push value to VROM write table using absolute address
+        // Pull value to VROM write table using absolute address
         let imm = table.add_computed("imm", pack_b16_into_b32([imm_low.into(), imm_high.into()]));
         table.pull(channels.vrom_channel, [abs_addr, imm]);
 
@@ -95,7 +95,6 @@ where
             for (i, event) in rows.clone().enumerate() {
                 abs_addr[i] = *event.fp ^ (event.dst as u32);
                 imm[i] = event.imm;
-                dbg!("Ldi fill", &abs_addr[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
