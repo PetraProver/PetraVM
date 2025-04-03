@@ -93,7 +93,7 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
 }
 
 #[test]
-fn test_ldi_ret() -> Result<()> {
+fn test_zcrayvm_proving_pipeline() -> Result<()> {
     env_logger::init();
 
     // Test value to load

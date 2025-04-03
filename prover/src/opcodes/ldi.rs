@@ -3,23 +3,13 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
-use binius_field::BinaryField;
 use binius_m3::builder::{
-    upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment,
-    B128, B16, B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{
-    channels::Channels,
-    types::CommonTableBounds,
-    utils::{
-        pack_b16_into_b32, pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128,
-    },
-};
-
-const LDI_OPCODE: u16 = Opcode::Ldi as u16;
+use crate::{channels::Channels, types::CommonTableBounds, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
 ///
@@ -38,8 +28,8 @@ pub struct LdiTable {
     pub id: TableId,
     /// CPU columns
     cpu_cols: CpuColumns<{ Opcode::Ldi as u16 }>,
-    abs_addr: Col<B32>, // Virtual
-    imm: Col<B32>,      // Virtual
+    vrom_abs_addr: Col<B32>, // Virtual
+    imm: Col<B32>,           // Virtual
 }
 
 impl LdiTable {
@@ -51,16 +41,10 @@ impl LdiTable {
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ldi");
 
-        let Channels {
-            state_channel,
-            prom_channel,
-            ..
-        } = *channels;
-
         let cpu_cols = CpuColumns::new(
             &mut table,
-            state_channel,
-            prom_channel,
+            channels.state_channel,
+            channels.prom_channel,
             CpuColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
@@ -84,7 +68,7 @@ impl LdiTable {
         Self {
             id: table.id(),
             cpu_cols,
-            abs_addr,
+            vrom_abs_addr: abs_addr,
             imm,
         }
     }
@@ -106,7 +90,7 @@ where
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         {
-            let mut abs_addr = witness.get_mut_as(self.abs_addr)?;
+            let mut abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
             let mut imm = witness.get_mut_as(self.imm)?;
             for (i, event) in rows.clone().enumerate() {
                 abs_addr[i] = *event.fp ^ (event.dst as u32);
@@ -118,7 +102,6 @@ where
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
-            next_fp: None,
             arg0: event.dst,
             arg1: event.imm as u16 & 0xFFFF,
             arg2: (event.imm >> 16) as u16,

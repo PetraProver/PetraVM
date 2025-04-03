@@ -1,7 +1,5 @@
 use binius_field::Field;
-use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32, B64,
-};
+use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{Opcode, RetEvent};
 
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
@@ -20,17 +18,10 @@ impl RetTable {
         let next_pc = table.add_committed("next_pc");
         let next_fp = table.add_committed("next_fp");
 
-        let Channels {
-            state_channel,
-            prom_channel,
-            vrom_channel,
-            ..
-        } = *channels;
-
         let cpu_cols = CpuColumns::new(
             &mut table,
-            state_channel,
-            prom_channel,
+            channels.state_channel,
+            channels.prom_channel,
             CpuColumnsOptions {
                 next_pc: NextPc::Target(next_pc),
                 next_fp: Some(next_fp),
@@ -41,10 +32,10 @@ impl RetTable {
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
 
         // Read the next_pc
-        table.pull(vrom_channel, [next_pc.into(), fp0.into()]);
+        table.pull(channels.vrom_channel, [next_pc.into(), fp0.into()]);
 
         //Read the next_fp
-        table.pull(vrom_channel, [fp_xor_1.into(), next_fp.into()]);
+        table.pull(channels.vrom_channel, [fp_xor_1.into(), next_fp.into()]);
 
         Self {
             id: table.id(),
@@ -67,7 +58,7 @@ where
     }
 
     fn fill<'a>(
-        &self,
+        &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> Result<(), anyhow::Error> {
@@ -85,7 +76,6 @@ where
             pc: event.pc.into(),
             next_pc: Some(event.pc_next),
             fp: *event.fp,
-            next_fp: Some(event.fp_next),
             ..Default::default()
         });
         self.cpu_cols.populate(witness, cpu_rows)

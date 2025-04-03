@@ -11,7 +11,11 @@ use crate::{
     tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
-/// Complete zCrayVM circuit with all tables for the proving system.
+/// Arithmetic circuit for the zCrayVM proving system.
+///
+/// This struct represents the complete M3 arithmetization circuit for zCrayVM.
+/// It contains all the tables and channels needed to encode program execution
+/// as arithmetic constraints.
 pub struct Circuit {
     /// Constraint system
     pub cs: ConstraintSystem,

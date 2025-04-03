@@ -1,16 +1,13 @@
 use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{as_packed_field::PackScalar, BinaryField};
-use binius_m3::builder::{
-    upcast_expr, Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32, B64,
-};
+use binius_m3::builder::{Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32};
 use bytemuck::Pod;
 
-use crate::utils::{
-    pack_b16_into_b32, pack_instruction, pack_instruction_b128, pack_instruction_u128,
-};
+use crate::utils::pack_b16_into_b32;
+use crate::utils::{pack_instruction, pack_instruction_u128};
 
 /// A gadget for reading the instruction from the prom and
-/// setting the next program counter and timestamp
+/// setting the next program counter
 pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
     pub(crate) next_pc: Col<B32>, // Virtual
@@ -18,6 +15,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) opcode: Col<B16>, // Constant
     pub(crate) arg0: Col<B16>,
     pub(crate) arg1: Col<B16>,
+    // This field will be used for opcodes like SRLI
     pub(crate) arg2_unpacked: Col<B1, 16>,
     pub(crate) arg2: Col<B16>, // Virtual,
     options: CpuColumnsOptions,
@@ -33,7 +31,7 @@ pub(crate) enum NextPc {
     /// Next pc is the value defined by target.
     Target(Col<B32>),
     /// Next pc is the value defined by arg1, arg2.
-    Immediate,
+    Immediate, // This will be necessary for opcodes like BNZ
 }
 
 #[derive(Default)]
@@ -46,11 +44,8 @@ pub(crate) struct CpuColumnsOptions {
 #[derive(Default)]
 pub(crate) struct CpuEvent {
     pub(crate) pc: u32,
-    // TODO: This is only necessary for ret because when filling it can't be read from target in
-    // NextPc::Target(target)
     pub(crate) next_pc: Option<u32>,
     pub(crate) fp: u32,
-    pub(crate) next_fp: Option<u32>,
     pub(crate) arg0: u16,
     pub(crate) arg1: u16,
     pub(crate) arg2: u16,
@@ -68,7 +63,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let opcode = table.add_constant(format!("opcode_{OPCODE}"), [B16::new(OPCODE)]);
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
-        let arg2_unpacked = table.add_committed("arg2");
+        let arg2_unpacked = table.add_committed("arg2"); // This will be necessary for opcodes like SRLI
         let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         let next_pc = match options.next_pc {
@@ -131,7 +126,6 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
                 pc,
                 next_pc,
                 fp,
-                next_fp,
                 arg0,
                 arg1,
                 arg2,

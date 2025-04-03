@@ -17,14 +17,13 @@ use crate::{
 ///   1. if FP[cond] <> 0, then PC = target
 ///   2. if FP[cond] == 0, then increment PC
 #[derive(Debug, Default, Clone)]
-pub struct BnzEvent {
-    pub timestamp: u32,
-    pub pc: BinaryField32b,
-    pub fp: FramePointer,
-    pub cond: u16,
-    pub cond_val: u32,
-    pub target_low: BinaryField16b,
-    pub target_high: BinaryField16b,
+pub(crate) struct BnzEvent {
+    timestamp: u32,
+    pc: BinaryField32b,
+    fp: FramePointer,
+    cond: u16,
+    con_val: u32,
+    target: BinaryField32b,
 }
 
 impl Event for BnzEvent {
@@ -36,6 +35,7 @@ impl Event for BnzEvent {
     ) -> Result<(), InterpreterError> {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
+
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
 
         if ctx.pc == 0 {
@@ -47,9 +47,8 @@ impl Event for BnzEvent {
             pc: ctx.field_pc,
             fp: ctx.fp,
             cond: cond.val(),
-            cond_val,
-            target_low,
-            target_high,
+            con_val: cond_val,
+            target,
         };
         ctx.jump_to(target);
 
@@ -58,27 +57,25 @@ impl Event for BnzEvent {
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
-        assert_ne!(self.cond_val, 0);
+        assert_ne!(self.cond, 0);
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::from_bases([self.target_low, self.target_high]).unwrap(),
-            *self.fp,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((self.target, *self.fp, self.timestamp));
     }
 }
 
 // TODO: Maybe this could be just a NoopEvent?
 #[derive(Debug, Default, Clone)]
-pub struct BzEvent {
-    pub timestamp: u32,
-    pub pc: BinaryField32b,
-    pub fp: FramePointer,
-    pub cond: u16,
-    pub target_low: BinaryField16b,
-    pub target_high: BinaryField16b,
+pub(crate) struct BzEvent {
+    timestamp: u32,
+    pc: BinaryField32b,
+    fp: FramePointer,
+    cond: u16,
+    cond_val: u32,
+    target: BinaryField32b,
 }
 
 impl Event for BzEvent {
@@ -98,8 +95,8 @@ impl Event for BzEvent {
             pc: ctx.field_pc,
             fp,
             cond: cond.val(),
-            target_low,
-            target_high,
+            cond_val,
+            target,
         };
         ctx.incr_pc();
 
@@ -108,6 +105,7 @@ impl Event for BzEvent {
     }
 
     fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+        assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);
     }
 }

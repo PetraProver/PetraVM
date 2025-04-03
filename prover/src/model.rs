@@ -5,10 +5,7 @@
 
 use anyhow::Result;
 use binius_field::BinaryField32b;
-use zcrayvm_assembly::{
-    AddEvent, AndiEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent,
-    XoriEvent, ZCrayTrace,
-};
+use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
 /// Macro to generate event accessors
 macro_rules! impl_event_accessor {
@@ -37,9 +34,6 @@ pub struct Instruction {
     /// Opcode of the instruction
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
-    /// - For most instructions, these map directly to the instruction arguments
-    /// - For LDI, args = [dst, imm_low, imm_high]
-    /// - For RET, args is empty
     pub args: Vec<u16>,
 }
 
@@ -154,13 +148,13 @@ impl Trace {
             ));
         }
 
-        // if self.ldi_events().is_empty() {
-        //     return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
-        // }
+        if self.ldi_events().is_empty() {
+            return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
+        }
 
-        // if self.ret_events().is_empty() {
-        //     return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
-        // }
+        if self.ret_events().is_empty() {
+            return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
+        }
 
         if self.vrom_writes.is_empty() {
             return Err(anyhow::anyhow!(
@@ -175,8 +169,3 @@ impl Trace {
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);
-impl_event_accessor!(add_events, AddEvent, add);
-impl_event_accessor!(xori_events, XoriEvent, xori);
-impl_event_accessor!(bnz_events, BnzEvent, bnz);
-impl_event_accessor!(bz_events, BzEvent, bz);
-impl_event_accessor!(andi_events, AndiEvent, andi);

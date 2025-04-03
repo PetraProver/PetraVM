@@ -12,12 +12,10 @@ binius_field.workspace = true
 binius_m3.workspace = true
 binius_hash.workspace = true
 binius_hal.workspace = true
-binius_math.workspace = true
 anyhow = "1.0"
 zcrayvm-assembly = { path = "../assembly" }
 bumpalo = { version = "3.16.0", features = ["collections"] }
 bytemuck = { version = "1.18.0", features = ["derive", "min_const_generics"] }
 thiserror = "2.0.11"
-groestl_crypto = { package = "groestl", version = "0.10.1" }
 [dev-dependencies]
 zcrayvm-assembly = { path = "../assembly" }
