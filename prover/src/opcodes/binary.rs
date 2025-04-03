@@ -10,7 +10,7 @@ use zcrayvm_assembly::{opcodes::Opcode, B32MulEvent};
 
 use crate::{
     channels::Channels,
-    types::CommonTableBounds,
+    types::ProverPackedField,
     utils::{pack_instruction_b128, pack_instruction_with_fixed_opcode},
 };
 
@@ -121,10 +121,7 @@ impl B32MulTable {
     }
 }
 
-impl<U> TableFiller<U> for B32MulTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for B32MulTable {
     type Event = B32MulEvent;
 
     fn id(&self) -> TableId {
@@ -134,7 +131,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_scalars_mut(self.pc)?;
         let mut fp_col = witness.get_scalars_mut(self.fp)?;
