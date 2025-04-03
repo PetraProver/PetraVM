@@ -8,7 +8,10 @@ use std::fmt::Debug;
 use binius_field::{BinaryField16b, BinaryField32b};
 use context::EventContext;
 
-use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
+use crate::{
+    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
+    Opcode,
+};
 
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
@@ -39,4 +42,128 @@ pub(crate) trait Event {
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.
     fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
+}
+
+impl Opcode {
+    pub(crate) fn generate_event(
+        &self,
+        ctx: &mut EventContext,
+        arg0: BinaryField16b,
+        arg1: BinaryField16b,
+        arg2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        match self {
+            Opcode::Bnz => event_helper::generate_bnz(ctx, arg0, arg1, arg2),
+            Opcode::Jumpi => jump::JumpiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Jumpv => jump::JumpvEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Xori => b32::XoriEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Xor => b32::XorEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slli => shift::SlliEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Srli => shift::SrliEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Srai => shift::SraiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sll => shift::SllEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Srl => shift::SrlEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sra => shift::SraEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Addi => event_helper::generate_addi(ctx, arg0, arg1, arg2),
+            Opcode::Add => event_helper::generate_add(ctx, arg0, arg1, arg2),
+            Opcode::Sub => integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slt => integer_ops::SltEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slti => integer_ops::SltiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sltu => integer_ops::SltuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sltiu => integer_ops::SltiuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Muli => integer_ops::MuliEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mulu => integer_ops::MuluEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mulsu => integer_ops::MulsuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mul => integer_ops::MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Ret => ret::RetEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Taili => call::TailiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Tailv => call::TailVEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Calli => call::CalliEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Callv => call::CallvEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::And => b32::AndEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Andi => b32::AndiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Or => b32::OrEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Ori => b32::OriEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mvih => mv::MVIHEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mvvw => mv::MVVWEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Mvvl => mv::MVVLEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Ldi => mv::LDIEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::B32Mul => b32::B32MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
+        }
+    }
+}
+
+mod event_helper {
+    use binius_field::BinaryField16b;
+
+    use super::{
+        branch::{BnzEvent, BzEvent},
+        context::EventContext,
+        integer_ops::{AddEvent, AddiEvent},
+        Event,
+    };
+    use crate::{execution::InterpreterError, gadgets::Add32Gadget};
+
+    pub fn generate_bnz(
+        ctx: &mut EventContext,
+        cond: BinaryField16b,
+        target_low: BinaryField16b,
+        target_high: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        // TODO: group events?
+        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
+
+        if cond_val != 0 {
+            BnzEvent::generate(ctx, cond, target_low, target_high)
+        } else {
+            BzEvent::generate(ctx, cond, target_low, target_high)
+        }
+    }
+
+    pub fn generate_add(
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src1: BinaryField16b,
+        src2: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        AddEvent::generate(ctx, dst, src1, src2)?;
+
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
+
+        // Retrieve event
+        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
+
+        let new_add32_gadget =
+            Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
+        ctx.trace.add32.push(new_add32_gadget);
+
+        Ok(())
+    }
+
+    pub fn generate_addi(
+        ctx: &mut EventContext,
+        dst: BinaryField16b,
+        src: BinaryField16b,
+        imm: BinaryField16b,
+    ) -> Result<(), InterpreterError> {
+        AddiEvent::generate(ctx, dst, src, imm)?;
+
+        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
+
+        // Retrieve event
+        let new_addi_event = ctx
+            .trace
+            .addi
+            .last()
+            .expect("Event should have been pushed");
+        let new_add32_gadget =
+            Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
+        ctx.trace.add32.push(new_add32_gadget);
+
+        Ok(())
+    }
 }

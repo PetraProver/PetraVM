@@ -236,7 +236,7 @@ impl Interpreter {
         }
     }
 
-    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
+    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
@@ -261,108 +261,7 @@ impl Interpreter {
             field_pc,
         };
 
-        match opcode {
-            Opcode::Bnz => Self::generate_bnz(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpi => JumpiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpv => JumpvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xori => XoriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xor => XorEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slli => SlliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srli => SrliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srai => SraiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sll => SllEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srl => SrlEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sra => SraEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Addi => Self::generate_addi(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Add => Self::generate_add(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sub => SubEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slt => SltEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slti => SltiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltu => SltuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltiu => SltiuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Muli => MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulu => MuluEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulsu => MulsuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mul => MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ret => RetEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Taili => TailiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Tailv => TailVEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Calli => CalliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Callv => CallvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::And => AndEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Andi => AndiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Or => OrEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ori => OriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvih => MVIHEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvw => MVVWEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvl => MVVLEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ldi => LDIEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Mul => B32MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Muli => B32MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Add => B128AddEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Mul => B128MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
-        }
-        Ok(Some(()))
-    }
-
-    fn generate_bnz(
-        ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        // TODO: group events?
-        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
-
-        if cond_val != 0 {
-            BnzEvent::generate(ctx, cond, target_low, target_high)
-        } else {
-            BzEvent::generate(ctx, cond, target_low, target_high)
-        }
-    }
-
-    fn generate_add(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        AddEvent::generate(ctx, dst, src1, src2)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
-
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
-    }
-
-    fn generate_addi(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<(), InterpreterError> {
-        AddiEvent::generate(ctx, dst, src, imm)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_addi_event = ctx
-            .trace
-            .addi
-            .last()
-            .expect("Event should have been pushed");
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
+        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
     }
 
     pub(crate) fn allocate_new_frame(
