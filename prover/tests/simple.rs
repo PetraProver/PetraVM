@@ -55,7 +55,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
     zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
 
-    // Add other VROM writes from LDI events
+    // Add other VROM writes
     for (dst, imm) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm);
     }
