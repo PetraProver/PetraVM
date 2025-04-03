@@ -143,7 +143,7 @@ fn test_from_trace_generator<F, G>(
 ) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
-    G: FnOnce(&Trace) -> (),
+    G: FnOnce(&Trace),
 {
     env_logger::init();
 
