@@ -93,7 +93,7 @@ where
             let mut abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
             let mut imm = witness.get_mut_as(self.imm)?;
             for (i, event) in rows.clone().enumerate() {
-                abs_addr[i] = *event.fp ^ (event.dst as u32);
+                abs_addr[i] = event.fp.addr(event.dst);
                 imm[i] = event.imm;
                 dbg!("Ldi fill", &abs_addr[i]);
             }

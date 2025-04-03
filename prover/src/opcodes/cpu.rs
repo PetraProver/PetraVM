@@ -26,7 +26,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
 
 #[derive(Default)]
 pub(crate) enum NextPc {
-    /// Next pc is the current pc * G.
+    /// `next_pc` is `current_pc * G`.
     #[default]
     Increment,
     /// Next pc is the value defined by target.
