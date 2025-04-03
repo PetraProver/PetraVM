@@ -231,9 +231,7 @@ impl MVVWEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let fp = ctx.fp;
-        let timestamp = ctx.timestamp;
-        let pc = ctx.pc;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
@@ -247,7 +245,7 @@ impl MVVWEvent {
                 dst,
                 offset,
                 src,
-                pc: ctx.field_pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
@@ -264,7 +262,7 @@ impl MVVWEvent {
         ctx.store_vrom_u32(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -370,9 +368,7 @@ impl MVVLEvent {
         offset: BinaryField16b,
         src: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
-        let fp = ctx.fp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
@@ -386,7 +382,7 @@ impl MVVLEvent {
                 dst,
                 offset,
                 src,
-                pc: ctx.field_pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
@@ -401,7 +397,7 @@ impl MVVLEvent {
         ctx.store_vrom_u128(ctx.addr(offset.val()), src_val)?;
 
         Ok(Some(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -471,9 +467,7 @@ impl MVIHEvent {
         offset: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let fp = ctx.fp;
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
 
@@ -484,7 +478,7 @@ impl MVIHEvent {
             ctx.incr_pc();
 
             Ok(Some(Self {
-                pc: ctx.field_pc,
+                pc: field_pc,
                 fp,
                 timestamp,
                 dst: dst.val(),
@@ -498,7 +492,7 @@ impl MVIHEvent {
                 dst,
                 offset,
                 src: imm,
-                pc: ctx.field_pc,
+                pc: field_pc,
                 timestamp,
             };
             // This move needs to be handled later, in the CALL.
@@ -533,9 +527,7 @@ impl LDIEvent {
         imm_low: BinaryField16b,
         imm_high: BinaryField16b,
     ) -> Result<Option<Self>, InterpreterError> {
-        let fp = ctx.fp;
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let imm = BinaryField32b::from_bases([imm_low, imm_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -544,7 +536,7 @@ impl LDIEvent {
         ctx.incr_pc();
 
         Ok(Some(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -555,6 +547,7 @@ impl LDIEvent {
 
 impl_mv_event!(LDIEvent, ldi);
 
+#[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 

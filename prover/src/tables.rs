@@ -15,7 +15,7 @@ use crate::prover::VROM_MULTIPLICITY_BITS;
 use crate::{
     channels::Channels,
     model::Instruction,
-    types::CommonTableBounds,
+    types::ProverPackedField,
     utils::{pack_instruction, pack_instruction_b128},
 };
 
@@ -77,10 +77,7 @@ impl PromTable {
     }
 }
 
-impl<U> TableFiller<U> for PromTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for PromTable {
     type Event = Instruction;
 
     fn id(&self) -> TableId {
@@ -90,7 +87,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_scalars_mut(self.pc)?;
         let mut opcode_col = witness.get_scalars_mut(self.opcode)?;
@@ -172,10 +169,7 @@ impl VromWriteTable {
     }
 }
 
-impl<U> TableFiller<U> for VromWriteTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for VromWriteTable {
     type Event = (u32, u32, u32);
 
     fn id(&self) -> TableId {
@@ -185,7 +179,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut multiplicity_vec = Vec::new();
 
@@ -252,10 +246,7 @@ impl VromSkipTable {
     }
 }
 
-impl<U> TableFiller<U> for VromSkipTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for VromSkipTable {
     type Event = u32;
 
     fn id(&self) -> TableId {
@@ -265,7 +256,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_scalars_mut(self.addr)?;
 
@@ -316,10 +307,7 @@ impl VromAddrSpaceTable {
     }
 }
 
-impl<U> TableFiller<U> for VromAddrSpaceTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for VromAddrSpaceTable {
     type Event = u32;
 
     fn id(&self) -> TableId {
@@ -329,7 +317,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut addr_col = witness.get_scalars_mut(self.addr)?;
 

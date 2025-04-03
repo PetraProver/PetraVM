@@ -11,7 +11,7 @@ use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
-    types::CommonTableBounds,
+    types::ProverPackedField,
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };
 
@@ -97,10 +97,7 @@ impl LdiTable {
     }
 }
 
-impl<U> TableFiller<U> for LdiTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for LdiTable {
     type Event = LDIEvent;
 
     fn id(&self) -> TableId {
@@ -110,7 +107,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event>,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         let mut pc_col = witness.get_scalars_mut(self.pc)?;
         let mut fp_col = witness.get_scalars_mut(self.fp)?;

@@ -1,10 +1,10 @@
 use std::ops::{Deref, DerefMut};
 
-use binius_field::BinaryField32b;
+use binius_field::{BinaryField16b, BinaryField32b};
 
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
-    execution::{Interpreter, InterpreterError},
+    execution::{FramePointer, Interpreter, InterpreterError},
     memory::MemoryError,
     ZCrayTrace,
 };
@@ -26,6 +26,19 @@ impl EventContext<'_> {
     /// pointer accordingly.
     pub fn addr(&self, offset: impl Into<u32>) -> u32 {
         *self.fp ^ offset.into()
+    }
+
+    /// Outputs the current program state tuple, containing:
+    ///   - the integer program counter PC, as `u32`
+    ///   - the field program counter PC, as `B32`
+    ///   - the frame pointer FP, as `u32`
+    ///   - the timestamp TS, as `u32`
+    pub fn program_state(&self) -> (u32, BinaryField32b, FramePointer, u32) {
+        (self.pc, self.field_pc, self.fp, self.timestamp)
+    }
+
+    pub fn set_fp<T: Into<FramePointer>>(&mut self, fp: T) {
+        self.fp = fp.into();
     }
 
     /// Loads a `u32` value stored in VROM at the provided address.
@@ -96,13 +109,39 @@ impl EventContext<'_> {
         self.interpreter.incr_pc();
     }
 
+    /// Helper method to allocate a new frame, updates the [`FramePointer`] and
+    /// handle pending MOVE events.
+    ///
+    /// Returns the updated `fp`, post frame allocation.
+    pub fn setup_call_frame(
+        &mut self,
+        next_fp_offset: BinaryField16b,
+        target: BinaryField32b,
+    ) -> Result<u32, InterpreterError> {
+        // Allocate a frame for the call and set the value of the next frame pointer.
+        let next_fp_val = self.allocate_new_frame(target)?;
+
+        // Address where the value of the next frame pointer is stored.
+        let next_fp_addr = self.addr(next_fp_offset.val());
+
+        self.store_vrom_u32(next_fp_addr, next_fp_val)?;
+
+        // Once we have the next_fp, we know the destination address for the moves in
+        // the call procedures. We can then generate events for some moves and correctly
+        // delegate the other moves.
+        self.handles_call_moves()?;
+
+        self.set_fp(next_fp_val);
+        Ok(next_fp_val)
+    }
+
     /// This method should only be called once the frame pointer has been
     /// allocated. It is used to generate events -- whenever possible --
     /// once the next_fp has been set by the allocator. When it is not yet
     /// possible to generate the MOVE event (because we are dealing with a
     /// return value that has not yet been set), we add the move information to
     /// the trace's `pending_updates`, so that it can be generated later on.
-    pub(crate) fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
+    fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
         for mv_info in &self.moves_to_apply.clone() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
