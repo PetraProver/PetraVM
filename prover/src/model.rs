@@ -66,7 +66,7 @@ pub struct Trace {
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<Instruction>,
     /// List of VROM writes (address, value) pairs
-    pub vrom_writes: Vec<(u32, u32)>,
+    pub vrom_writes: Vec<(u32, u32, u32)>,
 }
 
 impl Default for Trace {
@@ -129,8 +129,8 @@ impl Trace {
     /// # Arguments
     /// * `addr` - The address to write to
     /// * `value` - The value to write
-    pub fn add_vrom_write(&mut self, addr: u32, value: u32) {
-        self.vrom_writes.push((addr, value));
+    pub fn add_vrom_write(&mut self, addr: u32, value: u32, multiplicity: u32) {
+        self.vrom_writes.push((addr, value, multiplicity));
     }
 
     /// Ensures the trace has enough data for proving.

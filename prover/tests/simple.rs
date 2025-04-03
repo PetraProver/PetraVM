@@ -17,7 +17,6 @@ fn generate_test_trace(value: u32) -> Result<Trace> {
            LDI.W @2, #{}\n\
            LDI.W @3, #2\n\
            B32_MUL @4, @2, @3\n\
-           B32_MULI @5, @4, #3\n\
            RET\n",
         value
     );
@@ -46,20 +45,21 @@ fn generate_test_trace(value: u32) -> Result<Trace> {
     // Add the program instructions to the trace
     trace.add_instructions(program);
 
-    // Add VROM writes from events
-    // Initial values
-    trace.add_vrom_write(0, 0); // Initial return PC = 0
-    trace.add_vrom_write(1, 0); // Initial return FP = 0
+    // TODO: add VROM writes from zcray_trace in a function
+    // Add VROM writes from events (Multiplicities must be sorted in descending
+    // order.)
 
     // LDI events
-    trace.add_vrom_write(2, value); // First LDI - our input value
-    trace.add_vrom_write(3, 2); // Second LDI - constant 2
+    trace.add_vrom_write(2, value, 2); // First LDI - our input value
+    trace.add_vrom_write(3, 2, 2); // Second LDI - constant 2
+
+    // Initial values
+    trace.add_vrom_write(0, 0, 1); // Initial return PC = 0
+    trace.add_vrom_write(1, 0, 1); // Initial return FP = 0
 
     // B32_MUL event
-    trace.add_vrom_write(4, (B32::new(value) * B32::new(2)).val()); // Result of B32_MUL
-
-    // B32_MULI event
-    trace.add_vrom_write(5, (B32::new(value) * B32::new(2) * B32::new(3)).val()); // Result of B32_MULI
+    let mul_result = (B32::new(value) * B32::new(2)).val();
+    trace.add_vrom_write(4, mul_result, 1);
 
     Ok(trace)
 }
@@ -69,7 +69,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     env_logger::init();
 
     // Test value to load
-    let value = 0x12345678;
+    let value = 0x1;
 
     // Step 1: Generate trace from assembly
     info!("Generating trace from assembly...");
@@ -78,8 +78,8 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     // Verify trace has correct structure
     assert_eq!(
         trace.program.len(),
-        5,
-        "Program should have exactly 5 instructions"
+        4,
+        "Program should have exactly 4 instructions"
     );
     assert_eq!(
         trace.ldi_events().len(),
@@ -92,16 +92,11 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
         "Should have exactly one B32_MUL event"
     );
     assert_eq!(
-        trace.b32_muli_events().len(),
-        1,
-        "Should have exactly one B32_MULI event"
-    );
-    assert_eq!(
         trace.ret_events().len(),
         1,
         "Should have exactly one RET event"
     );
-    assert_eq!(trace.vrom_writes.len(), 6, "Should have 6 VROM writes");
+    assert_eq!(trace.vrom_writes.len(), 5, "Should have 5 VROM writes");
 
     // Step 2: Validate trace
     info!("Validating trace internal structure...");

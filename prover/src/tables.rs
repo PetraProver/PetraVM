@@ -6,10 +6,12 @@
 use binius_field::Field;
 use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
+use binius_m3::gadgets::lookup::LookupProducer;
 
 // Re-export instruction-specific tables
-pub use crate::opcodes::binary::{B32MulTable, B32MuliTable};
+pub use crate::opcodes::binary::B32MulTable;
 pub use crate::opcodes::{LdiTable, RetTable};
+use crate::prover::VROM_MULTIPLICITY_BITS;
 use crate::{
     channels::Channels,
     model::Instruction,
@@ -125,7 +127,7 @@ where
 /// It pulls an address from the address space channel and pushes the
 /// address+value to the VROM channel.
 ///
-/// Format: [Address, Value] packed into B64
+/// Format: [Address, Value]
 pub struct VromWriteTable {
     /// Table ID
     pub id: TableId,
@@ -133,6 +135,8 @@ pub struct VromWriteTable {
     pub addr: Col<B32>,
     /// Value column (from VROM channel)
     pub value: Col<B32>,
+    /// To support multiple lookups, we need to create a lookup producer
+    pub lookup_producer: LookupProducer,
 }
 
 impl VromWriteTable {
@@ -152,13 +156,18 @@ impl VromWriteTable {
         // Pull from VROM address space channel (verifier pushes full address space)
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
-        // Push to VROM channel (address+value)
-        table.push(channels.vrom_channel, [addr, value]);
+        let lookup_producer = LookupProducer::new(
+            &mut table,
+            channels.vrom_channel,
+            &[addr, value],
+            VROM_MULTIPLICITY_BITS,
+        );
 
         Self {
             id: table.id(),
             addr,
             value,
+            lookup_producer,
         }
     }
 }
@@ -167,7 +176,7 @@ impl<U> TableFiller<U> for VromWriteTable
 where
     U: CommonTableBounds,
 {
-    type Event = (u32, u32);
+    type Event = (u32, u32, u32);
 
     fn id(&self) -> TableId {
         self.id
@@ -178,14 +187,29 @@ where
         rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
-        let mut addr_col = witness.get_scalars_mut(self.addr)?;
-        let mut value_col = witness.get_scalars_mut(self.value)?;
+        let mut multiplicity_vec = Vec::new();
 
-        // Fill in values from events
-        for (i, (addr, value)) in rows.enumerate() {
-            addr_col[i] = B32::new(*addr);
-            value_col[i] = B32::new(*value);
-        }
+        {
+            // New scope to limit borrow lifetimes
+            let mut addr_col = witness.get_scalars_mut(self.addr)?;
+            let mut value_col = witness.get_scalars_mut(self.value)?;
+
+            // Fill in values from events
+            for (i, (addr, value, multiplicity)) in rows.enumerate() {
+                addr_col[i] = B32::new(*addr);
+                value_col[i] = B32::new(*value);
+                if i > 0 {
+                    debug_assert!(*multiplicity <= multiplicity_vec[i - 1],
+                        "Multiplicities must be sorted in descending order. Current: {}, Previous: {}",
+                        *multiplicity, multiplicity_vec[i - 1]);
+                }
+                multiplicity_vec.push(*multiplicity);
+            }
+        } // First mutable borrow ends here
+
+        // Populate lookup producer with multiplicity values
+        self.lookup_producer
+            .populate(witness, multiplicity_vec.iter().copied())?;
 
         Ok(())
     }

@@ -9,8 +9,8 @@ use crate::{
     channels::Channels,
     model::Trace,
     tables::{
-        B32MulTable, B32MuliTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
-        VromSkipTable, VromWriteTable,
+        B32MulTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
+        VromWriteTable,
     },
 };
 
@@ -39,8 +39,6 @@ pub struct Circuit {
     pub ret_table: RetTable,
     /// B32_MUL instruction table
     pub b32_mul_table: B32MulTable,
-    /// B32_MULI instruction table
-    pub b32_muli_table: B32MuliTable,
 }
 
 impl Default for Circuit {
@@ -66,7 +64,6 @@ impl Circuit {
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
         let b32_mul_table = B32MulTable::new(&mut cs, &channels);
-        let b32_muli_table = B32MuliTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -78,7 +75,6 @@ impl Circuit {
             ldi_table,
             ret_table,
             b32_mul_table,
-            b32_muli_table,
         }
     }
 
@@ -125,7 +121,6 @@ impl Circuit {
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
         let b32_mul_size = trace.b32_mul_events().len();
-        let b32_muli_size = trace.b32_muli_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -136,7 +131,6 @@ impl Circuit {
             ldi_size,             // LDI table size
             ret_size,             // RET table size
             b32_mul_size,         // B32_MUL table size
-            b32_muli_size,        // B32_MULI table size
         ];
 
         // Create the statement with all boundaries
