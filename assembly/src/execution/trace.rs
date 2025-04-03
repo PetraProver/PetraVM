@@ -33,11 +33,11 @@ use crate::{
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
-    pub(crate) bnz: Vec<BnzEvent>,
+    pub bnz: Vec<BnzEvent>,
     pub(crate) jumpi: Vec<JumpiEvent>,
     pub(crate) jumpv: Vec<JumpvEvent>,
     pub(crate) xor: Vec<XorEvent>,
-    pub(crate) bz: Vec<BzEvent>,
+    pub bz: Vec<BzEvent>,
     pub(crate) or: Vec<OrEvent>,
     pub(crate) ori: Vec<OriEvent>,
     pub(crate) xori: Vec<XoriEvent>,
