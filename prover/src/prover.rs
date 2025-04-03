@@ -108,23 +108,6 @@ impl Prover {
         // 6. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
 
-        // 7. Fill ADD table with return events
-        witness.fill_table_sequential(&self.circuit.add_table, trace.add_events())?;
-
-        // 8. Fill BNZ non zero branch
-        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
-
-        // 9. Fill BNZ zero branch
-        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
-
-        // 10. Fill XORI table
-        witness.fill_table_sequential(&self.circuit.xori_table, trace.xori_events())?;
-
-        // 11. Fill ANDI table
-        println!("ANDI events: {:?}", trace.andi_events().len());
-        println!("ANDI events: {:?}", trace.andi_events());
-        witness.fill_table_sequential(&self.circuit.andi_table, trace.andi_events())?;
-
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();
 

@@ -8,12 +8,6 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    opcodes::{
-        binary_ops::b32::AndiTable,
-        branch::{BnzTable, BzTable},
-        integer_ops::AddTable,
-        XoriTable,
-    },
     tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
@@ -36,16 +30,6 @@ pub struct Circuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
-    /// BNZ non zero branch instruction
-    pub bnz_table: BnzTable,
-    /// ADDD instruction table
-    pub add_table: AddTable,
-    /// BNZ zero branch instruction
-    pub bz_table: BzTable,
-    /// XORI instruction table
-    pub xori_table: XoriTable,
-    /// ANDI instruction table
-    pub andi_table: AndiTable,
 }
 
 impl Default for Circuit {
@@ -70,11 +54,6 @@ impl Circuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
-        let add_table = AddTable::new(&mut cs, &channels);
-        let bnz_table = BnzTable::new(&mut cs, &channels);
-        let bz_table = BzTable::new(&mut cs, &channels);
-        let xori_table = XoriTable::new(&mut cs, &channels);
-        let andi_table = AndiTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -85,11 +64,6 @@ impl Circuit {
             vrom_skip_table,
             ldi_table,
             ret_table,
-            bnz_table,
-            bz_table,
-            xori_table,
-            add_table,
-            andi_table,
         }
     }
 
@@ -135,11 +109,6 @@ impl Circuit {
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
-        let add_size = trace.add_events().len(); // TODO: We need the add_events() function?
-        let xori_size = trace.xori_events().len();
-        let bnz_size = trace.bnz_events().len();
-        let bz_size = trace.bz_events().len();
-        let andi_size = trace.andi_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -149,11 +118,6 @@ impl Circuit {
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
             ret_size,             // RET table size
-            add_size,             // ADD table size
-            bnz_size,             // BNZ !=0 table size
-            bz_size,              // BNZ 0 table size
-            xori_size,            // XORI table size
-            andi_size,            // ANDI table size
         ];
 
         // Create the statement with all boundaries
