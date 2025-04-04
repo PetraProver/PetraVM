@@ -1,8 +1,7 @@
-use core::{fmt::Debug, ops::Add};
+use core::fmt::Debug;
 use std::{any::Any, marker::PhantomData};
 
 use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
-use num_traits::{ops::overflowing::OverflowingAdd, FromPrimitive, PrimInt};
 
 use super::context::EventContext;
 use crate::{
@@ -12,48 +11,11 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
         ZCrayTrace,
     },
-    fire_non_jump_event, impl_binary_operation, impl_event_for_binary_operation,
-    impl_immediate_binary_operation, Opcode,
+    fire_non_jump_event,
+    gadgets::Add64Gadget,
+    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
+    Opcode,
 };
-
-/// Event for the Add gadgets over the integers.
-#[derive(Debug, Clone)]
-pub(crate) struct AddGadget<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
-    timestamp: u32,
-    output: T,
-    input1: T,
-    input2: T,
-    cout: T,
-}
-
-impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadget<T> {
-    pub fn generate_gadget(ctx: &mut EventContext, input1: T, input2: T) -> Self {
-        let (output, carry) = input1.overflowing_add(&input2);
-
-        // cin's i-th bit stores the carry which was added to the sum's i-th bit.
-        let cin = output ^ input1 ^ input2;
-        // cout's i-th bit stores the carry for input1[i] + input2[i].
-        let cout = (cin >> 1)
-            + (T::from(carry as usize).expect("It should be possible to get T from usize.")
-                << (T::BITS - 1));
-
-        // Check cout.
-        assert!(((input1 ^ cin) & (input2 ^ cin)) ^ cin == cout);
-
-        let timestamp = ctx.timestamp;
-
-        Self {
-            timestamp,
-            output,
-            input1,
-            input2,
-            cout,
-        }
-    }
-}
-
-pub(crate) type Add32Gadget = AddGadget<u32>;
-pub(crate) type Add64Gadget = AddGadget<u64>;
 
 define_bin32_imm_op_event!(
     /// Event for ADDI.
@@ -74,18 +36,16 @@ impl AddiEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let fp = ctx.fp;
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         // The following addition is checked thanks to the ADD32 table.
         let dst_val = AddiEvent::operation(src_val.into(), imm).val();
         ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         Ok(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -132,7 +92,6 @@ impl Event for MuliEvent {
         src: BinaryField16b,
         imm: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
@@ -140,12 +99,11 @@ impl Event for MuliEvent {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -198,7 +156,6 @@ impl MuluEvent {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<Self, InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -209,11 +166,10 @@ impl MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
         Ok(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -240,7 +196,6 @@ impl Event for MuluEvent {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -251,12 +206,11 @@ impl Event for MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let mulu_event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),
@@ -476,7 +430,6 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
         src1: BinaryField16b,
         src2: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let fp = ctx.fp;
         let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
 
@@ -484,12 +437,11 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let pc = ctx.pc;
-        let timestamp = ctx.timestamp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             dst: dst.val(),

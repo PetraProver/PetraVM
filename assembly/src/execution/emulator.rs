@@ -25,9 +25,8 @@ use crate::{
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         context::EventContext,
         integer_ops::{
-            self, Add32Gadget, Add64Gadget, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent,
-            MulsuEvent, MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent,
-            SltuEvent, SubEvent,
+            self, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent, MulsuEvent, MulsuOp, MuluEvent,
+            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
@@ -36,6 +35,7 @@ use crate::{
         Event,
     },
     execution::{StateChannel, ZCrayTrace},
+    gadgets::{Add32Gadget, Add64Gadget},
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };
@@ -384,20 +384,8 @@ mod tests {
 
     use super::*;
     use crate::parser::parse_program;
-    use crate::util::get_binary_slot;
+    use crate::util::{code_to_prom, get_binary_slot};
     use crate::util::{collatz_orbits, init_logger};
-
-    pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
-        let mut prom = ProgramRom::new();
-        let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
-        for (i, &instruction) in code.iter().enumerate() {
-            let interp_inst = InterpreterInstruction::new(instruction, pc);
-            prom.push(interp_inst);
-            pc *= G;
-        }
-
-        prom
-    }
 
     #[test]
     fn test_zcray() {

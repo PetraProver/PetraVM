@@ -693,6 +693,7 @@ fn get_labels(
     Ok((labels, pc_field_to_int, frame_sizes))
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

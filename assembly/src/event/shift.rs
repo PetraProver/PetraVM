@@ -171,13 +171,15 @@ where
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount);
-        let timestamp = ctx.timestamp;
+
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
+
         ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
-            ctx.field_pc,
-            ctx.fp,
+            field_pc,
+            fp,
             timestamp,
             dst.val(),
             new_val,
@@ -200,13 +202,15 @@ where
         let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount);
-        let timestamp = ctx.timestamp;
+
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
+
         ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
-            ctx.field_pc,
-            ctx.fp,
+            field_pc,
+            fp,
             timestamp,
             dst.val(),
             new_val,

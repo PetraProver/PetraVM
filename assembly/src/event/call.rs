@@ -37,28 +37,26 @@ impl Event for TailiEvent {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        let target = BinaryField32b::from_bases([target_low, target_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = ctx.allocate_new_frame(target)?;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
-        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
 
-        ctx.handles_call_moves()?;
+        // Get the target address, to which we should jump.
+        let target = BinaryField32b::from_bases([target_low, target_high])
+            .map_err(|_| InterpreterError::InvalidInput)?;
 
-        let pc = ctx.pc;
-        let fp = ctx.fp;
-        let timestamp = ctx.timestamp;
+        // Allocate a new frame for the call and set the value of the next frame
+        // pointer.
+        let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
 
-        ctx.fp = next_fp_val.into();
         ctx.jump_to(target);
 
         ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
         ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             target: target.val(),
@@ -113,26 +111,18 @@ impl Event for TailVEvent {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
-        // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = ctx.allocate_new_frame(target.into())?;
-        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
+        // Allocate a new frame for the call and set the value of the next frame
+        // pointer.
+        let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
 
-        // Once we have the next_fp, we knpw the destination address for the moves in
-        // the call procedures. We can then generate events for some moves and correctly
-        // delegate the other moves.
-        ctx.handles_call_moves();
-
-        let pc = ctx.pc;
-        let fp = ctx.fp;
-        let timestamp = ctx.timestamp;
-
-        ctx.fp = next_fp_val.into();
         // Jump to the target,
         ctx.jump_to(BinaryField32b::new(target));
 
@@ -140,7 +130,7 @@ impl Event for TailVEvent {
         ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             offset: offset.val(),
@@ -194,27 +184,23 @@ impl Event for CalliEvent {
         target_high: BinaryField16b,
         next_fp: BinaryField16b,
     ) -> Result<(), InterpreterError> {
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+
         let target = BinaryField32b::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let next_fp_val = ctx.allocate_new_frame(target)?;
 
-        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
+        // Allocate a new frame for the call and set the value of the next frame
+        // pointer.
+        let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
 
-        ctx.handles_call_moves()?;
-
-        let pc = ctx.pc;
-        let fp = ctx.fp;
-        let timestamp = ctx.timestamp;
-
-        ctx.fp = next_fp_val.into();
         ctx.jump_to(target);
 
-        let return_pc = (ctx.field_pc * G).val();
+        let return_pc = (field_pc * G).val();
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
         ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             target: target.val(),
@@ -265,36 +251,24 @@ impl Event for CallvEvent {
         next_fp: BinaryField16b,
         _unused: BinaryField16b,
     ) -> Result<(), InterpreterError> {
-        // Address where the value of the next frame pointer is stored.
-        let next_fp_addr = ctx.addr(next_fp.val());
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
-        let target_addr = ctx.addr(offset.val());
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
-        // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = ctx.allocate_new_frame(target.into())?;
-        ctx.store_vrom_u32(ctx.addr(next_fp.val()), next_fp_val)?;
+        // Allocate a new frame for the call and set the value of the next frame
+        // pointer.
+        let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
 
-        // Once we have the next_fp, we knpw the destination address for the moves in
-        // the call procedures. We can then generate events for some moves and correctly
-        // delegate the other moves.
-        ctx.handles_call_moves();
-
-        let pc = ctx.pc;
-        let fp = ctx.fp;
-        let timestamp = ctx.timestamp;
-
-        ctx.fp = next_fp_val.into();
         // Jump to the target,
         ctx.jump_to(BinaryField32b::new(target));
 
-        let return_pc = (ctx.field_pc * G).val();
+        let return_pc = (field_pc * G).val();
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
         ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
 
         let event = Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
             timestamp,
             offset: offset.val(),

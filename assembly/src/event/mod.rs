@@ -8,7 +8,10 @@ use std::fmt::Debug;
 use binius_field::{BinaryField16b, BinaryField32b};
 use context::EventContext;
 
-use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
+use crate::{
+    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
+    Opcode,
+};
 
 pub(crate) mod binary_ops;
 pub(crate) mod branch;

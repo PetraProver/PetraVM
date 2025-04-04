@@ -276,8 +276,6 @@ macro_rules! define_bin128_op_event {
                 src1: BinaryField16b,
                 src2: BinaryField16b,
             ) -> Result<Self, InterpreterError> {
-                let fp = ctx.fp;
-
                 // Get source values
                 let src1_val = ctx.load_vrom_u128(ctx.addr(src1.val()))?;
                 let src2_val = ctx.load_vrom_u128(ctx.addr(src2.val()))?;
@@ -291,13 +289,12 @@ macro_rules! define_bin128_op_event {
                 // Store result
                 ctx.store_vrom_u128(ctx.addr(dst.val()), dst_val)?;
 
-                let pc = ctx.pc;
-                let timestamp = ctx.timestamp;
+                let (pc, field_pc, fp, timestamp) = ctx.program_state();
                 ctx.incr_pc();
 
                 Ok(Self {
                     timestamp,
-                    pc: ctx.field_pc,
+                    pc: field_pc,
                     fp,
                     dst: dst.val(),
                     dst_val,

@@ -7,6 +7,7 @@
 pub mod assembler;
 pub mod event;
 pub mod execution;
+pub mod gadgets;
 pub mod memory;
 pub mod opcodes;
 mod parser;

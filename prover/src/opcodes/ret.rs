@@ -14,7 +14,7 @@ use zcrayvm_assembly::{Opcode, RetEvent};
 /// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
 /// 5. Update the state with the new PC and FP values
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{channels::Channels, types::CommonTableBounds};
+use crate::{channels::Channels, types::ProverPackedField};
 pub struct RetTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
@@ -58,10 +58,7 @@ impl RetTable {
     }
 }
 
-impl<U> TableFiller<U> for RetTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for RetTable {
     type Event = RetEvent;
 
     fn id(&self) -> TableId {
@@ -71,7 +68,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;

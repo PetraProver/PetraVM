@@ -23,11 +23,12 @@ pub struct RetEvent {
 
 impl RetEvent {
     pub(crate) fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
-        let fp = ctx.fp;
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
+
         Ok(Self {
-            pc: ctx.field_pc,
+            pc: field_pc,
             fp,
-            timestamp: ctx.timestamp,
+            timestamp,
             pc_next: ctx.load_vrom_u32(ctx.addr(0u32))?,
             fp_next: ctx.load_vrom_u32(ctx.addr(1u32))?,
         })
@@ -45,7 +46,7 @@ impl Event for RetEvent {
 
         let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
         ctx.jump_to(BinaryField32b::new(target));
-        ctx.fp = ctx.load_vrom_u32(ctx.addr(1u32))?.into();
+        ctx.set_fp(ctx.load_vrom_u32(ctx.addr(1u32))?);
 
         ctx.trace.ret.push(ret_event);
         Ok(())

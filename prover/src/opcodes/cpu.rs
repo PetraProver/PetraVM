@@ -1,9 +1,11 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::{as_packed_field::PackScalar, BinaryField};
+use binius_field::BinaryField;
 use binius_m3::builder::{Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32};
-use bytemuck::Pod;
 
-use crate::utils::{pack_b16_into_b32, pack_instruction_u128, pack_instruction_with_fixed_opcode};
+use crate::{
+    types::ProverPackedField,
+    utils::{pack_b16_into_b32, pack_instruction_u128, pack_instruction_with_fixed_opcode},
+};
 
 /// A gadget for reading the instruction from the prom and
 /// setting the next program counter
@@ -97,13 +99,12 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         }
     }
 
-    pub fn populate<U, T>(
+    pub fn populate<T>(
         &self,
-        index: &mut TableWitnessSegment<U>,
+        index: &mut TableWitnessSegment<ProverPackedField>,
         rows: T,
     ) -> Result<(), anyhow::Error>
     where
-        U: Pod + PackScalar<B1>,
         T: Iterator<Item = CpuEvent>,
     {
         let mut pc_col = index.get_mut_as(self.pc)?;

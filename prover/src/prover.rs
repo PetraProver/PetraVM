@@ -15,7 +15,7 @@ use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::Statement;
 use bumpalo::Bump;
 
-use crate::{circuit::Circuit, model::Trace};
+use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
@@ -76,7 +76,7 @@ impl Prover {
         let mut witness = self
             .circuit
             .cs
-            .build_witness::<OptimalUnderlier128b>(&allocator, &statement)?;
+            .build_witness::<ProverPackedField>(&allocator, &statement)?;
 
         // Fill all table witnesses in sequence
 

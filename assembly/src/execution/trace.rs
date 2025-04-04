@@ -18,9 +18,8 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            Add32Gadget, Add64Gadget, AddEvent, AddiEvent, GenericSignedMulEvent, MulOp, MuliEvent,
-            MulsuOp, MuluEvent, SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
-            SubEvent,
+            AddEvent, AddiEvent, GenericSignedMulEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
+            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
@@ -29,6 +28,7 @@ use crate::{
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
+    gadgets::{Add32Gadget, Add64Gadget},
     memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
 };
 #[derive(Debug, Default)]

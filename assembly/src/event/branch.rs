@@ -38,14 +38,15 @@ impl Event for BnzEvent {
 
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
 
-        if ctx.pc == 0 {
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        if pc == 0 {
             return Err(InterpreterError::BadPc);
         }
 
         let event = BnzEvent {
-            timestamp: ctx.timestamp,
-            pc: ctx.field_pc,
-            fp: ctx.fp,
+            timestamp,
+            pc: field_pc,
+            fp,
             cond: cond.val(),
             con_val: cond_val,
             target,
@@ -88,11 +89,11 @@ impl Event for BzEvent {
         let target = (BinaryField32b::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
-        let fp = ctx.fp;
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         let event = BzEvent {
-            timestamp: ctx.timestamp,
-            pc: ctx.field_pc,
+            timestamp,
+            pc: field_pc,
             fp,
             cond: cond.val(),
             cond_val,
