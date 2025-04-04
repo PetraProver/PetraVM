@@ -73,7 +73,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     env_logger::init();
 
     // Test value to load
-    let value = 0x1;
+    let value = 0x12345678;
 
     // Step 1: Generate trace from assembly
     info!("Generating trace from assembly...");

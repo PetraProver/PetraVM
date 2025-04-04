@@ -89,7 +89,7 @@ impl B32MulTable {
         table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
         table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
 
-        table.assert_zero("check_b32_mul_result", src1_val * src2_val - B32::new(2));
+        table.assert_zero("check_b32_mul_result", src1_val * src2_val - result_val);
 
         // Push result to VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
