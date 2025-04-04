@@ -6,6 +6,7 @@
 use anyhow::Result;
 use log::info;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_prover::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
@@ -95,7 +96,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     // Step 3: Create prover
     info!("Creating prover...");
-    let prover = Prover::new();
+    let prover = Prover::new(Box::new(GenericISA));
 
     // Step 4: Generate proof
     info!("Generating proof...");

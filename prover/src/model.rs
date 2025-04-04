@@ -14,7 +14,7 @@ macro_rules! impl_event_accessor {
             /// Returns a reference to the $name events from the trace.
             ///
             /// These events represent each $name instruction executed during the trace.
-            pub fn $name(&self) -> &Vec<$event_type> {
+            pub fn $name(&self) -> &[$event_type] {
                 &self.trace.$field
             }
         }
@@ -165,6 +165,9 @@ impl Trace {
         Ok(())
     }
 }
+
+// TODO(Robin) There should be some safeguards against non-existing events for
+// dedicated ISAs.
 
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);

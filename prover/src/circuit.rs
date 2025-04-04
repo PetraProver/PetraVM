@@ -7,10 +7,9 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 
 use crate::{
     channels::Channels,
+    isa::ISA,
     model::Trace,
-    tables::{
-        LdiTable, PromTable, RetTable, Table, VromAddrSpaceTable, VromSkipTable, VromWriteTable,
-    },
+    tables::{PromTable, Table, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -19,6 +18,9 @@ use crate::{
 /// It contains all the tables and channels needed to encode program execution
 /// as arithmetic constraints.
 pub struct Circuit {
+    /// The Instruction Set Architecture [`ISA`] targeted for this [`Circuit`]
+    /// instance.
+    pub isa: Box<dyn ISA>,
     /// Constraint system
     pub cs: ConstraintSystem,
     /// Channels for connecting tables
@@ -36,18 +38,12 @@ pub struct Circuit {
     pub tables: Vec<Box<dyn Table>>,
 }
 
-impl Default for Circuit {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Circuit {
     /// Create a new zCrayVM circuit.
     ///
     /// This initializes the constraint system, channels, and all tables
     /// needed for the zCrayVM execution.
-    pub fn new() -> Self {
+    pub fn new(isa: Box<dyn ISA>) -> Self {
         let mut cs = ConstraintSystem::new();
         let channels = Channels::new(&mut cs);
 
@@ -56,13 +52,11 @@ impl Circuit {
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
-        let ldi_table = LdiTable::new(&mut cs, &channels);
-        let ret_table = RetTable::new(&mut cs, &channels);
 
-        // TODO(Robin)
-        let tables: Vec<Box<dyn Table>> = vec![Box::new(ldi_table), Box::new(ret_table)];
+        let tables = isa.register_tables(&mut cs, &channels);
 
         Self {
+            isa,
             cs,
             channels,
             prom_table,
@@ -113,6 +107,7 @@ impl Circuit {
         // VROM skip size is the number of addresses we skip
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
 
+        // TODO(Robin)
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
 
@@ -125,6 +120,10 @@ impl Circuit {
             ldi_size,             // LDI table size
             ret_size,             // RET table size
         ];
+
+        // for table in self.isa.tables() {
+        //     table_sizes.push(table.get_events().len());
+        // }
 
         // Create the statement with all boundaries
         let statement = Statement {

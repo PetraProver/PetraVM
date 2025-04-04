@@ -5,14 +5,16 @@
 
 use std::any::Any;
 
+use anyhow::anyhow;
 use binius_field::Field;
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
+    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, WitnessIndex, B128, B16, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::{
     channels::Channels,
+    model::Trace,
     tables::Table,
     types::ProverPackedField,
     utils::{pack_instruction_b128, pack_instruction_no_args},
@@ -51,10 +53,6 @@ pub struct RetTable {
 impl Table for RetTable {
     fn name(&self) -> &'static str {
         "RetTable"
-    }
-
-    fn id(&self) -> usize {
-        self.id
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
@@ -98,6 +96,17 @@ impl Table for RetTable {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn fill(
+        &self,
+        witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
+        trace: &Trace,
+    ) -> anyhow::Result<()> {
+        let events = trace.ret_events();
+        witness
+            .fill_table_sequential(self, events)
+            .map_err(|e| anyhow!(e))
     }
 }
 

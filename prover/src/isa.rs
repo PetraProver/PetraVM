@@ -1,16 +1,17 @@
 use binius_m3::builder::ConstraintSystem;
-use zcrayvm_assembly::Opcode;
 
-use crate::{channels::Channels, tables::Table};
+use crate::{
+    channels::Channels,
+    tables::{LdiTable, RetTable, Table},
+};
 
-pub trait Instruction {
-    fn opcode(&self) -> Opcode;
-
-    // TODO(Robin) methods
-}
+// TODO(Robin): Maybe create some `VirtualMachine` object containing on the
+// `assembly` side containing both the `ISA` and the `EventContext`?
 
 pub trait ISA {
-    fn decode(&self, opcode: u8, args: &[u32]) -> Option<Box<dyn Instruction>>;
+    // TODO(Robin) should it support some decode method to catch unsupported
+    // instructions during emulation?
+
     fn register_tables(
         &self,
         cs: &mut ConstraintSystem,
@@ -18,18 +19,22 @@ pub trait ISA {
     ) -> Vec<Box<dyn Table>>;
 }
 
+// TODO: implement when possible
 pub struct RecursionISA;
 
-impl ISA for RecursionISA {
-    fn decode(&self, opcode: u8, args: &[u32]) -> Option<Box<dyn Instruction>> {
-        todo!()
-    }
+/// The main Instruction Set Architecture for zCray Virtual Machine, supporting
+/// all existing instructions.
+pub struct GenericISA;
 
+impl ISA for GenericISA {
     fn register_tables(
         &self,
         cs: &mut ConstraintSystem,
         channels: &Channels,
     ) -> Vec<Box<dyn Table>> {
-        todo!()
+        let ldi_table = LdiTable::new(cs, &channels);
+        let ret_table = RetTable::new(cs, &channels);
+
+        vec![Box::new(ldi_table), Box::new(ret_table)]
     }
 }

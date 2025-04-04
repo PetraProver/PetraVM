@@ -5,14 +5,17 @@
 
 use std::any::Any;
 
+use anyhow::anyhow;
 use binius_field::BinaryField;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
+    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, WitnessIndex,
+    B128, B16, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
+    model::Trace,
     tables::Table,
     types::ProverPackedField,
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
@@ -53,10 +56,6 @@ pub struct LdiTable {
 impl Table for LdiTable {
     fn name(&self) -> &'static str {
         "RetTable"
-    }
-
-    fn id(&self) -> usize {
-        self.id
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
@@ -104,6 +103,17 @@ impl Table for LdiTable {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn fill(
+        &self,
+        witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
+        trace: &Trace,
+    ) -> anyhow::Result<()> {
+        let events = trace.ldi_events();
+        witness
+            .fill_table_sequential(self, events)
+            .map_err(|e| anyhow!(e))
     }
 }
 

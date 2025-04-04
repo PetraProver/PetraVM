@@ -15,34 +15,22 @@ use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::Statement;
 use bumpalo::Bump;
 
-use crate::{
-    circuit::Circuit,
-    model::Trace,
-    tables::{LdiTable, RetTable},
-    types::ProverPackedField,
-};
+use crate::{circuit::Circuit, isa::ISA, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
 
 /// Main prover for zCrayVM.
-// TODO: should be customizable by supported opcodes
 pub struct Prover {
     /// Arithmetic circuit for zCrayVM
     circuit: Circuit,
 }
 
-impl Default for Prover {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Prover {
     /// Create a new zCrayVM prover.
-    pub fn new() -> Self {
+    pub fn new(isa: Box<dyn ISA>) -> Self {
         Self {
-            circuit: Circuit::new(),
+            circuit: Circuit::new(isa),
         }
     }
 
@@ -107,18 +95,9 @@ impl Prover {
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
-        // 5. Fill LDI table with load immediate events
-        if let Some(ldi_table) = self.circuit.tables[0].as_any().downcast_ref::<LdiTable>() {
-            witness.fill_table_sequential(ldi_table, trace.ldi_events())?;
-        } else {
-            panic!("Expected LdiTable at index 0");
-        }
-
-        // 6. Fill RET table with return events
-        if let Some(ret_table) = self.circuit.tables[1].as_any().downcast_ref::<RetTable>() {
-            witness.fill_table_sequential(ret_table, trace.ret_events())?;
-        } else {
-            panic!("Expected RetTable at index 1");
+        // 5. Fill all event tables
+        for table in &self.circuit.tables {
+            table.fill(&mut witness, trace)?;
         }
 
         // Convert witness to multilinear extension format for validation

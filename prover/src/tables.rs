@@ -6,9 +6,10 @@
 use std::any::Any;
 
 use binius_field::Field;
-use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
+use binius_m3::builder::{TableWitnessSegment, WitnessIndex};
 
+use crate::model::Trace;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
@@ -21,7 +22,7 @@ use crate::{
 pub trait Table: Any {
     fn name(&self) -> &'static str;
 
-    /// Create a new table with the given constraint system and channels.
+    /// Creates a new table with the given constraint system and channels.
     ///
     /// # Arguments
     /// * `cs` - Constraint system to add the table to
@@ -30,9 +31,13 @@ pub trait Table: Any {
     where
         Self: Sized;
 
-    fn id(&self) -> usize;
-
     fn as_any(&self) -> &dyn Any;
+
+    fn fill(
+        &self,
+        witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
+        trace: &Trace,
+    ) -> anyhow::Result<()>;
 }
 
 /// PROM (Program ROM) table for storing program instructions.
