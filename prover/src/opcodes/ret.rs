@@ -2,8 +2,19 @@ use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{Opcode, RetEvent};
 
+/// RET (Return) table.
+///
+/// This table handles the Return instruction, which returns from a function
+/// call by loading the return PC and FP from the current frame.
+///
+/// Logic:
+/// 1. Load the current PC and FP from the state channel
+/// 2. Get the instruction from PROM channel
+/// 3. Verify this is a RET instruction
+/// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
+/// 5. Update the state with the new PC and FP values
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{channels::Channels, types::CommonTableBounds};
+use crate::{channels::Channels, types::ProverPackedField};
 pub struct RetTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
@@ -34,7 +45,7 @@ impl RetTable {
         // Read the next_pc
         table.pull(channels.vrom_channel, [next_pc, fp0]);
 
-        //Read the next_fp
+        // Read the next_fp
         table.pull(channels.vrom_channel, [fp_xor_1, next_fp]);
 
         Self {
@@ -47,10 +58,7 @@ impl RetTable {
     }
 }
 
-impl<U> TableFiller<U> for RetTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for RetTable {
     type Event = RetEvent;
 
     fn id(&self) -> TableId {
@@ -60,7 +68,7 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;

@@ -9,7 +9,7 @@ use binius_m3::builder::{
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{channels::Channels, types::CommonTableBounds, utils::pack_b16_into_b32};
+use crate::{channels::Channels, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
 ///
@@ -59,25 +59,22 @@ impl LdiTable {
             ..
         } = cpu_cols;
 
-        let abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
+        let vrom_abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
         // Pull value to VROM write table using absolute address
         let imm = table.add_computed("imm", pack_b16_into_b32([imm_low.into(), imm_high.into()]));
-        table.pull(channels.vrom_channel, [abs_addr, imm]);
+        table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
 
         Self {
             id: table.id(),
             cpu_cols,
-            vrom_abs_addr: abs_addr,
+            vrom_abs_addr,
             imm,
         }
     }
 }
 
-impl<U> TableFiller<U> for LdiTable
-where
-    U: CommonTableBounds,
-{
+impl TableFiller<ProverPackedField> for LdiTable {
     type Event = LDIEvent;
 
     fn id(&self) -> TableId {
@@ -87,13 +84,13 @@ where
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
+            let mut vrom_abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
             let mut imm = witness.get_mut_as(self.imm)?;
             for (i, event) in rows.clone().enumerate() {
-                abs_addr[i] = *event.fp ^ (event.dst as u32);
+                vrom_abs_addr[i] = event.fp.addr(event.dst);
                 imm[i] = event.imm;
             }
         }

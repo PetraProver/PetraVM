@@ -1,12 +1,11 @@
-use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, Field};
+use binius_field::Field;
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use bytemuck::Pod;
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::channels::Channels;
+use crate::{channels::Channels, types::ProverPackedField};
 
 /// Table for BNZ in the non zero case.
 ///
@@ -51,10 +50,7 @@ impl BnzTable {
     }
 }
 
-impl<U: UnderlierType> TableFiller<U> for BnzTable
-where
-    U: Pod + PackScalar<B1>,
-{
+impl TableFiller<ProverPackedField> for BnzTable {
     type Event = BnzEvent;
 
     fn id(&self) -> TableId {
@@ -64,7 +60,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
@@ -121,10 +117,7 @@ impl BzTable {
     }
 }
 
-impl<U: UnderlierType> TableFiller<U> for BzTable
-where
-    U: Pod + PackScalar<B1>,
-{
+impl TableFiller<ProverPackedField> for BzTable {
     type Event = BzEvent;
 
     fn id(&self) -> TableId {
@@ -134,7 +127,7 @@ where
     fn fill<'a>(
         &self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<U>,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;

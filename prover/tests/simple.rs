@@ -4,7 +4,7 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
-use log::info;
+use log::trace;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
@@ -27,7 +27,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    info!("compiled program = {:?}", compiled_program);
+    trace!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
     let program = compiled_program.prom.clone();
@@ -56,7 +56,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
     zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
 
-    // Add other VROM writes from LDI events
+    // Add other VROM writes
     for (dst, imm) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm);
     }
@@ -123,7 +123,7 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
             RET\n"
         .to_string();
 
-    info!("asm_code:\n {:?}", asm_code);
+    trace!("asm_code:\n {:?}", asm_code);
 
     let init_values = [0, 0, cond_val];
 
@@ -172,22 +172,22 @@ where
     );
 
     // Step 2: Validate trace
-    info!("Validating trace internal structure...");
+    trace!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    info!("Creating prover...");
+    trace!("Creating prover...");
     let prover = Prover::new();
 
     // Step 4: Generate proof
-    info!("Generating proof...");
+    trace!("Generating proof...");
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
     // Step 5: Verify proof
-    info!("Verifying proof...");
+    trace!("Verifying proof...");
     verify_proof(&statement, &compiled_cs, proof)?;
 
-    info!("All steps completed successfully!");
+    trace!("All steps completed successfully!");
     Ok(())
 }
 

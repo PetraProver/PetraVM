@@ -124,9 +124,10 @@ impl Event for B32MuliEvent {
         src: BinaryField16b,
         imm_low: BinaryField16b,
     ) -> Result<(), InterpreterError> {
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+
         // B32_MULI spans over two rows in the PROM
-        let [second_opcode, imm_high, third, fourth] =
-            ctx.trace.prom()[ctx.pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
 
         if second_opcode.val() != Opcode::B32Muli.into()
             || third != BinaryField16b::ZERO
@@ -139,11 +140,12 @@ impl Event for B32MuliEvent {
 
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
-        debug_assert!(ctx.field_pc == G.pow(ctx.pc as u64 - 1));
+
+        debug_assert!(field_pc == G.pow(pc as u64 - 1));
         let event = Self::new(
-            ctx.timestamp,
-            ctx.field_pc,
-            ctx.fp,
+            timestamp,
+            field_pc,
+            fp,
             dst.val(),
             dst_val.val(),
             src.val(),
