@@ -4,7 +4,7 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
-use log::info;
+use log::trace;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
@@ -26,7 +26,7 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    info!("compiled program = {:?}", compiled_program);
+    trace!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
     let program = compiled_program.prom.clone();
@@ -100,7 +100,7 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     let value = 0x12345678;
 
     // Step 1: Generate trace from assembly
-    info!("Generating trace from assembly...");
+    trace!("Generating trace from assembly...");
     let trace = generate_ldi_ret_trace(value)?;
 
     // Verify trace has correct structure
@@ -122,21 +122,21 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
     assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
-    info!("Validating trace internal structure...");
+    trace!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    info!("Creating prover...");
+    trace!("Creating prover...");
     let prover = Prover::new();
 
     // Step 4: Generate proof
-    info!("Generating proof...");
+    trace!("Generating proof...");
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
     // Step 5: Verify proof
-    info!("Verifying proof...");
+    trace!("Verifying proof...");
     verify_proof(&statement, &compiled_cs, proof)?;
 
-    info!("All steps completed successfully!");
+    trace!("All steps completed successfully!");
     Ok(())
 }

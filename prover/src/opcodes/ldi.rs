@@ -59,16 +59,16 @@ impl LdiTable {
             ..
         } = cpu_cols;
 
-        let abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
+        let vrom_abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
         // Push value to VROM write table using absolute address
         let imm = table.add_computed("imm", pack_b16_into_b32([imm_low.into(), imm_high.into()]));
-        table.pull(channels.vrom_channel, [abs_addr, imm]);
+        table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
 
         Self {
             id: table.id(),
             cpu_cols,
-            vrom_abs_addr: abs_addr,
+            vrom_abs_addr,
             imm,
         }
     }
@@ -90,10 +90,10 @@ where
         witness: &'a mut TableWitnessSegment<U>,
     ) -> anyhow::Result<()> {
         {
-            let mut abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
+            let mut vrom_abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
             let mut imm = witness.get_mut_as(self.imm)?;
             for (i, event) in rows.clone().enumerate() {
-                abs_addr[i] = event.fp.addr(event.dst);
+                vrom_abs_addr[i] = event.fp.addr(event.dst);
                 imm[i] = event.imm;
             }
         }
