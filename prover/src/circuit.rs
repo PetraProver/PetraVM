@@ -129,20 +129,4 @@ impl Circuit {
 
         Ok(statement)
     }
-
-    /// Compile the circuit with a given statement.
-    ///
-    /// # Arguments
-    /// * `statement` - The statement to compile
-    ///
-    /// # Returns
-    /// * A compiled constraint system
-    pub fn compile(
-        &self,
-        statement: &Statement,
-    ) -> anyhow::Result<
-        binius_core::constraint_system::ConstraintSystem<binius_field::BinaryField128b>,
-    > {
-        Ok(self.cs.compile(statement)?)
-    }
 }

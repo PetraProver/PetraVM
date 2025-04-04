@@ -3,7 +3,7 @@
 //! This module provides the main entry point for creating proofs from
 //! zCrayVM execution traces.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use binius_core::{
     constraint_system::{prove, validate, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
@@ -34,6 +34,8 @@ impl Prover {
         }
     }
 
+    // TODO: Split witness generation from actual proving?
+
     /// Prove a zCrayVM execution trace.
     ///
     /// This function:
@@ -60,7 +62,11 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
-        let compiled_cs = self.circuit.compile(&statement)?;
+        let compiled_cs = self
+            .circuit
+            .cs
+            .compile(&statement)
+            .map_err(|e| anyhow!(e))?;
 
         // Create a memory allocator for the witness
         let allocator = Bump::new();
