@@ -3,6 +3,8 @@
 //! This module contains the RET table which handles return operations
 //! in the zCrayVM execution.
 
+use std::any::Any;
+
 use binius_field::Field;
 use binius_m3::builder::{
     Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
@@ -11,6 +13,7 @@ use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::{
     channels::Channels,
+    tables::Table,
     types::ProverPackedField,
     utils::{pack_instruction_b128, pack_instruction_no_args},
 };
@@ -45,13 +48,16 @@ pub struct RetTable {
     pub fp_plus_one: Col<B32>,
 }
 
-impl RetTable {
-    /// Create a new RET table with the given constraint system and channels.
-    ///
-    /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for RetTable {
+    fn name(&self) -> &'static str {
+        "RetTable"
+    }
+
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
 
         // Add columns for PC, FP, and return values
@@ -88,6 +94,10 @@ impl RetTable {
             prom_pull,
             fp_plus_one,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

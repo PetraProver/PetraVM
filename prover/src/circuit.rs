@@ -8,7 +8,9 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    tables::{
+        LdiTable, PromTable, RetTable, Table, VromAddrSpaceTable, VromSkipTable, VromWriteTable,
+    },
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -30,10 +32,8 @@ pub struct Circuit {
     pub vrom_write_table: VromWriteTable,
     /// VROM Skip table
     pub vrom_skip_table: VromSkipTable,
-    /// LDI instruction table
-    pub ldi_table: LdiTable,
-    /// RET instruction table
-    pub ret_table: RetTable,
+    /// Instruction tables
+    pub tables: Vec<Box<dyn Table>>,
 }
 
 impl Default for Circuit {
@@ -59,6 +59,9 @@ impl Circuit {
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
 
+        // TODO(Robin)
+        let tables: Vec<Box<dyn Table>> = vec![Box::new(ldi_table), Box::new(ret_table)];
+
         Self {
             cs,
             channels,
@@ -66,8 +69,7 @@ impl Circuit {
             vrom_addr_space_table,
             vrom_write_table,
             vrom_skip_table,
-            ldi_table,
-            ret_table,
+            tables,
         }
     }
 

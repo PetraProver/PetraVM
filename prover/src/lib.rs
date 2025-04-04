@@ -6,6 +6,7 @@
 
 pub mod channels;
 pub mod circuit;
+pub mod isa;
 pub mod model;
 pub mod opcodes;
 pub mod prover;

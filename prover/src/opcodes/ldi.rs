@@ -3,6 +3,8 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the zCrayVM execution.
 
+use std::any::Any;
+
 use binius_field::BinaryField;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
@@ -11,6 +13,7 @@ use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
 use crate::{
     channels::Channels,
+    tables::Table,
     types::ProverPackedField,
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };
@@ -47,13 +50,16 @@ pub struct LdiTable {
     pub vrom_abs_addr: Col<B32>,
 }
 
-impl LdiTable {
-    /// Create a new LDI table with the given constraint system and channels.
-    ///
-    /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for LdiTable {
+    fn name(&self) -> &'static str {
+        "RetTable"
+    }
+
+    fn id(&self) -> usize {
+        self.id
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ldi");
 
         // Add columns for PC, FP, and other instruction components
@@ -94,6 +100,10 @@ impl LdiTable {
             next_pc,
             vrom_abs_addr,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

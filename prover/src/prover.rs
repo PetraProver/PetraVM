@@ -15,7 +15,12 @@ use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::Statement;
 use bumpalo::Bump;
 
-use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
+use crate::{
+    circuit::Circuit,
+    model::Trace,
+    tables::{LdiTable, RetTable},
+    types::ProverPackedField,
+};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
@@ -103,10 +108,18 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
         // 5. Fill LDI table with load immediate events
-        witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
+        if let Some(ldi_table) = self.circuit.tables[0].as_any().downcast_ref::<LdiTable>() {
+            witness.fill_table_sequential(ldi_table, trace.ldi_events())?;
+        } else {
+            panic!("Expected LdiTable at index 0");
+        }
 
         // 6. Fill RET table with return events
-        witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
+        if let Some(ret_table) = self.circuit.tables[1].as_any().downcast_ref::<RetTable>() {
+            witness.fill_table_sequential(ret_table, trace.ret_events())?;
+        } else {
+            panic!("Expected RetTable at index 1");
+        }
 
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();
