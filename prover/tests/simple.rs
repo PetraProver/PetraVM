@@ -61,6 +61,8 @@ fn generate_test_trace(value: u32) -> Result<Trace> {
     let mul_result = (B32::new(value) * B32::new(2)).val();
     trace.add_vrom_write(4, mul_result, 1);
 
+    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
+    // gadget
     trace.add_vrom_write(5, 0, 0);
 
     Ok(trace)
