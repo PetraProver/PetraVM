@@ -157,8 +157,6 @@ where
     F: FnOnce() -> Result<Trace>,
     G: FnOnce(&Trace),
 {
-    env_logger::init();
-
     // Step 1: Generate trace
     let trace = trace_generator()?;
     // Verify trace has correct structure
