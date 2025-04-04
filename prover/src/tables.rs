@@ -178,32 +178,24 @@ impl TableFiller<ProverPackedField> for VromWriteTable {
 
     fn fill<'a>(
         &'a self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        let mut multiplicity_vec = Vec::new();
-
         {
-            // New scope to limit borrow lifetimes
+            // Fill the address and value columns
             let mut addr_col = witness.get_scalars_mut(self.addr)?;
             let mut value_col = witness.get_scalars_mut(self.value)?;
 
             // Fill in values from events
-            for (i, (addr, value, multiplicity)) in rows.enumerate() {
+            for (i, (addr, value, _)) in rows.clone().enumerate() {
                 addr_col[i] = B32::new(*addr);
                 value_col[i] = B32::new(*value);
-                if i > 0 {
-                    debug_assert!(*multiplicity <= multiplicity_vec[i - 1],
-                        "Multiplicities must be sorted in descending order. Current: {}, Previous: {}",
-                        *multiplicity, multiplicity_vec[i - 1]);
-                }
-                multiplicity_vec.push(*multiplicity);
             }
-        } // First mutable borrow ends here
+        }
 
-        // Populate lookup producer with multiplicity values
+        // Populate lookup producer with multiplicity iterator
         self.lookup_producer
-            .populate(witness, multiplicity_vec.iter().copied())?;
+            .populate(witness, rows.map(|(_, _, multiplicity)| *multiplicity))?;
 
         Ok(())
     }
