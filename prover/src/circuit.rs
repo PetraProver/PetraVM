@@ -10,7 +10,7 @@ use crate::{
     isa::ISA,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::Trace,
-    table::Fill,
+    table::FillableTable,
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -36,7 +36,7 @@ pub struct Circuit {
     /// VROM Skip table
     pub vrom_skip_table: VromSkipTable,
     /// Instruction tables
-    pub tables: Vec<Box<dyn Fill>>,
+    pub tables: Vec<Box<dyn FillableTable>>,
 }
 
 impl Circuit {

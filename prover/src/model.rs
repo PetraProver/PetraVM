@@ -172,9 +172,6 @@ impl Trace {
     }
 }
 
-// TODO(Robin) There should be some safeguards against non-existing events for
-// dedicated ISAs.
-
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);

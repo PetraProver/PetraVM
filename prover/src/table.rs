@@ -48,10 +48,10 @@ pub trait Table: Any {
 /// Trait use for convenience to easily fill a witness from a provided
 /// [`Trace`].
 ///
-/// NOTE: This is necessary to "hide" the associated `Event` type of the
-/// [`Table`] trait, so that it can be used within the definition of
+/// NOTE: This is necessary to "hide" the associated [`Event`](Table::Event)
+/// type of the [`Table`] trait, so that it can be used within the definition of
 /// [`ISA`](crate::isa::ISA).
-pub trait Fill {
+pub trait FillableTable {
     /// Fills the table's witness rows with data from the corresponding events
     /// prevent in the provided [`Trace`].
     fn fill(
@@ -70,14 +70,14 @@ pub trait Fill {
 /// register tables inside a [`Circuit`](crate::circuit::Circuit).
 ///
 /// The underlying table type is a pointer to an instance implementing both
-/// [`Table`] and [`TableFiller`] traits. The entry also implements the [`Fill`]
-/// trait.
+/// [`Table`] and [`TableFiller`] traits. The entry also implements the
+/// [`FillableTable`] trait.
 pub struct TableEntry<T: TableFiller<ProverPackedField> + 'static> {
     pub table: Box<T>,
     pub get_events: fn(&Trace) -> &[T::Event],
 }
 
-impl<T> Fill for TableEntry<T>
+impl<T> FillableTable for TableEntry<T>
 where
     T: TableFiller<ProverPackedField> + 'static,
 {

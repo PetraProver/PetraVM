@@ -12,7 +12,7 @@ use binius_m3::builder::ConstraintSystem;
 
 use crate::{
     channels::Channels,
-    table::{Fill, LdiTable, RetTable, Table},
+    table::{FillableTable, LdiTable, RetTable, Table},
 };
 
 // TODO(Robin): Maybe create some `VirtualMachine` object containing on the
@@ -30,8 +30,11 @@ pub trait ISA {
     /// # Arguments
     /// * `cs` - [`ConstraintSystem`]` to register the tables to
     /// * `channels` - [`Channels`] IDs for communication with other tables
-    fn register_tables(&self, cs: &mut ConstraintSystem, channels: &Channels)
-        -> Vec<Box<dyn Fill>>;
+    fn register_tables(
+        &self,
+        cs: &mut ConstraintSystem,
+        channels: &Channels,
+    ) -> Vec<Box<dyn FillableTable>>;
 }
 
 /// Registers a table along with its associated event accessor.
@@ -47,7 +50,7 @@ macro_rules! register_table {
         Box::new($crate::table::TableEntry {
             table: Box::new(<$table_ty>::new($cs, $channels)),
             get_events: $crate::model::Trace::$trace_accessor,
-        }) as Box<dyn $crate::table::Fill>
+        }) as Box<dyn $crate::table::FillableTable>
     };
 }
 
@@ -63,7 +66,7 @@ impl ISA for GenericISA {
         &self,
         cs: &mut ConstraintSystem,
         channels: &Channels,
-    ) -> Vec<Box<dyn Fill>> {
+    ) -> Vec<Box<dyn FillableTable>> {
         vec![
             register_table!(LdiTable, ldi_events, cs, channels),
             register_table!(RetTable, ret_events, cs, channels),
