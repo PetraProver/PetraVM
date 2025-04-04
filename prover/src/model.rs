@@ -7,7 +7,13 @@ use anyhow::Result;
 use binius_field::BinaryField32b;
 use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
-/// Macro to generate event accessors
+/// Generates event accessors for a trace.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_event_accessor!(ldi_events, LDIEvent, ldi)
+/// ```
 macro_rules! impl_event_accessor {
     ($name:ident, $event_type:ty, $field:ident) => {
         impl Trace {

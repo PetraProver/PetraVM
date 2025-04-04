@@ -1,6 +1,6 @@
-//! Tables for the zCrayVM M3 circuit.
+//! Memory tables for the zCrayVM M3 circuit.
 //!
-//! This module contains the definitions of all the arithmetic tables needed
+//! This module contains the definitions of all the memory tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::Field;

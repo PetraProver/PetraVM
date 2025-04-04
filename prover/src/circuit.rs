@@ -8,7 +8,7 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     isa::ISA,
-    memory_tables::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::Trace,
     table::Fill,
 };
