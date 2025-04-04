@@ -1,8 +1,8 @@
 //! Modular Instruction Set Architectures (ISAs) for the zCray Virtual Machine.
 //!
 //! An ISA defines:
-//! - The tables it contributes to the arithmetic circuit.
-//! - How the execution trace is interpreted into events for those tables.
+//! - The tables it contributes to an arithmetic circuit.
+//! - How an execution trace is interpreted into events for those tables.
 //!
 //! A given ISA is registered when initializing a new
 //! [`Circuit`](crate::circuit::Circuit), which invokes [`ISA::register_tables`]
@@ -15,7 +15,7 @@ use crate::{
     table::{FillableTable, LdiTable, RetTable, Table},
 };
 
-// TODO(Robin): Maybe create some `VirtualMachine` object containing on the
+// TODO(Robin): Maybe create some `VirtualMachine` object on the
 // `assembly` side containing both the `ISA` and the `EventContext`?
 
 /// Defines an Instruction Set Architecture for the zCray Virtual Machine.
@@ -25,7 +25,7 @@ use crate::{
 /// through the [`register_table!`](crate::register_table) macro.
 pub trait ISA {
     // TODO(Robin) should it support some decode method to catch unsupported
-    // instructions during emulation?
+    // instructions during emulation? CF TODO Above
 
     /// # Arguments
     /// * `cs` - [`ConstraintSystem`]` to register the tables to
@@ -57,7 +57,7 @@ macro_rules! register_table {
 // TODO: implement when possible
 pub struct RecursionISA;
 
-/// The main Instruction Set Architecture for the zCray Virtual Machine,
+/// The main Instruction Set Architecture (ISA) for the zCray Virtual Machine,
 /// supporting all existing instructions.
 pub struct GenericISA;
 

@@ -70,8 +70,8 @@ pub trait FillableTable {
 /// register tables inside a [`Circuit`](crate::circuit::Circuit).
 ///
 /// The underlying table type is a pointer to an instance implementing both
-/// [`Table`] and [`TableFiller`] traits. The entry also implements the
-/// [`FillableTable`] trait.
+/// [`Table`] and [`TableFiller`] traits.
+/// The entry also implements the [`FillableTable`] trait.
 pub struct TableEntry<T: TableFiller<ProverPackedField> + 'static> {
     pub table: Box<T>,
     pub get_events: fn(&Trace) -> &[T::Event],

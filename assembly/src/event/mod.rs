@@ -1,7 +1,13 @@
 //! Defines execution events for the zCray VM.
 //!
-//! Each event represents an instruction executed by the VM, such as arithmetic
-//! operations, branching, or function calls.
+//! Each instruction executed by the VM, such as arithmetic operations,
+//! branching, or function calls, results in an `Event`, which records the state
+//! changes of that instruction.
+//! These events are then used to generate arithmetic constraints during the
+//! proof generation.
+//!
+//! This module defines a generic [`Event`] trait to be implemented by all
+//! supported instructions
 
 use std::fmt::Debug;
 
@@ -27,9 +33,12 @@ pub(crate) mod shift;
 pub(crate) use binary_ops::{b128, b32};
 
 /// An `Event` represents an instruction that can be executed by the VM.
+///
+/// This trait is implemented by every instruction supported by the VM
+/// Instruction Set.
 pub(crate) trait Event {
-    /// Generates a new event and pushes it to its corresponding list in the set
-    /// of traces.
+    /// records and logs the execution of an instruction during program
+    /// execution to its corresponding list in the set of traces.
     fn generate(
         ctx: &mut EventContext,
         arg0: BinaryField16b,
@@ -45,6 +54,7 @@ pub(crate) trait Event {
 }
 
 impl Opcode {
+    /// Generates the appropriate event for this opcode.
     pub(crate) fn generate_event(
         &self,
         ctx: &mut EventContext,
@@ -108,6 +118,7 @@ mod event_helper {
     };
     use crate::{execution::InterpreterError, gadgets::Add32Gadget};
 
+    /// Helper method to generate `BnzEvent` and `BnzEvent`.
     pub fn generate_bnz(
         ctx: &mut EventContext,
         cond: BinaryField16b,
@@ -124,6 +135,7 @@ mod event_helper {
         }
     }
 
+    /// Helper method to generate `AddEvent` and associated `Add32Gadget`.
     pub fn generate_add(
         ctx: &mut EventContext,
         dst: BinaryField16b,
@@ -144,6 +156,7 @@ mod event_helper {
         Ok(())
     }
 
+    /// Helper method to generate `AddiEvent` and associated `Add32Gadget`.
     pub fn generate_addi(
         ctx: &mut EventContext,
         dst: BinaryField16b,
@@ -160,6 +173,7 @@ mod event_helper {
             .addi
             .last()
             .expect("Event should have been pushed");
+
         let new_add32_gadget =
             Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
         ctx.trace.add32.push(new_add32_gadget);

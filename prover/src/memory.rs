@@ -43,8 +43,8 @@ impl PromTable {
     /// Create a new PROM table with the given constraint system and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
 
@@ -136,8 +136,8 @@ impl VromWriteTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
 
@@ -203,8 +203,8 @@ impl VromSkipTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_skip");
 
@@ -264,8 +264,8 @@ impl VromAddrSpaceTable {
     /// and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_addr_space");
 
