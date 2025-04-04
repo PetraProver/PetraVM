@@ -92,7 +92,7 @@ impl Opcode {
             Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
+            Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }
 }

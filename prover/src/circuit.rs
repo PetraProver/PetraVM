@@ -10,7 +10,7 @@ use crate::{
     isa::ISA,
     memory_tables::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::Trace,
-    table::Table,
+    table::Fill,
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -36,7 +36,7 @@ pub struct Circuit {
     /// VROM Skip table
     pub vrom_skip_table: VromSkipTable,
     /// Instruction tables
-    pub tables: Vec<Box<dyn Table>>,
+    pub tables: Vec<Box<dyn Fill>>,
 }
 
 impl Circuit {
@@ -108,23 +108,18 @@ impl Circuit {
         // VROM skip size is the number of addresses we skip
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
 
-        // TODO(Robin)
-        let ldi_size = trace.ldi_events().len();
-        let ret_size = trace.ret_events().len();
-
         // Define the table sizes in order of table creation
-        let table_sizes = vec![
+        let mut table_sizes = vec![
             prom_size,            // PROM table size
             vrom_addr_space_size, // VROM address space table size
             vrom_write_size,      // VROM write table size
             vrom_skip_size,       // VROM skip table size
-            ldi_size,             // LDI table size
-            ret_size,             // RET table size
         ];
 
-        // for table in self.isa.tables() {
-        //     table_sizes.push(table.get_events().len());
-        // }
+        // Add table sizes for each supported instruction
+        for table in &self.tables {
+            table_sizes.push(table.num_events(trace));
+        }
 
         // Create the statement with all boundaries
         let statement = Statement {
