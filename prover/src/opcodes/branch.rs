@@ -7,9 +7,9 @@ use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
 use crate::{channels::Channels, types::ProverPackedField};
 
-/// Table for BNZ in the non zero case.
+/// Table for BNZ in the non-zero case.
 ///
-/// Assrts that the argument is not zero and then that the program jumps to the
+/// Asserts that the argument is not zero and that the program jumps to the
 /// target address.
 pub struct BnzTable {
     id: TableId,

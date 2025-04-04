@@ -35,7 +35,7 @@ pub struct Circuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
-    /// BNZ branch non zero instruction table
+    /// BNZ branch non-zero instruction table
     pub bnz_table: BnzTable,
     /// BNZ branch zero instruction table
     pub bz_table: BzTable,
