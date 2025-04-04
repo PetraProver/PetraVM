@@ -21,7 +21,7 @@ static_int_list_sum:
     ;; Slot 7: Local: new_curr_sum
 
     BNZ @3, list_size_gt_0
-    MVV.H @5, @4 ;; return curr_sum
+    MVV.W @5, @4 ;; return curr_sum
     RET
 
 list_size_gt_0:

@@ -57,7 +57,7 @@ build_linked_list_of_ints:
 
     non_empty_list:
     ;; TODO: Replace instruction with one that stores addresses once available...
-    MVV.W @5, @4[7] ;; A non-zero value is always the address of the first node.
+    MVV.W @4[7], @5 ;; A non-zero value is always the address of the first node.
     RET
 
 #[framesize(0xc)]
