@@ -65,6 +65,14 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     Ok(zkvm_trace)
 }
 
+/// Creates a basic execution trace with just LDI and RET instructions.
+///
+/// # Arguments
+/// * `value` - The value to load into VROM.
+///
+/// # Returns
+/// * A trace containing an LDI instruction that loads `value` into VROM at
+///   address fp+2, followed by a RET instruction
 fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
@@ -92,34 +100,96 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-#[test]
-fn test_zcrayvm_proving_pipeline() -> Result<()> {
-    env_logger::init();
+/// Creates a basic execution trace with just ANDI and RET instructions.
+///
+/// # Returns
+/// * A Trace containing an ANDI instruction followed by a RET instruction
+fn generate_andi_ret_trace() -> Result<Trace> {
+    // Create a simple assembly program with ANDI and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = "#[framesize(0x10)]\n\
+        _start: ANDI @3, @2, #2\n\
+        RET\n"
+        .to_string();
 
-    // Test value to load
-    let value = 0x12345678;
+    trace!("asm_code:\n {:?}", asm_code);
 
-    // Step 1: Generate trace from assembly
-    trace!("Generating trace from assembly...");
-    let trace = generate_ldi_ret_trace(value)?;
+    let init_values = [0, 0, 1];
 
+    // Add VROM writes from BNZ events
+    let vrom_writes = |zkvm_trace: &Trace| {
+        zkvm_trace
+            .andi_events()
+            .iter()
+            .flat_map(|event| {
+                [
+                    (event.src as u32, event.src_val),
+                    (event.dst as u32, event.dst_val),
+                ]
+            })
+            .collect()
+    };
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+/// Creates a basic execution trace with just ANDI and RET instructions.
+///
+/// # Returns
+/// * A Trace containing an ANDI instruction followed by a RET instruction
+fn generate_xori_ret_trace() -> Result<Trace> {
+    // Create a simple assembly program with ANDI and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = "#[framesize(0x10)]\n\
+        _start: XORI @3, @2, #2\n\
+        RET\n"
+        .to_string();
+
+    trace!("asm_code:\n {:?}", asm_code);
+
+    let init_values = [0, 0, 1];
+
+    // Add VROM writes from BNZ events
+    let vrom_writes = |zkvm_trace: &Trace| {
+        zkvm_trace
+            .xori_events()
+            .iter()
+            .flat_map(|event| {
+                [
+                    (event.src as u32, event.src_val),
+                    (event.dst as u32, event.dst_val),
+                ]
+            })
+            .collect()
+    };
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+fn test_from_trace_generator<F, G>(
+    trace_generator: F,
+    check_events: G,
+    n_vrom_writes: usize,
+) -> Result<()>
+where
+    F: FnOnce() -> Result<Trace>,
+    G: FnOnce(&Trace),
+{
+    // Step 1: Generate trace
+    let trace = trace_generator()?;
     // Verify trace has correct structure
+    check_events(&trace);
+
     assert_eq!(
-        trace.program.len(),
-        2,
-        "Program should have exactly 2 instructions"
+        trace.vrom_writes.len(),
+        n_vrom_writes,
+        "Should have {} VROM writes",
+        n_vrom_writes
     );
-    assert_eq!(
-        trace.ldi_events().len(),
-        1,
-        "Should have exactly one LDI event"
-    );
-    assert_eq!(
-        trace.ret_events().len(),
-        1,
-        "Should have exactly one RET event"
-    );
-    assert_eq!(trace.vrom_writes.len(), 3, "Should have three VROM writes");
 
     // Step 2: Validate trace
     trace!("Validating trace internal structure...");
@@ -139,4 +209,83 @@ fn test_zcrayvm_proving_pipeline() -> Result<()> {
 
     trace!("All steps completed successfully!");
     Ok(())
+}
+
+#[test]
+fn test_ldi_ret() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let value = 0x12345678;
+            generate_ldi_ret_trace(value)
+        },
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.ldi_events().len(),
+                1,
+                "Should have exactly one LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        3,
+    )
+}
+
+#[test]
+fn test_andi_ret() -> Result<()> {
+    test_from_trace_generator(
+        || generate_andi_ret_trace(),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.andi_events().len(),
+                1,
+                "Should have exactly one LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        4,
+    )
+}
+
+#[test]
+fn test_xori_ret() -> Result<()> {
+    test_from_trace_generator(
+        || generate_xori_ret_trace(),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.xori_events().len(),
+                1,
+                "Should have exactly one bz event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        4,
+    )
 }

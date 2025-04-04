@@ -8,6 +8,7 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
+    opcodes::binary_ops::b32::{AndiTable, XoriTable},
     tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
 };
 
@@ -34,6 +35,10 @@ pub struct Circuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
+    /// ANDI instruction table
+    pub andi_table: AndiTable,
+    /// XORI instruction table
+    pub xori_table: XoriTable,
 }
 
 impl Default for Circuit {
@@ -58,6 +63,8 @@ impl Circuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
+        let andi_table = AndiTable::new(&mut cs, &channels);
+        let xori_table = XoriTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -68,6 +75,8 @@ impl Circuit {
             vrom_skip_table,
             ldi_table,
             ret_table,
+            andi_table,
+            xori_table,
         }
     }
 
@@ -113,6 +122,8 @@ impl Circuit {
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
+        let andi_size = trace.andi_events().len();
+        let xori_size = trace.xori_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -122,6 +133,8 @@ impl Circuit {
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
             ret_size,             // RET table size
+            andi_size,            // ANDI table size
+            xori_size,            // XORI table size
         ];
 
         // Create the statement with all boundaries

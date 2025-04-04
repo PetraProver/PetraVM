@@ -220,15 +220,15 @@ macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
+        pub struct $name {
             pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: FramePointer,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src: u16,
-            pub(crate) src_val: u32,
-            pub(crate) imm: u16,
+            pub pc: BinaryField32b,
+            pub fp: FramePointer,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src: u16,
+            pub src_val: u32,
+            pub imm: u16,
         }
 
         impl BinaryOperation for $name {
