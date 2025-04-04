@@ -9,7 +9,6 @@ use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
-#[cfg(test)]
 /// Creates an execution trace for the instructions in `asm_code`.
 ///
 /// # Arguments
@@ -66,7 +65,6 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     Ok(zkvm_trace)
 }
 
-#[cfg(test)]
 /// Creates a basic execution trace with just LDI and RET instructions.
 ///
 /// # Arguments
@@ -102,7 +100,6 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-#[cfg(test)]
 /// Creates a basic execution trace with just BNZ and RET instructions.
 ///
 /// # Arguments
@@ -147,7 +144,6 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-#[cfg(test)]
 fn test_from_trace_generator<F, G>(
     trace_generator: F,
     check_events: G,
