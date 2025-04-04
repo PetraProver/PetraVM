@@ -89,8 +89,7 @@ impl B32MulTable {
         table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
         table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
 
-        // let expected_result = table.add_computed("result", src1_val * src2_val);
-        // table.assert_zero("check_b32_mul_result", expected_result - result_val);
+        table.assert_zero("check_b32_mul_result", src1_val * src2_val - B32::new(2));
 
         // Push result to VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
@@ -159,7 +158,6 @@ impl TableFiller<ProverPackedField> for B32MulTable {
             src1_abs_addr_col[i] = B32::new(event.fp.addr(event.src1));
             src2_abs_addr_col[i] = B32::new(event.fp.addr(event.src2));
             dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
-
             next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
 
             prom_pull_col[i] = pack_instruction_b128(
