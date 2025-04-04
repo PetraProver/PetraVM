@@ -7,9 +7,10 @@
 pub mod channels;
 pub mod circuit;
 pub mod isa;
+pub mod memory_tables;
 pub mod model;
 pub mod opcodes;
 pub mod prover;
-pub mod tables;
+pub mod table;
 pub mod types;
 pub mod utils;

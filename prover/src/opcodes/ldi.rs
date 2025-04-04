@@ -16,7 +16,7 @@ use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 use crate::{
     channels::Channels,
     model::Trace,
-    tables::Table,
+    table::Table,
     types::ProverPackedField,
     utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
 };

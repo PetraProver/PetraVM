@@ -15,7 +15,7 @@ use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 use crate::{
     channels::Channels,
     model::Trace,
-    tables::Table,
+    table::Table,
     types::ProverPackedField,
     utils::{pack_instruction_b128, pack_instruction_no_args},
 };

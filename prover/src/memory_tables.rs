@@ -3,13 +3,10 @@
 //! This module contains the definitions of all the arithmetic tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
-use std::any::Any;
-
 use binius_field::Field;
+use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
-use binius_m3::builder::{TableWitnessSegment, WitnessIndex};
 
-use crate::model::Trace;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{LdiTable, RetTable};
 use crate::{
@@ -18,27 +15,6 @@ use crate::{
     types::ProverPackedField,
     utils::{pack_instruction, pack_instruction_b128},
 };
-
-pub trait Table: Any {
-    fn name(&self) -> &'static str;
-
-    /// Creates a new table with the given constraint system and channels.
-    ///
-    /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
-    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self
-    where
-        Self: Sized;
-
-    fn as_any(&self) -> &dyn Any;
-
-    fn fill(
-        &self,
-        witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
-        trace: &Trace,
-    ) -> anyhow::Result<()>;
-}
 
 /// PROM (Program ROM) table for storing program instructions.
 ///

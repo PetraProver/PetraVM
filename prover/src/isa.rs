@@ -2,7 +2,7 @@ use binius_m3::builder::ConstraintSystem;
 
 use crate::{
     channels::Channels,
-    tables::{LdiTable, RetTable, Table},
+    table::{LdiTable, RetTable, Table},
 };
 
 // TODO(Robin): Maybe create some `VirtualMachine` object containing on the
