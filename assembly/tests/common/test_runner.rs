@@ -9,12 +9,13 @@ use zcrayvm_assembly::{
     memory::vrom_allocator::VromAllocator, Assembler, Memory, ValueRom, ZCrayTrace,
 };
 
+// Lightweight handle that can be dereferenced to the actual frame.
 pub struct TestFrameHandle {
-    frames_ref: Rc<DefinedFrame>,
+    frames_ref: Rc<AllocatedFrame>,
 }
 
 impl Deref for TestFrameHandle {
-    type Target = DefinedFrame;
+    type Target = AllocatedFrame;
 
     fn deref(&self) -> &Self::Target {
         &self.frames_ref
@@ -25,11 +26,13 @@ impl Deref for TestFrameHandle {
 /// test.
 ///
 /// `FrameTemplate`s that are added through `add_frame` will be hydrated into
-/// `DefinedFrame`s (which have their own frame VROM slice). The idea is at the
-/// start, the test writer defines the frames in the order that they are
+/// `AllocatedFrame`s (which have their own frame VROM slice). The idea is at
+/// the start, the test writer defines the frames in the order that they are
 /// expected to be constructed through a run of the program.
 pub struct Frames {
-    frames: HashMap<&'static str, Vec<Rc<DefinedFrame>>>,
+    /// Map of frame templates names to instantiated frames of that template (in
+    /// order of allocation).
+    frames: HashMap<&'static str, Vec<Rc<AllocatedFrame>>>,
     trace: Rc<ZCrayTrace>,
 
     /// When writing a test, we know the size of the frames that should be
@@ -63,13 +66,15 @@ impl Frames {
 }
 
 impl Index<&'static str> for Frames {
-    type Output = [Rc<DefinedFrame>];
+    type Output = [Rc<AllocatedFrame>];
 
     fn index(&self, index: &'static str) -> &Self::Output {
         &self.frames[index]
     }
 }
 
+/// Information describing a frame that will be constructed by a `CALL*` or
+/// `TAIL` call. Templates are used to instantiate actual frames during a test.
 #[derive(Clone)]
 pub(crate) struct FrameTemplate {
     label: &'static str,
@@ -81,8 +86,8 @@ impl FrameTemplate {
         Self { label, frame_size }
     }
 
-    pub fn build(self, trace: Rc<ZCrayTrace>, frame_start_addr: u32) -> DefinedFrame {
-        DefinedFrame {
+    pub fn build(self, trace: Rc<ZCrayTrace>, frame_start_addr: u32) -> AllocatedFrame {
+        AllocatedFrame {
             label: self.label,
             trace,
             frame_start_addr,
@@ -93,17 +98,18 @@ impl FrameTemplate {
 
 /// A frame that has been created from a template.
 ///
-/// Unlike a template, a `DefinedFrame` has it's own range of VROM and can be
-/// queried directly to get a values within the frame. The idea behind this is
-/// to simplify accessing frames a bit more.
-pub struct DefinedFrame {
+/// Unlike a template, a `AllocatedFrame` has it's own range of VROM addresses
+/// and can be queried directly to get a values within the frame. The idea
+/// behind this is to avoid having to calculate VROM addresses accessed during a
+/// test "by hand" and instead only worry about slot offsets from a given frame.
+pub struct AllocatedFrame {
     label: &'static str,
     trace: Rc<ZCrayTrace>,
     frame_start_addr: u32,
     frame_size: u32,
 }
 
-impl DefinedFrame {
+impl AllocatedFrame {
     pub fn get_vrom_u32_expected(&self, frame_slot: u32) -> u32 {
         assert!(
             frame_slot <= self.frame_size,
@@ -118,7 +124,9 @@ impl DefinedFrame {
     }
 }
 
-// This can be reused between tests.
+/// Common logic that all ASM tests need to run.
+///
+/// Note that `init_vals` are converted to a 32-bit binary field.
 pub fn generate_trace_and_validate(asm_bytes: &str, init_vals: &[u32]) -> Rc<ZCrayTrace> {
     // Use the multiplicative generator G for calculations
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
@@ -126,20 +134,14 @@ pub fn generate_trace_and_validate(asm_bytes: &str, init_vals: &[u32]) -> Rc<ZCr
     let compiled_program = Assembler::from_code(asm_bytes).unwrap();
 
     let mut processed_init_vals = Vec::with_capacity(2 + init_vals.len());
+
+    // We always start execution on PC = 0, so the initial VROM should always
+    // contain [0, 0].
     processed_init_vals.extend([0, 0]);
     processed_init_vals.extend(init_vals.iter().map(|x| G.pow([*x as u64]).val()));
 
-    println!("PROC: {:?}", processed_init_vals);
-
-    println!("Before new init");
-
     let vrom = ValueRom::new_with_init_vals(&processed_init_vals);
-
-    println!("Before Memory");
-
     let memory = Memory::new(compiled_program.prom, vrom);
-
-    println!("Before Trace");
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
@@ -148,8 +150,6 @@ pub fn generate_trace_and_validate(asm_bytes: &str, init_vals: &[u32]) -> Rc<ZCr
         compiled_program.pc_field_to_int,
     )
     .expect("Trace generation should not fail");
-
-    println!("Before validate");
 
     // Validate the trace
     trace.validate(boundary_values);
