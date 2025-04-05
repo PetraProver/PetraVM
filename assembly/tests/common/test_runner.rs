@@ -116,7 +116,7 @@ impl AllocatedFrame {
             "Attempted to access a frame slot outside of the frame (Frame: {}[{}] (size: {}))",
             self.label,
             self.frame_start_addr,
-            self.frame_start_addr
+            self.frame_size
         );
 
         let slot_addr = self.frame_start_addr + frame_slot;

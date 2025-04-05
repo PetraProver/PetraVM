@@ -56,7 +56,7 @@ fn test_fibonacci_integration() {
         cur_fibs[1] = s;
     }
 
-    let final_fib_helper_frame = &frames["fib_helper"][3];
+    let final_fib_helper_frame = &frames["fib_helper"][init_val as usize - 1];
     let final_fib_ret_val = final_fib_helper_frame.get_vrom_u32_expected(5);
 
     // Check the final return value
