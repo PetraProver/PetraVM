@@ -92,7 +92,6 @@ macro_rules! impl_event_for_binary_operation {
                 arg1: BinaryField16b,
                 arg2: BinaryField16b,
             ) -> Result<(), InterpreterError> {
-                // TODO: push to trace
                 let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 ctx.trace.$trace_field.push(event);
                 Ok(())
@@ -269,13 +268,14 @@ macro_rules! define_bin128_op_event {
 
         $crate::impl_left_right_output_for_bin_op!($name, BinaryField128b);
 
-        impl $name {
-            pub(crate) fn generate_event(
+        impl Event for $name {
+            fn generate(
                 ctx: &mut EventContext,
                 dst: BinaryField16b,
                 src1: BinaryField16b,
                 src2: BinaryField16b,
-            ) -> Result<Self, InterpreterError> {
+            ) -> Result<(), InterpreterError> {
+
                 // Get source values
                 let src1_val = ctx.load_vrom_u128(ctx.addr(src1.val()))?;
                 let src2_val = ctx.load_vrom_u128(ctx.addr(src2.val()))?;
@@ -292,7 +292,7 @@ macro_rules! define_bin128_op_event {
                 let (pc, field_pc, fp, timestamp) = ctx.program_state();
                 ctx.incr_pc();
 
-                Ok(Self {
+                let event = Self {
                     timestamp,
                     pc: field_pc,
                     fp,
@@ -302,17 +302,8 @@ macro_rules! define_bin128_op_event {
                     src1_val,
                     src2: src2.val(),
                     src2_val,
-                })
-            }
-        }
+                };
 
-        impl Event for $name {
-            fn generate(
-                ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b) -> Result<(), InterpreterError> {
-                let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 ctx.trace.$trace_field.push(event);
 
                 Ok(())

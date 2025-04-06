@@ -240,17 +240,7 @@ impl MVVWEvent {
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if opt_dst_addr.is_none() || opt_src_val.is_none() {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvvw,
-                dst,
-                offset,
-                src,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
@@ -377,17 +367,7 @@ impl MVVLEvent {
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if opt_dst_addr.is_none() || opt_src_val.is_none() {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvvl,
-                dst,
-                offset,
-                src,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
@@ -487,17 +467,7 @@ impl MVIHEvent {
                 offset: offset.val(),
             }))
         } else {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvih,
-                dst,
-                offset,
-                src: imm,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc, timestamp);
             Ok(None)
         }
     }
@@ -546,6 +516,32 @@ impl LDIEvent {
 }
 
 impl_mv_event!(LDIEvent, ldi);
+
+/// If the source value of a MOVE operations is missing or the destination
+/// address is still unknown, it means we are in a MOVE that precedes a CALL,
+/// and we have to handle the MOVE operation later.
+fn delegate_move(
+    ctx: &mut EventContext,
+    mv_kind: MVKind,
+    dst: BinaryField16b,
+    offset: BinaryField16b,
+    src: BinaryField16b,
+    pc: BinaryField32b,
+    timestamp: u32,
+) {
+    let new_mv_info = MVInfo {
+        mv_kind,
+        dst,
+        offset,
+        src,
+        pc,
+        timestamp,
+    };
+
+    // This move needs to be handled later, in the CALL.
+    ctx.moves_to_apply.push(new_mv_info);
+    ctx.incr_pc();
+}
 
 #[cfg(test)]
 mod tests {

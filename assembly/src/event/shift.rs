@@ -143,19 +143,6 @@ where
         O::shift_op(src_val, effective_shift)
     }
 
-    fn generate_event(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
-        if S::is_immediate() {
-            Self::generate_immediate_event(ctx, dst, arg1, arg2)
-        } else {
-            Self::generate_vrom_event(ctx, dst, arg1, arg2)
-        }
-    }
-
     /// Generate a ShiftEvent for immediate shift operations.
     ///
     /// For immediate shifts (like SLLI, SRLI, SRAI), the shift amount comes
