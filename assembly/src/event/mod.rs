@@ -11,7 +11,7 @@
 
 use std::fmt::Debug;
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 use context::EventContext;
 
 use crate::{
@@ -41,9 +41,9 @@ pub trait Event {
     /// of traces.
     fn generate(
         ctx: &mut EventContext,
-        arg0: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
+        arg0: B16,
+        arg1: B16,
+        arg2: B16,
     ) -> Result<(), InterpreterError>
     where
         Self: Sized;
@@ -58,9 +58,9 @@ impl Opcode {
     pub(crate) fn generate_event(
         &self,
         ctx: &mut EventContext,
-        arg0: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
+        arg0: B16,
+        arg1: B16,
+        arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
             Opcode::Bnz => event_helper::generate_bnz(ctx, arg0, arg1, arg2),
@@ -108,7 +108,7 @@ impl Opcode {
 }
 
 mod event_helper {
-    use binius_field::BinaryField16b;
+    use binius_m3::builder::B16;
 
     use super::{
         branch::{BnzEvent, BzEvent},
@@ -121,9 +121,9 @@ mod event_helper {
     /// Helper method to generate `BnzEvent` and `BnzEvent`.
     pub fn generate_bnz(
         ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
     ) -> Result<(), InterpreterError> {
         // TODO: group events?
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
@@ -138,9 +138,9 @@ mod event_helper {
     /// Helper method to generate `AddEvent` and associated `Add32Gadget`.
     pub fn generate_add(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
         AddEvent::generate(ctx, dst, src1, src2)?;
 
@@ -159,9 +159,9 @@ mod event_helper {
     /// Helper method to generate `AddiEvent` and associated `Add32Gadget`.
     pub fn generate_addi(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<(), InterpreterError> {
         AddiEvent::generate(ctx, dst, src, imm)?;
 

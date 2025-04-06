@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_field::ExtensionField;
+use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -19,21 +20,21 @@ use crate::{
 #[derive(Debug, Default, Clone)]
 pub struct BnzEvent {
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub cond: u16,
     pub cond_val: u32,
-    pub target: BinaryField32b,
+    pub target: B32,
 }
 
 impl Event for BnzEvent {
     fn generate(
         ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
     ) -> Result<(), InterpreterError> {
-        let target = (BinaryField32b::from_bases([target_low, target_high]))
+        let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
@@ -72,21 +73,21 @@ impl Event for BnzEvent {
 #[derive(Debug, Default, Clone)]
 pub struct BzEvent {
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub cond: u16,
     pub cond_val: u32,
-    pub target: BinaryField32b,
+    pub target: B32,
 }
 
 impl Event for BzEvent {
     fn generate(
         ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
     ) -> Result<(), InterpreterError> {
-        let target = (BinaryField32b::from_bases([target_low, target_high]))
+        let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();

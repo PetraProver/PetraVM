@@ -1,7 +1,8 @@
 use core::fmt::Debug;
 use std::{any::Any, marker::PhantomData};
 
-use binius_field::{BinaryField16b, BinaryField32b, Field};
+use binius_field::Field;
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
@@ -88,7 +89,7 @@ where
     S: ShiftSource + Send + Sync + 'static,
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,     // 16-bit destination VROM offset
@@ -105,7 +106,7 @@ where
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -145,9 +146,9 @@ where
 
     fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
+        dst: B16,
+        arg1: B16,
+        arg2: B16,
     ) -> Result<Self, InterpreterError> {
         if S::is_immediate() {
             Self::generate_immediate_event(ctx, dst, arg1, arg2)
@@ -163,9 +164,9 @@ where
     /// bits.
     pub(crate) fn generate_immediate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
         let imm_val = imm.val();
@@ -194,9 +195,9 @@ where
     /// from another VROM location and masked to 5 bits.
     pub(crate) fn generate_vrom_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
@@ -228,9 +229,9 @@ where
 {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
         let event = if S::is_immediate() {
             Self::generate_immediate_event(ctx, dst, src1, src2)?
@@ -261,6 +262,17 @@ pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnyShiftEvent;
 }
 
+/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
+/// events.
+///
+/// It takes as argument the variant name of the instruction within the
+/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_generic_shift_event!(Sll, SllEvent);
+/// ```
 macro_rules! impl_generic_shift_event {
     ($variant:ident, $ty:ty) => {
         impl GenericShiftEvent for $ty {
@@ -400,7 +412,7 @@ mod test {
 
     #[test]
     fn test_shift_event_integration() {
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         // Initialize VROM
         let mut vrom = ValueRom::default();
@@ -417,16 +429,16 @@ mod test {
         let shift_32 = vrom.set_value_at_offset(6, 32);
 
         // Create destination slots
-        let slli_result = BinaryField16b::new(10);
-        let srli_result = BinaryField16b::new(11);
-        let srai_result = BinaryField16b::new(12);
-        let slli_zero_result = BinaryField16b::new(13);
-        let sll_result = BinaryField16b::new(14);
-        let srl_result = BinaryField16b::new(15);
-        let sra_result = BinaryField16b::new(16);
-        let sll_zero_result = BinaryField16b::new(17);
-        let srl_32_result = BinaryField16b::new(18);
-        let sra_32_result = BinaryField16b::new(19);
+        let slli_result = B16::new(10);
+        let srli_result = B16::new(11);
+        let srai_result = B16::new(12);
+        let slli_zero_result = B16::new(13);
+        let sll_result = B16::new(14);
+        let srl_result = B16::new(15);
+        let sra_result = B16::new(16);
+        let sll_zero_result = B16::new(17);
+        let srl_32_result = B16::new(18);
+        let sra_32_result = B16::new(19);
 
         // Build a sequence of instructions
         let instructions = vec![
@@ -435,19 +447,19 @@ mod test {
                 Opcode::Slli.get_field_elt(),
                 slli_result,
                 src_pos,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             [
                 Opcode::Srli.get_field_elt(),
                 srli_result,
                 src_pos,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             [
                 Opcode::Srai.get_field_elt(),
                 srai_result,
                 src_neg,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             // Edge case: immediate shift by 0
             [
@@ -501,7 +513,7 @@ mod test {
         let frame_size = 20; // Highest used offset + 1
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, frame_size);
+        frames.insert(B32::ONE, frame_size);
 
         let prom = code_to_prom(&instructions);
         let memory = Memory::new(prom, vrom);

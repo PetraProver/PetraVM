@@ -4,7 +4,7 @@
 //! and events needed for the proving system.
 
 use anyhow::Result;
-use binius_field::BinaryField32b;
+use binius_m3::builder::B32;
 use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
 
 /// Generates event accessors for a trace.
@@ -36,7 +36,7 @@ macro_rules! impl_event_accessor {
 #[derive(Debug, Clone)]
 pub struct Instruction {
     /// PC value as a field element
-    pub pc: BinaryField32b,
+    pub pc: B32,
     /// Opcode of the instruction
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
