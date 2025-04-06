@@ -15,7 +15,7 @@ use crate::{
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`ZCrayTrace`], and also contains the PC associated to the event to be
 /// generated.
-pub(crate) struct EventContext<'a> {
+pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut ZCrayTrace,
     pub field_pc: BinaryField32b,
@@ -217,7 +217,7 @@ impl DerefMut for EventContext<'_> {
 #[cfg(test)]
 impl<'a> EventContext<'a> {
     /// Constructor.
-    pub fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
+    pub(crate) fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
         use binius_field::Field;
 
         Self {

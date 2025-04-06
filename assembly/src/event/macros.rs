@@ -191,16 +191,16 @@ macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: FramePointer,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src1: u16,
-            pub(crate) src1_val: u32,
-            pub(crate) src2: u16,
-            pub(crate) src2_val: u32,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: FramePointer,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src1: u16,
+            pub src1_val: u32,
+            pub src2: u16,
+            pub src2_val: u32,
         }
 
         impl BinaryOperation for $name {
@@ -220,15 +220,15 @@ macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            pub(crate) timestamp: u32,
-            pub(crate) pc: BinaryField32b,
-            pub(crate) fp: FramePointer,
-            pub(crate) dst: u16,
-            pub(crate) dst_val: u32,
-            pub(crate) src: u16,
-            pub(crate) src_val: u32,
-            pub(crate) imm: u16,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: FramePointer,
+            pub dst: u16,
+            pub dst_val: u32,
+            pub src: u16,
+            pub src_val: u32,
+            pub imm: u16,
         }
 
         impl BinaryOperation for $name {
@@ -248,16 +248,16 @@ macro_rules! define_bin128_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op:tt) => {
         $(#[$meta])*
         #[derive(Debug, Default, Clone)]
-        pub(crate) struct $name {
-            timestamp: u32,
-            pc: BinaryField32b,
-            fp: FramePointer,
-            dst: u16,
-            dst_val: u128,
-            src1: u16,
-            src1_val: u128,
-            src2: u16,
-            src2_val: u128,
+        pub struct $name {
+            pub timestamp: u32,
+            pub pc: BinaryField32b,
+            pub fp: FramePointer,
+            pub dst: u16,
+            pub dst_val: u128,
+            pub src1: u16,
+            pub src1_val: u128,
+            pub src2: u16,
+            pub src2_val: u128,
         }
 
         impl BinaryOperation for $name {
@@ -270,7 +270,7 @@ macro_rules! define_bin128_op_event {
         $crate::impl_left_right_output_for_bin_op!($name, BinaryField128b);
 
         impl $name {
-            pub fn generate_event(
+            pub(crate) fn generate_event(
                 ctx: &mut EventContext,
                 dst: BinaryField16b,
                 src1: BinaryField16b,

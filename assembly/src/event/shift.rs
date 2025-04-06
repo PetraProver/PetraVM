@@ -88,13 +88,13 @@ where
     S: ShiftSource + Send + Sync + 'static,
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,                // 16-bit destination VROM offset
-    dst_val: u32,            // 32-bit result value
-    src: u16,                // 16-bit source VROM offset
-    pub(crate) src_val: u32, // 32-bit source value
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,     // 16-bit destination VROM offset
+    pub dst_val: u32, // 32-bit result value
+    pub src: u16,     // 16-bit source VROM offset
+    pub src_val: u32, // 32-bit source value
 
     _phantom: PhantomData<(S, O)>,
 }
@@ -161,7 +161,7 @@ where
     /// For immediate shifts (like SLLI, SRLI, SRAI), the shift amount comes
     /// directly from the instruction (as a 16-bit immediate) and masked to 5
     /// bits.
-    pub fn generate_immediate_event(
+    pub(crate) fn generate_immediate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
@@ -192,7 +192,7 @@ where
     ///
     /// For VROM-based shifts (like SLL, SRL, SRA), the shift amount is read
     /// from another VROM location and masked to 5 bits.
-    pub fn generate_vrom_event(
+    pub(crate) fn generate_vrom_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,

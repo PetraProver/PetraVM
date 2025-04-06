@@ -24,7 +24,7 @@ pub(crate) mod shift;
 pub(crate) use binary_ops::{b128, b32};
 
 /// An `Event` represents an instruction that can be executed by the VM.
-pub(crate) trait Event {
+pub trait Event {
     /// Generates a new event and pushes it to its corresponding list in the set
     /// of traces.
     fn generate(

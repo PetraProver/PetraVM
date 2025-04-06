@@ -30,7 +30,7 @@ define_bin32_imm_op_event!(
 );
 
 impl AddiEvent {
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src: BinaryField16b,
@@ -74,15 +74,15 @@ define_bin32_op_event!(
 ///
 /// Performs a MUL between a signed 32-bit integer and a 16-bit immediate.
 #[derive(Debug, Clone)]
-pub(crate) struct MuliEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src: u16,
-    pub(crate) src_val: u32,
-    imm: u16,
+pub struct MuliEvent {
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src: u16,
+    pub src_val: u32,
+    pub imm: u16,
 }
 
 impl Event for MuliEvent {
@@ -132,25 +132,25 @@ impl Event for MuliEvent {
 /// result.
 #[derive(Debug, Clone)]
 pub struct MuluEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    src2_val: u32,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src1: u16,
+    pub src1_val: u32,
+    pub src2: u16,
+    pub src2_val: u32,
     // Auxiliary commitments
-    pub(crate) aux: [u32; 8],
+    pub aux: [u32; 8],
     // Stores all aux[2i] + aux[2i + 1] << 8.
-    pub(crate) aux_sums: [u64; 4],
+    pub aux_sums: [u64; 4],
     // Stores the cumulative sums: cum_sum[i] = cum_sum[i-1] + aux_sum[i] << 8*i
-    pub(crate) cum_sums: [u64; 2],
+    pub cum_sums: [u64; 2],
 }
 
 impl MuluEvent {
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         src1: BinaryField16b,
@@ -339,7 +339,7 @@ pub trait SignedMulOperation: Debug + Clone {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MulsuOp;
+pub struct MulsuOp;
 impl SignedMulOperation for MulsuOp {
     fn mul_op(input1: u32, input2: u32) -> u64 {
         // If the value is signed, first turn into an i32 to get the sign, then into an
@@ -361,7 +361,7 @@ impl SignedMulOperation for MulsuOp {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MulOp;
+pub struct MulOp;
 impl SignedMulOperation for MulOp {
     fn mul_op(input1: u32, input2: u32) -> u64 {
         // If the value is signed, first turn into an i32 to get the sign, then into an
@@ -409,16 +409,16 @@ impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
 ///
 /// Performs a MUL between two signed 32-bit integers.
 #[derive(Debug, Clone)]
-pub(crate) struct SignedMulEvent<SignedMulOperation> {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    src2_val: u32,
+pub struct SignedMulEvent<SignedMulOperation> {
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src1: u16,
+    pub src1_val: u32,
+    pub src2: u16,
+    pub src2_val: u32,
 
     _phantom: PhantomData<SignedMulOperation>,
 }
