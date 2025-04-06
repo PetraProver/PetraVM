@@ -3,11 +3,11 @@
 #[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_bin_op!($t, BinaryField32b);
+        $crate::impl_left_right_output_for_bin_op!($t, B32);
         impl $crate::event::binary_ops::NonImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
-                pc: BinaryField32b,
+                pc: B32,
                 fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
@@ -36,9 +36,9 @@ macro_rules! impl_binary_operation {
 macro_rules! impl_left_right_output_for_imm_bin_op {
     ($t:ty, $imm_field_ty:ty) => {
         impl $crate::event::binary_ops::LeftOp for $t {
-            type Left = BinaryField32b;
-            fn left(&self) -> BinaryField32b {
-                BinaryField32b::new(self.src_val)
+            type Left = B32;
+            fn left(&self) -> B32 {
+                B32::new(self.src_val)
             }
         }
         impl $crate::event::binary_ops::RightOp for $t {
@@ -49,10 +49,10 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
             }
         }
         impl $crate::event::binary_ops::OutputOp for $t {
-            type Output = BinaryField32b;
+            type Output = B32;
 
-            fn output(&self) -> BinaryField32b {
-                BinaryField32b::new(self.dst_val)
+            fn output(&self) -> B32 {
+                B32::new(self.dst_val)
             }
         }
     };
@@ -88,9 +88,9 @@ macro_rules! impl_event_for_binary_operation {
         impl $crate::event::Event for $ty {
             fn generate(
                 ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b,
+                arg0: B16,
+                arg1: B16,
+                arg2: B16,
             ) -> Result<(), InterpreterError> {
                 // TODO: push to trace
                 let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
@@ -128,11 +128,11 @@ macro_rules! fire_non_jump_event {
 #[macro_export]
 macro_rules! impl_immediate_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_imm_bin_op!($t, BinaryField16b);
+        $crate::impl_left_right_output_for_imm_bin_op!($t, B16);
         impl $crate::event::binary_ops::ImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
-                pc: BinaryField32b,
+                pc: B32,
                 fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
@@ -158,12 +158,12 @@ macro_rules! impl_immediate_binary_operation {
 #[macro_export]
 macro_rules! impl_32b_immediate_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_imm_bin_op!($t, BinaryField32b);
+        $crate::impl_left_right_output_for_imm_bin_op!($t, B32);
         #[allow(clippy::too_many_arguments)]
         impl $t {
             const fn new(
                 timestamp: u32,
-                pc: BinaryField32b,
+                pc: B32,
                 fp: FramePointer,
                 dst: u16,
                 dst_val: u32,
@@ -193,7 +193,7 @@ macro_rules! define_bin32_op_event {
         #[derive(Debug, Default, Clone)]
         pub struct $name {
             pub timestamp: u32,
-            pub pc: BinaryField32b,
+            pub pc: B32,
             pub fp: FramePointer,
             pub dst: u16,
             pub dst_val: u32,
@@ -205,7 +205,7 @@ macro_rules! define_bin32_op_event {
 
         impl BinaryOperation for $name {
             #[inline(always)]
-            fn operation(val1: BinaryField32b, val2: BinaryField32b) -> BinaryField32b {
+            fn operation(val1: B32, val2: B32) -> B32 {
                 $op_fn(val1, val2)
             }
         }
@@ -222,7 +222,7 @@ macro_rules! define_bin32_imm_op_event {
         #[derive(Debug, Default, Clone)]
         pub struct $name {
             pub timestamp: u32,
-            pub pc: BinaryField32b,
+            pub pc: B32,
             pub fp: FramePointer,
             pub dst: u16,
             pub dst_val: u32,
@@ -233,7 +233,7 @@ macro_rules! define_bin32_imm_op_event {
 
         impl BinaryOperation for $name {
             #[inline(always)]
-            fn operation(val1: BinaryField32b, imm: BinaryField16b) -> BinaryField32b {
+            fn operation(val1: B32, imm: B16) -> B32 {
                 $op_fn(val1, imm)
             }
         }
@@ -250,7 +250,7 @@ macro_rules! define_bin128_op_event {
         #[derive(Debug, Default, Clone)]
         pub struct $name {
             pub timestamp: u32,
-            pub pc: BinaryField32b,
+            pub pc: B32,
             pub fp: FramePointer,
             pub dst: u16,
             pub dst_val: u128,
@@ -262,27 +262,27 @@ macro_rules! define_bin128_op_event {
 
         impl BinaryOperation for $name {
             #[inline(always)]
-            fn operation(val1: BinaryField128b, val2: BinaryField128b) -> BinaryField128b {
+            fn operation(val1: B128, val2: B128) -> B128 {
                 val1 $op val2
             }
         }
 
-        $crate::impl_left_right_output_for_bin_op!($name, BinaryField128b);
+        $crate::impl_left_right_output_for_bin_op!($name, B128);
 
         impl $name {
             pub(crate) fn generate_event(
                 ctx: &mut EventContext,
-                dst: BinaryField16b,
-                src1: BinaryField16b,
-                src2: BinaryField16b,
+                dst: B16,
+                src1: B16,
+                src2: B16,
             ) -> Result<Self, InterpreterError> {
                 // Get source values
                 let src1_val = ctx.load_vrom_u128(ctx.addr(src1.val()))?;
                 let src2_val = ctx.load_vrom_u128(ctx.addr(src2.val()))?;
 
                 // Binary field operation
-                let src1_bf = BinaryField128b::new(src1_val);
-                let src2_bf = BinaryField128b::new(src2_val);
+                let src1_bf = B128::new(src1_val);
+                let src2_bf = B128::new(src2_val);
                 let dst_bf = Self::operation(src1_bf, src2_bf);
                 let dst_val = dst_bf.val();
 
@@ -309,9 +309,9 @@ macro_rules! define_bin128_op_event {
         impl Event for $name {
             fn generate(
                 ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b) -> Result<(), InterpreterError> {
+                arg0: B16,
+                arg1: B16,
+                arg2: B16) -> Result<(), InterpreterError> {
                 let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 ctx.trace.$trace_field.push(event);
 

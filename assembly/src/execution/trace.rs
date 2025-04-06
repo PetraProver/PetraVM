@@ -3,7 +3,8 @@
 
 use std::collections::HashMap;
 
-use binius_field::{BinaryField32b, Field, PackedField};
+use binius_field::{Field, PackedField};
+use binius_m3::builder::B32;
 
 use super::FramePointer;
 #[cfg(test)]
@@ -74,7 +75,7 @@ pub struct ZCrayTrace {
 }
 
 pub struct BoundaryValues {
-    pub final_pc: BinaryField32b,
+    pub final_pc: B32,
     pub final_fp: FramePointer,
     pub timestamp: u32,
 }
@@ -105,14 +106,14 @@ impl ZCrayTrace {
     pub fn generate(
         memory: Memory,
         frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<B32, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
         let mut trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
-            BinaryField32b::zero()
+            B32::zero()
         } else {
             G.pow(interpreter.pc as u64)
         };
@@ -131,7 +132,7 @@ impl ZCrayTrace {
         let tables = InterpreterTables::default();
 
         // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
-        channels.state_channel.push((BinaryField32b::ONE, 0, 0));
+        channels.state_channel.push((B32::ONE, 0, 0));
         // Final boundary pull.
         channels.state_channel.pull((
             boundary_values.final_pc,

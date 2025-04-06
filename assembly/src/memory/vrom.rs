@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 
 use super::MemoryError;
 use crate::{execution::ZCrayTrace, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
@@ -11,12 +11,12 @@ pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 pub(crate) type VromUpdate = (
     u32,            // parent addr
     Opcode,         // operation code
-    BinaryField32b, // field pc
+    B32, // field pc
     u32,            // fp
     u32,            // timestamp
-    BinaryField16b, // dst
-    BinaryField16b, // src
-    BinaryField16b, // offset
+    B16, // dst
+    B16, // src
+    B16, // offset
 );
 
 /// `ValueRom` represents a memory structure for storing different sized values.
@@ -229,11 +229,11 @@ impl ValueRom {
     }
 
     /// Helper method to set a value at the given VROM offset and returns a
-    /// [`BinaryField16b`] for that offset
+    /// [`B16`] for that offset
     #[cfg(test)]
-    pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> BinaryField16b {
+    pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> B16 {
         self.set_u32(offset as u32, value).unwrap();
-        BinaryField16b::new(offset)
+        B16::new(offset)
     }
 }
 

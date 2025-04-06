@@ -1,4 +1,4 @@
-use binius_field::{BinaryField128b, BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B128, B16, B32};
 
 use super::BinaryOperation;
 use crate::{
@@ -53,8 +53,8 @@ mod tests {
         let val1 = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);
         let val2 = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
 
-        let bf1 = BinaryField128b::new(val1);
-        let bf2 = BinaryField128b::new(val2);
+        let bf1 = B128::new(val1);
+        let bf2 = B128::new(val2);
 
         // The operation should be XOR
         let expected = val1 ^ val2;
@@ -69,8 +69,8 @@ mod tests {
         let val1 = 0x0000000000000002u128;
         let val2 = 0x0000000000000003u128;
 
-        let bf1 = BinaryField128b::new(val1);
-        let bf2 = BinaryField128b::new(val2);
+        let bf1 = B128::new(val1);
+        let bf2 = B128::new(val2);
 
         // Test the multiplication operation
         let result = B128MulEvent::operation(bf1, bf2);
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn test_b128_operations_program() {
         // Define opcodes and test values
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         // Offsets/addresses in our test program
         let a_offset = 4; // Must be 4-slot aligned
@@ -91,11 +91,11 @@ mod tests {
         let mul_result_offset = 20; // Must be 4-slot aligned
 
         // Create binary field slot references
-        let a_slot = BinaryField16b::new(a_offset as u16);
-        let b_slot = BinaryField16b::new(b_offset as u16);
-        let c_slot = BinaryField16b::new(c_offset as u16);
-        let add_result_slot = BinaryField16b::new(add_result_offset as u16);
-        let mul_result_slot = BinaryField16b::new(mul_result_offset as u16);
+        let a_slot = B16::new(a_offset as u16);
+        let b_slot = B16::new(b_offset as u16);
+        let c_slot = B16::new(c_offset as u16);
+        let add_result_slot = B16::new(add_result_offset as u16);
+        let mul_result_slot = B16::new(mul_result_offset as u16);
 
         // Construct a simple program with B128_ADD and B128_MUL instructions
         // 1. B128_ADD @add_result, @a, @b
@@ -156,7 +156,7 @@ mod tests {
 
         // Set up frame sizes
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 24);
+        frames.insert(B32::ONE, 24);
 
         // Create an interpreter and run the program
         let (trace, boundary_values) = ZCrayTrace::generate(memory, frames, HashMap::new())
@@ -170,9 +170,9 @@ mod tests {
 
         // Calculate the expected results
         let expected_add = a_val ^ b_val;
-        let a_bf = BinaryField128b::new(a_val);
-        let b_bf = BinaryField128b::new(b_val);
-        let c_bf = BinaryField128b::new(c_val);
+        let a_bf = B128::new(a_val);
+        let b_bf = B128::new(b_val);
+        let c_bf = B128::new(c_val);
         let add_result_bf = a_bf + b_bf;
         let expected_mul = (add_result_bf * c_bf).val();
 
@@ -196,10 +196,6 @@ mod tests {
         );
 
         // The trace should have completed successfully
-        assert_eq!(
-            final_pc,
-            BinaryField32b::ZERO,
-            "Program did not end correctly"
-        );
+        assert_eq!(final_pc, B32::ZERO, "Program did not end correctly");
     }
 }
