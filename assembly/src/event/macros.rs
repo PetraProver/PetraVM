@@ -54,7 +54,7 @@ macro_rules! impl_binary_operation {
 /// # Example
 ///
 /// ```ignore
-/// impl_left_right_output_for_imm_bin_op!(AddEvent, BinaryField32b)
+/// impl_left_right_output_for_imm_bin_op!(AddEvent, B32)
 /// ```
 #[macro_export]
 macro_rules! impl_left_right_output_for_imm_bin_op {
@@ -93,7 +93,7 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
 /// # Example
 ///
 /// ```ignore
-/// impl_left_right_output_for_bin_op!(AddEvent, BinaryField32b)
+/// impl_left_right_output_for_bin_op!(AddEvent, B32)
 /// ```
 #[macro_export]
 macro_rules! impl_left_right_output_for_bin_op {
@@ -284,7 +284,7 @@ macro_rules! impl_32b_immediate_binary_operation {
 ///    ///   1. FP[dst] = FP[src1] + FP[src2]
 ///    AddEvent,
 ///    add,
-///    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
+///    |a: B32, b: B32| B32::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
 /// );
 /// ```
 #[macro_export]
@@ -339,7 +339,7 @@ macro_rules! define_bin32_op_event {
 ///    ///   1. FP[dst] = FP[src] + imm
 ///    AddiEvent,
 ///    addi,
-///    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
+///    |a: B32, imm: B16| B32::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
 /// );
 /// ```
 #[macro_export]
