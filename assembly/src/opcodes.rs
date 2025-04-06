@@ -4,12 +4,12 @@ use pest::pratt_parser::Op;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 
+/// Represents the set of instructions supported by the zCrayVM.
 #[derive(
     Debug, Clone, Copy, Default, EnumCount, TryFromPrimitive, IntoPrimitive, PartialEq, Eq,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
-// TODO: Add missing opcodes
 // TODO: Adjust opcode discriminants once settled on their values.
 // Consider Deref to account for aliases?
 pub enum Opcode {

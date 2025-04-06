@@ -41,21 +41,26 @@ use crate::{
 
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 
+/// Channels used to communicate data through event execution.
 #[derive(Default)]
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
 }
 
+// TODO: Remove VromTable32 and InterpreterTables?
 type VromTable32 = HashMap<u32, u32>;
 #[derive(Default)]
 pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
+/// A wrapper around a `u32` representing the frame pointer (FP) in VROM for
+/// type-safety and easy memory-address access.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FramePointer(u32);
 
 impl FramePointer {
+    /// Outputs a memory address from a provided offset.
     #[inline(always)]
     pub fn addr<T: Into<u32>>(&self, offset: T) -> u32 {
         self.0 ^ offset.into()
@@ -82,6 +87,10 @@ impl DerefMut for FramePointer {
     }
 }
 
+/// Main program executor, used to build a [`ZCrayTrace`] from a program's PROM.
+///
+/// The interpreter manages control flow, memory accesses, instruction execution
+/// and state updates.
 #[derive(Debug)]
 pub struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
@@ -119,8 +128,8 @@ impl Default for Interpreter {
     }
 }
 
-/// An `Instruction` is composed of an opcode and up to three 16-bit arguments
-/// to be used by this operation.
+/// An [`Instruction`] in raw form, composed of an opcode and up to three 16-bit
+/// arguments to be used by this operation.
 pub type Instruction = [B16; 4];
 
 #[derive(Debug, Default, PartialEq, Clone)]
