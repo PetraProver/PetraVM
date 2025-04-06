@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_field::ExtensionField;
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
@@ -20,7 +21,7 @@ use crate::{
 ///   4. PC = target
 #[derive(Debug, Clone)]
 pub struct TailiEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub target: u32,
@@ -33,9 +34,9 @@ pub struct TailiEvent {
 impl Event for TailiEvent {
     fn generate(
         ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
+        target_low: B16,
+        target_high: B16,
+        next_fp: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -43,7 +44,7 @@ impl Event for TailiEvent {
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = BinaryField32b::from_bases([target_low, target_high])
+        let target = B32::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         // Allocate a new frame for the call and set the value of the next frame
@@ -74,11 +75,9 @@ impl Event for TailiEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target),
-            self.next_fp_val,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target), self.next_fp_val, self.timestamp));
     }
 }
 
@@ -93,7 +92,7 @@ impl Event for TailiEvent {
 ///   4. PC = FP[offset]
 #[derive(Debug, Clone)]
 pub struct TailVEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub offset: u16,
@@ -107,9 +106,9 @@ pub struct TailVEvent {
 impl Event for TailVEvent {
     fn generate(
         ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
+        offset: B16,
+        next_fp: B16,
+        _unused: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -124,7 +123,7 @@ impl Event for TailVEvent {
         let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
 
         // Jump to the target,
-        ctx.jump_to(BinaryField32b::new(target));
+        ctx.jump_to(B32::new(target));
 
         ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
         ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
@@ -149,11 +148,9 @@ impl Event for TailVEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target),
-            self.next_fp_val,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target), self.next_fp_val, self.timestamp));
     }
 }
 
@@ -169,7 +166,7 @@ impl Event for TailVEvent {
 
 #[derive(Debug, Clone)]
 pub struct CalliEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub target: u32,
@@ -180,13 +177,13 @@ pub struct CalliEvent {
 impl Event for CalliEvent {
     fn generate(
         ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        next_fp: BinaryField16b,
+        target_low: B16,
+        target_high: B16,
+        next_fp: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let target = BinaryField32b::from_bases([target_low, target_high])
+        let target = B32::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         // Allocate a new frame for the call and set the value of the next frame
@@ -216,11 +213,9 @@ impl Event for CalliEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target),
-            self.next_fp_val,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target), self.next_fp_val, self.timestamp));
     }
 }
 
@@ -235,7 +230,7 @@ impl Event for CalliEvent {
 ///   4. PC = FP[offset]
 #[derive(Debug, Clone)]
 pub struct CallvEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub offset: u16,
@@ -247,9 +242,9 @@ pub struct CallvEvent {
 impl Event for CallvEvent {
     fn generate(
         ctx: &mut EventContext,
-        offset: BinaryField16b,
-        next_fp: BinaryField16b,
-        _unused: BinaryField16b,
+        offset: B16,
+        next_fp: B16,
+        _unused: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -261,7 +256,7 @@ impl Event for CallvEvent {
         let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
 
         // Jump to the target,
-        ctx.jump_to(BinaryField32b::new(target));
+        ctx.jump_to(B32::new(target));
 
         let return_pc = (field_pc * G).val();
         ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
@@ -285,11 +280,9 @@ impl Event for CallvEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target),
-            self.next_fp_val,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target), self.next_fp_val, self.timestamp));
     }
 }
 
@@ -297,13 +290,14 @@ impl Event for CallvEvent {
 mod tests {
     use std::collections::HashMap;
 
-    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+    use binius_field::{Field, PackedField};
+    use binius_m3::builder::{B16, B32};
 
     use crate::{execution::G, opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
 
     #[test]
     fn test_tailv() {
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         // Frame:
         // Slot 0: FP
@@ -338,7 +332,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 5);
+        frames.insert(B32::ONE, 5);
         frames.insert(target, 2);
 
         let prom = code_to_prom(&instructions);
@@ -367,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_callv() {
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         // Frame:
         // Slot 0: FP
@@ -400,7 +394,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 5);
+        frames.insert(B32::ONE, 5);
         frames.insert(target, 2);
 
         let prom = code_to_prom(&instructions);

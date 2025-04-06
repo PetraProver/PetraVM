@@ -2,7 +2,7 @@ mod ram;
 mod vrom;
 mod vrom_allocator;
 
-use binius_field::BinaryField32b;
+use binius_m3::builder::B32;
 pub(crate) use ram::{AccessSize, Ram};
 pub use vrom::ValueRom;
 pub(crate) use vrom::{VromPendingUpdates, VromUpdate};

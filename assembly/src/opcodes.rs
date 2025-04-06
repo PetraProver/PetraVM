@@ -1,15 +1,15 @@
-use binius_field::BinaryField16b;
+use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use pest::pratt_parser::Op;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 
+/// Represents the set of instructions supported by the zCrayVM.
 #[derive(
     Debug, Clone, Copy, Default, EnumCount, TryFromPrimitive, IntoPrimitive, PartialEq, Eq,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
-// TODO: Add missing opcodes
 // TODO: Adjust opcode discriminants once settled on their values.
 // Consider Deref to account for aliases?
 pub enum Opcode {
@@ -78,8 +78,8 @@ pub enum Opcode {
 
 impl Opcode {
     pub const OP_COUNT: usize = Self::COUNT - 1;
-    pub const fn get_field_elt(&self) -> BinaryField16b {
-        BinaryField16b::new(*self as u16)
+    pub const fn get_field_elt(&self) -> B16 {
+        B16::new(*self as u16)
     }
 
     /// Returns the number of arguments expected by the given opcode.

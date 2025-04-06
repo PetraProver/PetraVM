@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
+use binius_field::{ExtensionField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
 use crate::{
@@ -41,7 +42,7 @@ define_bin32_op_event!(
     ///   1. FP[dst] = __b32_and(FP[src], FP[src2])
     AndEvent,
     and,
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() & b.val())
+    |a: B32, b: B32| B32::new(a.val() & b.val())
 );
 
 define_bin32_imm_op_event!(
@@ -53,7 +54,7 @@ define_bin32_imm_op_event!(
     ///   1. FP[dst] = __b32_and(FP[src], imm)
     AndiEvent,
     andi,
-    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() & imm.val() as u32)
+    |a: B32, imm: B16| B32::new(a.val() & imm.val() as u32)
 );
 
 define_bin32_op_event!(
@@ -65,7 +66,7 @@ define_bin32_op_event!(
     ///   1. FP[dst] = __b32_or(FP[src], FP[src2])
     OrEvent,
     or,
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(a.val() | b.val())
+    |a: B32, b: B32| B32::new(a.val() | b.val())
 );
 
 define_bin32_imm_op_event!(
@@ -77,7 +78,7 @@ define_bin32_imm_op_event!(
     ///   1. FP[dst] = __b32_or(FP[src], imm)
     OriEvent,
     ori,
-    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(a.val() | imm.val() as u32)
+    |a: B32, imm: B16| B32::new(a.val() | imm.val() as u32)
 );
 
 define_bin32_op_event!(
@@ -101,7 +102,7 @@ define_bin32_op_event!(
 #[derive(Debug, Default, Clone)]
 pub struct B32MuliEvent {
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub dst: u16,
     pub dst_val: u32,
@@ -112,7 +113,7 @@ pub struct B32MuliEvent {
 
 impl BinaryOperation for B32MuliEvent {
     #[inline(always)]
-    fn operation(val: BinaryField32b, imm: BinaryField32b) -> BinaryField32b {
+    fn operation(val: B32, imm: B32) -> B32 {
         val * imm
     }
 }
@@ -120,9 +121,9 @@ impl BinaryOperation for B32MuliEvent {
 impl Event for B32MuliEvent {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm_low: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm_low: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -130,16 +131,16 @@ impl Event for B32MuliEvent {
         let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
 
         if second_opcode.val() != Opcode::B32Muli.into()
-            || third != BinaryField16b::ZERO
-            || fourth != BinaryField16b::ZERO
+            || third != B16::ZERO
+            || fourth != B16::ZERO
         {
             return Err(InterpreterError::BadPc);
         }
-        let imm = BinaryField32b::from_bases([imm_low, imm_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let imm =
+            B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
         let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
-        let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
+        let dst_val = Self::operation(B32::new(src_val), imm);
 
         debug_assert!(field_pc == G.pow(pc as u64 - 1));
         let event = Self::new(
@@ -168,7 +169,7 @@ impl Event for B32MuliEvent {
     ) {
         assert_eq!(
             self.dst_val,
-            Self::operation(BinaryField32b::new(self.src_val), self.imm.into()).into()
+            Self::operation(B32::new(self.src_val), self.imm.into()).into()
         );
 
         channels
@@ -188,12 +189,12 @@ mod tests {
 
     #[test]
     fn test_logical_operations() {
-        let a = BinaryField32b::new(0b1111_1010_0000);
-        let b = BinaryField32b::new(0b1010_1111_0011);
+        let a = B32::new(0b1111_1010_0000);
+        let b = B32::new(0b1010_1111_0011);
 
-        let a_or_b = BinaryField32b::new(0b1111_1111_0011);
-        let a_xor_b = BinaryField32b::new(0b0101_0101_0011);
-        let a_and_b = BinaryField32b::new(0b1010_1010_0000);
+        let a_or_b = B32::new(0b1111_1111_0011);
+        let a_xor_b = B32::new(0b0101_0101_0011);
+        let a_and_b = B32::new(0b1010_1010_0000);
 
         assert_eq!(OrEvent::operation(a, b), a_or_b);
         assert_eq!(XorEvent::operation(a, b), a_xor_b);

@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 use context::EventContext;
 
 use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
@@ -29,9 +29,9 @@ pub trait Event {
     /// of traces.
     fn generate(
         ctx: &mut EventContext,
-        arg0: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
+        arg0: B16,
+        arg1: B16,
+        arg2: B16,
     ) -> Result<(), InterpreterError>
     where
         Self: Sized;

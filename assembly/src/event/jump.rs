@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_field::ExtensionField;
+use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
 /// 1. PC = FP[offset]
 #[derive(Debug, Clone)]
 pub struct JumpvEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub offset: u16,
@@ -26,9 +27,9 @@ pub struct JumpvEvent {
 impl Event for JumpvEvent {
     fn generate(
         ctx: &mut EventContext,
-        offset: BinaryField16b,
-        _unused0: BinaryField16b,
-        _unused1: BinaryField16b,
+        offset: B16,
+        _unused0: B16,
+        _unused1: B16,
     ) -> Result<(), InterpreterError> {
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
@@ -54,7 +55,7 @@ impl Event for JumpvEvent {
             .pull((self.pc, *self.fp, self.timestamp));
         channels
             .state_channel
-            .push((BinaryField32b::new(self.target), *self.fp, self.timestamp));
+            .push((B32::new(self.target), *self.fp, self.timestamp));
     }
 }
 
@@ -66,22 +67,22 @@ impl Event for JumpvEvent {
 /// 1. PC = target
 #[derive(Debug, Clone)]
 pub struct JumpiEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
-    pub target: BinaryField32b,
+    pub target: B32,
 }
 
 impl Event for JumpiEvent {
     fn generate(
         ctx: &mut EventContext,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
-        _unused: BinaryField16b,
+        target_low: B16,
+        target_high: B16,
+        _unused: B16,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let target = (BinaryField32b::from_bases([target_low, target_high]))
+        let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         ctx.jump_to(target);
@@ -101,10 +102,8 @@ impl Event for JumpiEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.target.val()),
-            *self.fp,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target.val()), *self.fp, self.timestamp));
     }
 }

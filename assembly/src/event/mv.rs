@@ -1,4 +1,5 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_field::ExtensionField;
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
@@ -22,22 +23,31 @@ pub(crate) enum MVKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MVInfo {
     pub(crate) mv_kind: MVKind,
-    pub(crate) dst: BinaryField16b,
-    pub(crate) offset: BinaryField16b,
-    pub(crate) src: BinaryField16b,
-    pub(crate) pc: BinaryField32b,
+    pub(crate) dst: B16,
+    pub(crate) offset: B16,
+    pub(crate) src: B16,
+    pub(crate) pc: B32,
     pub(crate) timestamp: u32,
 }
 
-/// Convenience macro to implement the `Event` trait for MV events.
+/// Convenience macro to implement the [`Event`] trait for MV events.
+///
+/// It takes as argument the instruction and its corresponding field name in the
+/// [`ZCrayTrace`] where such events are being logged.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_mv_event!(MVVWEvent, mvvw);
+/// ```
 macro_rules! impl_mv_event {
     ($event:ty, $trace_field:ident) => {
         impl Event for $event {
             fn generate(
                 ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b,
+                arg0: B16,
+                arg1: B16,
+                arg2: B16,
             ) -> Result<(), InterpreterError> {
                 let opt_event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 if let Some(event) = opt_event {
@@ -57,12 +67,12 @@ macro_rules! impl_mv_event {
 pub(crate) struct MVEventOutput {
     pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
-    pub(crate) field_pc: BinaryField32b, // field PC
-    pub(crate) fp: FramePointer,         // fp
-    pub(crate) timestamp: u32,           // timestamp
-    pub(crate) dst: BinaryField16b,      // dst
-    pub(crate) src: BinaryField16b,      // src
-    pub(crate) offset: BinaryField16b,   // offset
+    pub(crate) field_pc: B32,    // field PC
+    pub(crate) fp: FramePointer, // fp
+    pub(crate) timestamp: u32,   // timestamp
+    pub(crate) dst: B16,         // dst
+    pub(crate) src: B16,         // src
+    pub(crate) offset: B16,      // offset
     pub(crate) src_val: u128,
 }
 
@@ -71,12 +81,12 @@ impl MVEventOutput {
     pub(crate) const fn new(
         parent: u32, // parent addr
         opcode: Opcode,
-        field_pc: BinaryField32b, // field PC
-        fp: FramePointer,         // fp
-        timestamp: u32,           // timestamp
-        dst: BinaryField16b,      // dst
-        src: BinaryField16b,      // src
-        offset: BinaryField16b,   // offset
+        field_pc: B32,    // field PC
+        fp: FramePointer, // fp
+        timestamp: u32,   // timestamp
+        dst: B16,         // dst
+        src: B16,         // src
+        offset: B16,      // offset
         src_val: u128,
     ) -> Self {
         Self {
@@ -145,7 +155,7 @@ impl MVEventOutput {
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
 pub struct MVVWEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
@@ -160,7 +170,7 @@ pub struct MVVWEvent {
 impl MVVWEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -185,12 +195,12 @@ impl MVVWEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
@@ -227,9 +237,9 @@ impl MVVWEvent {
 
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -274,7 +284,7 @@ impl_mv_event!(MVVWEvent, mvvw);
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
 pub struct MVVLEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
@@ -287,7 +297,7 @@ pub struct MVVLEvent {
 impl MVVLEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -312,12 +322,12 @@ impl MVVLEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
@@ -354,9 +364,9 @@ impl MVVLEvent {
 
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -400,7 +410,7 @@ impl_mv_event!(MVVLEvent, mvvl);
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
 pub struct MVIHEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
@@ -416,12 +426,12 @@ impl MVIHEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        imm: B16,
     ) -> Result<Self, InterpreterError> {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
@@ -443,9 +453,9 @@ impl MVIHEvent {
 
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        imm: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -483,7 +493,7 @@ impl_mv_event!(MVIHEvent, mvih);
 ///   1. FP[dst] = imm
 #[derive(Debug, Clone)]
 pub struct LDIEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
@@ -493,14 +503,14 @@ pub struct LDIEvent {
 impl LDIEvent {
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        imm_low: BinaryField16b,
-        imm_high: BinaryField16b,
+        dst: B16,
+        imm_low: B16,
+        imm_high: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let imm = BinaryField32b::from_bases([imm_low, imm_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let imm =
+            B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
         ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
         ctx.incr_pc();
@@ -523,10 +533,10 @@ impl_mv_event!(LDIEvent, ldi);
 fn delegate_move(
     ctx: &mut EventContext,
     mv_kind: MVKind,
-    dst: BinaryField16b,
-    offset: BinaryField16b,
-    src: BinaryField16b,
-    pc: BinaryField32b,
+    dst: B16,
+    offset: B16,
+    src: B16,
+    pc: B32,
     timestamp: u32,
 ) {
     let new_mv_info = MVInfo {
@@ -547,7 +557,8 @@ fn delegate_move(
 mod tests {
     use std::collections::HashMap;
 
-    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+    use binius_field::{Field, PackedField};
+    use binius_m3::builder::{B16, B32};
 
     use crate::{
         event::mv::{MVInfo, MVKind},
@@ -572,7 +583,7 @@ mod tests {
         // Slot 7: padding for alignment.
         // Slot 8: src_val2: not written yet.
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let dst_addr1 = 2.into();
         let offset1 = 3.into();
         let src_addr1 = 4.into();
@@ -587,7 +598,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 9);
+        frames.insert(B32::one(), 9);
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
@@ -610,7 +621,7 @@ mod tests {
             dst: dst_addr1,
             offset: offset1,
             src: src_addr1,
-            pc: BinaryField32b::ONE,
+            pc: B32::ONE,
             timestamp: 0,
         };
         let second_move = MVInfo {
@@ -636,7 +647,7 @@ mod tests {
         // Slot 8: target
         // Slot 9: next_fp
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let offset1 = 2.into();
         let src_addr1 = 2.into();
         let offset2 = 4.into();
@@ -674,7 +685,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(B32::one(), 10);
         frames.insert(target, 9);
 
         let prom = code_to_prom(&instructions);
@@ -738,7 +749,7 @@ mod tests {
         // Slot 8: Target
         // Slot 9: Next_fp
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let offset1 = 2.into();
         let offset2 = 4.into();
         let src_addr = 4.into();
@@ -786,7 +797,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(B32::one(), 10);
         frames.insert(target, 9);
 
         let prom = code_to_prom(&instructions);
@@ -814,7 +825,7 @@ mod tests {
         let first_move = (
             src_addr.val() as u32, // Address to set
             Opcode::Mvvw,          // Opcode
-            BinaryField32b::ONE,   // PC
+            B32::ONE,              // PC
             0u32,                  // FP
             0u32,                  // Timestamp
             next_fp_offset,        // Dst
