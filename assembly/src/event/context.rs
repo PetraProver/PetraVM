@@ -142,7 +142,7 @@ impl EventContext<'_> {
     /// return value that has not yet been set), we add the move information to
     /// the trace's `pending_updates`, so that it can be generated later on.
     fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
-        for mv_info in &self.moves_to_apply.clone() {
+        while let Some(mv_info) = self.moves_to_apply.pop() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
                     let opt_event = MVVWEvent::generate_event_from_info(
@@ -187,7 +187,8 @@ impl EventContext<'_> {
             }
         }
 
-        self.moves_to_apply = vec![];
+        debug_assert!(self.moves_to_apply.is_empty());
+
         Ok(())
     }
 
