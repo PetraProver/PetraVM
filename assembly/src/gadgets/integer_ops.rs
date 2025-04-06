@@ -5,16 +5,16 @@ use crate::event::context::EventContext;
 
 /// Generic gadget for addition over the integers.
 #[derive(Debug, Clone)]
-pub(crate) struct AddGadget<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
-    timestamp: u32,
-    output: T,
-    input1: T,
-    input2: T,
-    cout: T,
+pub struct AddGadget<T: Copy + PrimInt + FromPrimitive + OverflowingAdd> {
+    pub timestamp: u32,
+    pub output: T,
+    pub input1: T,
+    pub input2: T,
+    pub cout: T,
 }
 
 impl<T: Copy + PrimInt + FromPrimitive + OverflowingAdd + UnderlierType> AddGadget<T> {
-    pub fn generate_gadget(ctx: &mut EventContext, input1: T, input2: T) -> Self {
+    pub(crate) fn generate_gadget(ctx: &mut EventContext, input1: T, input2: T) -> Self {
         let (output, carry) = input1.overflowing_add(&input2);
 
         // cin's i-th bit stores the carry which was added to the sum's i-th bit.

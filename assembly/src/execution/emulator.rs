@@ -84,7 +84,7 @@ impl DerefMut for FramePointer {
 }
 
 #[derive(Debug)]
-pub(crate) struct Interpreter {
+pub struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
     /// PC (which starts at `BinaryField32b::ONE` and iterate over the
     /// multiplicative group). Since we need to have a value for 0 as well

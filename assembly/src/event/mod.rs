@@ -36,9 +36,9 @@ pub(crate) use binary_ops::{b128, b32};
 ///
 /// This trait is implemented by every instruction supported by the VM
 /// Instruction Set.
-pub(crate) trait Event {
-    /// records and logs the execution of an instruction during program
-    /// execution to its corresponding list in the set of traces.
+pub trait Event {
+    /// Generates a new event and pushes it to its corresponding list in the set
+    /// of traces.
     fn generate(
         ctx: &mut EventContext,
         arg0: BinaryField16b,

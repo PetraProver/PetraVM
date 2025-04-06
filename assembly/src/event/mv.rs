@@ -145,14 +145,14 @@ impl MVEventOutput {
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
 pub struct MVVWEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    src: u16,
-    src_val: u32,
-    offset: u16,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub src: u16,
+    pub src_val: u32,
+    pub offset: u16,
 }
 
 // TODO: this is a 4-byte move instruction. So it needs to be updated once we
@@ -225,7 +225,7 @@ impl MVVWEvent {
         }
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
@@ -284,14 +284,14 @@ impl_mv_event!(MVVWEvent, mvvw);
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
 pub struct MVVLEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    src: u16,
-    src_val: u128,
-    offset: u16,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub src: u16,
+    pub src_val: u128,
+    pub offset: u16,
 }
 
 impl MVVLEvent {
@@ -362,7 +362,7 @@ impl MVVLEvent {
         }
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,
@@ -420,13 +420,13 @@ impl_mv_event!(MVVLEvent, mvvl);
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
 pub struct MVIHEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    imm: u16,
-    offset: u16,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub imm: u16,
+    pub offset: u16,
 }
 
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
@@ -461,7 +461,7 @@ impl MVIHEvent {
         })
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: BinaryField16b,
         offset: BinaryField16b,

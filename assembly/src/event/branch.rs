@@ -17,13 +17,13 @@ use crate::{
 ///   1. if FP[cond] <> 0, then PC = target
 ///   2. if FP[cond] == 0, then increment PC
 #[derive(Debug, Default, Clone)]
-pub(crate) struct BnzEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: FramePointer,
-    cond: u16,
-    con_val: u32,
-    target: BinaryField32b,
+pub struct BnzEvent {
+    pub timestamp: u32,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub cond: u16,
+    pub cond_val: u32,
+    pub target: BinaryField32b,
 }
 
 impl Event for BnzEvent {
@@ -48,7 +48,7 @@ impl Event for BnzEvent {
             pc: field_pc,
             fp,
             cond: cond.val(),
-            con_val: cond_val,
+            cond_val,
             target,
         };
         ctx.jump_to(target);
@@ -70,13 +70,13 @@ impl Event for BnzEvent {
 
 // TODO: Maybe this could be just a NoopEvent?
 #[derive(Debug, Default, Clone)]
-pub(crate) struct BzEvent {
-    timestamp: u32,
-    pc: BinaryField32b,
-    fp: FramePointer,
-    cond: u16,
-    cond_val: u32,
-    target: BinaryField32b,
+pub struct BzEvent {
+    pub timestamp: u32,
+    pub pc: BinaryField32b,
+    pub fp: FramePointer,
+    pub cond: u16,
+    pub cond_val: u32,
+    pub target: BinaryField32b,
 }
 
 impl Event for BzEvent {
