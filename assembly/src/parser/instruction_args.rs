@@ -1,4 +1,5 @@
-use binius_field::{BinaryField, BinaryField16b, BinaryField32b, Field, PackedField};
+use binius_field::{BinaryField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]
@@ -26,8 +27,8 @@ impl std::str::FromStr for Slot {
 }
 
 impl Slot {
-    pub(crate) const fn get_16bfield_val(&self) -> BinaryField16b {
-        BinaryField16b::new(self.0 as u16)
+    pub(crate) const fn get_16bfield_val(&self) -> B16 {
+        B16::new(self.0 as u16)
     }
 }
 
@@ -51,12 +52,12 @@ impl std::str::FromStr for SlotWithOffset {
 }
 
 impl SlotWithOffset {
-    pub(crate) const fn get_slot_16bfield_val(&self) -> BinaryField16b {
-        BinaryField16b::new(self.0 as u16)
+    pub(crate) const fn get_slot_16bfield_val(&self) -> B16 {
+        B16::new(self.0 as u16)
     }
 
-    pub(crate) const fn get_offset_field_val(&self) -> BinaryField16b {
-        BinaryField16b::new(self.1)
+    pub(crate) const fn get_offset_field_val(&self) -> B16 {
+        B16::new(self.1)
     }
 }
 
@@ -75,7 +76,7 @@ impl std::str::FromStr for Immediate {
         let int_val =
             i64::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))? as i32;
         if is_field {
-            let v = BinaryField32b::MULTIPLICATIVE_GENERATOR.pow(int_val.unsigned_abs() as u64);
+            let v = B32::MULTIPLICATIVE_GENERATOR.pow(int_val.unsigned_abs() as u64);
             if int_val < 0 {
                 Ok(Immediate(
                     v.invert().expect("We already ensured v is not 0.").val(),
@@ -90,12 +91,12 @@ impl std::str::FromStr for Immediate {
 }
 
 impl Immediate {
-    pub(crate) const fn get_field_val(&self) -> BinaryField16b {
-        BinaryField16b::new(self.0 as u16)
+    pub(crate) const fn get_field_val(&self) -> B16 {
+        B16::new(self.0 as u16)
     }
 
-    pub(crate) const fn get_high_field_val(&self) -> BinaryField16b {
-        BinaryField16b::new((self.0 >> 16) as u16)
+    pub(crate) const fn get_high_field_val(&self) -> B16 {
+        B16::new((self.0 >> 16) as u16)
     }
 }
 

@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use binius_field::BinaryField32b;
+use binius_m3::builder::B32;
 
 use crate::memory::MemoryError;
 
@@ -23,7 +23,7 @@ pub struct RamAccessEvent {
     pub value: u32,
     pub previous_value: u32,
     pub timestamp: u32,
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub is_write: bool,
     pub size: AccessSize,
 }
@@ -170,7 +170,7 @@ impl Ram {
         &mut self,
         addr: u32,
         timestamp: u32,
-        pc: BinaryField32b,
+        pc: B32,
     ) -> Result<T, MemoryError> {
         let access_size = AccessSize::for_type::<T>();
 
@@ -200,7 +200,7 @@ impl Ram {
         addr: u32,
         value: T,
         timestamp: u32,
-        pc: BinaryField32b,
+        pc: B32,
     ) -> Result<(), MemoryError> {
         let access_size = AccessSize::for_type::<T>();
 
@@ -243,10 +243,9 @@ mod tests {
     fn test_ram_read_write() {
         let mut ram = Ram::new(16); // Start with small RAM, will be MIN_RAM_SIZE
 
-        ram.write::<u32>(0, 0x12345678, 1, BinaryField32b::ONE)
-            .unwrap();
+        ram.write::<u32>(0, 0x12345678, 1, B32::ONE).unwrap();
 
-        let value: u32 = ram.read(0, 2, BinaryField32b::ONE).unwrap();
+        let value: u32 = ram.read(0, 2, B32::ONE).unwrap();
         assert_eq!(value, 0x12345678);
 
         assert_eq!(ram.access_history.len(), 2);
@@ -256,7 +255,7 @@ mod tests {
             value: 0x12345678,
             previous_value: 0,
             timestamp: 1,
-            pc: BinaryField32b::ONE,
+            pc: B32::ONE,
             is_write: true,
             size: AccessSize::Word,
         };
@@ -265,7 +264,7 @@ mod tests {
             value: 0x12345678,
             previous_value: 0x12345678,
             timestamp: 2,
-            pc: BinaryField32b::ONE,
+            pc: B32::ONE,
             is_write: false,
             size: AccessSize::Word,
         };
@@ -277,19 +276,18 @@ mod tests {
     fn test_generic_access() {
         let mut ram = Ram::new(MIN_RAM_SIZE);
 
-        ram.write::<u32>(0, 0xAABBCCDD, 1, BinaryField32b::ONE)
-            .unwrap();
+        ram.write::<u32>(0, 0xAABBCCDD, 1, B32::ONE).unwrap();
 
-        let value: u32 = ram.read(0, 2, BinaryField32b::ONE).unwrap();
+        let value: u32 = ram.read(0, 2, B32::ONE).unwrap();
         assert_eq!(value, 0xAABBCCDD);
 
-        ram.write::<u16>(4, 0x1234, 3, BinaryField32b::ONE).unwrap();
-        ram.write::<u8>(6, 0x55, 4, BinaryField32b::ONE).unwrap();
-        ram.write::<u8>(7, 0x66, 5, BinaryField32b::ONE).unwrap();
+        ram.write::<u16>(4, 0x1234, 3, B32::ONE).unwrap();
+        ram.write::<u8>(6, 0x55, 4, B32::ONE).unwrap();
+        ram.write::<u8>(7, 0x66, 5, B32::ONE).unwrap();
 
-        let val1: u16 = ram.read(4, 6, BinaryField32b::ONE).unwrap();
-        let val2: u16 = ram.read(6, 7, BinaryField32b::ONE).unwrap();
-        let val3: u32 = ram.read(4, 8, BinaryField32b::ONE).unwrap();
+        let val1: u16 = ram.read(4, 6, B32::ONE).unwrap();
+        let val2: u16 = ram.read(6, 7, B32::ONE).unwrap();
+        let val3: u32 = ram.read(4, 8, B32::ONE).unwrap();
 
         assert_eq!(val1, 0x1234);
         assert_eq!(val2, 0x6655);
@@ -305,7 +303,7 @@ mod tests {
         assert_eq!(ram.capacity(), MIN_RAM_SIZE);
 
         let mut ram = Ram::new(MIN_RAM_SIZE);
-        ram.write::<u32>(MIN_RAM_SIZE as u32, 0xAABBCCDD, 1, BinaryField32b::ONE)
+        ram.write::<u32>(MIN_RAM_SIZE as u32, 0xAABBCCDD, 1, B32::ONE)
             .unwrap();
         assert_eq!(ram.capacity(), MIN_RAM_SIZE * 2);
     }
@@ -314,7 +312,7 @@ mod tests {
     fn test_read_out_of_bounds() {
         let mut ram = Ram::new(MIN_RAM_SIZE);
 
-        let result: Result<u32, _> = ram.read(MIN_RAM_SIZE as u32, 1, BinaryField32b::ONE);
+        let result: Result<u32, _> = ram.read(MIN_RAM_SIZE as u32, 1, B32::ONE);
 
         assert!(result.is_err());
         match result {
@@ -330,7 +328,7 @@ mod tests {
     fn test_alignment_check() {
         let mut ram = Ram::new(MIN_RAM_SIZE);
 
-        let result = ram.write::<u32>(1, 0x12345678, 1, BinaryField32b::ONE);
+        let result = ram.write::<u32>(1, 0x12345678, 1, B32::ONE);
         assert!(result.is_err());
 
         if let Err(MemoryError::RamMisalignedAccess(addr, size)) = result {
@@ -345,22 +343,22 @@ mod tests {
     fn test_byte_operations() {
         let mut ram = Ram::new(MIN_RAM_SIZE);
 
-        ram.write::<u8>(0, 0x11, 1, BinaryField32b::ONE).unwrap();
-        ram.write::<u8>(1, 0x22, 2, BinaryField32b::ONE).unwrap();
-        ram.write::<u8>(2, 0x33, 3, BinaryField32b::ONE).unwrap();
-        ram.write::<u8>(3, 0x44, 4, BinaryField32b::ONE).unwrap();
+        ram.write::<u8>(0, 0x11, 1, B32::ONE).unwrap();
+        ram.write::<u8>(1, 0x22, 2, B32::ONE).unwrap();
+        ram.write::<u8>(2, 0x33, 3, B32::ONE).unwrap();
+        ram.write::<u8>(3, 0x44, 4, B32::ONE).unwrap();
 
-        let b0: u8 = ram.read(0, 5, BinaryField32b::ONE).unwrap();
-        let b1: u8 = ram.read(1, 6, BinaryField32b::ONE).unwrap();
-        let b2: u8 = ram.read(2, 7, BinaryField32b::ONE).unwrap();
-        let b3: u8 = ram.read(3, 8, BinaryField32b::ONE).unwrap();
+        let b0: u8 = ram.read(0, 5, B32::ONE).unwrap();
+        let b1: u8 = ram.read(1, 6, B32::ONE).unwrap();
+        let b2: u8 = ram.read(2, 7, B32::ONE).unwrap();
+        let b3: u8 = ram.read(3, 8, B32::ONE).unwrap();
 
         assert_eq!(b0, 0x11);
         assert_eq!(b1, 0x22);
         assert_eq!(b2, 0x33);
         assert_eq!(b3, 0x44);
 
-        let word: u32 = ram.read(0, 9, BinaryField32b::ONE).unwrap();
+        let word: u32 = ram.read(0, 9, B32::ONE).unwrap();
         assert_eq!(word, 0x44332211);
     }
 }

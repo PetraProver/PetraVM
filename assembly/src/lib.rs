@@ -1,3 +1,9 @@
+//! The `assembly` crate provides the core components and functionalities for
+//! assembling and executing programs with the zCray Virtual Machine (zCrayVM).
+//!
+//! This includes instruction definitions, program parsing and program
+//! execution.
+
 // TODO: Remove these once stable enough
 #![allow(unused)]
 #![allow(dead_code)]
