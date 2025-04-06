@@ -1,5 +1,5 @@
+use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
-use binius_field::{ExtensionField};
 
 use super::{context::EventContext, Event};
 use crate::{

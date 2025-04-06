@@ -3,8 +3,8 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use binius_m3::builder::{B16, B32};
 use binius_field::{ExtensionField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 
 use crate::parser::{parse_program, Error as ParserError, InstructionsWithLabels};
 use crate::{
@@ -234,8 +234,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Taili { label, next_fp } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Taili.get_field_elt(),
                     targets_16b[0],
@@ -264,8 +263,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Calli { label, next_fp } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Calli.get_field_elt(),
                     targets_16b[0],
@@ -294,8 +292,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Jumpi { label } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Jumpi.get_field_elt(),
                     targets_16b[0],
@@ -356,8 +353,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
                     src.get_16bfield_val(),

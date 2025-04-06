@@ -56,10 +56,8 @@ impl Event for RetEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            B32::new(self.pc_next),
-            self.fp_next,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.pc_next), self.fp_next, self.timestamp));
     }
 }

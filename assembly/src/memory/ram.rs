@@ -243,8 +243,7 @@ mod tests {
     fn test_ram_read_write() {
         let mut ram = Ram::new(16); // Start with small RAM, will be MIN_RAM_SIZE
 
-        ram.write::<u32>(0, 0x12345678, 1, B32::ONE)
-            .unwrap();
+        ram.write::<u32>(0, 0x12345678, 1, B32::ONE).unwrap();
 
         let value: u32 = ram.read(0, 2, B32::ONE).unwrap();
         assert_eq!(value, 0x12345678);
@@ -277,8 +276,7 @@ mod tests {
     fn test_generic_access() {
         let mut ram = Ram::new(MIN_RAM_SIZE);
 
-        ram.write::<u32>(0, 0xAABBCCDD, 1, B32::ONE)
-            .unwrap();
+        ram.write::<u32>(0, 0xAABBCCDD, 1, B32::ONE).unwrap();
 
         let value: u32 = ram.read(0, 2, B32::ONE).unwrap();
         assert_eq!(value, 0xAABBCCDD);

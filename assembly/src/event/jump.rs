@@ -1,5 +1,5 @@
+use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
-use binius_field::{ExtensionField};
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -102,10 +102,8 @@ impl Event for JumpiEvent {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            B32::new(self.target.val()),
-            *self.fp,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.target.val()), *self.fp, self.timestamp));
     }
 }

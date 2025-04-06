@@ -191,10 +191,7 @@ impl EventContext<'_> {
         Ok(())
     }
 
-    pub(crate) fn allocate_new_frame(
-        &mut self,
-        target: B32,
-    ) -> Result<u32, InterpreterError> {
+    pub(crate) fn allocate_new_frame(&mut self, target: B32) -> Result<u32, InterpreterError> {
         self.interpreter.allocate_new_frame(self.trace, target)
     }
 }

@@ -9,14 +9,14 @@ pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
 /// Represents the data needed to create a MOVE event later.
 pub(crate) type VromUpdate = (
-    u32,            // parent addr
-    Opcode,         // operation code
-    B32, // field pc
-    u32,            // fp
-    u32,            // timestamp
-    B16, // dst
-    B16, // src
-    B16, // offset
+    u32,    // parent addr
+    Opcode, // operation code
+    B32,    // field pc
+    u32,    // fp
+    u32,    // timestamp
+    B16,    // dst
+    B16,    // src
+    B16,    // offset
 );
 
 /// `ValueRom` represents a memory structure for storing different sized values.
