@@ -3,7 +3,8 @@ use std::{
     collections::{HashMap, HashSet},
 };
 
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
+use binius_field::{ExtensionField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 
 use crate::parser::{parse_program, Error as ParserError, InstructionsWithLabels};
 use crate::{
@@ -49,12 +50,12 @@ pub enum AssemblerError {
 }
 
 // Labels hold the labels in the code, with their associated binary field PCs.
-type Labels = HashMap<String, BinaryField32b>;
+type Labels = HashMap<String, B32>;
 // Binary field PC as the key. Values are: frame size.
-pub type LabelsFrameSizes = HashMap<BinaryField32b, u16>;
+pub type LabelsFrameSizes = HashMap<B32, u16>;
 // Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
-pub(crate) type PCFieldToInt = HashMap<BinaryField32b, u32>;
+pub(crate) type PCFieldToInt = HashMap<B32, u32>;
 
 #[derive(Debug)]
 pub struct AssembledProgram {
@@ -109,7 +110,7 @@ impl Assembler {
 
         let (labels, pc_field_to_int, frame_sizes) = get_labels(&instructions)?;
         let mut prom = ProgramRom::new();
-        let mut field_pc = BinaryField32b::ONE;
+        let mut field_pc = B32::ONE;
 
         for instruction in instructions.iter() {
             get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
@@ -128,7 +129,7 @@ impl Assembler {
 pub fn get_prom_inst_from_inst_with_label(
     prom: &mut ProgramRom,
     labels: &Labels,
-    field_pc: &mut BinaryField32b,
+    field_pc: &mut B32,
     instruction: &InstructionsWithLabels,
 ) -> Result<(), AssemblerError> {
     match instruction {
@@ -167,8 +168,8 @@ pub fn get_prom_inst_from_inst_with_label(
             let instruction = [
                 Opcode::B32Muli.get_field_elt(),
                 imm.get_high_field_val(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
+                B16::zero(),
+                B16::zero(),
             ];
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
@@ -233,8 +234,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Taili { label, next_fp } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Taili.get_field_elt(),
                     targets_16b[0],
@@ -254,7 +254,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 Opcode::Tailv.get_field_elt(),
                 offset.get_16bfield_val(),
                 next_fp.get_16bfield_val(),
-                BinaryField16b::zero(),
+                B16::zero(),
             ];
 
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
@@ -263,8 +263,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Calli { label, next_fp } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Calli.get_field_elt(),
                     targets_16b[0],
@@ -284,7 +283,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 Opcode::Callv.get_field_elt(),
                 offset.get_16bfield_val(),
                 next_fp.get_16bfield_val(),
-                BinaryField16b::zero(),
+                B16::zero(),
             ];
 
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
@@ -293,13 +292,12 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Jumpi { label } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Jumpi.get_field_elt(),
                     targets_16b[0],
                     targets_16b[1],
-                    BinaryField16b::zero(),
+                    B16::zero(),
                 ];
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));
@@ -312,8 +310,8 @@ pub fn get_prom_inst_from_inst_with_label(
             let instruction = [
                 Opcode::Jumpv.get_field_elt(),
                 offset.get_16bfield_val(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
+                B16::zero(),
+                B16::zero(),
             ];
 
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
@@ -355,8 +353,7 @@ pub fn get_prom_inst_from_inst_with_label(
         }
         InstructionsWithLabels::Bnz { label, src } => {
             if let Some(target) = labels.get(label) {
-                let targets_16b =
-                    ExtensionField::<BinaryField16b>::iter_bases(target).collect::<Vec<_>>();
+                let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
                     src.get_16bfield_val(),
@@ -606,9 +603,9 @@ pub fn get_prom_inst_from_inst_with_label(
         InstructionsWithLabels::Ret => {
             let instruction = [
                 Opcode::Ret.get_field_elt(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
-                BinaryField16b::zero(),
+                B16::zero(),
+                B16::zero(),
+                B16::zero(),
             ];
             prom.push(InterpreterInstruction::new(instruction, *field_pc));
 
@@ -632,7 +629,7 @@ fn get_labels(
     let mut labels = HashMap::new();
     let mut pc_field_to_int = HashMap::new();
     let mut frame_sizes = HashMap::new();
-    let mut field_pc = BinaryField32b::ONE;
+    let mut field_pc = B32::ONE;
     let mut pc = 1;
     let mut functions = HashSet::new();
 

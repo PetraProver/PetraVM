@@ -3,7 +3,8 @@
 
 use std::collections::HashMap;
 
-use binius_field::{BinaryField32b, Field, PackedField};
+use binius_field::{Field, PackedField};
+use binius_m3::builder::B32;
 
 use super::FramePointer;
 #[cfg(test)]
@@ -33,55 +34,65 @@ use crate::{
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
-    pub(crate) bnz: Vec<BnzEvent>,
-    pub(crate) jumpi: Vec<JumpiEvent>,
-    pub(crate) jumpv: Vec<JumpvEvent>,
-    pub(crate) xor: Vec<XorEvent>,
-    pub(crate) bz: Vec<BzEvent>,
-    pub(crate) or: Vec<OrEvent>,
-    pub(crate) ori: Vec<OriEvent>,
-    pub(crate) xori: Vec<XoriEvent>,
-    pub(crate) and: Vec<AndEvent>,
-    pub(crate) andi: Vec<AndiEvent>,
-    pub(crate) sub: Vec<SubEvent>,
-    pub(crate) slt: Vec<SltEvent>,
-    pub(crate) slti: Vec<SltiEvent>,
-    pub(crate) sltu: Vec<SltuEvent>,
-    pub(crate) sltiu: Vec<SltiuEvent>,
-    pub(crate) shifts: Vec<Box<dyn GenericShiftEvent>>,
-    pub(crate) add: Vec<AddEvent>,
-    pub(crate) addi: Vec<AddiEvent>,
-    pub(crate) add32: Vec<Add32Gadget>,
-    pub(crate) add64: Vec<Add64Gadget>,
-    pub(crate) muli: Vec<MuliEvent>,
-    pub(crate) signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
-    pub(crate) mulu: Vec<MuluEvent>,
-    pub(crate) taili: Vec<TailiEvent>,
-    pub(crate) tailv: Vec<TailVEvent>,
-    pub(crate) calli: Vec<CalliEvent>,
-    pub(crate) callv: Vec<CallvEvent>,
+    pub bnz: Vec<BnzEvent>,
+    pub jumpi: Vec<JumpiEvent>,
+    pub jumpv: Vec<JumpvEvent>,
+    pub xor: Vec<XorEvent>,
+    pub bz: Vec<BzEvent>,
+    pub or: Vec<OrEvent>,
+    pub ori: Vec<OriEvent>,
+    pub xori: Vec<XoriEvent>,
+    pub and: Vec<AndEvent>,
+    pub andi: Vec<AndiEvent>,
+    pub sub: Vec<SubEvent>,
+    pub slt: Vec<SltEvent>,
+    pub slti: Vec<SltiEvent>,
+    pub sltu: Vec<SltuEvent>,
+    pub sltiu: Vec<SltiuEvent>,
+    pub shifts: Vec<Box<dyn GenericShiftEvent>>,
+    pub add: Vec<AddEvent>,
+    pub addi: Vec<AddiEvent>,
+    pub add32: Vec<Add32Gadget>,
+    pub add64: Vec<Add64Gadget>,
+    pub muli: Vec<MuliEvent>,
+    pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
+    pub mulu: Vec<MuluEvent>,
+    pub taili: Vec<TailiEvent>,
+    pub tailv: Vec<TailVEvent>,
+    pub calli: Vec<CalliEvent>,
+    pub callv: Vec<CallvEvent>,
     pub ret: Vec<RetEvent>,
-    pub(crate) mvih: Vec<MVIHEvent>,
-    pub(crate) mvvw: Vec<MVVWEvent>,
-    pub(crate) mvvl: Vec<MVVLEvent>,
+    pub mvih: Vec<MVIHEvent>,
+    pub mvvw: Vec<MVVWEvent>,
+    pub mvvl: Vec<MVVLEvent>,
     pub ldi: Vec<LDIEvent>,
-    pub(crate) b32_mul: Vec<B32MulEvent>,
-    pub(crate) b32_muli: Vec<B32MuliEvent>,
-    pub(crate) b128_add: Vec<B128AddEvent>,
-    pub(crate) b128_mul: Vec<B128MulEvent>,
+    pub b32_mul: Vec<B32MulEvent>,
+    pub b32_muli: Vec<B32MuliEvent>,
+    pub b128_add: Vec<B128AddEvent>,
+    pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
 }
 
 pub struct BoundaryValues {
-    pub(crate) final_pc: BinaryField32b,
-    pub(crate) final_fp: FramePointer,
-    pub(crate) timestamp: u32,
+    pub final_pc: B32,
+    pub final_fp: FramePointer,
+    pub timestamp: u32,
 }
 
-/// Convenience macro to `fire` all events logged.
-/// This will execute all the flushes that these events trigger.
-#[macro_use]
+/// Convenience macro to execute all the flushing rules of a given kind of
+/// instructions present in a [`ZCrayTrace`].
+///
+/// It takes as argument the list events for the targeted instruction in a
+/// trace, the [`InterpreterChannels`] against which the flushing rules will be
+/// performed, and the [`InterpreterTables`].
+///
+/// # Example
+///
+/// ```ignore
+/// fire_events!(&trace.bnz, &mut channels, &tables);
+/// ```
+#[macro_export]
 macro_rules! fire_events {
     ($events:expr, $channels:expr, $tables:expr) => {
         $events
@@ -105,14 +116,14 @@ impl ZCrayTrace {
     pub fn generate(
         memory: Memory,
         frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
+        pc_field_to_int: HashMap<B32, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
         let mut trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
-            BinaryField32b::zero()
+            B32::zero()
         } else {
             G.pow(interpreter.pc as u64)
         };
@@ -131,7 +142,7 @@ impl ZCrayTrace {
         let tables = InterpreterTables::default();
 
         // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
-        channels.state_channel.push((BinaryField32b::ONE, 0, 0));
+        channels.state_channel.push((B32::ONE, 0, 0));
         // Final boundary pull.
         channels.state_channel.pull((
             boundary_values.final_pc,

@@ -2,7 +2,7 @@
 
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
-use binius_field::BinaryField32b;
+use binius_m3::builder::B32;
 use tracing::{debug, trace};
 
 #[derive(Debug, Default)]
@@ -14,7 +14,7 @@ pub struct Channel<T> {
 
 pub(crate) type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
 pub(crate) type VromChannel = Channel<u32>;
-pub(crate) type StateChannel = Channel<(BinaryField32b, u32, u32)>; // pc, *fp, timestamp
+pub(crate) type StateChannel = Channel<(B32, u32, u32)>; // pc, *fp, timestamp
 
 impl<T: Hash + Eq + Debug> Channel<T> {
     pub(crate) fn push(&mut self, val: T) {

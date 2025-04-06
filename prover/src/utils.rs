@@ -10,6 +10,18 @@ fn b128_basis(index: usize) -> B128 {
     <B128 as ExtensionField<B16>>::basis(index)
 }
 
+/// Convenience macro to "pack" an instruction with its arguments and the
+/// program counter into a single 128-bit element.
+///
+/// The resulting packed instruction is defined as (in big-endian notation):
+///
+/// [ 0_32b || pc_32b || arg2_16b || arg1_16b || arg0_16b || opcode_16b ]
+///
+/// # Example
+///
+/// ```ignore
+/// pack_instruction_common!(&mut table, "instruction", pc, [arg0, arg1, arg2], opcode);
+/// ```
 macro_rules! pack_instruction_common {
     ($table:expr, $name:expr, $pc:expr, $args:expr, $opcode_expr:expr) => {
         $table.add_computed(
