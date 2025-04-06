@@ -1,5 +1,15 @@
 //! Helper macros for [`Event`] definitions.
 
+/// Implements the [`NonImmediateBinaryOperation`] and associated
+/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// [`RightOp`](crate::event::binary_ops::RightOp) and
+/// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_binary_operation!(AddEvent)
+/// ```
 #[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
@@ -32,6 +42,20 @@ macro_rules! impl_binary_operation {
     };
 }
 
+/// Implements the
+/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// [`RightOp`](crate::event::binary_ops::RightOp) and
+/// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an instruction
+/// taking an immediate as second argument.
+///
+/// These are helper traits used to define binary operations, through the
+/// [`impl_binary_operation!`] and [`impl_immediate_binary_operation`] macros.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_left_right_output_for_imm_bin_op!(AddEvent, BinaryField32b)
+/// ```
 #[macro_export]
 macro_rules! impl_left_right_output_for_imm_bin_op {
     ($t:ty, $imm_field_ty:ty) => {
@@ -58,6 +82,19 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
     };
 }
 
+/// Implements the
+/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// [`RightOp`](crate::event::binary_ops::RightOp) and
+/// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an instruction.
+///
+/// These are helper traits used to define binary operations, through the
+/// [`impl_binary_operation!`] and [`impl_immediate_binary_operation`] macros.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_left_right_output_for_bin_op!(AddEvent, BinaryField32b)
+/// ```
 #[macro_export]
 macro_rules! impl_left_right_output_for_bin_op {
     ($t:ty, $field_ty:ty) => {
@@ -82,6 +119,17 @@ macro_rules! impl_left_right_output_for_bin_op {
     };
 }
 
+/// Implements the [`Event`](crate::event::Event) trait for a binary operation.
+///
+/// It takes as input the instruction and its corresponding field name in the
+/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// being logged.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_event_for_binary_operation!(AddEvent, add)
+/// ```
 #[macro_export]
 macro_rules! impl_event_for_binary_operation {
     ($ty:ty, $trace_field:ident) => {
@@ -111,20 +159,39 @@ macro_rules! impl_event_for_binary_operation {
     };
 }
 
+/// Implements the flushing rules for a given [`Event`](crate::event::Event)
+/// that is *not* a JUMP instruction with the provided
+/// [`InterpreterChannels`](crate::execution::emulator::InterpreterChannels).
+///
+/// # Example
+///
+/// ```ignore
+/// fire_non_jump_event!(AddEvent, add)
+/// ```
 #[macro_export]
 macro_rules! fire_non_jump_event {
-    ($intrp:ident, $channels:ident) => {
+    ($event:ident, $channels:ident) => {
         $channels
             .state_channel
-            .pull(($intrp.pc, *$intrp.fp, $intrp.timestamp));
+            .pull(($event.pc, *$event.fp, $event.timestamp));
         $channels.state_channel.push((
-            $intrp.pc * $crate::execution::G,
-            *$intrp.fp,
-            $intrp.timestamp,
+            $event.pc * $crate::execution::G,
+            *$event.fp,
+            $event.timestamp,
         ));
     };
 }
 
+/// Implements the [`ImmediateBinaryOperation`] and associated
+/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// [`RightOp`](crate::event::binary_ops::RightOp) and
+/// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_immediate_binary_operation!(AddiEvent)
+/// ```
 #[macro_export]
 macro_rules! impl_immediate_binary_operation {
     ($t:ty) => {
@@ -155,6 +222,16 @@ macro_rules! impl_immediate_binary_operation {
     };
 }
 
+/// Implements the [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// [`RightOp`](crate::event::binary_ops::RightOp) and
+/// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event as well
+/// as its constructor.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_32b_immediate_binary_operation!(B32MuliEvent)
+/// ```
 #[macro_export]
 macro_rules! impl_32b_immediate_binary_operation {
     ($t:ty) => {
@@ -186,6 +263,31 @@ macro_rules! impl_32b_immediate_binary_operation {
     };
 }
 
+/// Implements the
+/// [`BinaryOperation`](crate::event::binary_ops::BinaryOperation),
+/// [`NonImmediateBinaryOperation`](crate::event::binary_ops::NonImmediateBinaryOperation)
+/// and [`Event`](crate::event::Event) trait for a 32-bit binary operation.
+///
+/// It takes as argument the instruction, with optional Rust documentation, its
+/// corresponding field name in the
+/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// being logged, and the operation to be applied on the instruction's inputs.
+///
+/// # Example
+///
+/// ```ignore
+/// define_bin32_op_event!(
+///    /// Event for ADD.
+///    ///
+///    /// Performs an ADD between two target addresses.
+///    ///
+///    /// Logic:
+///    ///   1. FP[dst] = FP[src1] + FP[src2]
+///    AddEvent,
+///    add,
+///    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
+/// );
+/// ```
 #[macro_export]
 macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
@@ -215,6 +317,32 @@ macro_rules! define_bin32_op_event {
     };
 }
 
+/// Implements the
+/// [`BinaryOperation`](crate::event::binary_ops::BinaryOperation),
+/// [`ImmediateBinaryOperation`](crate::event::binary_ops::ImmediateBinaryOperation)
+/// and [`Event`](crate::event::Event) trait for a 32-bit immediate binary
+/// operation.
+///
+/// It takes as argument the instruction, with optional Rust documentation, its
+/// corresponding field name in the
+/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// being logged, and the operation to be applied on the instruction's inputs.
+///
+/// # Example
+///
+/// ```ignore
+/// define_bin32_imm_op_event!(
+///    /// Event for ADDI.
+///    ///
+///    /// Performs an ADD between a target address and an immediate.
+///    ///
+///    /// Logic:
+///    ///   1. FP[dst] = FP[src] + imm
+///    AddiEvent,
+///    addi,
+///    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
+/// );
+/// ```
 #[macro_export]
 macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
@@ -243,6 +371,31 @@ macro_rules! define_bin32_imm_op_event {
     };
 }
 
+/// Implements the
+/// [`BinaryOperation`](crate::event::binary_ops::BinaryOperation),
+/// [`NonImmediateBinaryOperation`](crate::event::binary_ops::NonImmediateBinaryOperation)
+/// and [`Event`](crate::event::Event) trait for a 128-bit binary operation.
+///
+/// It takes as argument the instruction, with optional Rust documentation, its
+/// corresponding field name in the
+/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// being logged, and the operation to be applied on the instruction's inputs.
+///
+/// # Example
+///
+/// ```ignore
+/// define_bin128_op_event!(
+///    /// Event for B128_ADD.
+///    ///
+///    /// Performs a 128-bit binary field addition (XOR) between two target addresses.
+///    ///
+///    /// Logic:
+///    ///   1. FP[dst] = __b128_add(FP[src1], FP[src2])
+///    B128AddEvent,
+///    b128_add,
+///    +
+/// );
+/// ```
 #[macro_export]
 macro_rules! define_bin128_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op:tt) => {

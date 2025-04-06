@@ -79,9 +79,19 @@ pub struct BoundaryValues {
     pub timestamp: u32,
 }
 
-/// Convenience macro to `fire` all events logged.
-/// This will execute all the flushes that these events trigger.
-#[macro_use]
+/// Convenience macro to execute all the flushing rules of a given kind of
+/// instructions present in a [`ZCrayTrace`].
+///
+/// It takes as argument the list events for the targeted instruction in a
+/// trace, the [`InterpreterChannels`] against which the flushing rules will be
+/// performed, and the [`InterpreterTables`].
+///
+/// # Example
+///
+/// ```ignore
+/// fire_events!(&trace.bnz, &mut channels, &tables);
+/// ```
+#[macro_export]
 macro_rules! fire_events {
     ($events:expr, $channels:expr, $tables:expr) => {
         $events

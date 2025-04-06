@@ -47,6 +47,7 @@ pub struct InterpreterChannels {
     pub state_channel: StateChannel,
 }
 
+// TODO: Remove VromTable32 and InterpreterTables?
 type VromTable32 = HashMap<u32, u32>;
 #[derive(Default)]
 pub struct InterpreterTables {

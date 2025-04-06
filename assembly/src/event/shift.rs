@@ -261,6 +261,17 @@ pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnyShiftEvent;
 }
 
+/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
+/// events.
+///
+/// It takes as argument the variant name of the instruction within the
+/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_generic_shift_event!(Sll, SllEvent);
+/// ```
 macro_rules! impl_generic_shift_event {
     ($variant:ident, $ty:ty) => {
         impl GenericShiftEvent for $ty {

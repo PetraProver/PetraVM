@@ -13,8 +13,7 @@ use crate::{
     },
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
-    Opcode,
+    impl_binary_operation, impl_immediate_binary_operation, Opcode,
 };
 
 define_bin32_imm_op_event!(
@@ -382,7 +381,7 @@ impl SignedMulOperation for MulOp {
     }
 }
 
-/// Group of all shift events for convenient downcasting.
+/// Group of all signed mul events for convenient downcasting.
 pub enum AnySignedMulEvent {
     Mul(MulEvent),
     Mulsu(MulsuEvent),
@@ -392,6 +391,17 @@ pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnySignedMulEvent;
 }
 
+/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for MV
+/// events.
+///
+/// It takes as argument the variant name of the instruction within the
+/// [`AnySignedMulEvent`] object, and the corresponding instruction's [`Event`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+/// ```
 macro_rules! impl_generic_signed_mul_event {
     ($variant:ident, $ty:ty) => {
         impl GenericSignedMulEvent for $ty {

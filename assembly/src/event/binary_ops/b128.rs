@@ -11,7 +11,7 @@ use crate::{
 };
 
 define_bin128_op_event!(
-    /// Event for 128_ADD.
+    /// Event for B128_ADD.
     ///
     /// Performs a 128-bit binary field addition (XOR) between two target addresses.
     ///

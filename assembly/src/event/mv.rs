@@ -29,7 +29,16 @@ pub struct MVInfo {
     pub(crate) timestamp: u32,
 }
 
-/// Convenience macro to implement the `Event` trait for MV events.
+/// Convenience macro to implement the [`Event`] trait for MV events.
+///
+/// It takes as argument the instruction and its corresponding field name in the
+/// [`ZCrayTrace`] where such events are being logged.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_mv_event!(MVVWEvent, mvvw);
+/// ```
 macro_rules! impl_mv_event {
     ($event:ty, $trace_field:ident) => {
         impl Event for $event {
