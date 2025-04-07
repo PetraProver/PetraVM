@@ -107,6 +107,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
     where
         T: Iterator<Item = CpuEvent>,
     {
+        // TODO: Replace with `get_scalars_mut`?
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
         let mut next_pc_col = index.get_mut_as(self.next_pc)?;
