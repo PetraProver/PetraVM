@@ -75,7 +75,7 @@ impl TableFiller<ProverPackedField> for RetTable {
             let mut next_pc = witness.get_mut_as(self.next_pc)?;
             let mut next_fp = witness.get_mut_as(self.next_fp)?;
             for (i, event) in rows.clone().enumerate() {
-                fp_xor_1[i] = *event.fp ^ 1;
+                fp_xor_1[i] = event.fp.addr(1u32);
                 next_pc[i] = event.pc_next;
                 next_fp[i] = event.fp_next;
             }
