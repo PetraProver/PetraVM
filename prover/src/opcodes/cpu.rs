@@ -11,6 +11,7 @@ use crate::{
 /// setting the next program counter
 pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
+    // TODO: next pc can be set to anything, so shouldn't be virtual?
     pub(crate) next_pc: Col<B32>, // Virtual
     pub(crate) fp: Col<B32>,
     pub(crate) arg0: Col<B16>,
