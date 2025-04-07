@@ -8,8 +8,10 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    opcodes::branch::{BnzTable, BzTable},
-    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    tables::{
+        BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
+        VromWriteTable,
+    },
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.

@@ -4,7 +4,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::{channels::Channels, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
@@ -69,7 +69,7 @@ impl TableFiller<ProverPackedField> for BnzTable {
                 dbg!("Bnz fill", cond_val[i]);
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target.val()),
             fp: *event.fp,
@@ -133,7 +133,7 @@ impl TableFiller<ProverPackedField> for BzTable {
                 cond_abs[i] = event.fp.addr(event.cond);
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
