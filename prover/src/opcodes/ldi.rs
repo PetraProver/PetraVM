@@ -5,20 +5,13 @@
 
 use std::any::Any;
 
-use binius_field::BinaryField;
 use binius_m3::builder::{
-    upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B16, B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
-use crate::{
-    channels::Channels,
-    table::Table,
-    types::ProverPackedField,
-    utils::{pack_instruction_with_32bits_imm, pack_instruction_with_32bits_imm_b128},
-};
-
-const LDI_OPCODE: u16 = Opcode::Ldi as u16;
+use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
 ///
@@ -29,25 +22,16 @@ const LDI_OPCODE: u16 = Opcode::Ldi as u16;
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is an LDI instruction
-/// 4. Store the 32-bit immediate value at FP + dst in VROM
-/// 5. Update PC to move to the next instruction
+/// 4. Compute the immediate value from the low and high parts
+/// 5. Store the immediate value at FP + dst in VROM
+/// 6. Update PC to move to the next instruction
 pub struct LdiTable {
     /// Table ID
     pub id: TableId,
-    /// PC column
-    pub pc: Col<B32>,
-    /// Frame pointer column
-    pub fp: Col<B32>,
-    /// Destination VROM offset column
-    pub dst: Col<B16>,
-    /// Immediate value
-    pub imm: Col<B32>,
-    /// PROM channel pull value
-    pub prom_pull: Col<B128>,
-    /// Next PC column
-    pub next_pc: Col<B32>,
-    /// VROM absolute address column
-    pub vrom_abs_addr: Col<B32>,
+    /// CPU columns
+    cpu_cols: CpuColumns<{ Opcode::Ldi as u16 }>,
+    vrom_abs_addr: Col<B32>, // Virtual
+    imm: Col<B32>,           // Virtual
 }
 
 impl Table for LdiTable {
@@ -60,43 +44,35 @@ impl Table for LdiTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ldi");
 
-        // Add columns for PC, FP, and other instruction components
-        let pc = table.add_committed("pc");
-        let fp = table.add_committed("cur_fp");
-        let dst = table.add_committed("dst");
-        let imm = table.add_committed("imm");
+        let cpu_cols = CpuColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            CpuColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
 
-        // Pull from state channel (get current state)
-        table.pull(channels.state_channel, [pc, fp]);
+        let CpuColumns {
+            fp,
+            arg0: dst,
+            arg1: imm_low,
+            arg2: imm_high,
+            ..
+        } = cpu_cols;
 
-        // Pack instruction for PROM channel pull
-        let prom_pull =
-            pack_instruction_with_32bits_imm(&mut table, "prom_pull", pc, LDI_OPCODE, dst, imm);
+        let vrom_abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
-        // Pull from PROM channel
-        table.pull(channels.prom_channel, [prom_pull]);
-
-        // Compute absolute address for VROM
-        let vrom_abs_addr = table.add_computed::<B32, 1>("abs_addr", fp + upcast_expr(dst.into()));
-
-        // Pull from VROM channel
+        // Push value to VROM write table using absolute address
+        let imm = table.add_computed("imm", pack_b16_into_b32([imm_low.into(), imm_high.into()]));
         table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
-
-        // Compute next PC
-        let next_pc = table.add_computed::<B32, 1>("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR);
-
-        // Push to state channel
-        table.push(channels.state_channel, [next_pc, fp]);
 
         Self {
             id: table.id(),
-            pc,
-            fp,
-            dst,
-            imm,
-            prom_pull,
-            next_pc,
+            cpu_cols,
             vrom_abs_addr,
+            imm,
         }
     }
 
@@ -114,33 +90,25 @@ impl TableFiller<ProverPackedField> for LdiTable {
 
     fn fill<'a>(
         &'a self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_scalars_mut(self.pc)?;
-        let mut fp_col = witness.get_scalars_mut(self.fp)?;
-        let mut dst_col = witness.get_scalars_mut(self.dst)?;
-        let mut imm_col = witness.get_scalars_mut(self.imm)?;
-        let mut next_pc_col = witness.get_scalars_mut(self.next_pc)?;
-        let mut prom_pull_col = witness.get_scalars_mut(self.prom_pull)?;
-        let mut vrom_abs_addr_col = witness.get_scalars_mut(self.vrom_abs_addr)?;
-
-        for (i, event) in rows.enumerate() {
-            pc_col[i] = event.pc;
-            fp_col[i] = B32::new(*event.fp);
-            dst_col[i] = B16::new(event.dst);
-            imm_col[i] = B32::new(event.imm);
-
-            next_pc_col[i] = pc_col[i] * B32::MULTIPLICATIVE_GENERATOR;
-            prom_pull_col[i] = pack_instruction_with_32bits_imm_b128(
-                pc_col[i],
-                B16::new(LDI_OPCODE),
-                dst_col[i],
-                imm_col[i],
-            );
-            vrom_abs_addr_col[i] = B32::new(event.fp.addr(dst_col[i].val()));
+        {
+            let mut vrom_abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
+            let mut imm = witness.get_mut_as(self.imm)?;
+            for (i, event) in rows.clone().enumerate() {
+                vrom_abs_addr[i] = event.fp.addr(event.dst);
+                imm[i] = event.imm;
+            }
         }
-
-        Ok(())
+        let cpu_rows = rows.map(|event| CpuEvent {
+            pc: event.pc.val(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.imm as u16,
+            arg2: (event.imm >> 16) as u16,
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
     }
 }

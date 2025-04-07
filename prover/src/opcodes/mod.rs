@@ -2,6 +2,7 @@
 //!
 //! This module contains the tables for each opcode instruction.
 
+pub mod cpu;
 pub mod ldi;
 pub mod ret;
 

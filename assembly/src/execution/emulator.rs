@@ -35,6 +35,7 @@ use crate::{
     },
     execution::{StateChannel, ZCrayTrace},
     gadgets::{Add32Gadget, Add64Gadget},
+    get_last_event,
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };

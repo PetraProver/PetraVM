@@ -29,34 +29,6 @@ define_bin32_imm_op_event!(
     |a: B32, imm: B16| B32::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
 );
 
-impl AddiEvent {
-    pub(crate) fn generate_event(
-        ctx: &mut EventContext,
-        dst: B16,
-        src: B16,
-        imm: B16,
-    ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
-        // The following addition is checked thanks to the ADD32 table.
-        let dst_val = AddiEvent::operation(src_val.into(), imm).val();
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
-
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-
-        Ok(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src: src.val(),
-            src_val,
-            imm: imm.val(),
-        })
-    }
-}
-
 // Note: The addition is checked thanks to the ADD32 table.
 define_bin32_op_event!(
     /// Event for ADD.
@@ -147,46 +119,6 @@ pub struct MuluEvent {
     pub aux_sums: [u64; 4],
     // Stores the cumulative sums: cum_sum[i] = cum_sum[i-1] + aux_sum[i] << 8*i
     pub cum_sums: [u64; 2],
-}
-
-impl MuluEvent {
-    pub(crate) fn generate_event(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
-
-        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
-
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
-
-        let (aux, aux_sums, cum_sums) =
-            schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
-
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-        Ok(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-            aux: aux.try_into().expect("Created an incorrect aux vector."),
-            aux_sums: aux_sums
-                .try_into()
-                .expect("Created an incorrect aux_sums vector."),
-            cum_sums: cum_sums
-                .try_into()
-                .expect("Created an incorrect cum_sums vector."),
-        })
-    }
 }
 
 impl Event for MuluEvent {
@@ -548,7 +480,7 @@ define_bin32_op_event!(
 mod tests {
     use super::*;
     use crate::event::binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation};
-    use crate::{Memory, ProgramRom, ValueRom};
+    use crate::{get_last_event, Memory, ProgramRom, ValueRom};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -588,8 +520,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                AddEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            AddEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, add);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -652,8 +584,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SubEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SubEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, sub);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -702,7 +634,8 @@ mod tests {
             ctx.set_vrom(src_offset.val(), src_val);
             let imm = B16::new(imm_val);
 
-            let event = AddiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            AddiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, addi);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -800,7 +733,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
+            let event = match get_last_event!(ctx, signed_mul).as_any() {
                 AnySignedMulEvent::Mul(ev) => ev,
                 _ => panic!("Expected MulEvent"),
             };
@@ -825,8 +758,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                MuluEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            MuluEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, mulu);
 
             assert_eq!(
                 event.dst_val, mulu_expected,
@@ -845,7 +778,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
+            let event = match get_last_event!(ctx, signed_mul).as_any() {
                 AnySignedMulEvent::Mulsu(ev) => ev,
                 _ => panic!("Expected MulsuEvent"),
             };
@@ -916,7 +849,7 @@ mod tests {
             MuliEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             // Extract the event
-            let event = ctx.trace.muli.last().unwrap();
+            let event = get_last_event!(ctx, muli);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -969,8 +902,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SltEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SltEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, slt);
 
             assert_eq!(
                 event.dst_val, slt_expected,
@@ -986,8 +919,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SltuEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SltuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, sltu);
 
             assert_eq!(
                 event.dst_val, sltu_expected,
@@ -1064,7 +997,8 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            SltiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, slti);
 
             assert_eq!(
                 event.dst_val, slti_expected,
@@ -1079,7 +1013,8 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiuEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            SltiuEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, sltiu);
 
             assert_eq!(
                 event.dst_val, sltiu_expected,
