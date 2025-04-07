@@ -65,13 +65,8 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         // Pull the current pc and instruction to the prom channel
-        let prom_pull = pack_instruction_with_fixed_opcode(
-            table,
-            "prom_pull",
-            pc,
-            OPCODE as u32,
-            [arg0, arg1, arg2],
-        );
+        let prom_pull =
+            pack_instruction_with_fixed_opcode(table, "prom_pull", pc, OPCODE, [arg0, arg1, arg2]);
         table.pull(prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
