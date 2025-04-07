@@ -24,8 +24,6 @@ impl BnzTable {
         let cond_val = table.add_committed("cond_val");
         table.assert_nonzero(cond_val);
 
-        // TODO: Assert cond_val is != 0
-
         let cpu_cols = CpuColumns::new(
             &mut table,
             channels.state_channel,
@@ -66,7 +64,7 @@ impl TableFiller<ProverPackedField> for BnzTable {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
             for (i, event) in rows.clone().enumerate() {
-                cond_abs[i] = *event.fp ^ (event.cond as u32);
+                cond_abs[i] = event.fp.addr(event.cond);
                 cond_val[i] = event.cond_val;
                 dbg!("Bnz fill", cond_val[i]);
             }
@@ -132,7 +130,7 @@ impl TableFiller<ProverPackedField> for BzTable {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             for (i, event) in rows.clone().enumerate() {
-                cond_abs[i] = *event.fp ^ (event.cond as u32);
+                cond_abs[i] = event.fp.addr(event.cond);
             }
         }
         let cpu_rows = rows.map(|event| CpuEvent {
