@@ -12,6 +12,7 @@ use binius_m3::builder::ConstraintSystem;
 
 use crate::{
     channels::Channels,
+    memory::{BnzTable, BzTable},
     table::{FillableTable, LdiTable, RetTable, Table},
 };
 
@@ -99,6 +100,8 @@ define_isa!(
     /// The main Instruction Set Architecture (ISA) for the zCray Virtual Machine,
     /// supporting all existing instructions.
     GenericISA => [
+    (BzTable, bz_events),
+    (BnzTable, bnz_events),
     (LdiTable, ldi_events),
     (RetTable, ret_events),
 ]);

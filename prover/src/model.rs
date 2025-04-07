@@ -5,7 +5,9 @@
 
 use anyhow::Result;
 use binius_m3::builder::B32;
-use zcrayvm_assembly::{InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace};
+use zcrayvm_assembly::{
+    BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+};
 
 /// Generates event accessors for a trace.
 ///
@@ -154,10 +156,6 @@ impl Trace {
             ));
         }
 
-        if self.ldi_events().is_empty() {
-            return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
-        }
-
         if self.ret_events().is_empty() {
             return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
         }
@@ -175,3 +173,5 @@ impl Trace {
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);
+impl_event_accessor!(bnz_events, BnzEvent, bnz);
+impl_event_accessor!(bz_events, BzEvent, bz);

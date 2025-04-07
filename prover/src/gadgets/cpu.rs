@@ -7,18 +7,43 @@ use crate::{
     utils::{pack_b16_into_b32, pack_instruction_u128, pack_instruction_with_fixed_opcode},
 };
 
-/// A gadget for reading the instruction from the prom and
-/// setting the next program counter
+/// A gadget for reading an instruction and its operands from the PROM and
+/// setting the next program counter.
+#[derive(Default)]
+pub(crate) struct CpuGadget {
+    /// Current program counter
+    pub(crate) pc: u32,
+    /// Next program counter
+    pub(crate) next_pc: Option<u32>,
+    /// Current frame pointer
+    pub(crate) fp: u32,
+    /// First 16-bit operand
+    pub(crate) arg0: u16,
+    /// Second 16-bit operand
+    pub(crate) arg1: u16,
+    /// Third 16-bit operand
+    pub(crate) arg2: u16,
+}
+
+/// Column view for instruction operands.
+/// The underlying type is a 16-bit field element.
+type OpcodeArg = Col<B16>;
+/// Column view for instruction operands in unpacked form,
+/// consisting of 16 binary columns.
+type OpcodeArgUnpacked = Col<B1, 16>;
+
+/// The columns associated with the CPU gadget.
 pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
     // TODO: next pc can be set to anything, so shouldn't be virtual?
     pub(crate) next_pc: Col<B32>, // Virtual
     pub(crate) fp: Col<B32>,
-    pub(crate) arg0: Col<B16>,
-    pub(crate) arg1: Col<B16>,
+    pub(crate) arg0: OpcodeArg,
+    pub(crate) arg1: OpcodeArg,
     // This field will be used for opcodes like SRLI
-    pub(crate) arg2_unpacked: Col<B1, 16>,
-    pub(crate) arg2: Col<B16>, // Virtual,
+    pub(crate) arg2_unpacked: OpcodeArgUnpacked,
+    pub(crate) arg2: OpcodeArg, // Virtual,
+
     options: CpuColumnsOptions,
     // Virtual columns for communication with the channels
     prom_pull: Col<B128>, // Virtual
@@ -39,16 +64,6 @@ pub(crate) enum NextPc {
 pub(crate) struct CpuColumnsOptions {
     pub(crate) next_pc: NextPc,
     pub(crate) next_fp: Option<Col<B32>>,
-}
-
-#[derive(Default)]
-pub(crate) struct CpuEvent {
-    pub(crate) pc: u32,
-    pub(crate) next_pc: Option<u32>,
-    pub(crate) fp: u32,
-    pub(crate) arg0: u16,
-    pub(crate) arg1: u16,
-    pub(crate) arg2: u16,
 }
 
 impl<const OPCODE: u16> CpuColumns<OPCODE> {
@@ -101,7 +116,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         rows: T,
     ) -> Result<(), anyhow::Error>
     where
-        T: Iterator<Item = CpuEvent>,
+        T: Iterator<Item = CpuGadget>,
     {
         // TODO: Replace with `get_scalars_mut`?
         let mut pc_col = index.get_mut_as(self.pc)?;
@@ -116,7 +131,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
         for (
             i,
-            CpuEvent {
+            CpuGadget {
                 pc,
                 next_pc,
                 fp,

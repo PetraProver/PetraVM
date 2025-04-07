@@ -7,6 +7,7 @@
 #![allow(dead_code)]
 pub mod channels;
 pub mod circuit;
+pub mod gadgets;
 pub mod isa;
 pub mod memory;
 pub mod model;

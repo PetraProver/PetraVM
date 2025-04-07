@@ -20,8 +20,11 @@ mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use event::mv::LDIEvent;
-pub use event::ret::RetEvent;
+pub use event::{
+    branch::{BnzEvent, BzEvent},
+    mv::LDIEvent,
+    ret::RetEvent,
+};
 pub use execution::emulator::{Instruction, InterpreterInstruction};
 pub use execution::trace::BoundaryValues;
 pub use execution::trace::ZCrayTrace;

@@ -9,7 +9,7 @@ use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// RET (Return) table.
@@ -24,7 +24,9 @@ use crate::{channels::Channels, table::Table, types::ProverPackedField};
 /// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
 /// 5. Update the state with the new PC and FP values
 pub struct RetTable {
+    /// Table ID
     id: TableId,
+    /// CPU columns
     cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
     fp_xor_1: Col<B32>, // Virtual
     next_pc: Col<B32>,
@@ -98,7 +100,7 @@ impl TableFiller<ProverPackedField> for RetTable {
                 next_fp[i] = event.fp_next;
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.into(),
             next_pc: Some(event.pc_next),
             fp: *event.fp,
