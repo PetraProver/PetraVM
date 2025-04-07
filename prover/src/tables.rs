@@ -10,7 +10,7 @@ use binius_m3::gadgets::lookup::LookupProducer;
 
 // Re-export instruction-specific tables
 pub use crate::opcodes::binary::B32MulTable;
-pub use crate::opcodes::{LdiTable, RetTable};
+pub use crate::opcodes::{BnzTable, BzTable, LdiTable, RetTable};
 use crate::prover::VROM_MULTIPLICITY_BITS;
 use crate::{
     channels::Channels,

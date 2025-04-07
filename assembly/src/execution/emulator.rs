@@ -8,9 +8,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use binius_field::{
-    BinaryField, BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField,
-};
+use binius_field::{BinaryField, ExtensionField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 use tracing::trace;
 
 use crate::{
@@ -36,27 +35,33 @@ use crate::{
     },
     execution::{StateChannel, ZCrayTrace},
     gadgets::{Add32Gadget, Add64Gadget},
+    get_last_event,
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };
 
-pub(crate) const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
+pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 
+/// Channels used to communicate data through event execution.
 #[derive(Default)]
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
 }
 
+// TODO: Remove VromTable32 and InterpreterTables?
 type VromTable32 = HashMap<u32, u32>;
 #[derive(Default)]
 pub struct InterpreterTables {
     pub vrom_table_32: VromTable32,
 }
 
+/// A wrapper around a `u32` representing the frame pointer (FP) in VROM for
+/// type-safety and easy memory-address access.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FramePointer(u32);
 
 impl FramePointer {
+    /// Outputs a memory address from a provided offset.
     #[inline(always)]
     pub fn addr<T: Into<u32>>(&self, offset: T) -> u32 {
         self.0 ^ offset.into()
@@ -83,10 +88,14 @@ impl DerefMut for FramePointer {
     }
 }
 
+/// Main program executor, used to build a [`ZCrayTrace`] from a program's PROM.
+///
+/// The interpreter manages control flow, memory accesses, instruction execution
+/// and state updates.
 #[derive(Debug)]
-pub(crate) struct Interpreter {
+pub struct Interpreter {
     /// The integer PC represents to the exponent of the actual field
-    /// PC (which starts at `BinaryField32b::ONE` and iterate over the
+    /// PC (which starts at `B32::ONE` and iterate over the
     /// multiplicative group). Since we need to have a value for 0 as well
     /// (which is not in the multiplicative group), we shift all powers by
     /// 1, and 0 can be the halting value.
@@ -104,7 +113,7 @@ pub(crate) struct Interpreter {
     pub moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated integer PC.
-    pc_field_to_int: HashMap<BinaryField32b, u32>,
+    pc_field_to_int: HashMap<B32, u32>,
 }
 
 impl Default for Interpreter {
@@ -120,18 +129,18 @@ impl Default for Interpreter {
     }
 }
 
-/// An `Instruction` is composed of an opcode and up to three 16-bit arguments
-/// to be used by this operation.
-pub type Instruction = [BinaryField16b; 4];
+/// An [`Instruction`] in raw form, composed of an opcode and up to three 16-bit
+/// arguments to be used by this operation.
+pub type Instruction = [B16; 4];
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct InterpreterInstruction {
     pub instruction: Instruction,
-    pub field_pc: BinaryField32b,
+    pub field_pc: B32,
 }
 
 impl InterpreterInstruction {
-    pub const fn new(instruction: Instruction, field_pc: BinaryField32b) -> Self {
+    pub const fn new(instruction: Instruction, field_pc: B32) -> Self {
         Self {
             instruction,
             field_pc,
@@ -142,7 +151,7 @@ impl InterpreterInstruction {
     }
 
     /// Get the arguments of this instruction.
-    pub fn args(&self) -> [BinaryField16b; 3] {
+    pub fn args(&self) -> [B16; 3] {
         [
             self.instruction[1],
             self.instruction[2],
@@ -170,10 +179,7 @@ impl From<MemoryError> for InterpreterError {
 pub enum InterpreterException {}
 
 impl Interpreter {
-    pub(crate) const fn new(
-        frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<BinaryField32b, u32>,
-    ) -> Self {
+    pub(crate) const fn new(frames: LabelsFrameSizes, pc_field_to_int: HashMap<B32, u32>) -> Self {
         Self {
             pc: 1,
             fp: FramePointer(0),
@@ -195,8 +201,8 @@ impl Interpreter {
     }
 
     #[inline(always)]
-    pub(crate) fn jump_to(&mut self, target: BinaryField32b) {
-        if target == BinaryField32b::zero() {
+    pub(crate) fn jump_to(&mut self, target: B32) {
+        if target == B32::zero() {
             self.pc = 0;
         } else {
             self.pc = *self
@@ -308,9 +314,9 @@ impl Interpreter {
 
     fn generate_bnz(
         ctx: &mut EventContext,
-        cond: BinaryField16b,
-        target_low: BinaryField16b,
-        target_high: BinaryField16b,
+        cond: B16,
+        target_low: B16,
+        target_high: B16,
     ) -> Result<(), InterpreterError> {
         // TODO: group events?
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
@@ -324,16 +330,16 @@ impl Interpreter {
 
     fn generate_add(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
         AddEvent::generate(ctx, dst, src1, src2)?;
 
         // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
-        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
+        let new_add_event = get_last_event!(ctx, add);
 
         let new_add32_gadget =
             Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
@@ -344,20 +350,17 @@ impl Interpreter {
 
     fn generate_addi(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<(), InterpreterError> {
         AddiEvent::generate(ctx, dst, src, imm)?;
 
         // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
-        let new_addi_event = ctx
-            .trace
-            .addi
-            .last()
-            .expect("Event should have been pushed");
+        let new_addi_event = get_last_event!(ctx, addi);
+
         let new_add32_gadget =
             Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
         ctx.trace.add32.push(new_add32_gadget);
@@ -368,7 +371,7 @@ impl Interpreter {
     pub(crate) fn allocate_new_frame(
         &self,
         trace: &mut ZCrayTrace,
-        target: BinaryField32b,
+        target: B32,
     ) -> Result<u32, InterpreterError> {
         let frame_size = self
             .frames
@@ -389,13 +392,13 @@ mod tests {
 
     #[test]
     fn test_zcray() {
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code);
         let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, 12);
+        frames.insert(B32::ONE, 12);
 
         let (trace, boundary_values) =
             ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
@@ -443,13 +446,11 @@ mod tests {
 
         init_logger();
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         // labels
-        let collatz = BinaryField16b::ONE;
-        let case_recurse = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(4))
-            .collect::<Vec<BinaryField16b>>();
-        let case_odd = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10))
-            .collect::<Vec<BinaryField16b>>();
+        let collatz = B16::ONE;
+        let case_recurse = ExtensionField::<B16>::iter_bases(&G.pow(4)).collect::<Vec<B16>>();
+        let case_odd = ExtensionField::<B16>::iter_bases(&G.pow(10)).collect::<Vec<B16>>();
 
         // Add targets needed in the code.
         let mut pc_field_to_int = HashMap::new();
@@ -563,7 +564,7 @@ mod tests {
 
         // TODO: We could build this with compiler hints.
         let mut frames_args_size = HashMap::new();
-        frames_args_size.insert(BinaryField32b::ONE, 10);
+        frames_args_size.insert(B32::ONE, 10);
 
         let (traces, boundary_values) =
             ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)

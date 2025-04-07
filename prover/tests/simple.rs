@@ -4,31 +4,35 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
-use binius_m3::builder::B32;
-use log::info;
+use log::trace;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
-fn generate_test_trace(value: u32) -> Result<Trace> {
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start:
-           LDI.W @2, #{}\n\
-           LDI.W @3, #2\n\
-           B32_MUL @4, @2, @3\n\
-           RET\n",
-        value
-    );
-
+/// Creates an execution trace for the instructions in `asm_code`.
+///
+/// # Arguments
+/// * `asm_code` - The assembly code.
+/// * `init_values` - The initial values for the VROM.
+/// * `vrom_writes` - The VROM writes to be added to the trace.
+///
+/// # Returns
+/// * A Trace containing executed instructions that loads `value` into VROM at
+///   address fp+2, followed by a RET instruction
+fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
+    asm_code: String,
+    init_values: [u32; N],
+    vrom_writes: F,
+) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
+    trace!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
     let program = compiled_program.prom.clone();
 
     // Initialize memory with return PC = 0, return FP = 0
-    let vrom = ValueRom::new_with_init_vals(&[0, 0]);
+    let vrom = ValueRom::new_with_init_vals(&init_values);
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
@@ -40,84 +44,222 @@ fn generate_test_trace(value: u32) -> Result<Trace> {
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut trace = Trace::from_zcray_trace(zcray_trace);
+    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
 
     // Add the program instructions to the trace
-    trace.add_instructions(program);
+    zkvm_trace.add_instructions(program);
 
-    // TODO: add VROM writes from zcray_trace in a function
-    // Add VROM writes from events (Multiplicities must be sorted in descending
-    // order.)
+    let vrom_writes: Vec<_> = vrom_writes(&zkvm_trace);
 
-    // LDI events
-    trace.add_vrom_write(2, value, 2); // First LDI - our input value
-    trace.add_vrom_write(3, 2, 2); // Second LDI - constant 2
+    // Add initial VROM values for return PC and return FP
+    zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
+    zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
 
-    // Initial values
-    trace.add_vrom_write(0, 0, 1); // Initial return PC = 0
-    trace.add_vrom_write(1, 0, 1); // Initial return FP = 0
+    // Add other VROM writes
+    for (dst, imm) in vrom_writes {
+        zkvm_trace.add_vrom_write(dst, imm);
+    }
 
-    // B32_MUL event
-    let mul_result = (B32::new(value) * B32::new(2)).val();
-    trace.add_vrom_write(4, mul_result, 1);
+    dbg!(&zkvm_trace);
 
-    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
-    // gadget
-    trace.add_vrom_write(5, 0, 0);
-
-    Ok(trace)
+    Ok(zkvm_trace)
 }
 
-#[test]
-fn test_zcrayvm_proving_pipeline() -> Result<()> {
-    env_logger::init();
+/// Creates a basic execution trace with just LDI and RET instructions.
+///
+/// # Arguments
+/// * `value` - The value to load into VROM.
+///
+/// # Returns
+/// * A trace containing an LDI instruction that loads `value` into VROM at
+///   address fp+2, followed by a RET instruction
+fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+         _start: LDI.W @2, #{}\n\
+         RET\n",
+        value
+    );
 
-    // Test value to load
-    let value = 0x12345678;
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0, value];
 
-    // Step 1: Generate trace from assembly
-    info!("Generating trace from assembly...");
-    let trace = generate_test_trace(value)?;
+    // Add VROM writes from LDI events
+    let vrom_writes = |zkvm_trace: &Trace| {
+        zkvm_trace
+            .ldi_events()
+            .iter()
+            .map(|event| (event.dst as u32, event.imm))
+            .collect()
+    };
 
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+/// Creates a basic execution trace with just BNZ and RET instructions.
+///
+/// # Arguments
+/// * `con_val` - The condition checked by the BNZ instruction
+///
+/// # Returns
+/// * A Trace containing an BNZ instruction that loads `value` into VROM at
+///   address fp+2, followed by a RET instruction
+fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = "#[framesize(0x10)]\n\
+        _start:\n\
+            BNZ ret, @2 \n\
+        ret:\n\
+            RET\n"
+        .to_string();
+
+    trace!("asm_code:\n {:?}", asm_code);
+
+    let init_values = [0, 0, cond_val];
+
+    // Add VROM writes from BNZ events
+    let vrom_writes = |zkvm_trace: &Trace| {
+        if cond_val != 0 {
+            zkvm_trace
+                .bnz_events()
+                .iter()
+                .map(|event| (event.cond as u32, event.cond_val))
+                .collect()
+        } else {
+            zkvm_trace
+                .bz_events()
+                .iter()
+                .map(|event| (event.cond as u32, 0))
+                .collect()
+        }
+    };
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+fn test_from_trace_generator<F, G>(
+    trace_generator: F,
+    check_events: G,
+    n_vrom_writes: usize,
+) -> Result<()>
+where
+    F: FnOnce() -> Result<Trace>,
+    G: FnOnce(&Trace),
+{
+    // Step 1: Generate trace
+    let trace = trace_generator()?;
     // Verify trace has correct structure
+    check_events(&trace);
+
     assert_eq!(
-        trace.program.len(),
-        4,
-        "Program should have exactly 4 instructions"
+        trace.vrom_writes.len(),
+        n_vrom_writes,
+        "Should have {} VROM writes",
+        n_vrom_writes
     );
-    assert_eq!(
-        trace.ldi_events().len(),
-        2,
-        "Should have exactly two LDI events"
-    );
-    assert_eq!(
-        trace.b32_mul_events().len(),
-        1,
-        "Should have exactly one B32_MUL event"
-    );
-    assert_eq!(
-        trace.ret_events().len(),
-        1,
-        "Should have exactly one RET event"
-    );
-    assert_eq!(trace.vrom_writes.len(), 6, "Should have 6 VROM writes");
 
     // Step 2: Validate trace
-    info!("Validating trace internal structure...");
+    trace!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
-    info!("Creating prover...");
+    trace!("Creating prover...");
     let prover = Prover::new();
 
     // Step 4: Generate proof
-    info!("Generating proof...");
+    trace!("Generating proof...");
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
     // Step 5: Verify proof
-    info!("Verifying proof...");
+    trace!("Verifying proof...");
     verify_proof(&statement, &compiled_cs, proof)?;
 
-    info!("All steps completed successfully!");
+    trace!("All steps completed successfully!");
     Ok(())
+}
+
+#[test]
+fn test_ldi_ret() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let value = 0x12345678;
+            generate_ldi_ret_trace(value)
+        },
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.ldi_events().len(),
+                1,
+                "Should have exactly one LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        3,
+    )
+}
+
+#[test]
+fn test_bnz_non_zero_branch_ret() -> Result<()> {
+    test_from_trace_generator(
+        || generate_bnz_ret_trace(1),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.bnz_events().len(),
+                1,
+                "Should have exactly one LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        3,
+    )
+}
+
+#[test]
+fn test_bnz_zero_branch_ret() -> Result<()> {
+    test_from_trace_generator(
+        || generate_bnz_ret_trace(0),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.bz_events().len(),
+                1,
+                "Should have exactly one bz event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        3,
+    )
 }

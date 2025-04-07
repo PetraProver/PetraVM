@@ -9,8 +9,11 @@ use crate::{
     channels::Channels,
     model::Trace,
     tables::{
-        B32MulTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
+        B32MulTable, 
+        BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
+       
         VromWriteTable,
+    ,
     },
 };
 
@@ -39,6 +42,10 @@ pub struct Circuit {
     pub ret_table: RetTable,
     /// B32_MUL instruction table
     pub b32_mul_table: B32MulTable,
+    /// BNZ branch non-zero instruction table
+    pub bnz_table: BnzTable,
+    /// BNZ branch zero instruction table
+    pub bz_table: BzTable,
 }
 
 impl Default for Circuit {
@@ -64,6 +71,8 @@ impl Circuit {
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
         let b32_mul_table = B32MulTable::new(&mut cs, &channels);
+        let bnz_table = BnzTable::new(&mut cs, &channels);
+        let bz_table = BzTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -75,6 +84,8 @@ impl Circuit {
             ldi_table,
             ret_table,
             b32_mul_table,
+            bnz_table,
+            bz_table,
         }
     }
 
@@ -121,6 +132,8 @@ impl Circuit {
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
         let b32_mul_size = trace.b32_mul_events().len();
+        let bnz_size = trace.bnz_events().len();
+        let bz_size = trace.bz_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -131,6 +144,8 @@ impl Circuit {
             ldi_size,             // LDI table size
             ret_size,             // RET table size
             b32_mul_size,         // B32_MUL table size
+            bnz_size,             // BNZ table size
+            bz_size,              // BZ table size
         ];
 
         // Create the statement with all boundaries
@@ -152,9 +167,7 @@ impl Circuit {
     pub fn compile(
         &self,
         statement: &Statement,
-    ) -> anyhow::Result<
-        binius_core::constraint_system::ConstraintSystem<binius_field::BinaryField128b>,
-    > {
+    ) -> anyhow::Result<binius_core::constraint_system::ConstraintSystem<B128>> {
         Ok(self.cs.compile(statement)?)
     }
 }

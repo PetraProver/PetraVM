@@ -4,9 +4,11 @@
 //! and events needed for the proving system.
 
 use anyhow::Result;
-use binius_field::BinaryField32b;
+use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    B32MulEvent, B32MuliEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    B32MulEvent, B32MuliEvent, 
+    BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+,
 };
 
 /// Macro to generate event accessors
@@ -32,7 +34,7 @@ macro_rules! impl_event_accessor {
 #[derive(Debug, Clone)]
 pub struct Instruction {
     /// PC value as a field element
-    pub pc: BinaryField32b,
+    pub pc: B32,
     /// Opcode of the instruction
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
@@ -150,10 +152,6 @@ impl Trace {
             ));
         }
 
-        if self.ldi_events().is_empty() {
-            return Err(anyhow::anyhow!("Trace must contain at least one LDI event"));
-        }
-
         if self.ret_events().is_empty() {
             return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
         }
@@ -172,4 +170,5 @@ impl Trace {
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);
 impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
-impl_event_accessor!(b32_muli_events, B32MuliEvent, b32_muli);
+impl_event_accessor!(bnz_events, BnzEvent, bnz);
+impl_event_accessor!(bz_events, BzEvent, bz);

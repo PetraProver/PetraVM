@@ -12,7 +12,7 @@ use binius_core::{
 use binius_field::arch::OptimalUnderlier128b;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
-use binius_m3::builder::Statement;
+use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
@@ -56,14 +56,7 @@ impl Prover {
     ///
     /// # Returns
     /// * Result containing the proof, statement, and compiled constraint system
-    pub fn prove(
-        &self,
-        trace: &Trace,
-    ) -> Result<(
-        Proof,
-        Statement,
-        ConstraintSystem<binius_field::BinaryField128b>,
-    )> {
+    pub fn prove(&self, trace: &Trace) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
@@ -107,6 +100,12 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
         witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
 
+        // 7. Fill BNZ table with branch not zero events
+        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
+
+        // 8. Fill BZ table with branch zero events
+        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();
 
@@ -149,7 +148,7 @@ impl Prover {
 /// * Result indicating success or error
 pub fn verify_proof(
     statement: &Statement,
-    compiled_cs: &ConstraintSystem<binius_field::BinaryField128b>,
+    compiled_cs: &ConstraintSystem<B128>,
     proof: Proof,
 ) -> Result<()> {
     // Verify the proof

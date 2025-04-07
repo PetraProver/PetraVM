@@ -5,10 +5,13 @@
 
 use std::fmt::Debug;
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 use context::EventContext;
 
-use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
+use crate::{
+    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
+    Opcode,
+};
 
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
@@ -24,14 +27,14 @@ pub(crate) mod shift;
 pub(crate) use binary_ops::{b128, b32};
 
 /// An `Event` represents an instruction that can be executed by the VM.
-pub(crate) trait Event {
+pub trait Event {
     /// Generates a new event and pushes it to its corresponding list in the set
     /// of traces.
     fn generate(
         ctx: &mut EventContext,
-        arg0: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
+        arg0: B16,
+        arg1: B16,
+        arg2: B16,
     ) -> Result<(), InterpreterError>
     where
         Self: Sized;

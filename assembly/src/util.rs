@@ -1,5 +1,5 @@
 use binius_field::Field;
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 use tracing_subscriber::EnvFilter;
 
 use crate::execution::G;
@@ -15,8 +15,8 @@ pub fn init_logger() {
 }
 
 #[inline(always)]
-pub(crate) const fn get_binary_slot(i: u16) -> BinaryField16b {
-    BinaryField16b::new(i)
+pub(crate) const fn get_binary_slot(i: u16) -> B16 {
+    B16::new(i)
 }
 
 /// Helper method to obtain the n-th Fibonacci number.
@@ -50,10 +50,12 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 #[cfg(test)]
 /// Helper method to convert Instructions to a program ROM.
 pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
+    use binius_m3::builder::B32;
+
     let mut prom = ProgramRom::new();
     // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
     // `*G`.
-    let mut pc = BinaryField32b::ONE; // we start at PC = 1G.
+    let mut pc = B32::ONE; // we start at PC = 1G.
     for (i, &instruction) in code.iter().enumerate() {
         let interp_inst = InterpreterInstruction::new(instruction, pc);
         prom.push(interp_inst);
@@ -61,4 +63,24 @@ pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
     }
 
     prom
+}
+
+/// Convenience macro to extract the last event logged for a given instruction
+/// from the trace of a provided [`EventContext`].
+///
+/// This will panic if no events have been pushed for the targeted instruction.
+///
+/// # Example
+///
+/// ```ignore
+/// get_last_event!(ctx, signed_mul);
+/// ```
+#[macro_export]
+macro_rules! get_last_event {
+    ($ctx:ident, $trace_field:ident) => {
+        $ctx.trace
+            .$trace_field
+            .last()
+            .expect("At least one event should have been pushed.")
+    };
 }

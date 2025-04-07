@@ -2,7 +2,7 @@
 //! operations.
 
 use binius_field::ExtensionField;
-use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
+use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -10,6 +10,18 @@ fn b128_basis(index: usize) -> B128 {
     <B128 as ExtensionField<B16>>::basis(index)
 }
 
+/// Convenience macro to "pack" an instruction with its arguments and the
+/// program counter into a single 128-bit element.
+///
+/// The resulting packed instruction is defined as (in big-endian notation):
+///
+/// [ 0_32b || pc_32b || arg2_16b || arg1_16b || arg0_16b || opcode_16b ]
+///
+/// # Example
+///
+/// ```ignore
+/// pack_instruction_common!(&mut table, "instruction", pc, [arg0, arg1, arg2], opcode);
+/// ```
 macro_rules! pack_instruction_common {
     ($table:expr, $name:expr, $pc:expr, $args:expr, $opcode_expr:expr) => {
         $table.add_computed(
@@ -104,6 +116,19 @@ pub fn pack_instruction_b128(pc: B32, opcode: B16, arg1: B16, arg2: B16, arg3: B
     b1 + b2 + b3 + b4 + b5
 }
 
+/// Creates a u128 value by packing instruction components with constant values.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+#[inline(always)]
+pub const fn pack_instruction_u128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> u128 {
+    opcode as u128
+        | (arg1 as u128) << 16
+        | (arg2 as u128) << 32
+        | (arg3 as u128) << 48
+        | (pc as u128) << 64
+}
+
 /// Creates a B128 value by packing instruction components with a 32-bit
 /// immediate value.
 ///
@@ -117,4 +142,13 @@ pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm
     let b3 = b128_basis(2) * imm;
     let b4 = b128_basis(4) * pc;
     b1 + b2 + b3 + b4
+}
+
+pub(crate) fn pack_b16_into_b32(limbs: [Expr<B16, 1>; 2]) -> Expr<B32, 1> {
+    limbs
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| upcast_expr(limb) * <B32 as ExtensionField<B16>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("limbs has length 2")
 }

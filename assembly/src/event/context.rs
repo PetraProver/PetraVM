@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
@@ -15,10 +15,10 @@ use crate::{
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`ZCrayTrace`], and also contains the PC associated to the event to be
 /// generated.
-pub(crate) struct EventContext<'a> {
+pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut ZCrayTrace,
-    pub field_pc: BinaryField32b,
+    pub field_pc: B32,
 }
 
 impl EventContext<'_> {
@@ -33,7 +33,7 @@ impl EventContext<'_> {
     ///   - the field program counter PC, as `B32`
     ///   - the frame pointer FP, as `u32`
     ///   - the timestamp TS, as `u32`
-    pub fn program_state(&self) -> (u32, BinaryField32b, FramePointer, u32) {
+    pub fn program_state(&self) -> (u32, B32, FramePointer, u32) {
         (self.pc, self.field_pc, self.fp, self.timestamp)
     }
 
@@ -115,8 +115,8 @@ impl EventContext<'_> {
     /// Returns the updated `fp`, post frame allocation.
     pub fn setup_call_frame(
         &mut self,
-        next_fp_offset: BinaryField16b,
-        target: BinaryField32b,
+        next_fp_offset: B16,
+        target: B32,
     ) -> Result<u32, InterpreterError> {
         // Allocate a frame for the call and set the value of the next frame pointer.
         let next_fp_val = self.allocate_new_frame(target)?;
@@ -142,7 +142,7 @@ impl EventContext<'_> {
     /// return value that has not yet been set), we add the move information to
     /// the trace's `pending_updates`, so that it can be generated later on.
     fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
-        for mv_info in &self.moves_to_apply.clone() {
+        while let Some(mv_info) = self.moves_to_apply.pop() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
                     let opt_event = MVVWEvent::generate_event_from_info(
@@ -187,14 +187,12 @@ impl EventContext<'_> {
             }
         }
 
-        self.moves_to_apply = vec![];
+        debug_assert!(self.moves_to_apply.is_empty());
+
         Ok(())
     }
 
-    pub(crate) fn allocate_new_frame(
-        &mut self,
-        target: BinaryField32b,
-    ) -> Result<u32, InterpreterError> {
+    pub(crate) fn allocate_new_frame(&mut self, target: B32) -> Result<u32, InterpreterError> {
         self.interpreter.allocate_new_frame(self.trace, target)
     }
 }
@@ -217,13 +215,13 @@ impl DerefMut for EventContext<'_> {
 #[cfg(test)]
 impl<'a> EventContext<'a> {
     /// Constructor.
-    pub fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
+    pub(crate) fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
         use binius_field::Field;
 
         Self {
             interpreter,
             trace,
-            field_pc: BinaryField32b::ONE,
+            field_pc: B32::ONE,
         }
     }
 

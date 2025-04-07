@@ -1,11 +1,12 @@
-use binius_field::{BinaryField, BinaryField32b, Field};
+use binius_field::{BinaryField, Field};
+use binius_m3::builder::B32;
 use num_traits::WrappingAdd;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_fibonacci_integration() {
     // Use the multiplicative generator G for calculations
-    const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
+    const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 
     // Parse the Fibonacci program
     let compiled_program = Assembler::from_code(include_str!("../../examples/fib.asm")).unwrap();

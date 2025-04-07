@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField, Field, PackedField};
+use binius_field::{ExtensionField, Field, PackedField};
+use binius_m3::builder::{B16, B32};
 use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
