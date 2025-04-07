@@ -9,11 +9,8 @@ use crate::{
     channels::Channels,
     model::Trace,
     tables::{
-        B32MulTable, 
-        BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
-       
-        VromWriteTable,
-    ,
+        B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
+        VromSkipTable, VromWriteTable,
     },
 };
 

@@ -3,6 +3,7 @@
 //! This module contains the tables for each opcode instruction.
 
 pub mod binary;
+pub mod branch;
 pub mod ldi;
 pub mod ret;
 

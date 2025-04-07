@@ -1,4 +1,4 @@
-//! Test the zCrayVM proving system with simple operations.
+//! Test the zCrayVM proving system with LDI and RET instructions.
 //!
 //! This file contains an integration test that verifies the complete
 //! proving system pipeline from assembly to proof verification.
@@ -52,15 +52,19 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     let vrom_writes: Vec<_> = vrom_writes(&zkvm_trace);
 
     // Add initial VROM values for return PC and return FP
-    zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
-    zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
+    zkvm_trace.add_vrom_write(0, 0, 1); // Initial return PC = 0
+    zkvm_trace.add_vrom_write(1, 0, 1); // Initial return FP = 0
 
     // Add other VROM writes
+    let mut max_dst = 0;
     for (dst, imm) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, imm);
+        zkvm_trace.add_vrom_write(dst, imm, 1);
+        max_dst = max_dst.max(dst);
     }
 
-    dbg!(&zkvm_trace);
+    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
+    // gadget
+    zkvm_trace.add_vrom_write(max_dst + 1, 0, 0);
 
     Ok(zkvm_trace)
 }
@@ -210,7 +214,7 @@ fn test_ldi_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        3,
+        4,
     )
 }
 
@@ -235,7 +239,7 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        3,
+        4,
     )
 }
 
@@ -260,6 +264,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        3,
+        4,
     )
 }
