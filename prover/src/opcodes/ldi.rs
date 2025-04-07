@@ -8,7 +8,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
 use crate::{channels::Channels, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.

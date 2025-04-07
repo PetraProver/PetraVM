@@ -2,6 +2,9 @@ use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{Opcode, RetEvent};
 
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::{channels::Channels, types::ProverPackedField};
+
 /// RET (Return) table.
 ///
 /// This table handles the Return instruction, which returns from a function
@@ -13,8 +16,6 @@ use zcrayvm_assembly::{Opcode, RetEvent};
 /// 3. Verify this is a RET instruction
 /// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
 /// 5. Update the state with the new PC and FP values
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{channels::Channels, types::ProverPackedField};
 pub struct RetTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
