@@ -35,6 +35,7 @@ use crate::{
     },
     execution::{StateChannel, ZCrayTrace},
     gadgets::{Add32Gadget, Add64Gadget},
+    get_last_event,
     memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };
@@ -338,7 +339,7 @@ impl Interpreter {
         // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
-        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
+        let new_add_event = get_last_event!(ctx, add);
 
         let new_add32_gadget =
             Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
@@ -358,11 +359,8 @@ impl Interpreter {
         // TODO(Robin): Do this directly within AddEvent / AddiEvent?
 
         // Retrieve event
-        let new_addi_event = ctx
-            .trace
-            .addi
-            .last()
-            .expect("Event should have been pushed");
+        let new_addi_event = get_last_event!(ctx, addi);
+
         let new_add32_gadget =
             Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
         ctx.trace.add32.push(new_add32_gadget);

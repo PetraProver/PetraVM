@@ -88,7 +88,7 @@ fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
     // Initialize memory with return PC = 0, return FP = 0
     let init_values = [0, 0, value];
 
-    // Add VROM writes from LDI eventsff
+    // Add VROM writes from LDI events
     let vrom_writes = |zkvm_trace: &Trace| {
         zkvm_trace
             .ldi_events()

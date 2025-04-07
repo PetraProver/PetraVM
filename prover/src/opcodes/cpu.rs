@@ -11,6 +11,7 @@ use crate::{
 /// setting the next program counter
 pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
+    // TODO: next pc can be set to anything, so shouldn't be virtual?
     pub(crate) next_pc: Col<B32>, // Virtual
     pub(crate) fp: Col<B32>,
     pub(crate) arg0: Col<B16>,
@@ -65,13 +66,8 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         // Pull the current pc and instruction to the prom channel
-        let prom_pull = pack_instruction_with_fixed_opcode(
-            table,
-            "prom_pull",
-            pc,
-            OPCODE as u32,
-            [arg0, arg1, arg2],
-        );
+        let prom_pull =
+            pack_instruction_with_fixed_opcode(table, "prom_pull", pc, OPCODE, [arg0, arg1, arg2]);
         table.pull(prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
@@ -107,6 +103,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
     where
         T: Iterator<Item = CpuEvent>,
     {
+        // TODO: Replace with `get_scalars_mut`?
         let mut pc_col = index.get_mut_as(self.pc)?;
         let mut fp_col = index.get_mut_as(self.fp)?;
         let mut next_pc_col = index.get_mut_as(self.next_pc)?;

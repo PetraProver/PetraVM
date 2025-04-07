@@ -64,3 +64,23 @@ pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
 
     prom
 }
+
+/// Convenience macro to extract the last event logged for a given instruction
+/// from the trace of a provided [`EventContext`].
+///
+/// This will panic if no events have been pushed for the targeted instruction.
+///
+/// # Example
+///
+/// ```ignore
+/// get_last_event!(ctx, signed_mul);
+/// ```
+#[macro_export]
+macro_rules! get_last_event {
+    ($ctx:ident, $trace_field:ident) => {
+        $ctx.trace
+            .$trace_field
+            .last()
+            .expect("At least one event should have been pushed.")
+    };
+}

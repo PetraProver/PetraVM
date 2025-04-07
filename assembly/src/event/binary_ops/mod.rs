@@ -31,11 +31,9 @@ pub(crate) trait OutputOp {
     type Output: PartialEq + Debug;
     fn output(&self) -> Self::Output;
 }
-// TODO: Add type parameter for operation over other fields?
 pub(crate) trait ImmediateBinaryOperation:
     BinaryOperation<Left = B32, Right = B16, Output = B32>
 {
-    // TODO: Add some trick to implement new only once
     #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,
