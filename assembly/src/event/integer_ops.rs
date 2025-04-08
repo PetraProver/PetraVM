@@ -15,7 +15,7 @@ use crate::{
     fire_non_jump_event,
     gadgets::Add64Gadget,
     impl_binary_operation, impl_immediate_binary_operation,
-    memory::VromStore,
+    memory::{VromLoad, VromStore},
     Opcode,
 };
 
@@ -66,7 +66,7 @@ impl Event for MuliEvent {
         src: B16,
         imm: B16,
     ) -> Result<(), InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = u32::load(ctx, ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
@@ -130,8 +130,8 @@ impl Event for MuluEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = u32::load(ctx, ctx.addr(src1.val()))?;
+        let src2_val = u32::load(ctx, ctx.addr(src2.val()))?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
 
@@ -375,8 +375,8 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = u32::load(ctx, ctx.addr(src1.val()))?;
+        let src2_val = u32::load(ctx, ctx.addr(src2.val()))?;
 
         let dst_val = T::mul_op(src1_val, src2_val);
 

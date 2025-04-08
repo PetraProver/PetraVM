@@ -429,8 +429,8 @@ macro_rules! define_bin128_op_event {
                 src2: B16,
             ) -> Result<(), InterpreterError> {
                 // Get source values
-                let src1_val = ctx.load_vrom_u128(ctx.addr(src1.val()))?;
-                let src2_val = ctx.load_vrom_u128(ctx.addr(src2.val()))?;
+                let src1_val = u128::load(ctx, ctx.addr(src1.val()))?;
+                let src2_val = u128::load(ctx, ctx.addr(src2.val()))?;
 
                 // Binary field operation
                 let src1_bf = B128::new(src1_val);

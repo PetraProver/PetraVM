@@ -4,6 +4,7 @@ use super::{context::EventContext, Event};
 use crate::execution::{
     FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
 };
+use crate::memory::VromLoad;
 
 /// Event for RET.
 ///
@@ -29,8 +30,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.load_vrom_u32(ctx.addr(0u32))?,
-            fp_next: ctx.load_vrom_u32(ctx.addr(1u32))?,
+            pc_next: u32::load(ctx, ctx.addr(0u32))?,
+            fp_next: u32::load(ctx, ctx.addr(1u32))?,
         })
     }
 }
@@ -44,9 +45,9 @@ impl Event for RetEvent {
     ) -> Result<(), InterpreterError> {
         let ret_event = RetEvent::new(ctx)?;
 
-        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
+        let target = u32::load(ctx, ctx.addr(0u32))?;
         ctx.jump_to(B32::new(target));
-        ctx.set_fp(ctx.load_vrom_u32(ctx.addr(1u32))?);
+        ctx.set_fp(u32::load(ctx, ctx.addr(1u32))?);
 
         ctx.trace.ret.push(ret_event);
         Ok(())

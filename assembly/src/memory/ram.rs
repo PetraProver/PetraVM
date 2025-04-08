@@ -2,6 +2,7 @@ use std::mem::size_of;
 
 use binius_m3::builder::B32;
 
+use super::AccessSize;
 use crate::memory::MemoryError;
 
 /// Represents the RAM for the zCrayVM
@@ -25,39 +26,47 @@ pub struct RamAccessEvent {
     pub timestamp: u32,
     pub pc: B32,
     pub is_write: bool,
-    pub size: AccessSize,
+    pub size: RamAccessSize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccessSize {
+pub enum RamAccessSize {
     Byte = 1,
     HalfWord = 2,
     Word = 4,
 }
 
-impl AccessSize {
-    pub fn byte_size(&self) -> usize {
-        match self {
-            AccessSize::Byte => 1,
-            AccessSize::HalfWord => 2,
-            AccessSize::Word => 4,
-        }
+impl AccessSize for RamAccessSize {
+    fn byte_size(&self) -> usize {
+        *self as usize
     }
 
-    pub fn for_type<T>() -> Self {
+    fn word_size(&self) -> usize {
+        unimplemented!("RAM accesses are done at the byte level.")
+    }
+
+    fn for_type<T>() -> Self {
         match size_of::<T>() {
-            1 => AccessSize::Byte,
-            2 => AccessSize::HalfWord,
-            4 => AccessSize::Word,
+            1 => RamAccessSize::Byte,
+            2 => RamAccessSize::HalfWord,
+            4 => RamAccessSize::Word,
             _ => panic!("Unsupported type size for RAM access"),
         }
     }
 }
 
-/// Trait for types that can be read from or written to RAM
+/// Trait for types that can be read from or written to the RAM.
 pub trait RamValue: Copy + Sized {
+    /// Converts a slice of bytes into a [`RamValue`].
+    ///
+    /// *NOTE*: This will panic if the provided slice is too small.
     fn from_le_bytes(bytes: &[u8]) -> Self;
+
     fn to_le_bytes(self) -> Vec<u8>;
+
+    /// Converts this [`RamValue`] into a `u32`.
+    ///
+    /// *NOTE*: This will panic if this value does not fit in 32 bits.
     fn to_u32(self) -> u32;
 }
 
@@ -135,7 +144,7 @@ impl Ram {
     }
 
     /// Ensures RAM has enough capacity for an access, resizing if necessary
-    fn ensure_capacity(&mut self, addr: u32, size: AccessSize) {
+    fn ensure_capacity(&mut self, addr: u32, size: RamAccessSize) {
         let required_size = addr as usize + size.byte_size();
         if required_size > self.data.len() {
             self.data.resize(required_size.next_power_of_two(), 0);
@@ -143,7 +152,7 @@ impl Ram {
     }
 
     /// Checks if an access is properly aligned
-    fn check_alignment(&self, addr: u32, size: AccessSize) -> Result<(), MemoryError> {
+    fn check_alignment(&self, addr: u32, size: RamAccessSize) -> Result<(), MemoryError> {
         let addr_usize = addr as usize;
 
         if addr_usize % size.byte_size() != 0 {
@@ -155,7 +164,7 @@ impl Ram {
     }
 
     /// Checks if an address is within the current bounds of RAM
-    fn check_bounds(&self, addr: u32, size: AccessSize) -> Result<(), MemoryError> {
+    fn check_bounds(&self, addr: u32, size: RamAccessSize) -> Result<(), MemoryError> {
         let end_addr = addr as usize + size.byte_size();
 
         if end_addr > self.data.len() {
@@ -257,7 +266,7 @@ mod tests {
             timestamp: 1,
             pc: B32::ONE,
             is_write: true,
-            size: AccessSize::Word,
+            size: RamAccessSize::Word,
         };
         let read_history = RamAccessEvent {
             address: 0,
@@ -266,7 +275,7 @@ mod tests {
             timestamp: 2,
             pc: B32::ONE,
             is_write: false,
-            size: AccessSize::Word,
+            size: RamAccessSize::Word,
         };
         assert_eq!(ram.access_history[0], write_history);
         assert_eq!(ram.access_history[1], read_history);

@@ -1,7 +1,7 @@
 use binius_m3::builder::{B128, B16, B32};
 
 use super::BinaryOperation;
-use crate::memory::VromStore;
+use crate::memory::{VromLoad, VromStore};
 use crate::{
     define_bin128_op_event,
     event::{context::EventContext, Event},
@@ -178,8 +178,8 @@ mod tests {
         let expected_mul = (add_result_bf * c_bf).val();
 
         // Verify the results in VROM
-        let actual_add = trace.get_vrom_u128(add_result_offset).unwrap();
-        let actual_mul = trace.get_vrom_u128(mul_result_offset).unwrap();
+        let actual_add = trace.vrom().read::<u128>(add_result_offset).unwrap();
+        let actual_mul = trace.vrom().read::<u128>(mul_result_offset).unwrap();
 
         assert_eq!(actual_add, expected_add, "B128_ADD operation failed");
         assert_eq!(actual_mul, expected_mul, "B128_MUL operation failed");

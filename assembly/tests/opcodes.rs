@@ -31,7 +31,7 @@ fn test_opcodes() {
 
     // Verify the final result is 0
     assert_eq!(
-        trace.get_vrom_u32(2).unwrap(),
+        trace.vrom().read::<u32>(2).unwrap(),
         0,
         "Final result should be 0"
     );

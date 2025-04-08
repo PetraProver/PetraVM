@@ -8,7 +8,7 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
         ZCrayTrace, G,
     },
-    memory::VromStore,
+    memory::{VromLoad, VromStore},
 };
 
 /// Event for TAILI.
@@ -41,8 +41,8 @@ impl Event for TailiEvent {
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        let return_addr = u32::load(ctx, ctx.addr(0u32))?;
+        let old_fp_val = u32::load(ctx, ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
         let target = B32::from_bases([target_low, target_high])
@@ -113,11 +113,11 @@ impl Event for TailVEvent {
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        let return_addr = u32::load(ctx, ctx.addr(0u32))?;
+        let old_fp_val = u32::load(ctx, ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
+        let target = u32::load(ctx, ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -250,7 +250,7 @@ impl Event for CallvEvent {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
-        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
+        let target = u32::load(ctx, ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -353,10 +353,11 @@ mod tests {
         // Check that there are no MOVE events that have yet to be executed.
         assert!(trace.vrom_pending_updates().is_empty());
         // Check that the next frame pointer was set correctly.
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was not executed.
         assert!(trace
-            .get_vrom_u32(unaccessed_dst_addr.val() as u32)
+            .vrom()
+            .read::<u32>(unaccessed_dst_addr.val() as u32)
             .is_err());
     }
 
@@ -414,10 +415,10 @@ mod tests {
             .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was executed.
         assert_eq!(
-            trace.get_vrom_u32(dst_addr.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(dst_addr.val() as u32).unwrap(),
             imm.val() as u32
         );
     }

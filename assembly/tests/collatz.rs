@@ -25,7 +25,7 @@ fn test_collatz_integration() {
 
         // Verify the final result is 1, as expected for the Collatz conjecture
         assert_eq!(
-            trace.get_vrom_u32(3).unwrap(),
+            trace.vrom().read::<u32>(3).unwrap(),
             1,
             "Final result should be 1 for initial value {}",
             initial_value

@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     execution::{FramePointer, InterpreterError},
-    memory::VromStore,
+    memory::{VromStore, VromLoad},
     ZCrayTrace,
 };
 
@@ -53,7 +53,7 @@ pub(crate) trait ImmediateBinaryOperation:
         src: B16,
         imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = u32::load(ctx, ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
@@ -96,8 +96,8 @@ pub(crate) trait NonImmediateBinaryOperation:
         src1: B16,
         src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = u32::load(ctx, ctx.addr(src1.val()))?;
+        let src2_val = u32::load(ctx, ctx.addr(src2.val()))?;
         let dst_val = Self::operation(B32::new(src1_val), B32::new(src2_val));
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();

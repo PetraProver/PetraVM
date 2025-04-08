@@ -41,7 +41,8 @@ fn test_fibonacci_integration() {
         // Check current a value
         assert_eq!(
             trace
-                .get_vrom_u32((i + 1) * fib_power_two_frame_size + 2)
+                .vrom()
+                .read::<u32>((i + 1) * fib_power_two_frame_size + 2)
                 .unwrap(),
             cur_fibs[0],
             "Incorrect 'a' value at iteration {}",
@@ -51,7 +52,8 @@ fn test_fibonacci_integration() {
         // Check current b value
         assert_eq!(
             trace
-                .get_vrom_u32((i + 1) * fib_power_two_frame_size + 3)
+                .vrom()
+                .read::<u32>((i + 1) * fib_power_two_frame_size + 3)
                 .unwrap(),
             cur_fibs[1],
             "Incorrect 'b' value at iteration {}",
@@ -61,7 +63,8 @@ fn test_fibonacci_integration() {
         // Check a + b value
         assert_eq!(
             trace
-                .get_vrom_u32((i + 1) * fib_power_two_frame_size + 7)
+                .vrom()
+                .read::<u32>((i + 1) * fib_power_two_frame_size + 7)
                 .unwrap(),
             s,
             "Incorrect 'a + b' value at iteration {}",
@@ -76,7 +79,8 @@ fn test_fibonacci_integration() {
     // Check the final return value
     assert_eq!(
         trace
-            .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
+            .vrom()
+            .read::<u32>((init_val + 1) * fib_power_two_frame_size + 5)
             .unwrap(),
         cur_fibs[0],
         "Final return value is incorrect"
@@ -85,9 +89,10 @@ fn test_fibonacci_integration() {
     // Check that the returned value is propagated correctly to the initial frame
     assert_eq!(
         trace
-            .get_vrom_u32((init_val + 1) * fib_power_two_frame_size + 5)
+            .vrom()
+            .read::<u32>((init_val + 1) * fib_power_two_frame_size + 5)
             .unwrap(),
-        trace.get_vrom_u32(3).unwrap(),
+        trace.vrom().read::<u32>(3).unwrap(),
         "Return value not properly propagated"
     );
 }

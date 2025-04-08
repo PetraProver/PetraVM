@@ -36,7 +36,7 @@ use crate::{
     execution::{StateChannel, ZCrayTrace},
     gadgets::{Add32Gadget, Add64Gadget},
     get_last_event,
-    memory::{Memory, MemoryError, ProgramRom, ValueRom},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom, VromLoad},
     opcodes::Opcode,
 };
 
@@ -319,7 +319,7 @@ impl Interpreter {
         target_high: B16,
     ) -> Result<(), InterpreterError> {
         // TODO: group events?
-        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
+        let cond_val = u32::load(ctx, ctx.addr(cond.val()))?;
 
         if cond_val != 0 {
             BnzEvent::generate(ctx, cond, target_low, target_high)
@@ -600,12 +600,12 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.get_vrom_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
-                ((i + 1) * 16) as u32                            // next_fp_val
+                traces.vrom().read::<u32>(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
+                ((i + 1) * 16) as u32                                  // next_fp_val
             );
             assert_eq!(
-                traces.get_vrom_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
-                cur_val                                          // n_val
+                traces.vrom().read::<u32>(i as u32 * 16 + 2).unwrap(), // n (slot 2)
+                cur_val                                                // n_val
             );
 
             if cur_val % 2 == 0 {
@@ -616,6 +616,6 @@ mod tests {
         }
 
         // Check return value.
-        assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
+        assert_eq!(traces.vrom().read::<u32>(3).unwrap(), 1);
     }
 }

@@ -139,7 +139,7 @@ impl Event for B32MuliEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = u32::load(ctx, ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         debug_assert!(field_pc == G.pow(pc as u64 - 1));

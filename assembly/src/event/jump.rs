@@ -2,6 +2,7 @@ use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
+use crate::memory::VromLoad;
 use crate::{
     execution::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
@@ -31,7 +32,7 @@ impl Event for JumpvEvent {
         _unused0: B16,
         _unused1: B16,
     ) -> Result<(), InterpreterError> {
-        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
+        let target = u32::load(ctx, ctx.addr(offset.val()))?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 

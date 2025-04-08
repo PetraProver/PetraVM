@@ -11,7 +11,7 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
     },
     fire_non_jump_event,
-    memory::VromStore,
+    memory::{VromLoad, VromStore},
     Opcode, ZCrayTrace,
 };
 
@@ -157,7 +157,7 @@ where
         src: B16,
         imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = u32::load(ctx, ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount);
@@ -188,8 +188,8 @@ where
         src1: B16,
         src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src_val = u32::load(ctx, ctx.addr(src1.val()))?;
+        let shift_amount = u32::load(ctx, ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount);
 
@@ -512,45 +512,48 @@ mod test {
 
         // Check results for immediate shift operations
         assert_eq!(
-            trace.get_vrom_u32(slli_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(slli_result.val() as u32).unwrap(),
             0x00000018,
             "SLLI: 3 << 3 should be 24 (0x00000018)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srli_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srli_result.val() as u32).unwrap(),
             0x00000000,
             "SRLI: 3 >> 3 should be 0"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srai_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srai_result.val() as u32).unwrap(),
             0xf0000000,
             "SRAI: 0x80000000 >> 3 (arithmetic) should be 0xF0000000"
         );
 
         // Check edge case: immediate shift by 0
         assert_eq!(
-            trace.get_vrom_u32(slli_zero_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(slli_zero_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "Shift by 0 should return original value"
         );
 
         // Check results for VROM-based shift operations
         assert_eq!(
-            trace.get_vrom_u32(sll_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(sll_result.val() as u32).unwrap(),
             0x00000018,
             "SLL: 3 << 3 should be 24 (0x00000018)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srl_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srl_result.val() as u32).unwrap(),
             0x00000000,
             "SRL: 3 >> 3 should be 0"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(sra_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(sra_result.val() as u32).unwrap(),
             0xf0000000,
             "SRA: 0x80000000 >> 3 (arithmetic) should be 0xF0000000"
         );
@@ -558,20 +561,29 @@ mod test {
         // Check VROM-based edge cases (modular behavior):
         // A shift by 32 is equivalent to a shift by 0.
         assert_eq!(
-            trace.get_vrom_u32(sll_zero_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(sll_zero_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "VROM-based shift by 0 should return original value"
         );
 
         // For shift amount 32, effective shift = 0, so original value is returned.
         assert_eq!(
-            trace.get_vrom_u32(srl_32_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(srl_32_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "SRL by 32 should return original value (mod 32 behavior)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(sra_32_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(sra_32_result.val() as u32)
+                .unwrap(),
             0x80000000,
             "SRA by 32 on negative value should return original value (mod 32 behavior)"
         );
