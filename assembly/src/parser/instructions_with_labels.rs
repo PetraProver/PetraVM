@@ -309,5 +309,5 @@ pub enum Error {
     NoStartLabelOrInstructionFound,
 
     #[error(transparent)]
-    PestParseError(#[from] pest::error::Error<super::Rule>),
+    PestParse(#[from] Box<pest::error::Error<super::Rule>>),
 }
