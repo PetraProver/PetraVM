@@ -65,7 +65,7 @@ pub struct Trace {
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<Instruction>,
-    /// List of VROM writes (address, value) pairs
+    /// List of VROM writes (address, value, multiplicity) pairs
     pub vrom_writes: Vec<(u32, u32, u32)>,
 }
 
@@ -129,6 +129,7 @@ impl Trace {
     /// # Arguments
     /// * `addr` - The address to write to
     /// * `value` - The value to write
+    /// * `multiplicity` - The multiplicity of pulls of this VROM write
     pub fn add_vrom_write(&mut self, addr: u32, value: u32, multiplicity: u32) {
         self.vrom_writes.push((addr, value, multiplicity));
     }
