@@ -3,9 +3,9 @@ mod vrom;
 mod vrom_allocator;
 
 use binius_m3::builder::B32;
-pub(crate) use ram::{Ram, RamValue};
+pub(crate) use ram::{Ram, RamValueT};
 pub use vrom::ValueRom;
-pub(crate) use vrom::{VromPendingUpdates, VromStore, VromUpdate, VromValue};
+pub(crate) use vrom::{VromPendingUpdates, VromStore, VromUpdate, VromValueT};
 pub(crate) use vrom_allocator::VromAllocator;
 
 use crate::{event::context::EventContext, execution::InterpreterInstruction};

@@ -63,31 +63,13 @@ impl ValueRom {
         vrom
     }
 
-    /// Gets a u32 value from the specified index.
-    ///
-    /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_opt_u32` everywhere outside of CALL procedures.
-    fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
-        match self.vrom.get(&index) {
-            Some(&value) => Ok(value),
-            None => Err(MemoryError::VromMissingValue(index)),
-        }
-    }
-
-    /// Gets an optional u32 value from the specified index.
-    ///
-    /// Used for MOVE operations that are part of a CALL procedure, since the
-    /// value to move may not yet be known.
-    fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
-        Ok(self.vrom.get(&index).copied())
-    }
-
-    /// Generic read method for supported types.
+    /// Generic read method for supported types. This will read a value stored
+    /// at the provided index.
     ///
     /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
-    pub fn read<T: VromValue>(&self, index: u32) -> Result<T, MemoryError> {
+    pub fn read<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
 
         let mut value = T::zero();
@@ -95,7 +77,11 @@ impl ValueRom {
         for i in 0..T::word_size() {
             let idx = index + i as u32; // Read from consecutive slots
 
-            let word = self.get_u32(idx)?;
+            let word = match self.vrom.get(&idx) {
+                Some(&value) => value,
+                None => return Err(MemoryError::VromMissingValue(index)),
+            };
+
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));
         }
@@ -109,7 +95,7 @@ impl ValueRom {
     /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
-    pub fn read_opt<T: VromValue>(&self, index: u32) -> Result<Option<T>, MemoryError> {
+    pub fn read_opt<T: VromValueT>(&self, index: u32) -> Result<Option<T>, MemoryError> {
         self.check_alignment::<T>(index)?;
 
         let mut value = T::zero();
@@ -117,11 +103,11 @@ impl ValueRom {
         for i in 0..T::word_size() {
             let idx = index + i as u32; // Read from consecutive slots
 
-            let word = self.get_opt_u32(idx)?;
+            let word = self.vrom.get(&idx);
 
             if let Some(v) = word {
                 // Shift the word to its appropriate position and add to the value
-                value = value + (T::from(v) << (i * 32));
+                value = value + (T::from(*v) << (i * 32));
             } else {
                 return Ok(None);
             }
@@ -135,7 +121,7 @@ impl ValueRom {
     /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
-    pub(crate) fn write<T: VromValue>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
+    pub(crate) fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
 
         for i in 0..T::word_size() as u32 {
@@ -227,23 +213,23 @@ impl VromStore for u128 {
 }
 
 /// Trait for types that can be read from or written to the VROM.
-pub trait VromValue:
+pub trait VromValueT:
     Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + VromStore
 {
     fn to_u128(self) -> u128;
 }
 
-impl VromValue for u32 {
+impl VromValueT for u32 {
     fn to_u128(self) -> u128 {
         self as u128
     }
 }
-impl VromValue for u64 {
+impl VromValueT for u64 {
     fn to_u128(self) -> u128 {
         self as u128
     }
 }
-impl VromValue for u128 {
+impl VromValueT for u128 {
     fn to_u128(self) -> u128 {
         self as u128
     }
@@ -260,7 +246,7 @@ mod tests {
         // Test u32
         let u32_val: u32 = 0xABCDEF12;
         vrom.write(2, u32_val).unwrap();
-        assert_eq!(vrom.get_u32(2).unwrap(), u32_val);
+        assert_eq!(vrom.read::<u32>(2).unwrap(), u32_val);
     }
 
     #[test]
@@ -274,10 +260,10 @@ mod tests {
         assert_eq!(vrom.read::<u128>(0).unwrap(), u128_val);
 
         // Check individual u32 components (first is least significant)
-        assert_eq!(vrom.get_u32(0).unwrap(), 0xDDEEFF00);
-        assert_eq!(vrom.get_u32(1).unwrap(), 0x99AABBCC);
-        assert_eq!(vrom.get_u32(2).unwrap(), 0x55667788);
-        assert_eq!(vrom.get_u32(3).unwrap(), 0x11223344);
+        assert_eq!(vrom.read::<u32>(0).unwrap(), 0xDDEEFF00);
+        assert_eq!(vrom.read::<u32>(1).unwrap(), 0x99AABBCC);
+        assert_eq!(vrom.read::<u32>(2).unwrap(), 0x55667788);
+        assert_eq!(vrom.read::<u32>(3).unwrap(), 0x11223344);
     }
 
     #[test]
@@ -328,7 +314,7 @@ mod tests {
         let vrom = ValueRom::default();
 
         // Try to get a value from an empty VROM
-        let result = vrom.get_u32(0);
+        let result = vrom.read::<u32>(0);
         assert!(result.is_err());
 
         if let Err(MemoryError::VromMissingValue(index)) = result {

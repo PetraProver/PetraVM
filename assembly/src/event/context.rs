@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
-    memory::{AccessSize, MemoryError, Ram, RamValue, VromStore, VromValue},
+    memory::{AccessSize, MemoryError, Ram, RamValueT, VromStore, VromValueT},
     ValueRom, ZCrayTrace,
 };
 
@@ -51,21 +51,21 @@ impl EventContext<'_> {
 
     pub fn read_vrom<T>(&self, addr: u32) -> Result<T, MemoryError>
     where
-        T: VromValue,
+        T: VromValueT,
     {
         self.vrom().read(addr)
     }
 
     pub fn read_vrom_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
     where
-        T: VromValue,
+        T: VromValueT,
     {
         self.vrom().read_opt(addr)
     }
 
     pub fn write_vrom<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
     where
-        T: VromValue,
+        T: VromValueT,
     {
         value.store(self, addr)
     }
@@ -94,7 +94,7 @@ impl EventContext<'_> {
 
     pub fn read_ram<T>(&mut self, addr: u32, timestamp: u32, pc: B32) -> Result<T, MemoryError>
     where
-        T: RamValue,
+        T: RamValueT,
     {
         self.ram_mut().read(addr, timestamp, pc)
     }
@@ -107,7 +107,7 @@ impl EventContext<'_> {
         pc: B32,
     ) -> Result<(), MemoryError>
     where
-        T: RamValue,
+        T: RamValueT,
     {
         self.ram_mut().write(addr, value, timestamp, pc)
     }

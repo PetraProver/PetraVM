@@ -9,7 +9,7 @@ use crate::{
         ZCrayTrace,
     },
     fire_non_jump_event,
-    memory::{MemoryError, VromStore, VromValue},
+    memory::{MemoryError, VromStore, VromValueT},
     opcodes::Opcode,
 };
 
@@ -591,7 +591,7 @@ fn delegate_move(
     ctx.incr_pc();
 }
 
-fn execute_mv<T: VromValue>(
+fn execute_mv<T: VromValueT>(
     ctx: &mut EventContext,
     dst_addr: u32,
     value: T,
