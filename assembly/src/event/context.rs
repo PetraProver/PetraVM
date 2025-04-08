@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
-    memory::MemoryError,
+    memory::{AccessSize, MemoryAccess, MemoryError, Ram, RamValue, VromStore, VromValue},
     ValueRom, ZCrayTrace,
 };
 
@@ -49,31 +49,39 @@ impl EventContext<'_> {
         self.trace.vrom_mut()
     }
 
-    /// Stores a `u32` value in VROM at the provided address.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// that will scale the frame pointer with the provided offset to obtain the
-    /// corresponding VROM address.
-    pub fn store_vrom_u32(&mut self, address: u32, value: u32) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u32(address, value)
+    pub fn read_vrom<T>(&self, addr: u32) -> Result<T, MemoryError>
+    where
+        T: VromValue,
+    {
+        self.vrom().read(addr)
     }
 
-    /// Stores a `u64` value in VROM at the provided address.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// that will scale the frame pointer with the provided offset to obtain the
-    /// corresponding VROM address.
-    pub fn store_vrom_u64(&mut self, address: u32, value: u64) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u64(address, value)
+    pub fn read_vrom_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
+    where
+        T: VromValue,
+    {
+        self.vrom().read_opt(addr)
     }
 
-    /// Stores a `u128` value in VROM at the provided address.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// that will scale the frame pointer with the provided offset to obtain the
-    /// corresponding VROM address.
-    pub fn store_vrom_u128(&mut self, address: u32, value: u128) -> Result<(), MemoryError> {
-        self.trace.set_vrom_u128(address, value)
+    pub fn write_vrom<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
+    where
+        T: VromValue,
+    {
+        <ValueRom as MemoryAccess<T>>::write(self, addr, value)
+    }
+
+    pub fn read_ram<T>(&self, addr: u32) -> Result<T, MemoryError>
+    where
+        T: RamValue,
+    {
+        <Ram as MemoryAccess<T>>::read(self, addr)
+    }
+
+    pub fn write_ram<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
+    where
+        T: RamValue,
+    {
+        <Ram as MemoryAccess<T>>::write(self, addr, value)
     }
 
     /// Increments the underlying [`Interpreter`]'s PC.
@@ -96,7 +104,7 @@ impl EventContext<'_> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
 
-        self.store_vrom_u32(next_fp_addr, next_fp_val)?;
+        self.write_vrom::<u32>(next_fp_addr, next_fp_val)?;
 
         // Once we have the next_fp, we know the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly

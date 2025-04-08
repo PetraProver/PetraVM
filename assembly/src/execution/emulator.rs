@@ -36,7 +36,7 @@ use crate::{
     execution::{StateChannel, ZCrayTrace},
     gadgets::{Add32Gadget, Add64Gadget},
     get_last_event,
-    memory::{Memory, MemoryError, ProgramRom, ValueRom, VromLoad},
+    memory::{Memory, MemoryError, ProgramRom, ValueRom},
     opcodes::Opcode,
 };
 
@@ -319,7 +319,7 @@ impl Interpreter {
         target_high: B16,
     ) -> Result<(), InterpreterError> {
         // TODO: group events?
-        let cond_val = u32::load(ctx, ctx.addr(cond.val()))?;
+        let cond_val = ctx.read_vrom::<u32>(ctx.addr(cond.val()))?;
 
         if cond_val != 0 {
             BnzEvent::generate(ctx, cond, target_low, target_high)

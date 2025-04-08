@@ -9,7 +9,7 @@ use crate::{
         ZCrayTrace,
     },
     fire_non_jump_event,
-    memory::{MemoryError, VromLoad, VromStore},
+    memory::{MemoryError, VromStore, VromValue},
     opcodes::Opcode,
 };
 
@@ -202,15 +202,15 @@ impl MVVWEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = u32::load(ctx, ctx.addr(dst.val()))?;
+        let dst_addr = ctx.read_vrom::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = u32::load_opt(ctx, ctx.addr(src.val()))?;
+        let opt_src_val = ctx.read_vrom_opt::<u32>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            src_val.store(ctx, dst_addr ^ offset.val() as u32)?;
+            ctx.write_vrom(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -243,13 +243,13 @@ impl MVVWEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = u32::load_opt(ctx, ctx.addr(dst.val()))?;
-        let opt_src_val = u32::load_opt(ctx, ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.read_vrom_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.read_vrom_opt::<u32>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if let Some(dst_addr) = opt_dst_addr {
-            let opt_dst_val = u32::load_opt(ctx, dst_addr ^ offset.val() as u32)?;
+            let opt_dst_val = ctx.read_vrom_opt::<u32>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if let Some(dst_val) = opt_dst_val {
                 execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
@@ -347,15 +347,15 @@ impl MVVLEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = u32::load(ctx, ctx.addr(dst.val()))?;
+        let dst_addr = ctx.read_vrom::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = u128::load_opt(ctx, ctx.addr(src.val()))?;
+        let opt_src_val = ctx.read_vrom_opt::<u128>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            src_val.store(ctx, dst_addr ^ offset.val() as u32)?;
+            ctx.write_vrom(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -388,8 +388,8 @@ impl MVVLEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = u32::load_opt(ctx, ctx.addr(dst.val()))?;
-        let opt_src_val = u128::load_opt(ctx, ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.read_vrom_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.read_vrom_opt::<u128>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
@@ -476,9 +476,9 @@ impl MVIHEvent {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = u32::load(ctx, ctx.addr(dst.val()))?;
+        let dst_addr = ctx.read_vrom::<u32>(ctx.addr(dst.val()))?;
 
-        imm.val().store(ctx, dst_addr ^ offset.val() as u32)?;
+        ctx.write_vrom(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -499,7 +499,7 @@ impl MVIHEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = u32::load_opt(ctx, ctx.addr(dst.val()))?;
+        let opt_dst_addr = ctx.read_vrom_opt::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
@@ -591,12 +591,12 @@ fn delegate_move(
     ctx.incr_pc();
 }
 
-fn execute_mv<T: VromStore>(
+fn execute_mv<T: VromValue>(
     ctx: &mut EventContext,
     dst_addr: u32,
     value: T,
 ) -> Result<(), MemoryError> {
-    value.store(ctx, dst_addr)?;
+    ctx.write_vrom(dst_addr, value)?;
     ctx.incr_pc();
 
     Ok(())

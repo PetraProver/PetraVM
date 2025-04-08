@@ -10,9 +10,7 @@ use crate::{
     execution::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
     },
-    fire_non_jump_event,
-    memory::{VromLoad, VromStore},
-    Opcode, ZCrayTrace,
+    fire_non_jump_event, Opcode, ZCrayTrace,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -157,14 +155,14 @@ where
         src: B16,
         imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = u32::load(ctx, ctx.addr(src.val()))?;
+        let src_val = ctx.read_vrom::<u32>(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        new_val.store(ctx, ctx.addr(dst.val()))?;
+        ctx.write_vrom(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -188,14 +186,14 @@ where
         src1: B16,
         src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = u32::load(ctx, ctx.addr(src1.val()))?;
-        let shift_amount = u32::load(ctx, ctx.addr(src2.val()))?;
+        let src_val = ctx.read_vrom::<u32>(ctx.addr(src1.val()))?;
+        let shift_amount = ctx.read_vrom::<u32>(ctx.addr(src2.val()))?;
         let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        new_val.store(ctx, ctx.addr(dst.val()))?;
+        ctx.write_vrom(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(

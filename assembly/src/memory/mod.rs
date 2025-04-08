@@ -3,12 +3,12 @@ mod vrom;
 mod vrom_allocator;
 
 use binius_m3::builder::B32;
-pub(crate) use ram::Ram;
+pub(crate) use ram::{Ram, RamValue};
 pub use vrom::ValueRom;
-pub(crate) use vrom::{VromLoad, VromPendingUpdates, VromStore, VromUpdate};
+pub(crate) use vrom::{VromPendingUpdates, VromStore, VromUpdate, VromValue};
 pub(crate) use vrom_allocator::VromAllocator;
 
-use crate::execution::InterpreterInstruction;
+use crate::{event::context::EventContext, execution::InterpreterInstruction};
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
@@ -20,10 +20,69 @@ pub enum MemoryError {
     RamMisalignedAccess(u32, usize),
 }
 
-pub(crate) trait AccessSize {
-    fn byte_size(&self) -> usize;
-    fn word_size(&self) -> usize;
-    fn for_type<T>() -> Self;
+/// Trait that defines access granularity in memory, like word size (e.g., u32,
+/// u128). Can be used to determine how many 32-bit words are required.
+pub trait AccessSize {
+    fn byte_size() -> usize;
+    fn word_size() -> usize;
+}
+
+impl AccessSize for u8 {
+    fn byte_size() -> usize {
+        1
+    }
+
+    fn word_size() -> usize {
+        1 // TODO: Should it panic instead?
+    }
+}
+
+impl AccessSize for u16 {
+    fn byte_size() -> usize {
+        2
+    }
+
+    fn word_size() -> usize {
+        1 // TODO: Should it panic instead?
+    }
+}
+
+impl AccessSize for u32 {
+    fn byte_size() -> usize {
+        4
+    }
+
+    fn word_size() -> usize {
+        1
+    }
+}
+
+impl AccessSize for u64 {
+    fn byte_size() -> usize {
+        8
+    }
+
+    fn word_size() -> usize {
+        2
+    }
+}
+
+impl AccessSize for u128 {
+    fn byte_size() -> usize {
+        16
+    }
+
+    fn word_size() -> usize {
+        4
+    }
+}
+
+/// Generic trait for memory objects like VROM or RAM to support reads and
+/// writes.
+pub(crate) trait MemoryAccess<T: AccessSize + Copy + Default> {
+    fn read(ctx: &EventContext, address: u32) -> Result<T, MemoryError>;
+    fn read_opt(ctx: &EventContext, address: u32) -> Result<Option<T>, MemoryError>;
+    fn write(ctx: &mut EventContext, address: u32, value: T) -> Result<(), MemoryError>;
 }
 
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is

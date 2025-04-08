@@ -1,7 +1,6 @@
 use binius_m3::builder::{B128, B16, B32};
 
 use super::BinaryOperation;
-use crate::memory::{VromLoad, VromStore};
 use crate::{
     define_bin128_op_event,
     event::{context::EventContext, Event},

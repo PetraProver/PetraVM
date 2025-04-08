@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Shl};
 use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
 
-use super::{AccessSize, MemoryError};
+use super::{AccessSize, MemoryAccess, MemoryError};
 use crate::{
     event::context::EventContext, execution::ZCrayTrace, memory::vrom_allocator::VromAllocator,
     opcodes::Opcode,
@@ -38,32 +38,6 @@ pub struct ValueRom {
     /// in the HashMap's keys is finally set, we populate the missing values
     /// and remove them from the HashMap.
     pub(crate) pending_updates: VromPendingUpdates,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VromAccessSize {
-    U32 = 1,
-    U64 = 2,
-    U128 = 4,
-}
-
-impl AccessSize for VromAccessSize {
-    fn byte_size(&self) -> usize {
-        unimplemented!("VROM accesses are done at the word level.")
-    }
-
-    fn word_size(&self) -> usize {
-        *self as usize
-    }
-
-    fn for_type<T>() -> Self {
-        match size_of::<T>() {
-            4 => VromAccessSize::U32,
-            8 => VromAccessSize::U64,
-            16 => VromAccessSize::U128,
-            _ => panic!("Unsupported type size for VROM access"),
-        }
-    }
 }
 
 impl ValueRom {
@@ -108,7 +82,7 @@ impl ValueRom {
     /// Initializes a u64 value in the VROM without checking whether there are
     /// associated values in `pending_updates`.
     pub(crate) fn set_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.check_alignment(index, AccessSize::for_type::<u64>())?;
+        self.check_alignment::<u64>(index)?;
 
         for i in 0..2 {
             let cur_word = (value >> (32 * i)) as u32;
@@ -127,7 +101,7 @@ impl ValueRom {
     /// Initializes a u32 value in the VROM without checking whether there are
     /// associated values in `pending_updates`.
     pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.check_alignment(index, AccessSize::for_type::<u128>())?;
+        self.check_alignment::<u128>(index)?;
 
         for i in 0..4 {
             let cur_word = (value >> (32 * i)) as u32;
@@ -165,7 +139,7 @@ impl ValueRom {
     /// Returns an error if the value is not found. This method should be used
     /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_u64(&self, index: u32) -> Result<u64, MemoryError> {
-        self.check_alignment(index, AccessSize::for_type::<u64>())?;
+        self.check_alignment::<u64>(index)?;
 
         // For u64, we need to read from multiple u32 slots (2 slots)
         let mut result: u64 = 0;
@@ -186,12 +160,11 @@ impl ValueRom {
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
     pub fn read<T: VromValue>(&self, index: u32) -> Result<T, MemoryError> {
-        let access_size = AccessSize::for_type::<T>();
-        self.check_alignment(index, access_size)?;
+        self.check_alignment::<T>(index)?;
 
         let mut value = T::zero();
 
-        for i in 0..access_size.word_size() {
+        for i in 0..T::word_size() {
             let idx = index + i as u32; // Read from consecutive slots
 
             let word = self.get_u32(idx)?;
@@ -209,12 +182,11 @@ impl ValueRom {
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
     pub fn read_opt<T: VromValue>(&self, index: u32) -> Result<Option<T>, MemoryError> {
-        let access_size = AccessSize::for_type::<T>();
-        self.check_alignment(index, access_size)?;
+        self.check_alignment::<T>(index)?;
 
         let mut value = T::zero();
 
-        for i in 0..access_size.word_size() {
+        for i in 0..T::word_size() {
             let idx = index + i as u32; // Read from consecutive slots
 
             let word = self.get_opt_u32(idx)?;
@@ -236,9 +208,9 @@ impl ValueRom {
     }
 
     /// Checks if the index has proper alignment.
-    fn check_alignment(&self, index: u32, size: VromAccessSize) -> Result<(), MemoryError> {
-        if index as usize % size.word_size() != 0 {
-            Err(MemoryError::VromMisaligned(size.word_size() as u8, index))
+    fn check_alignment<T: AccessSize>(&self, index: u32) -> Result<(), MemoryError> {
+        if index as usize % T::word_size() != 0 {
+            Err(MemoryError::VromMisaligned(T::word_size() as u8, index))
         } else {
             Ok(())
         }
@@ -274,7 +246,7 @@ impl ValueRom {
 ///
 /// It abstracts over the different data types that can be written into the VROM
 /// during program execution.
-pub(crate) trait VromStore {
+pub trait VromStore {
     /// Stores the given `value` at the specified `addr` in the VROM.
     ///
     /// # Arguments
@@ -288,16 +260,9 @@ pub(crate) trait VromStore {
     fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError>;
 }
 
-impl VromStore for u16 {
-    // *NOTE*: This will be stored as a `u32`.
-    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
-        ctx.store_vrom_u32(addr, *self as u32)
-    }
-}
-
 impl VromStore for u32 {
     fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
-        ctx.store_vrom_u32(addr, *self)
+        ctx.trace.set_vrom_u32(addr, *self)
     }
 }
 
@@ -314,40 +279,31 @@ impl VromStore for u128 {
 }
 
 /// Trait for types that can be read from or written to the VROM.
-pub trait VromValue: Copy + Zero + Shl<usize, Output = Self> + Sized + From<u32> {}
+pub trait VromValue:
+    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + VromStore
+{
+}
 
 impl VromValue for u32 {}
 impl VromValue for u64 {}
 impl VromValue for u128 {}
 
-/// Trait for loading values from the VROM of the zCrayVM.
-///
-/// It abstracts over the different data types that can be read from the VROM
-/// during program execution, and provides both strict and fallible
-/// variants of the load operation, to account for values yet to be set.
-pub(crate) trait VromLoad: VromValue {
-    /// Loads a value from VROM at the given address.
-    ///
-    /// # Arguments
-    /// * `ctx` - The current event context.
-    /// * `addr` - The memory address to read from.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// /// that will scale the frame pointer with the provided offset to obtain
-    /// the corresponding VROM address.
-    fn load(ctx: &EventContext, addr: u32) -> Result<Self, MemoryError> {
-        ctx.trace.vrom().read::<Self>(addr)
+impl<T> MemoryAccess<T> for ValueRom
+where
+    T: VromValue,
+{
+    fn read(ctx: &EventContext, address: u32) -> Result<T, MemoryError> {
+        ctx.read_vrom::<T>(address)
     }
 
-    /// Fallible version of [`Self::load`].
-    fn load_opt(ctx: &EventContext, addr: u32) -> Result<Option<Self>, MemoryError> {
-        ctx.trace.vrom().read_opt::<Self>(addr)
+    fn read_opt(ctx: &EventContext, address: u32) -> Result<Option<T>, MemoryError> {
+        ctx.read_vrom_opt::<T>(address)
+    }
+
+    fn write(ctx: &mut EventContext, address: u32, value: T) -> Result<(), MemoryError> {
+        value.store(ctx, address)
     }
 }
-
-impl VromLoad for u32 {}
-impl VromLoad for u64 {}
-impl VromLoad for u128 {}
 
 #[cfg(test)]
 mod tests {

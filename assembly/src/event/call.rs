@@ -8,7 +8,8 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
         ZCrayTrace, G,
     },
-    memory::{VromLoad, VromStore},
+    memory::MemoryAccess,
+    ValueRom,
 };
 
 /// Event for TAILI.
@@ -41,8 +42,8 @@ impl Event for TailiEvent {
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = u32::load(ctx, ctx.addr(0u32))?;
-        let old_fp_val = u32::load(ctx, ctx.addr(1u32))?;
+        let return_addr = ctx.read_vrom::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.read_vrom::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
         let target = B32::from_bases([target_low, target_high])
@@ -54,8 +55,8 @@ impl Event for TailiEvent {
 
         ctx.jump_to(target);
 
-        return_addr.store(ctx, ctx.addr(0u32))?;
-        old_fp_val.store(ctx, ctx.addr(1u32))?;
+        ctx.write_vrom(ctx.addr(0u32), return_addr)?;
+        ctx.write_vrom(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
             pc: field_pc,
@@ -113,11 +114,11 @@ impl Event for TailVEvent {
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = u32::load(ctx, ctx.addr(0u32))?;
-        let old_fp_val = u32::load(ctx, ctx.addr(1u32))?;
+        let return_addr = ctx.read_vrom::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.read_vrom::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = u32::load(ctx, ctx.addr(offset.val()))?;
+        let target = ctx.read_vrom::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -126,8 +127,8 @@ impl Event for TailVEvent {
         // Jump to the target,
         ctx.jump_to(B32::new(target));
 
-        return_addr.store(ctx, ctx.addr(0u32))?;
-        old_fp_val.store(ctx, ctx.addr(1u32))?;
+        ctx.write_vrom(ctx.addr(0u32), return_addr)?;
+        ctx.write_vrom(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
             pc: field_pc,
@@ -194,8 +195,8 @@ impl Event for CalliEvent {
         ctx.jump_to(target);
 
         let return_pc = (field_pc * G).val();
-        return_pc.store(ctx, ctx.addr(0u32))?;
-        fp.store(ctx, ctx.addr(1u32))?;
+        ctx.write_vrom(ctx.addr(0u32), return_pc)?;
+        ctx.write_vrom(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: field_pc,
@@ -250,7 +251,7 @@ impl Event for CallvEvent {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
-        let target = u32::load(ctx, ctx.addr(offset.val()))?;
+        let target = ctx.read_vrom::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -260,8 +261,8 @@ impl Event for CallvEvent {
         ctx.jump_to(B32::new(target));
 
         let return_pc = (field_pc * G).val();
-        return_pc.store(ctx, ctx.addr(0u32))?;
-        fp.store(ctx, ctx.addr(1u32))?;
+        ctx.write_vrom(ctx.addr(0u32), return_pc)?;
+        ctx.write_vrom(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: field_pc,
