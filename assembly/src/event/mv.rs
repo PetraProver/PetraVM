@@ -1033,7 +1033,7 @@ mod tests {
         let dst_val = 4;
         let storage_mvih_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
         let storage_mvvl = (8 ^ dst_val).into();
-        let storage_mvvw = 12.into();
+        let storage_mvvw = (12 ^ dst_val).into();
         let imm = 12.into();
 
         // Do MVVW and MVVL with an unaccessible source value.
@@ -1065,7 +1065,8 @@ mod tests {
                 storage_mvih_offsets[3],
                 zero,
             ],
-            // Set the source value for MVV.L
+            // Set the source value for MVV.L. We use `dst` here to ensure the computation is
+            // correct in `generate_event`.
             [
                 Opcode::Mvvl.get_field_elt(),
                 dst.into(),
@@ -1075,7 +1076,7 @@ mod tests {
             // Set the source value for MVV.W
             [
                 Opcode::Mvvw.get_field_elt(),
-                cur_fp,
+                dst.into(),
                 storage_mvvw,
                 storage_mvih_offsets[0],
             ],
@@ -1116,7 +1117,9 @@ mod tests {
             imm.val() as u128
         );
         assert_eq!(
-            traces.get_vrom_u32(storage_mvvw.val() as u32).unwrap(),
+            traces
+                .get_vrom_u32((storage_mvvw.val() ^ dst_val) as u32)
+                .unwrap(),
             imm.val() as u32
         );
     }
