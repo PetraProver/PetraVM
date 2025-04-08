@@ -403,8 +403,8 @@ mod test {
 
         // Initialize VROM
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0).unwrap(); // Return PC
-        vrom.set_u32(1, 0).unwrap(); // Return FP
+        vrom.write(0, 0u32).unwrap(); // Return PC
+        vrom.write(1, 0u32).unwrap(); // Return FP
 
         // Create source value slots
         let src_pos = vrom.set_value_at_offset(2, 0x00000003);

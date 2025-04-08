@@ -651,10 +651,10 @@ mod tests {
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(2, 0).unwrap();
-        vrom.set_u32(5, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(2, 0u32).unwrap();
+        vrom.write(5, 0u32).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -740,18 +740,17 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set src vals.
-        let src_val1 = 1;
-        let src_val2 = 2;
-        vrom.set_u32(src_addr1.val() as u32, src_val1).unwrap();
-        vrom.set_u128(src_addr2.val() as u32, src_val2).unwrap();
+        let src_val1 = 1u32;
+        let src_val2 = 2u128;
+        vrom.write(src_addr1.val() as u32, src_val1).unwrap();
+        vrom.write(src_addr2.val() as u32, src_val2).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -855,12 +854,11 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         // We do not set the src_addr.
         let memory = Memory::new(prom, vrom);
@@ -998,8 +996,8 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
@@ -1107,10 +1105,10 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
         // Set the destination address.
-        vrom.set_u32(dst as u32, dst_val as u32).unwrap();
+        vrom.write(dst as u32, dst_val as u32).unwrap();
 
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);

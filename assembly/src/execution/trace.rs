@@ -196,7 +196,7 @@ impl ZCrayTrace {
 
     /// Sets a u32 value at the specified index.
     pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom_mut().set_u32(index, value)?;
+        self.vrom_mut().write(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
@@ -222,7 +222,7 @@ impl ZCrayTrace {
 
     /// Sets a u64 value at the specified index.
     pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.vrom_mut().set_u64(index, value)?;
+        self.vrom_mut().write(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
@@ -248,7 +248,7 @@ impl ZCrayTrace {
 
     /// Sets a u128 value at the specified index.
     pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.vrom_mut().set_u128(index, value)?;
+        self.vrom_mut().write(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {

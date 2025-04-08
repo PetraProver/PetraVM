@@ -339,10 +339,9 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(target_addr.val() as u32, target.val())
-            .unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(target_addr.val() as u32, target.val()).unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
@@ -402,10 +401,9 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(target_addr.val() as u32, target.val())
-            .unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(target_addr.val() as u32, target.val()).unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);

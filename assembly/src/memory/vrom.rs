@@ -57,62 +57,10 @@ impl ValueRom {
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
         let mut vrom = Self::default();
         for (i, &value) in init_values.iter().enumerate() {
-            vrom.set_u32(i as u32, value).unwrap();
+            vrom.write(i as u32, value).unwrap();
         }
 
         vrom
-    }
-
-    /// Used for memory initialization before the start of the trace generation.
-    ///
-    /// Initializes a u32 value in the VROM without checking whether there are
-    /// associated values in `pending_updates`.
-    pub(crate) fn set_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        if let Some(prev_val) = self.vrom.insert(index, value) {
-            if prev_val != value {
-                return Err(MemoryError::VromRewrite(index));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Used for memory initialization before the start of the trace generation.
-    ///
-    /// Initializes a u64 value in the VROM without checking whether there are
-    /// associated values in `pending_updates`.
-    pub(crate) fn set_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.check_alignment::<u64>(index)?;
-
-        for i in 0..2 {
-            let cur_word = (value >> (32 * i)) as u32;
-            if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
-                if prev_val != cur_word {
-                    return Err(MemoryError::VromRewrite(index));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Used for memory initialization before the start of the trace generation.
-    ///
-    /// Initializes a u32 value in the VROM without checking whether there are
-    /// associated values in `pending_updates`.
-    pub(crate) fn set_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.check_alignment::<u128>(index)?;
-
-        for i in 0..4 {
-            let cur_word = (value >> (32 * i)) as u32;
-            if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
-                if prev_val != cur_word {
-                    return Err(MemoryError::VromRewrite(index));
-                }
-            }
-        }
-
-        Ok(())
     }
 
     /// Gets a u32 value from the specified index.
@@ -182,6 +130,26 @@ impl ValueRom {
         Ok(Some(value))
     }
 
+    /// Generic write method for supported types.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    pub(crate) fn write<T: VromValue>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
+        self.check_alignment::<T>(index)?;
+
+        for i in 0..T::word_size() as u32 {
+            let cur_word = (value.to_u128() >> (32 * i)) as u32;
+            if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
+                if prev_val != cur_word {
+                    return Err(MemoryError::VromRewrite(index));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Allocates a new frame with the specified size.
     pub(crate) fn allocate_new_frame(&mut self, requested_size: u32) -> u32 {
         self.vrom_allocator.alloc(requested_size)
@@ -217,7 +185,7 @@ impl ValueRom {
     /// [`B16`] for that offset.
     #[cfg(test)]
     pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> B16 {
-        self.set_u32(offset as u32, value).unwrap();
+        self.write(offset as u32, value).unwrap();
         B16::new(offset)
     }
 }
@@ -262,11 +230,24 @@ impl VromStore for u128 {
 pub trait VromValue:
     Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + VromStore
 {
+    fn to_u128(self) -> u128;
 }
 
-impl VromValue for u32 {}
-impl VromValue for u64 {}
-impl VromValue for u128 {}
+impl VromValue for u32 {
+    fn to_u128(self) -> u128 {
+        self as u128
+    }
+}
+impl VromValue for u64 {
+    fn to_u128(self) -> u128 {
+        self as u128
+    }
+}
+impl VromValue for u128 {
+    fn to_u128(self) -> u128 {
+        self as u128
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -278,7 +259,7 @@ mod tests {
 
         // Test u32
         let u32_val: u32 = 0xABCDEF12;
-        vrom.set_u32(2, u32_val).unwrap();
+        vrom.write(2, u32_val).unwrap();
         assert_eq!(vrom.get_u32(2).unwrap(), u32_val);
     }
 
@@ -287,7 +268,7 @@ mod tests {
         let mut vrom = ValueRom::default();
 
         let u128_val: u128 = 0x1122334455667788_99AABBCCDDEEFF00;
-        vrom.set_u128(0, u128_val).unwrap();
+        vrom.write(0, u128_val).unwrap();
 
         // Check that the value was stored correctly
         assert_eq!(vrom.read::<u128>(0).unwrap(), u128_val);
@@ -303,13 +284,13 @@ mod tests {
     fn test_value_rewrite_error() {
         let mut vrom = ValueRom::default();
         // First write should succeed
-        vrom.set_u32(0, 42u32).unwrap();
+        vrom.write(0, 42u32).unwrap();
 
         // Same value write should succeed (idempotent)
-        vrom.set_u32(0, 42u32).unwrap();
+        vrom.write(0, 42u32).unwrap();
 
         // Different value write should fail
-        let result = vrom.set_u32(0, 43u32);
+        let result = vrom.write(0, 43u32);
         assert!(result.is_err());
 
         if let Err(MemoryError::VromRewrite(index)) = result {
@@ -326,13 +307,13 @@ mod tests {
         let u128_val_2: u128 = 0x1122334455667788_99AABBCCDDEEFF01; // One bit different
 
         // First write should succeed
-        vrom.set_u128(0, u128_val_1).unwrap();
+        vrom.write(0, u128_val_1).unwrap();
 
         // Same value write should succeed (idempotent)
-        vrom.set_u128(0, u128_val_1).unwrap();
+        vrom.write(0, u128_val_1).unwrap();
 
         // Different value write should fail at the first different 32-bit chunk
-        let result = vrom.set_u128(0, u128_val_2);
+        let result = vrom.write(0, u128_val_2);
         assert!(result.is_err());
 
         if let Err(MemoryError::VromRewrite(index)) = result {
@@ -361,7 +342,7 @@ mod tests {
     fn test_u128_misaligned_error() {
         let mut vrom = ValueRom::default();
         // Try to set a u128 at a misaligned index
-        let result = vrom.set_u128(1, 0);
+        let result = vrom.write(1, 0u128);
         assert!(result.is_err());
 
         if let Err(MemoryError::VromMisaligned(alignment, index)) = result {
