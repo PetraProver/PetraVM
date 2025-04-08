@@ -34,24 +34,39 @@ impl Event for BnzEvent {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
-        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
-
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
         if pc == 0 {
             return Err(InterpreterError::BadPc);
         }
 
-        let event = BnzEvent {
-            timestamp,
-            pc: field_pc,
-            fp,
-            cond: cond.val(),
-            cond_val,
-            target,
-        };
-        ctx.jump_to(target);
+        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
 
-        ctx.trace.bnz.push(event);
+        if cond_val != 0 {
+            // We are actually branching.
+            let event = BnzEvent {
+                timestamp,
+                pc: field_pc,
+                fp,
+                cond: cond.val(),
+                cond_val,
+                target,
+            };
+            ctx.trace.bnz.push(event);
+            ctx.jump_to(target);
+        } else {
+            // We are not branching.
+            let event = BzEvent {
+                timestamp,
+                pc: field_pc,
+                fp,
+                cond: cond.val(),
+                cond_val,
+                target,
+            };
+            ctx.trace.bz.push(event);
+            ctx.incr_pc();
+        }
+
         Ok(())
     }
 
@@ -84,23 +99,7 @@ impl Event for BzEvent {
         target_low: B16,
         target_high: B16,
     ) -> Result<(), InterpreterError> {
-        let target = (B32::from_bases([target_low, target_high]))
-            .map_err(|_| InterpreterError::InvalidInput)?;
-
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
-        let event = BzEvent {
-            timestamp,
-            pc: field_pc,
-            fp,
-            cond: cond.val(),
-            cond_val,
-            target,
-        };
-        ctx.incr_pc();
-
-        ctx.trace.bz.push(event);
-        Ok(())
+        unimplemented!("BzEvent generation is defined in BnzEvent::generate method");
     }
 
     fn fire(&self, channels: &mut InterpreterChannels) {

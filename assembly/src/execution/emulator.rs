@@ -260,7 +260,7 @@ impl Interpreter {
         };
 
         match opcode {
-            Opcode::Bnz => Self::generate_bnz(&mut ctx, arg0, arg1, arg2)?,
+            Opcode::Bnz => BnzEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Jumpi => JumpiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Jumpv => JumpvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
             Opcode::Xori => XoriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
@@ -302,22 +302,6 @@ impl Interpreter {
             Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
         }
         Ok(Some(()))
-    }
-
-    fn generate_bnz(
-        ctx: &mut EventContext,
-        cond: B16,
-        target_low: B16,
-        target_high: B16,
-    ) -> Result<(), InterpreterError> {
-        // TODO: group events?
-        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
-
-        if cond_val != 0 {
-            BnzEvent::generate(ctx, cond, target_low, target_high)
-        } else {
-            BzEvent::generate(ctx, cond, target_low, target_high)
-        }
     }
 
     fn generate_add(
