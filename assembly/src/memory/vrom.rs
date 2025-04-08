@@ -72,10 +72,11 @@ impl ValueRom {
 
         let mut value = T::zero();
 
-        for i in 0..T::word_size() {
-            let idx = index as usize + i; // Read from consecutive slots
+        // Read the entire chunk at once.
+        let read_data = &self.data[index as usize..index as usize + T::word_size()];
 
-            let word = self.data[idx].ok_or(MemoryError::VromMissingValue(index))?;
+        for i in 0..T::word_size() {
+            let word = read_data[i].ok_or(MemoryError::VromMissingValue(index))?;
 
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));
@@ -99,12 +100,11 @@ impl ValueRom {
 
         let mut value = T::zero();
 
+        // Read the entire chunk at once.
+        let read_data = &self.data[index as usize..index as usize + T::word_size()];
+
         for i in 0..T::word_size() {
-            let idx = index as usize + i; // Read from consecutive slots
-
-            let word = self.data[idx];
-
-            if let Some(v) = word {
+            if let Some(v) = read_data[i] {
                 // Shift the word to its appropriate position and add to the value
                 value = value + (T::from(v) << (i * 32));
             } else {
