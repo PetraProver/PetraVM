@@ -3,10 +3,7 @@ use core::fmt::Debug;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
-use crate::{
-    execution::{FramePointer, InterpreterError},
-    ZCrayTrace,
-};
+use crate::execution::{FramePointer, InterpreterError};
 
 pub(crate) mod b128;
 pub(crate) mod b32;

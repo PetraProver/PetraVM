@@ -1,9 +1,7 @@
 use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
-use crate::execution::{
-    FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
-};
+use crate::execution::{FramePointer, InterpreterChannels, InterpreterError};
 
 /// Event for RET.
 ///
@@ -52,7 +50,7 @@ impl Event for RetEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));

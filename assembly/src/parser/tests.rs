@@ -1,17 +1,14 @@
 #[cfg(test)]
 mod test_parser {
 
-    use std::str::FromStr;
-
     use binius_field::{ExtensionField, Field, PackedField};
     use binius_m3::builder::B16;
     use pest::Parser;
 
     use crate::execution::G;
     use crate::opcodes::Opcode;
-    use crate::parser::instruction_args::Slot;
     use crate::parser::InstructionsWithLabels;
-    use crate::parser::{parse_line, parse_program, AsmParser, Rule};
+    use crate::parser::{parse_program, AsmParser, Rule};
     use crate::util::code_to_prom;
     use crate::util::get_binary_slot;
     use crate::Assembler;

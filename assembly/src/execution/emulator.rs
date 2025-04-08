@@ -8,7 +8,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use binius_field::{BinaryField, ExtensionField, Field, PackedField};
+use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
 use tracing::trace;
 
@@ -19,24 +19,23 @@ use crate::{
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
-        binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation},
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         context::EventContext,
         integer_ops::{
-            self, AddEvent, AddiEvent, MulEvent, MulOp, MuliEvent, MulsuEvent, MulsuOp, MuluEvent,
-            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
+            SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVIHEvent, MVInfo, MVKind, MVVLEvent, MVVWEvent},
+        mv::{LDIEvent, MVIHEvent, MVInfo, MVVLEvent, MVVWEvent},
         ret::RetEvent,
         shift::*,
         Event,
     },
     execution::{StateChannel, ZCrayTrace},
-    gadgets::{Add32Gadget, Add64Gadget},
+    gadgets::Add32Gadget,
     get_last_event,
-    memory::{Memory, MemoryError, ProgramRom, ValueRom},
+    memory::{Memory, MemoryError},
     opcodes::Opcode,
 };
 
@@ -46,13 +45,6 @@ pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 #[derive(Default)]
 pub struct InterpreterChannels {
     pub state_channel: StateChannel,
-}
-
-// TODO: Remove VromTable32 and InterpreterTables?
-type VromTable32 = HashMap<u32, u32>;
-#[derive(Default)]
-pub struct InterpreterTables {
-    pub vrom_table_32: VromTable32,
 }
 
 /// A wrapper around a `u32` representing the frame pointer (FP) in VROM for
@@ -223,13 +215,13 @@ impl Interpreter {
 
         let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
-        self.allocate_new_frame(&mut trace, field_pc);
+        self.allocate_new_frame(&mut trace, field_pc)?;
         loop {
             match self.step(&mut trace) {
                 Ok(_) => {}
                 Err(error) => {
                     match error {
-                        InterpreterError::Exception(exc) => {} //TODO: handle exception
+                        InterpreterError::Exception(_exc) => {} //TODO: handle exception
                         critical_error => {
                             panic!("{:?}", critical_error);
                         } //TODO: properly format error
@@ -383,12 +375,12 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
-    use num_traits::WrappingAdd;
+    use binius_field::{ExtensionField, Field};
 
     use super::*;
-    use crate::parser::parse_program;
     use crate::util::{code_to_prom, get_binary_slot};
     use crate::util::{collatz_orbits, init_logger};
+    use crate::ValueRom;
 
     #[test]
     fn test_zcray() {

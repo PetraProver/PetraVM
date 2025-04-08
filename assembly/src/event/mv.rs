@@ -4,9 +4,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     event::Event,
-    execution::{
-        FramePointer, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError, ZCrayTrace},
     fire_non_jump_event,
     memory::{MemoryError, VromValueT},
     opcodes::Opcode,
@@ -56,7 +54,7 @@ macro_rules! impl_mv_event {
                 Ok(())
             }
 
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+            fn fire(&self, channels: &mut InterpreterChannels) {
                 fire_non_jump_event!(self, channels);
             }
         }
@@ -229,7 +227,7 @@ impl MVVWEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
@@ -240,7 +238,7 @@ impl MVVWEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
@@ -374,7 +372,7 @@ impl MVVLEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
@@ -385,7 +383,7 @@ impl MVVLEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
@@ -496,7 +494,7 @@ impl MVIHEvent {
         offset: B16,
         imm: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
 
@@ -545,7 +543,7 @@ impl LDIEvent {
         imm_low: B16,
         imm_high: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
@@ -610,9 +608,8 @@ mod tests {
 
     use crate::{
         event::mv::{MVInfo, MVKind},
-        execution::trace::ZCrayTrace,
         execution::{Interpreter, G},
-        memory::{Memory, VromPendingUpdates, VromUpdate},
+        memory::Memory,
         opcodes::Opcode,
         util::code_to_prom,
         ValueRom,
@@ -1001,7 +998,7 @@ mod tests {
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
 
-        let mut pc_field_to_int = HashMap::new();
+        let pc_field_to_int = HashMap::new();
         let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
         let traces = interpreter
@@ -1112,7 +1109,7 @@ mod tests {
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
 
-        let mut pc_field_to_int = HashMap::new();
+        let pc_field_to_int = HashMap::new();
         let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
         let traces = interpreter

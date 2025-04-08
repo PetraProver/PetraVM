@@ -1,10 +1,5 @@
-use binius_field::Field;
-use binius_m3::builder::{B16, B32};
+use binius_m3::builder::B16;
 use tracing_subscriber::EnvFilter;
-
-use crate::execution::G;
-use crate::execution::{Instruction, InterpreterInstruction};
-use crate::memory::ProgramRom;
 
 /// Initializes the global tracing subscriber.
 ///
@@ -49,15 +44,18 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
 
 #[cfg(test)]
 /// Helper method to convert Instructions to a program ROM.
-pub(crate) fn code_to_prom(code: &[Instruction]) -> ProgramRom {
+pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
+    use binius_field::Field;
     use binius_m3::builder::B32;
 
-    let mut prom = ProgramRom::new();
+    use crate::execution::G;
+
+    let mut prom = crate::ProgramRom::new();
     // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
     // `*G`.
     let mut pc = B32::ONE; // we start at PC = 1G.
-    for (i, &instruction) in code.iter().enumerate() {
-        let interp_inst = InterpreterInstruction::new(instruction, pc);
+    for &instruction in code.iter() {
+        let interp_inst = crate::InterpreterInstruction::new(instruction, pc);
         prom.push(interp_inst);
         pc *= G;
     }
