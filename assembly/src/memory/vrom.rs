@@ -4,10 +4,7 @@ use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
 
 use super::{AccessSize, MemoryError};
-use crate::{
-    event::context::EventContext, execution::ZCrayTrace, memory::vrom_allocator::VromAllocator,
-    opcodes::Opcode,
-};
+use crate::{event::context::EventContext, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -55,7 +52,7 @@ impl ValueRom {
 
     /// Creates a default VROM and intializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
-        let mut data = init_values.iter().copied().map(|v| Some(v)).collect();
+        let data = init_values.iter().copied().map(Some).collect();
 
         Self {
             data,
@@ -78,7 +75,7 @@ impl ValueRom {
         for i in 0..T::word_size() {
             let idx = index as usize + i; // Read from consecutive slots
 
-            let word = self.data[idx].ok_or_else(|| MemoryError::VromMissingValue(index))?;
+            let word = self.data[idx].ok_or(MemoryError::VromMissingValue(index))?;
 
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));
@@ -260,7 +257,7 @@ impl VromValueT for u64 {
 }
 impl VromValueT for u128 {
     fn to_u128(self) -> u128 {
-        self as u128
+        self
     }
 }
 

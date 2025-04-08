@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
-    memory::{AccessSize, MemoryError, Ram, RamValueT, VromStore, VromValueT},
+    memory::{AccessSize, MemoryError, Ram, RamValueT, VromValueT},
     ValueRom, ZCrayTrace,
 };
 

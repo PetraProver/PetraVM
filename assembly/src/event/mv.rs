@@ -5,11 +5,10 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
+        FramePointer, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
     },
     fire_non_jump_event,
-    memory::{MemoryError, VromStore, VromValueT},
+    memory::{MemoryError, VromValueT},
     opcodes::Opcode,
 };
 

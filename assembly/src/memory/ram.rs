@@ -1,9 +1,7 @@
-use std::mem::size_of;
-
 use binius_m3::builder::B32;
 
 use super::AccessSize;
-use crate::{event::context::EventContext, memory::MemoryError};
+use crate::memory::MemoryError;
 
 /// Represents the RAM for the zCrayVM
 #[derive(Debug, Clone)]
@@ -61,7 +59,7 @@ pub trait RamValueT: Copy + Default + Sized + AccessSize {
 
 impl RamValueT for u8 {
     fn from_le_bytes(bytes: &[u8]) -> Self {
-        assert!(bytes.len() >= 1);
+        assert!(!bytes.is_empty());
         bytes[0]
     }
 
@@ -148,7 +146,6 @@ impl Ram {
         let addr_usize = addr as usize;
 
         if addr_usize % T::byte_size() != 0 {
-            let size_u8 = T::byte_size().min(u8::MAX as usize) as u8;
             return Err(MemoryError::RamMisalignedAccess(addr, T::byte_size()));
         }
 
