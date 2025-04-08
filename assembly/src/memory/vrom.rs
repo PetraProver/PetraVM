@@ -95,7 +95,10 @@ impl ValueRom {
     /// corresponding VROM address.
     pub fn read_opt<T: VromValueT>(&self, index: u32) -> Result<Option<T>, MemoryError> {
         self.check_alignment::<T>(index)?;
-        self.check_bounds::<T>(index)?;
+        if self.check_bounds::<T>(index).is_err() {
+            // VROM hasn't been expanded to the target index, there is nothing to read yet.
+            return Ok(None);
+        };
 
         let mut value = T::zero();
 
