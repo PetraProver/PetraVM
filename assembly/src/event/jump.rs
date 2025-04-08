@@ -31,7 +31,7 @@ impl Event for JumpvEvent {
         _unused0: B16,
         _unused1: B16,
     ) -> Result<(), InterpreterError> {
-        let target = ctx.read_vrom::<u32>(ctx.addr(offset.val()))?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 

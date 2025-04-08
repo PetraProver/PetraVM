@@ -319,7 +319,7 @@ impl Interpreter {
         target_high: B16,
     ) -> Result<(), InterpreterError> {
         // TODO: group events?
-        let cond_val = ctx.read_vrom::<u32>(ctx.addr(cond.val()))?;
+        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
 
         if cond_val != 0 {
             BnzEvent::generate(ctx, cond, target_low, target_high)

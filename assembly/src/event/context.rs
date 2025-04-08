@@ -49,21 +49,21 @@ impl EventContext<'_> {
         self.trace.vrom_mut()
     }
 
-    pub fn read_vrom<T>(&self, addr: u32) -> Result<T, MemoryError>
+    pub fn vrom_read<T>(&self, addr: u32) -> Result<T, MemoryError>
     where
         T: VromValueT,
     {
         self.vrom().read(addr)
     }
 
-    pub fn read_vrom_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
+    pub fn vrom_read_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
     where
         T: VromValueT,
     {
         self.vrom().read_opt(addr)
     }
 
-    pub fn write_vrom<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
+    pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
     where
         T: VromValueT,
     {
@@ -92,14 +92,14 @@ impl EventContext<'_> {
         self.trace.ram_mut()
     }
 
-    pub fn read_ram<T>(&mut self, addr: u32, timestamp: u32, pc: B32) -> Result<T, MemoryError>
+    pub fn ram_read<T>(&mut self, addr: u32, timestamp: u32, pc: B32) -> Result<T, MemoryError>
     where
         T: RamValueT,
     {
         self.ram_mut().read(addr, timestamp, pc)
     }
 
-    pub fn write_ram<T>(
+    pub fn ram_write<T>(
         &mut self,
         addr: u32,
         value: T,
@@ -132,7 +132,7 @@ impl EventContext<'_> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
 
-        self.write_vrom::<u32>(next_fp_addr, next_fp_val)?;
+        self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
 
         // Once we have the next_fp, we know the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly

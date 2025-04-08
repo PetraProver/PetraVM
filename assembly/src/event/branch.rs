@@ -37,7 +37,7 @@ impl Event for BnzEvent {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
-        let cond_val = ctx.read_vrom::<u32>( ctx.addr(cond.val()))?;
+        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
         if pc == 0 {
@@ -91,7 +91,7 @@ impl Event for BzEvent {
             .map_err(|_| InterpreterError::InvalidInput)?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
-        let cond_val = ctx.read_vrom::<u32>( ctx.addr(cond.val()))?;
+        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
         let event = BzEvent {
             timestamp,
             pc: field_pc,
