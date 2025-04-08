@@ -408,7 +408,7 @@ pub fn parse_program(input: &str) -> Result<Vec<InstructionsWithLabels>, Error> 
     let mut instrs = Vec::<InstructionsWithLabels>::new();
 
     let program = parser
-        .map_err(|_| Error::NoStartLabelOrInstructionFound)?
+        .map_err(Error::PestParseError)?
         .next()
         .ok_or(Error::NoStartLabelOrInstructionFound)?
         .into_inner();
