@@ -8,6 +8,7 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
+    opcodes::integer_ops::AddiTable,
     tables::{
         B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
         VromSkipTable, VromWriteTable,
@@ -43,6 +44,8 @@ pub struct Circuit {
     pub bnz_table: BnzTable,
     /// BNZ branch zero instruction table
     pub bz_table: BzTable,
+    /// ADDI instruction table
+    pub addi_table: AddiTable,
 }
 
 impl Default for Circuit {
@@ -66,6 +69,7 @@ impl Circuit {
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
+        let addi_table = AddiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
         let b32_mul_table = B32MulTable::new(&mut cs, &channels);
         let bnz_table = BnzTable::new(&mut cs, &channels);
@@ -79,6 +83,7 @@ impl Circuit {
             vrom_addr_space_table,
             vrom_skip_table,
             ldi_table,
+            addi_table,
             ret_table,
             b32_mul_table,
             bnz_table,
@@ -127,6 +132,7 @@ impl Circuit {
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
 
         let ldi_size = trace.ldi_events().len();
+        let addi_size = trace.addi_events().len();
         let ret_size = trace.ret_events().len();
         let b32_mul_size = trace.b32_mul_events().len();
         let bnz_size = trace.bnz_events().len();
@@ -139,6 +145,7 @@ impl Circuit {
             vrom_addr_space_size, // VROM address space table size
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
+            addi_size,            // ADDI table size
             ret_size,             // RET table size
             b32_mul_size,         // B32_MUL table size
             bnz_size,             // BNZ table size

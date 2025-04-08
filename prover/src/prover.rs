@@ -97,6 +97,7 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
+        witness.fill_table_sequential(&self.circuit.addi_table, trace.addi_events())?;
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
         witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
 

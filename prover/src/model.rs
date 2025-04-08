@@ -6,7 +6,8 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    event::integer_ops::AddiEvent, B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction,
+    LDIEvent, Opcode, RetEvent, ZCrayTrace,
 };
 
 /// Macro to generate event accessors
@@ -138,7 +139,7 @@ impl Trace {
     ///
     /// This will verify that:
     /// 1. The program has at least one instruction
-    /// 2. The trace has at least one LDI event
+    /// 2. The trace has at least one LDI or ADDI event
     /// 3. The trace has at least one RET event
     ///
     /// # Returns
@@ -171,3 +172,4 @@ impl_event_accessor!(ret_events, RetEvent, ret);
 impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
 impl_event_accessor!(bnz_events, BnzEvent, bnz);
 impl_event_accessor!(bz_events, BzEvent, bz);
+impl_event_accessor!(addi_events, AddiEvent, addi);

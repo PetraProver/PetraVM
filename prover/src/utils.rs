@@ -2,7 +2,7 @@
 //! operations.
 
 use binius_field::ExtensionField;
-use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32};
+use binius_m3::builder::{upcast_col, upcast_expr, Col, Expr, TableBuilder, B128, B16, B32, B64};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -151,4 +151,13 @@ pub(crate) fn pack_b16_into_b32(limbs: [Expr<B16, 1>; 2]) -> Expr<B32, 1> {
         .map(|(i, limb)| upcast_expr(limb) * <B32 as ExtensionField<B16>>::basis(i))
         .reduce(|a, b| a + b)
         .expect("limbs has length 2")
+}
+
+pub(crate) fn pack_vrom_entry(addr: Col<B32>, value: Col<B32>) -> Expr<B64, 1> {
+    upcast_col(addr) * <B64 as ExtensionField<B32>>::basis(0)
+        + upcast_col(value) * <B64 as ExtensionField<B32>>::basis(1)
+}
+
+pub(crate) fn pack_vrom_entry_u64(addr: u32, value: u32) -> u64 {
+    ((value as u64) << 32) + addr as u64
 }
