@@ -9,6 +9,6 @@ fn test_add_integration() {
     let add_frame = frames.add_frame("add");
 
     // Verify the result of the addition
-    assert_eq!(add_frame.get_vrom_u32_expected(3), 2, "x = 2");
-    assert_eq!(add_frame.get_vrom_u32_expected(2), 8, "2 + 6 = 8");
+    assert_eq!(add_frame.get_vrom_expected::<u32>(3), 2, "x = 2");
+    assert_eq!(add_frame.get_vrom_expected::<u32>(2), 8, "2 + 6 = 8");
 }

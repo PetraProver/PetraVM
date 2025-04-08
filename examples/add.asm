@@ -7,5 +7,5 @@ add:
     ;; Slot @3: Local: 2
 
     LDI.W @3, #2      ;; x = 2
-    ADDI @2, @3, #6 ;; x + 6
+    ADDI @2, @3, #6   ;; x + 6
     RET

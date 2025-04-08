@@ -24,7 +24,7 @@ fn test_fibonacci_integration() {
 
         // Check current a value
         assert_eq!(
-            fib_helper_frame.get_vrom_u32_expected(2),
+            fib_helper_frame.get_vrom_expected::<u32>(2),
             cur_fibs[0],
             "Incorrect 'a' value at iteration {}",
             i
@@ -32,7 +32,7 @@ fn test_fibonacci_integration() {
 
         // Check current b value
         assert_eq!(
-            fib_helper_frame.get_vrom_u32_expected(3),
+            fib_helper_frame.get_vrom_expected::<u32>(3),
             cur_fibs[1],
             "Incorrect 'b' value at iteration {}",
             i
@@ -40,7 +40,7 @@ fn test_fibonacci_integration() {
 
         // Check a + b value
         assert_eq!(
-            fib_helper_frame.get_vrom_u32_expected(7),
+            fib_helper_frame.get_vrom_expected::<u32>(7),
             s,
             "Incorrect 'a + b' value at iteration {}",
             i
@@ -52,11 +52,11 @@ fn test_fibonacci_integration() {
     }
 
     let final_fib_helper_frame = &frames["fib_helper"][init_val as usize - 1];
-    let final_fib_ret_val = final_fib_helper_frame.get_vrom_u32_expected(5);
+    let final_fib_ret_val = final_fib_helper_frame.get_vrom_expected::<u32>(5);
 
     // Check the final return value
     assert_eq!(final_fib_ret_val, cur_fibs[0]);
 
     // Check that the returned value is propagated correctly to the initial frame
-    assert_eq!(final_fib_ret_val, fib_frame.get_vrom_u32_expected(3));
+    assert_eq!(final_fib_ret_val, fib_frame.get_vrom_expected::<u32>(3));
 }
