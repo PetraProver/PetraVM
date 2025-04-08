@@ -26,8 +26,8 @@ pub(crate) type VromUpdate = (
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
 pub struct ValueRom {
-    /// Storage for values, each slot is a u32
-    vrom: HashMap<u32, u32>,
+    /// Storage for values, each slot is a `Option<u32>`.
+    data: Vec<Option<u32>>,
     /// Allocator for new frames
     vrom_allocator: VromAllocator,
     /// HashMap used to set values and push MV events during a CALL procedure.
@@ -41,10 +41,10 @@ pub struct ValueRom {
 }
 
 impl ValueRom {
-    /// Creates an empty ValueRom.
-    pub fn new(vrom: HashMap<u32, u32>) -> Self {
+    /// Creates an new ValueRom.
+    pub fn new(data: Vec<Option<u32>>) -> Self {
         Self {
-            vrom,
+            data,
             ..Default::default()
         }
     }
@@ -55,12 +55,12 @@ impl ValueRom {
 
     /// Creates a default VROM and intializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
-        let mut vrom = Self::default();
-        for (i, &value) in init_values.iter().enumerate() {
-            vrom.write(i as u32, value).unwrap();
-        }
+        let mut data = init_values.iter().copied().map(|v| Some(v)).collect();
 
-        vrom
+        Self {
+            data,
+            ..Default::default()
+        }
     }
 
     /// Generic read method for supported types. This will read a value stored
@@ -71,16 +71,14 @@ impl ValueRom {
     /// corresponding VROM address.
     pub fn read<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
+        self.check_bounds::<T>(index)?;
 
         let mut value = T::zero();
 
         for i in 0..T::word_size() {
-            let idx = index + i as u32; // Read from consecutive slots
+            let idx = index as usize + i; // Read from consecutive slots
 
-            let word = match self.vrom.get(&idx) {
-                Some(&value) => value,
-                None => return Err(MemoryError::VromMissingValue(index)),
-            };
+            let word = self.data[idx].ok_or_else(|| MemoryError::VromMissingValue(index))?;
 
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));
@@ -97,17 +95,18 @@ impl ValueRom {
     /// corresponding VROM address.
     pub fn read_opt<T: VromValueT>(&self, index: u32) -> Result<Option<T>, MemoryError> {
         self.check_alignment::<T>(index)?;
+        self.check_bounds::<T>(index)?;
 
         let mut value = T::zero();
 
         for i in 0..T::word_size() {
-            let idx = index + i as u32; // Read from consecutive slots
+            let idx = index as usize + i; // Read from consecutive slots
 
-            let word = self.vrom.get(&idx);
+            let word = self.data[idx];
 
             if let Some(v) = word {
                 // Shift the word to its appropriate position and add to the value
-                value = value + (T::from(*v) << (i * 32));
+                value = value + (T::from(v) << (i * 32));
             } else {
                 return Ok(None);
             }
@@ -123,13 +122,20 @@ impl ValueRom {
     /// corresponding VROM address.
     pub fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
+        self.ensure_capacity::<T>(index);
 
-        for i in 0..T::word_size() as u32 {
+        for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
-            if let Some(prev_val) = self.vrom.insert(index + i, cur_word) {
-                if prev_val != cur_word {
+            let prev_value = &mut self.data[index as usize + i];
+            if let Some(prev_val) = prev_value {
+                // The VROM is write-once. If a value already exists at `index`,
+                // check that it matches the value we wanted to write.
+                if *prev_val != cur_word {
                     return Err(MemoryError::VromRewrite(index));
                 }
+            } else {
+                // The VROM hasn't been updated yet at the provided `index`.
+                *prev_value = Some(cur_word);
             }
         }
 
@@ -141,6 +147,15 @@ impl ValueRom {
         self.vrom_allocator.alloc(requested_size)
     }
 
+    /// Ensures the VROM has enough capacity for an access, resizing if
+    /// necessary.
+    fn ensure_capacity<T: AccessSize>(&mut self, addr: u32) {
+        let required_size = addr as usize + T::byte_size();
+        if required_size > self.data.len() {
+            self.data.resize(required_size.next_power_of_two(), None);
+        }
+    }
+
     /// Checks if the index has proper alignment.
     fn check_alignment<T: AccessSize>(&self, index: u32) -> Result<(), MemoryError> {
         if index as usize % T::word_size() != 0 {
@@ -148,6 +163,17 @@ impl ValueRom {
         } else {
             Ok(())
         }
+    }
+
+    /// Checks if an address is within the current bounds of VROM.
+    fn check_bounds<T: AccessSize>(&self, addr: u32) -> Result<(), MemoryError> {
+        let end_addr = addr as usize + T::word_size();
+
+        if end_addr > self.data.len() {
+            return Err(MemoryError::VromAddressOutOfBounds(addr, T::word_size()));
+        }
+
+        Ok(())
     }
 
     /// Inserts a pending value to be set later.
@@ -317,8 +343,9 @@ mod tests {
         let result = vrom.read::<u32>(0);
         assert!(result.is_err());
 
-        if let Err(MemoryError::VromMissingValue(index)) = result {
+        if let Err(MemoryError::VromAddressOutOfBounds(index, word_size)) = result {
             assert_eq!(index, 0);
+            assert_eq!(word_size, u32::word_size());
         } else {
             panic!("Expected VromMissingValue error");
         }

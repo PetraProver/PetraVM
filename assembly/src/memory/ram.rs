@@ -135,8 +135,8 @@ impl Ram {
         &self.access_history
     }
 
-    /// Ensures RAM has enough capacity for an access, resizing if necessary
-    fn ensure_capacity<T: RamValueT>(&mut self, addr: u32) {
+    /// Ensures RAM has enough capacity for an access, resizing if necessary.
+    fn ensure_capacity<T: AccessSize>(&mut self, addr: u32) {
         let required_size = addr as usize + T::byte_size();
         if required_size > self.data.len() {
             self.data.resize(required_size.next_power_of_two(), 0);
@@ -155,7 +155,7 @@ impl Ram {
         Ok(())
     }
 
-    /// Checks if an address is within the current bounds of RAM
+    /// Checks if an address is within the current bounds of RAM.
     fn check_bounds<T: AccessSize>(&self, addr: u32) -> Result<(), MemoryError> {
         let end_addr = addr as usize + T::byte_size();
 

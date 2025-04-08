@@ -16,6 +16,7 @@ pub enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),
+    VromAddressOutOfBounds(u32, usize),
     RamAddressOutOfBounds(u32, usize),
     RamMisalignedAccess(u32, usize),
 }
