@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use binius_m3::builder::{B16, B32};
 
 use super::MemoryError;
-use crate::{execution::ZCrayTrace, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
+use crate::{
+    event::context::EventContext, execution::ZCrayTrace, memory::vrom_allocator::VromAllocator,
+    opcodes::Opcode,
+};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -234,6 +237,49 @@ impl ValueRom {
     pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> B16 {
         self.set_u32(offset as u32, value).unwrap();
         B16::new(offset)
+    }
+}
+
+/// Trait for storing values in the VROM.
+///
+/// It abstracts over the different data types that can be written into the VROM
+/// during program execution.
+pub(crate) trait VromStore {
+    /// Stores the given `value` at the specified `addr` in the VROM.
+    ///
+    /// # Arguments
+    /// * `ctx` - The current [`EventContext`].
+    /// * `addr` - The target VROM address.
+    /// * `value` - The value to store.
+    ///
+    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
+    /// that will scale the frame pointer with the provided offset to obtain the
+    /// corresponding VROM address.
+    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError>;
+}
+
+impl VromStore for u16 {
+    // *NOTE*: This will be stored as a `u32`.
+    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
+        ctx.store_vrom_u32(addr, *self as u32)
+    }
+}
+
+impl VromStore for u32 {
+    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
+        ctx.store_vrom_u32(addr, *self)
+    }
+}
+
+impl VromStore for u64 {
+    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
+        ctx.trace.set_vrom_u64(addr, *self)
+    }
+}
+
+impl VromStore for u128 {
+    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
+        ctx.trace.set_vrom_u128(addr, *self)
     }
 }
 

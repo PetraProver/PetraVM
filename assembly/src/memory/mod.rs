@@ -5,7 +5,7 @@ mod vrom_allocator;
 use binius_m3::builder::B32;
 pub(crate) use ram::{AccessSize, Ram};
 pub use vrom::ValueRom;
-pub(crate) use vrom::{VromPendingUpdates, VromUpdate};
+pub(crate) use vrom::{VromPendingUpdates, VromStore, VromUpdate};
 pub(crate) use vrom_allocator::VromAllocator;
 
 use crate::execution::InterpreterInstruction;

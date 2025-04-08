@@ -14,7 +14,9 @@ use crate::{
     },
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    impl_binary_operation, impl_immediate_binary_operation, Opcode,
+    impl_binary_operation, impl_immediate_binary_operation,
+    memory::VromStore,
+    Opcode,
 };
 
 define_bin32_imm_op_event!(
@@ -69,7 +71,7 @@ impl Event for MuliEvent {
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+        dst_val.store(ctx, ctx.addr(dst.val()))?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
@@ -133,7 +135,7 @@ impl Event for MuluEvent {
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+        dst_val.store(ctx, ctx.addr(dst.val()))?;
 
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
@@ -378,7 +380,7 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
 
         let dst_val = T::mul_op(src1_val, src2_val);
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+        dst_val.store(ctx, ctx.addr(dst.val()))?;
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();

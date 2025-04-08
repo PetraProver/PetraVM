@@ -9,7 +9,7 @@ use crate::{
         ZCrayTrace,
     },
     fire_non_jump_event,
-    memory::MemoryError,
+    memory::{MemoryError, VromStore},
     opcodes::Opcode,
 };
 
@@ -210,7 +210,7 @@ impl MVVWEvent {
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
+            src_val.store(ctx, dst_addr ^ offset.val() as u32)?;
 
             Ok(Some(Self {
                 pc,
@@ -252,7 +252,7 @@ impl MVVWEvent {
             let opt_dst_val = ctx.load_vrom_opt_u32(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if let Some(dst_val) = opt_dst_val {
-                execute_mv_u32(ctx, ctx.addr(src.val()), dst_val)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
                     pc: field_pc,
@@ -277,7 +277,7 @@ impl MVVWEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -355,7 +355,7 @@ impl MVVLEvent {
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
+            src_val.store(ctx, dst_addr ^ offset.val() as u32)?;
 
             Ok(Some(Self {
                 pc,
@@ -397,7 +397,7 @@ impl MVVLEvent {
             let opt_dst_val = ctx.load_vrom_opt_u128(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if let Some(dst_val) = opt_dst_val {
-                execute_mv_u128(ctx, ctx.addr(src.val()), dst_val)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
                     pc: field_pc,
@@ -422,7 +422,7 @@ impl MVVLEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        execute_mv_u128(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -476,7 +476,7 @@ impl MVIHEvent {
         // the destination address.
         let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
 
-        ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        imm.val().store(ctx, dst_addr ^ offset.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -502,7 +502,7 @@ impl MVIHEvent {
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
             Ok(Some(Self {
                 pc: field_pc,
@@ -549,7 +549,7 @@ impl LDIEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        execute_mv_u32(ctx, ctx.addr(dst.val()), imm.val())?;
+        execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -589,15 +589,12 @@ fn delegate_move(
     ctx.incr_pc();
 }
 
-fn execute_mv_u32(ctx: &mut EventContext, dst_addr: u32, value: u32) -> Result<(), MemoryError> {
-    ctx.store_vrom_u32(dst_addr, value)?;
-    ctx.incr_pc();
-
-    Ok(())
-}
-
-fn execute_mv_u128(ctx: &mut EventContext, dst_addr: u32, value: u128) -> Result<(), MemoryError> {
-    ctx.store_vrom_u128(dst_addr, value)?;
+fn execute_mv<T: VromStore>(
+    ctx: &mut EventContext,
+    dst_addr: u32,
+    value: T,
+) -> Result<(), MemoryError> {
+    value.store(ctx, dst_addr)?;
     ctx.incr_pc();
 
     Ok(())

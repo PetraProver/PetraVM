@@ -10,7 +10,9 @@ use crate::{
     execution::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
     },
-    fire_non_jump_event, Opcode, ZCrayTrace,
+    fire_non_jump_event,
+    memory::VromStore,
+    Opcode, ZCrayTrace,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -162,7 +164,7 @@ where
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        new_val.store(ctx, ctx.addr(dst.val()))?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -193,7 +195,7 @@ where
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        new_val.store(ctx, ctx.addr(dst.val()))?;
         ctx.incr_pc();
 
         Ok(Self::new(

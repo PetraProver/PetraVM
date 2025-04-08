@@ -288,19 +288,19 @@ impl ZCrayTrace {
         self.memory.get_vrom_opt_u32(index)
     }
 
+    /// Reads a 64-bit value in VROM at the provided index.
+    ///
+    /// Returns an error if the value is not found.
+    pub(crate) fn get_vrom_u64(&self, index: u32) -> Result<u64, MemoryError> {
+        self.memory.get_vrom_u64(index)
+    }
+
     /// Reads a 128-bit value in VROM at the provided index.
     ///
     /// Returns an error if the value is not found. This method should be used
     /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
     pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
         self.memory.get_vrom_u128(index)
-    }
-
-    /// Reads a 64-bit value in VROM at the provided index.
-    ///
-    /// Returns an error if the value is not found.
-    pub(crate) fn get_vrom_u64(&self, index: u32) -> Result<u64, MemoryError> {
-        self.memory.get_vrom_u64(index)
     }
 
     /// Reads an optional 128-bit value in VROM at the provided index.

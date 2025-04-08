@@ -5,6 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     execution::{FramePointer, InterpreterError},
+    memory::VromStore,
     ZCrayTrace,
 };
 
@@ -67,7 +68,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        dst_val.val().store(ctx, ctx.addr(dst.val()))?;
         ctx.incr_pc();
         Ok(event)
     }
@@ -112,7 +113,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        dst_val.val().store(ctx, ctx.addr(dst.val()))?;
         ctx.incr_pc();
         Ok(event)
     }

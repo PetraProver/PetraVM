@@ -8,6 +8,7 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
         ZCrayTrace, G,
     },
+    memory::VromStore,
 };
 
 /// Event for TAILI.
@@ -53,8 +54,8 @@ impl Event for TailiEvent {
 
         ctx.jump_to(target);
 
-        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
+        return_addr.store(ctx, ctx.addr(0u32))?;
+        old_fp_val.store(ctx, ctx.addr(1u32))?;
 
         let event = Self {
             pc: field_pc,
@@ -125,8 +126,8 @@ impl Event for TailVEvent {
         // Jump to the target,
         ctx.jump_to(B32::new(target));
 
-        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
+        return_addr.store(ctx, ctx.addr(0u32))?;
+        old_fp_val.store(ctx, ctx.addr(1u32))?;
 
         let event = Self {
             pc: field_pc,
@@ -193,8 +194,8 @@ impl Event for CalliEvent {
         ctx.jump_to(target);
 
         let return_pc = (field_pc * G).val();
-        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
+        return_pc.store(ctx, ctx.addr(0u32))?;
+        fp.store(ctx, ctx.addr(1u32))?;
 
         let event = Self {
             pc: field_pc,
@@ -259,8 +260,8 @@ impl Event for CallvEvent {
         ctx.jump_to(B32::new(target));
 
         let return_pc = (field_pc * G).val();
-        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
+        return_pc.store(ctx, ctx.addr(0u32))?;
+        fp.store(ctx, ctx.addr(1u32))?;
 
         let event = Self {
             pc: field_pc,

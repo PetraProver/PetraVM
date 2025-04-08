@@ -153,7 +153,7 @@ impl Event for B32MuliEvent {
             src_val,
             imm.val(),
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        dst_val.val().store(ctx, ctx.addr(dst.val()))?;
         // The instruction is over two rows in the PROM.
         ctx.incr_pc();
         ctx.incr_pc();

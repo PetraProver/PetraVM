@@ -439,7 +439,7 @@ macro_rules! define_bin128_op_event {
                 let dst_val = dst_bf.val();
 
                 // Store result
-                ctx.store_vrom_u128(ctx.addr(dst.val()), dst_val)?;
+                dst_val.store(ctx, ctx.addr(dst.val()))?;
 
                 let (pc, field_pc, fp, timestamp) = ctx.program_state();
                 ctx.incr_pc();
