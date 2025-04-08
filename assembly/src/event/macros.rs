@@ -145,11 +145,7 @@ macro_rules! impl_event_for_binary_operation {
                 Ok(())
             }
 
-            fn fire(
-                &self,
-                channels: &mut $crate::execution::InterpreterChannels,
-                _tables: &$crate::execution::InterpreterTables,
-            ) {
+            fn fire(&self, channels: &mut $crate::execution::InterpreterChannels) {
                 use $crate::event::binary_ops::{LeftOp, OutputOp, RightOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
                 $crate::fire_non_jump_event!(self, channels);
@@ -441,7 +437,7 @@ macro_rules! define_bin128_op_event {
                 // Store result
                 ctx.store_vrom_u128(ctx.addr(dst.val()), dst_val)?;
 
-                let (pc, field_pc, fp, timestamp) = ctx.program_state();
+                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
                 ctx.incr_pc();
 
                 let event = Self {
@@ -461,7 +457,7 @@ macro_rules! define_bin128_op_event {
                 Ok(())
             }
 
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+            fn fire(&self, channels: &mut InterpreterChannels) {
                 use super::{LeftOp, OutputOp, RightOp};
 
                 // Verify that the result is correct

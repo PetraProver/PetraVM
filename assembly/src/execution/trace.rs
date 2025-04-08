@@ -19,16 +19,16 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
         integer_ops::{
-            AddEvent, AddiEvent, GenericSignedMulEvent, MulOp, MuliEvent, MulsuOp, MuluEvent,
-            SignedMulEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent, SubEvent,
+            AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
+            SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
         mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
         ret::RetEvent,
-        shift::{self, GenericShiftEvent, ShiftEvent},
+        shift::GenericShiftEvent,
         Event,
     },
-    execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
+    execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
     memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
 };
@@ -90,14 +90,12 @@ pub struct BoundaryValues {
 /// # Example
 ///
 /// ```ignore
-/// fire_events!(&trace.bnz, &mut channels, &tables);
+/// fire_events!(&trace.bnz, &mut channels);
 /// ```
 #[macro_export]
 macro_rules! fire_events {
-    ($events:expr, $channels:expr, $tables:expr) => {
-        $events
-            .iter()
-            .for_each(|event| event.fire($channels, $tables));
+    ($events:expr, $channels:expr) => {
+        $events.iter().for_each(|event| event.fire($channels));
     };
 }
 
@@ -120,7 +118,7 @@ impl ZCrayTrace {
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(frames, pc_field_to_int);
 
-        let mut trace = interpreter.run(memory)?;
+        let trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()
@@ -139,8 +137,6 @@ impl ZCrayTrace {
     pub fn validate(&self, boundary_values: BoundaryValues) {
         let mut channels = InterpreterChannels::default();
 
-        let tables = InterpreterTables::default();
-
         // Initial boundary push: PC = 1, FP = 0, TIMESTAMP = 0.
         channels.state_channel.push((B32::ONE, 0, 0));
         // Final boundary pull.
@@ -150,42 +146,42 @@ impl ZCrayTrace {
             boundary_values.timestamp,
         ));
 
-        fire_events!(self.bnz, &mut channels, &tables);
-        fire_events!(self.jumpi, &mut channels, &tables);
-        fire_events!(self.jumpv, &mut channels, &tables);
-        fire_events!(self.xor, &mut channels, &tables);
-        fire_events!(self.bz, &mut channels, &tables);
-        fire_events!(self.or, &mut channels, &tables);
-        fire_events!(self.ori, &mut channels, &tables);
-        fire_events!(self.xori, &mut channels, &tables);
-        fire_events!(self.and, &mut channels, &tables);
-        fire_events!(self.andi, &mut channels, &tables);
-        fire_events!(self.sub, &mut channels, &tables);
-        fire_events!(self.slt, &mut channels, &tables);
-        fire_events!(self.slti, &mut channels, &tables);
-        fire_events!(self.sltu, &mut channels, &tables);
-        fire_events!(self.sltiu, &mut channels, &tables);
-        fire_events!(self.shifts, &mut channels, &tables);
-        fire_events!(self.add, &mut channels, &tables);
-        fire_events!(self.addi, &mut channels, &tables);
+        fire_events!(self.bnz, &mut channels);
+        fire_events!(self.jumpi, &mut channels);
+        fire_events!(self.jumpv, &mut channels);
+        fire_events!(self.xor, &mut channels);
+        fire_events!(self.bz, &mut channels);
+        fire_events!(self.or, &mut channels);
+        fire_events!(self.ori, &mut channels);
+        fire_events!(self.xori, &mut channels);
+        fire_events!(self.and, &mut channels);
+        fire_events!(self.andi, &mut channels);
+        fire_events!(self.sub, &mut channels);
+        fire_events!(self.slt, &mut channels);
+        fire_events!(self.slti, &mut channels);
+        fire_events!(self.sltu, &mut channels);
+        fire_events!(self.sltiu, &mut channels);
+        fire_events!(self.shifts, &mut channels);
+        fire_events!(self.add, &mut channels);
+        fire_events!(self.addi, &mut channels);
         // add32 gadgets do not incur any flushes
         // add64 gadgets do not incur any flushes
-        fire_events!(self.muli, &mut channels, &tables);
-        fire_events!(self.signed_mul, &mut channels, &tables);
-        fire_events!(self.mulu, &mut channels, &tables);
-        fire_events!(self.taili, &mut channels, &tables);
-        fire_events!(self.tailv, &mut channels, &tables);
-        fire_events!(self.calli, &mut channels, &tables);
-        fire_events!(self.callv, &mut channels, &tables);
-        fire_events!(self.ret, &mut channels, &tables);
-        fire_events!(self.mvih, &mut channels, &tables);
-        fire_events!(self.mvvw, &mut channels, &tables);
-        fire_events!(self.mvvl, &mut channels, &tables);
-        fire_events!(self.ldi, &mut channels, &tables);
-        fire_events!(self.b32_mul, &mut channels, &tables);
-        fire_events!(self.b32_muli, &mut channels, &tables);
-        fire_events!(self.b128_add, &mut channels, &tables);
-        fire_events!(self.b128_mul, &mut channels, &tables);
+        fire_events!(self.muli, &mut channels);
+        fire_events!(self.signed_mul, &mut channels);
+        fire_events!(self.mulu, &mut channels);
+        fire_events!(self.taili, &mut channels);
+        fire_events!(self.tailv, &mut channels);
+        fire_events!(self.calli, &mut channels);
+        fire_events!(self.callv, &mut channels);
+        fire_events!(self.ret, &mut channels);
+        fire_events!(self.mvih, &mut channels);
+        fire_events!(self.mvvw, &mut channels);
+        fire_events!(self.mvvl, &mut channels);
+        fire_events!(self.ldi, &mut channels);
+        fire_events!(self.b32_mul, &mut channels);
+        fire_events!(self.b32_muli, &mut channels);
+        fire_events!(self.b128_add, &mut channels);
+        fire_events!(self.b128_mul, &mut channels);
 
         assert!(channels.state_channel.is_balanced());
     }
@@ -201,7 +197,7 @@ impl ZCrayTrace {
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u32(parent, value);
+                self.set_vrom_u32(parent, value)?;
                 let event_out = MVEventOutput::new(
                     parent,
                     opcode,
@@ -227,7 +223,7 @@ impl ZCrayTrace {
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u64(parent, value);
+                self.set_vrom_u64(parent, value)?;
                 let event_out = MVEventOutput::new(
                     parent,
                     opcode,

@@ -3,10 +3,7 @@ use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
 use crate::{
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
 };
 
@@ -58,7 +55,7 @@ impl Event for BnzEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_ne!(self.cond, 0);
         channels
             .state_channel
@@ -90,7 +87,7 @@ impl Event for BzEvent {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
         let event = BzEvent {
             timestamp,
@@ -106,7 +103,7 @@ impl Event for BzEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(self.cond_val, 0);
         fire_non_jump_event!(self, channels);
     }

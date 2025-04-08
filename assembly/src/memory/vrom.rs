@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use binius_m3::builder::{B16, B32};
 
 use super::MemoryError;
-use crate::{execution::ZCrayTrace, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
+use crate::{memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -144,7 +144,7 @@ impl ValueRom {
 
             let word = self.get_u32(idx)?;
             // Shift the value to its appropriate position and add to result
-            result += (u64::from(word) << (i * 32));
+            result += u64::from(word) << (i * 32);
         }
 
         Ok(result)
@@ -164,7 +164,7 @@ impl ValueRom {
 
             let word = self.get_u32(idx)?;
             // Shift the value to its appropriate position and add to result
-            result += (u128::from(word) << (i * 32));
+            result += u128::from(word) << (i * 32);
         }
 
         Ok(result)

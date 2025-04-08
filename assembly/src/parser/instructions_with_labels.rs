@@ -1,12 +1,6 @@
-use std::collections::HashMap;
-
-use binius_field::{ExtensionField, Field, PackedField};
-use binius_m3::builder::{B16, B32};
 use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
-use crate::memory::ProgramRom;
-use crate::{execution::InterpreterInstruction, execution::G, opcodes::Opcode};
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added

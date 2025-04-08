@@ -3,15 +3,10 @@
 //! Each event represents an instruction executed by the VM, such as arithmetic
 //! operations, branching, or function calls.
 
-use std::fmt::Debug;
-
-use binius_m3::builder::{B16, B32};
+use binius_m3::builder::B16;
 use context::EventContext;
 
-use crate::{
-    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
-    Opcode,
-};
+use crate::execution::{InterpreterChannels, InterpreterError};
 
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
@@ -41,5 +36,5 @@ pub trait Event {
 
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
+    fn fire(&self, channels: &mut InterpreterChannels);
 }

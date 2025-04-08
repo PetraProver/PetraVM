@@ -4,10 +4,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     event::Event,
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace, G,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError, G},
 };
 
 /// Event for TAILI.
@@ -38,7 +35,7 @@ impl Event for TailiEvent {
         target_high: B16,
         next_fp: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
@@ -71,7 +68,7 @@ impl Event for TailiEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
@@ -110,7 +107,7 @@ impl Event for TailVEvent {
         next_fp: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
         let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
@@ -144,7 +141,7 @@ impl Event for TailVEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
@@ -181,7 +178,7 @@ impl Event for CalliEvent {
         target_high: B16,
         next_fp: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = B32::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -209,7 +206,7 @@ impl Event for CalliEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
@@ -246,7 +243,7 @@ impl Event for CallvEvent {
         next_fp: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
@@ -276,7 +273,7 @@ impl Event for CallvEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));

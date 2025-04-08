@@ -144,7 +144,7 @@ fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
         };
         // Largest power-of-two not exceeding the remaining size.
         let largest_possible = 1 << (31 - remaining.leading_zeros());
-        let mut block_size = alignment_constraint.min(largest_possible);
+        let block_size = alignment_constraint.min(largest_possible);
         // Skip blocks that are smaller than MIN_FRAME_SIZE.
         if block_size < MIN_FRAME_SIZE {
             current_addr += block_size;
