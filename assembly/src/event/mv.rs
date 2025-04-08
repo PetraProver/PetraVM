@@ -1021,7 +1021,7 @@ mod tests {
         // Frame
         // Slot 0: Return PC
         // Slot 1: Return FP
-        // Slot 2: Padding for alignment
+        // Slot 2: dst_addr
         // Slot 3: Padding for alignment
         // Slot 4-7: Storage MVIH
         // Slot 8-11: Storage MVVL
@@ -1029,8 +1029,10 @@ mod tests {
 
         let cur_fp = B16::one();
         let zero = B16::zero();
+        let dst = 2;
+        let dst_val = 4;
         let storage_mvih_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
-        let storage_mvvl = 8.into();
+        let storage_mvvl = (8 ^ dst_val).into();
         let storage_mvvw = 12.into();
         let imm = 12.into();
 
@@ -1066,7 +1068,7 @@ mod tests {
             // Set the source value for MVV.L
             [
                 Opcode::Mvvl.get_field_elt(),
-                cur_fp,
+                dst.into(),
                 storage_mvvl,
                 storage_mvih_offsets[0],
             ],
@@ -1088,6 +1090,8 @@ mod tests {
         // Set FP and PC
         vrom.set_u32(0, 0).unwrap();
         vrom.set_u32(1, 0).unwrap();
+        // Set the destination address.
+        vrom.set_u32(dst as u32, dst_val as u32).unwrap();
 
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
@@ -1106,7 +1110,9 @@ mod tests {
             imm.val() as u128
         );
         assert_eq!(
-            traces.get_vrom_u128(storage_mvvl.val() as u32).unwrap(),
+            traces
+                .get_vrom_u128((storage_mvvl.val() ^ dst_val) as u32)
+                .unwrap(),
             imm.val() as u128
         );
         assert_eq!(
