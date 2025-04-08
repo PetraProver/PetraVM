@@ -8,7 +8,10 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    tables::{LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    tables::{
+        BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable, VromSkipTable,
+        VromWriteTable,
+    },
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -34,6 +37,10 @@ pub struct Circuit {
     pub ldi_table: LdiTable,
     /// RET instruction table
     pub ret_table: RetTable,
+    /// BNZ branch non-zero instruction table
+    pub bnz_table: BnzTable,
+    /// BNZ branch zero instruction table
+    pub bz_table: BzTable,
 }
 
 impl Default for Circuit {
@@ -58,6 +65,8 @@ impl Circuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
         let ret_table = RetTable::new(&mut cs, &channels);
+        let bnz_table = BnzTable::new(&mut cs, &channels);
+        let bz_table = BzTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -68,6 +77,8 @@ impl Circuit {
             vrom_skip_table,
             ldi_table,
             ret_table,
+            bnz_table,
+            bz_table,
         }
     }
 
@@ -113,6 +124,8 @@ impl Circuit {
 
         let ldi_size = trace.ldi_events().len();
         let ret_size = trace.ret_events().len();
+        let bnz_size = trace.bnz_events().len();
+        let bz_size = trace.bz_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -122,6 +135,8 @@ impl Circuit {
             vrom_skip_size,       // VROM skip table size
             ldi_size,             // LDI table size
             ret_size,             // RET table size
+            bnz_size,             // BNZ table size
+            bz_size,              // BZ table size
         ];
 
         // Create the statement with all boundaries

@@ -101,6 +101,12 @@ impl Prover {
         // 6. Fill RET table with return events
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
 
+        // 7. Fill BNZ table with branch not zero events
+        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
+
+        // 8. Fill BZ table with branch zero events
+        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();
 

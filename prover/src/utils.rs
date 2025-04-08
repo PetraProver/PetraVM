@@ -2,7 +2,7 @@
 //! operations.
 
 use binius_field::ExtensionField;
-use binius_m3::builder::{upcast_expr, Col, TableBuilder, B128, B16, B32};
+use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -67,7 +67,7 @@ pub fn pack_instruction_with_fixed_opcode(
     table: &mut TableBuilder,
     name: &str,
     pc: Col<B32>,
-    opcode: u32,
+    opcode: u16,
     args: [Col<B16>; 3],
 ) -> Col<B128> {
     pack_instruction_common!(table, name, pc, args, B128::new(opcode as u128))
@@ -116,6 +116,19 @@ pub fn pack_instruction_b128(pc: B32, opcode: B16, arg1: B16, arg2: B16, arg3: B
     b1 + b2 + b3 + b4 + b5
 }
 
+/// Creates a u128 value by packing instruction components with constant values.
+///
+/// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
+/// opcode (16 bits)]
+#[inline(always)]
+pub const fn pack_instruction_u128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> u128 {
+    opcode as u128
+        | (arg1 as u128) << 16
+        | (arg2 as u128) << 32
+        | (arg3 as u128) << 48
+        | (pc as u128) << 64
+}
+
 /// Creates a B128 value by packing instruction components with a 32-bit
 /// immediate value.
 ///
@@ -129,4 +142,13 @@ pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm
     let b3 = b128_basis(2) * imm;
     let b4 = b128_basis(4) * pc;
     b1 + b2 + b3 + b4
+}
+
+pub(crate) fn pack_b16_into_b32(limbs: [Expr<B16, 1>; 2]) -> Expr<B32, 1> {
+    limbs
+        .into_iter()
+        .enumerate()
+        .map(|(i, limb)| upcast_expr(limb) * <B32 as ExtensionField<B16>>::basis(i))
+        .reduce(|a, b| a + b)
+        .expect("limbs has length 2")
 }

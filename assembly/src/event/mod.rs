@@ -8,7 +8,10 @@ use std::fmt::Debug;
 use binius_m3::builder::{B16, B32};
 use context::EventContext;
 
-use crate::execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace};
+use crate::{
+    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
+    Opcode,
+};
 
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
