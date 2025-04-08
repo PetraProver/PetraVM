@@ -53,7 +53,12 @@ fn generate_test_trace<const N: usize>(
     let mut max_dst = 0;
     for (dst, imm, multiplicity) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm, multiplicity);
+        max_dst = max_dst.max(dst);
     }
+
+    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
+    // gadget
+    zkvm_trace.add_vrom_write(max_dst + 1, 0, 0);
 
     Ok(zkvm_trace)
 }
@@ -72,15 +77,16 @@ fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
     // - Used framesize for stack allocation
     let asm_code = format!(
         "#[framesize(0x10)]\n\
-        LDI.W @2, #{}\n\
-        LDI.W @3, #2\n\
-        B32_MUL @4, @2, @3\n\
-        RET\n",
+         _start:
+           LDI.W @2, #{}\n\
+           LDI.W @3, #2\n\
+           B32_MUL @4, @2, @3\n\
+           RET\n",
         value
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0, value];
+    let init_values = [0, 0];
 
     let mul_result = (B32::new(value) * B32::new(2)).val();
     let vrom_writes = vec![
@@ -123,26 +129,18 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
 
     // Add VROM writes from BNZ events
     let vrom_writes = if cond_val != 0 {
-        // zkvm_trace
-        //     .bnz_events()
-        //     .iter()
-        //     .map(|event| (event.cond as u32, event.cond_val))
-        //     .collect()
         vec![
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
+            (2, 1, 1),
         ]
     } else {
-        // zkvm_trace
-        //     .bz_events()
-        //     .iter()
-        //     .map(|event| (event.cond as u32, 0))
-        //     .collect()
         vec![
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
+            (2, 0, 1),
         ]
     };
 
@@ -191,7 +189,7 @@ where
 }
 
 #[test]
-fn test_ldi_ret() -> Result<()> {
+fn test_ldi_b32_mul_ret() -> Result<()> {
     test_from_trace_generator(
         || {
             // Test value to load
@@ -201,21 +199,26 @@ fn test_ldi_ret() -> Result<()> {
         |trace| {
             assert_eq!(
                 trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
+                4,
+                "Program should have exactly 4 instructions"
             );
             assert_eq!(
                 trace.ldi_events().len(),
-                1,
-                "Should have exactly one LDI event"
+                2,
+                "Should have exactly two LDI events"
             );
             assert_eq!(
                 trace.ret_events().len(),
                 1,
                 "Should have exactly one RET event"
             );
+            assert_eq!(
+                trace.b32_mul_events().len(),
+                1,
+                "Should have exactly one B32_MUL event"
+            );
         },
-        4,
+        6,
     )
 }
 
