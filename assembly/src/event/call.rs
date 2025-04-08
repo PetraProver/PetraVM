@@ -8,7 +8,6 @@ use crate::{
         FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
         ZCrayTrace, G,
     },
-    memory::MemoryAccess,
     ValueRom,
 };
 

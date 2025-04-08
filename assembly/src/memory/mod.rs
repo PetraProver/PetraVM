@@ -77,14 +77,6 @@ impl AccessSize for u128 {
     }
 }
 
-/// Generic trait for memory objects like VROM or RAM to support reads and
-/// writes.
-pub(crate) trait MemoryAccess<T: AccessSize + Copy + Default> {
-    fn read(ctx: &EventContext, address: u32) -> Result<T, MemoryError>;
-    fn read_opt(ctx: &EventContext, address: u32) -> Result<Option<T>, MemoryError>;
-    fn write(ctx: &mut EventContext, address: u32, value: T) -> Result<(), MemoryError>;
-}
-
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is
 /// loaded. It maps every PC to a specific instruction to execute.
 pub type ProgramRom = Vec<InterpreterInstruction>;
@@ -119,20 +111,14 @@ impl Memory {
         &mut self.vrom
     }
 
-    /// Sets a 32-bit value in VROM at the provided index.
-    pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom.set_u32(index, value)
+    /// Returns a reference to the RAM.
+    pub const fn ram(&self) -> &Ram {
+        todo!()
     }
 
-    /// Sets a 64-bit value in VROM at the provided index.
-    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.vrom.set_u64(index, value)
-    }
-
-    /// Sets a u128 value and handles pending entries.
-    pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        // Set the value in VROM
-        self.vrom.set_u128(index, value)
+    /// Returns a mutable reference to the RAM.
+    pub fn ram_mut(&mut self) -> &mut Ram {
+        todo!()
     }
 
     /// Returns a reference to the pending VROM updates map.
@@ -143,17 +129,5 @@ impl Memory {
     /// Returns a mutable reference to the pending VROM updates map.
     pub(crate) fn vrom_pending_updates_mut(&mut self) -> &mut VromPendingUpdates {
         &mut self.vrom.pending_updates
-    }
-
-    /// Inserts a pending value in VROM to be set later.
-    ///
-    /// Maps a destination address to a `VromUpdate` which contains necessary
-    /// information to create a MOVE event once the value is available.
-    pub(crate) fn insert_pending(
-        &mut self,
-        dst: u32,
-        pending_update: VromUpdate,
-    ) -> Result<(), MemoryError> {
-        self.vrom.insert_pending(dst, pending_update)
     }
 }

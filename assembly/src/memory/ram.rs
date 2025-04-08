@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use binius_m3::builder::B32;
 
-use super::{AccessSize, MemoryAccess};
+use super::AccessSize;
 use crate::{event::context::EventContext, memory::MemoryError};
 
 /// Represents the RAM for the zCrayVM
@@ -215,23 +215,6 @@ impl Ram {
 
     pub fn data(&self) -> &[u8] {
         &self.data
-    }
-}
-
-impl<T> MemoryAccess<T> for Ram
-where
-    T: RamValue,
-{
-    fn read(ctx: &EventContext, address: u32) -> Result<T, MemoryError> {
-        ctx.read_ram::<T>(address)
-    }
-
-    fn read_opt(ctx: &EventContext, address: u32) -> Result<Option<T>, MemoryError> {
-        unimplemented!()
-    }
-
-    fn write(ctx: &mut EventContext, address: u32, value: T) -> Result<(), MemoryError> {
-        ctx.write_ram(address, value)
     }
 }
 

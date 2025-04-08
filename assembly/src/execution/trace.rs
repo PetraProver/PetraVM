@@ -30,7 +30,7 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, G},
     gadgets::{Add32Gadget, Add64Gadget},
-    memory::{Memory, MemoryError, ProgramRom, ValueRom, VromUpdate},
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate},
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
@@ -196,7 +196,7 @@ impl ZCrayTrace {
 
     /// Sets a u32 value at the specified index.
     pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.memory.set_vrom_u32(index, value)?;
+        self.vrom_mut().set_u32(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
@@ -222,7 +222,7 @@ impl ZCrayTrace {
 
     /// Sets a u64 value at the specified index.
     pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.memory.set_vrom_u64(index, value)?;
+        self.vrom_mut().set_u64(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
@@ -248,7 +248,7 @@ impl ZCrayTrace {
 
     /// Sets a u128 value at the specified index.
     pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.memory.set_vrom_u128(index, value)?;
+        self.vrom_mut().set_u128(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
@@ -272,7 +272,7 @@ impl ZCrayTrace {
         Ok(())
     }
 
-    /// Inserts a pending value to be set later.
+    /// Inserts a pending value in VROM to be set later.
     ///
     /// Maps a destination address to a `VromUpdate` which contains necessary
     /// information to create a MOVE event once the value is available.
@@ -281,7 +281,7 @@ impl ZCrayTrace {
         parent: u32,
         pending_value: VromUpdate,
     ) -> Result<(), MemoryError> {
-        self.memory.insert_pending(parent, pending_value)?;
+        self.vrom_mut().insert_pending(parent, pending_value)?;
 
         Ok(())
     }
@@ -294,6 +294,16 @@ impl ZCrayTrace {
     /// Returns a mutable reference to the VROM.
     pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
         self.memory.vrom_mut()
+    }
+
+    /// Returns a  reference to the RAM.
+    pub const fn ram(&self) -> &Ram {
+        self.memory.ram()
+    }
+
+    /// Returns a mutable reference to the RAM.
+    pub fn ram_mut(&mut self) -> &mut Ram {
+        self.memory.ram_mut()
     }
 
     #[cfg(test)]

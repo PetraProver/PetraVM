@@ -3,7 +3,7 @@ use std::{collections::HashMap, ops::Shl};
 use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
 
-use super::{AccessSize, MemoryAccess, MemoryError};
+use super::{AccessSize, MemoryError};
 use crate::{
     event::context::EventContext, execution::ZCrayTrace, memory::vrom_allocator::VromAllocator,
     opcodes::Opcode,
@@ -119,7 +119,7 @@ impl ValueRom {
     ///
     /// Returns an error if the value is not found. This method should be used
     /// instead of `get_opt_u32` everywhere outside of CALL procedures.
-    pub(crate) fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
+    fn get_u32(&self, index: u32) -> Result<u32, MemoryError> {
         match self.vrom.get(&index) {
             Some(&value) => Ok(value),
             None => Err(MemoryError::VromMissingValue(index)),
@@ -130,28 +130,8 @@ impl ValueRom {
     ///
     /// Used for MOVE operations that are part of a CALL procedure, since the
     /// value to move may not yet be known.
-    pub(crate) fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
+    fn get_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
         Ok(self.vrom.get(&index).copied())
-    }
-
-    /// Gets a u64 value from the specified index.
-    ///
-    /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
-    pub(crate) fn get_u64(&self, index: u32) -> Result<u64, MemoryError> {
-        self.check_alignment::<u64>(index)?;
-
-        // For u64, we need to read from multiple u32 slots (2 slots)
-        let mut result: u64 = 0;
-        for i in 0..2 {
-            let idx = index + i; // Read from consecutive slots
-
-            let word = self.get_u32(idx)?;
-            // Shift the value to its appropriate position and add to result
-            result += (u64::from(word) << (i * 32));
-        }
-
-        Ok(result)
     }
 
     /// Generic read method for supported types.
@@ -287,23 +267,6 @@ pub trait VromValue:
 impl VromValue for u32 {}
 impl VromValue for u64 {}
 impl VromValue for u128 {}
-
-impl<T> MemoryAccess<T> for ValueRom
-where
-    T: VromValue,
-{
-    fn read(ctx: &EventContext, address: u32) -> Result<T, MemoryError> {
-        ctx.read_vrom::<T>(address)
-    }
-
-    fn read_opt(ctx: &EventContext, address: u32) -> Result<Option<T>, MemoryError> {
-        ctx.read_vrom_opt::<T>(address)
-    }
-
-    fn write(ctx: &mut EventContext, address: u32, value: T) -> Result<(), MemoryError> {
-        value.store(ctx, address)
-    }
-}
 
 #[cfg(test)]
 mod tests {

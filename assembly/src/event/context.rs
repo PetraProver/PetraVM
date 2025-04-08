@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
-    memory::{AccessSize, MemoryAccess, MemoryError, Ram, RamValue, VromStore, VromValue},
+    memory::{AccessSize, MemoryError, Ram, RamValue, VromStore, VromValue},
     ValueRom, ZCrayTrace,
 };
 
@@ -67,21 +67,49 @@ impl EventContext<'_> {
     where
         T: VromValue,
     {
-        <ValueRom as MemoryAccess<T>>::write(self, addr, value)
+        value.store(self, addr)
     }
 
-    pub fn read_ram<T>(&self, addr: u32) -> Result<T, MemoryError>
+    // /// Inserts a pending value in VROM to be set later.
+    // ///
+    // /// Maps a destination address to a `VromUpdate` which contains necessary
+    // /// information to create a MOVE event once the value is available.
+    // pub(crate) fn insert_vrom_pending(
+    //     &mut self,
+    //     parent: u32,
+    //     pending_value: VromUpdate,
+    // ) -> Result<(), MemoryError> {
+    //     self.vrom_mut().insert_pending(parent, pending_value)?;
+
+    //     Ok(())
+    // }
+
+    pub const fn ram(&self) -> &Ram {
+        self.trace.ram()
+    }
+
+    pub fn ram_mut(&mut self) -> &mut Ram {
+        self.trace.ram_mut()
+    }
+
+    pub fn read_ram<T>(&mut self, addr: u32, timestamp: u32, pc: B32) -> Result<T, MemoryError>
     where
         T: RamValue,
     {
-        <Ram as MemoryAccess<T>>::read(self, addr)
+        self.ram_mut().read(addr, timestamp, pc)
     }
 
-    pub fn write_ram<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
+    pub fn write_ram<T>(
+        &mut self,
+        addr: u32,
+        value: T,
+        timestamp: u32,
+        pc: B32,
+    ) -> Result<(), MemoryError>
     where
         T: RamValue,
     {
-        <Ram as MemoryAccess<T>>::write(self, addr, value)
+        self.ram_mut().write(addr, value, timestamp, pc)
     }
 
     /// Increments the underlying [`Interpreter`]'s PC.
