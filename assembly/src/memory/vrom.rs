@@ -121,7 +121,7 @@ impl ValueRom {
     /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
     /// that will scale the frame pointer with the provided offset to obtain the
     /// corresponding VROM address.
-    pub(crate) fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
+    pub fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
 
         for i in 0..T::word_size() as u32 {
