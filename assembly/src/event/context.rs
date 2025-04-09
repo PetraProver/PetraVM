@@ -67,7 +67,7 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        value.store(self, addr)
+        self.trace.vrom_write(addr, value)
     }
 
     // /// Inserts a pending value in VROM to be set later.
@@ -235,6 +235,6 @@ impl<'a> EventContext<'a> {
 
     /// Helper method to set a value in VROM.
     pub fn set_vrom(&mut self, slot: u16, value: u32) {
-        self.trace.set_vrom_u32(self.addr(slot), value).unwrap();
+        self.vrom_write(self.addr(slot), value).unwrap();
     }
 }

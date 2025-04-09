@@ -30,7 +30,7 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate},
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
@@ -190,14 +190,21 @@ impl ZCrayTrace {
         self.memory.vrom().size()
     }
 
-    /// Sets a u32 value at the specified index.
-    pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
+    /// Sets a value of one of the supported types at the provided index in
+    /// VROM.
+    ///
+    /// This will also execute pending VROM updates if necessary.
+    pub(crate) fn vrom_write<T: VromValueT>(
+        &mut self,
+        index: u32,
+        value: T,
+    ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u32(parent, value)?;
+                self.vrom_write(parent, value)?;
                 let event_out = MVEventOutput::new(
                     parent,
                     opcode,
@@ -207,59 +214,7 @@ impl ZCrayTrace {
                     dst,
                     src,
                     offset,
-                    value as u128,
-                );
-                event_out.push_mv_event(self);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Sets a u64 value at the specified index.
-    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
-
-        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u64(parent, value)?;
-                let event_out = MVEventOutput::new(
-                    parent,
-                    opcode,
-                    field_pc,
-                    fp.into(),
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                    value as u128,
-                );
-                event_out.push_mv_event(self);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Sets a u128 value at the specified index.
-    pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
-
-        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u128(parent, value)?;
-                let event_out = MVEventOutput::new(
-                    parent,
-                    opcode,
-                    field_pc,
-                    fp.into(),
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                    value,
+                    value.to_u128(),
                 );
                 event_out.push_mv_event(self);
             }

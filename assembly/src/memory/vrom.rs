@@ -202,45 +202,9 @@ impl ValueRom {
     }
 }
 
-/// Trait for storing values in the VROM.
-///
-/// It abstracts over the different data types that can be written into the VROM
-/// during program execution.
-pub trait VromStore {
-    /// Stores the given `value` at the specified `addr` in the VROM.
-    ///
-    /// # Arguments
-    /// * `ctx` - The current [`EventContext`].
-    /// * `addr` - The target VROM address.
-    /// * `value` - The value to store.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// that will scale the frame pointer with the provided offset to obtain the
-    /// corresponding VROM address.
-    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError>;
-}
-
-impl VromStore for u32 {
-    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
-        ctx.trace.set_vrom_u32(addr, *self)
-    }
-}
-
-impl VromStore for u64 {
-    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
-        ctx.trace.set_vrom_u64(addr, *self)
-    }
-}
-
-impl VromStore for u128 {
-    fn store(&self, ctx: &mut EventContext, addr: u32) -> Result<(), MemoryError> {
-        ctx.trace.set_vrom_u128(addr, *self)
-    }
-}
-
 /// Trait for types that can be read from or written to the VROM.
 pub trait VromValueT:
-    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + VromStore
+    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize
 {
     fn to_u128(self) -> u128;
 }
