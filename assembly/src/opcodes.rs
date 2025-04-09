@@ -1,14 +1,24 @@
 use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum::EnumCount;
-use strum_macros::EnumCount;
+use strum_macros::{Display, EnumCount};
 
 use crate::event::*;
 use crate::{event::context::EventContext, execution::InterpreterError};
 
 /// Represents the set of instructions supported by the zCrayVM.
 #[derive(
-    Debug, Clone, Copy, Hash, Default, EnumCount, TryFromPrimitive, IntoPrimitive, PartialEq, Eq,
+    Debug,
+    Display,
+    Clone,
+    Copy,
+    Hash,
+    Default,
+    EnumCount,
+    TryFromPrimitive,
+    IntoPrimitive,
+    PartialEq,
+    Eq,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]

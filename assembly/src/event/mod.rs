@@ -78,6 +78,9 @@ impl Opcode {
     ) -> Result<(), InterpreterError> {
         match self {
             Opcode::Bnz => event_helper::generate_bnz(ctx, arg0, arg1, arg2),
+            Opcode::Bz => {
+                unreachable!("BzEvent can only be triggered through the Bnz instruction.")
+            }
             Opcode::Jumpi => jump::JumpiEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Jumpv => jump::JumpvEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Xori => b32::XoriEvent::generate(ctx, arg0, arg1, arg2),
@@ -116,7 +119,7 @@ impl Opcode {
             Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
-            _ => Err(InterpreterError::InvalidOpcode),
+            Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }
 }

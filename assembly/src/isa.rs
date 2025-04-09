@@ -9,6 +9,7 @@
 //! [`ISA::register_instructions`] to instantiate and wire up all instruction
 //! tables needed.
 
+use core::fmt::Debug;
 use std::collections::HashSet;
 
 use binius_m3::builder::ConstraintSystem;
@@ -21,7 +22,7 @@ use crate::Opcode;
 /// Each implementation of this trait should provide the different instructions
 /// supported. This can be done easily through the
 /// [`register_instruction!`](crate::register_instruction) macro.
-pub trait ISA {
+pub trait ISA: Debug {
     /// Returns the set of supported opcodes.
     fn supported_opcodes(&self) -> &HashSet<Opcode>;
 
@@ -46,6 +47,7 @@ macro_rules! define_isa {
         $(#[$doc:meta])*
         $isa_ty:ident => [ $( $event_ty:ty ),* $(,)? ]
     ) => {
+        #[derive(Debug)]
         $(#[$doc])*
         pub struct $isa_ty;
 

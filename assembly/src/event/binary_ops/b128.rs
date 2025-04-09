@@ -39,6 +39,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        isa::GenericISA,
         memory::{Memory, ValueRom},
         opcodes::Opcode,
         util::code_to_prom,
@@ -157,8 +158,9 @@ mod tests {
         frames.insert(B32::ONE, 24);
 
         // Create an interpreter and run the program
-        let (trace, boundary_values) = ZCrayTrace::generate(memory, frames, HashMap::new())
-            .expect("Trace generation should not fail.");
+        let (trace, boundary_values) =
+            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+                .expect("Trace generation should not fail.");
 
         // Capture the final PC before boundary_values is moved
         let final_pc = boundary_values.final_pc;

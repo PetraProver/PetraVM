@@ -8,6 +8,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use anyhow::ensure;
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
 use tracing::trace;
@@ -35,6 +36,7 @@ use crate::{
     execution::{StateChannel, ZCrayTrace},
     gadgets::Add32Gadget,
     get_last_event,
+    isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
     opcodes::Opcode,
 };
@@ -86,6 +88,9 @@ impl DerefMut for FramePointer {
 /// and state updates.
 #[derive(Debug)]
 pub struct Interpreter {
+    /// The Instruction Set Architecture [`ISA`] to be supported for this
+    /// [`Interpreter`] instance.
+    pub isa: Box<dyn ISA>,
     /// The integer PC represents to the exponent of the actual field
     /// PC (which starts at `B32::ONE` and iterate over the
     /// multiplicative group). Since we need to have a value for 0 as well
@@ -111,6 +116,7 @@ pub struct Interpreter {
 impl Default for Interpreter {
     fn default() -> Self {
         Self {
+            isa: Box::new(GenericISA),
             pc: 1, // default starting value for PC
             fp: FramePointer(0),
             timestamp: 0,
@@ -152,12 +158,19 @@ impl InterpreterInstruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum InterpreterError {
+    #[error("The opcode is not a valid one.")]
     InvalidOpcode,
+    #[error("The opcode {0} is not supported by this instruction set.")]
+    UnsupportedOpcode(Opcode),
+    #[error("The Program Counter is incorrect.")]
     BadPc,
+    #[error("The arguments to this opcode are invalid.")]
     InvalidInput,
+    #[error("A memory access failed with error {0}")]
     MemoryError(MemoryError),
+    #[error("An exception occured.")]
     Exception(InterpreterException),
 }
 
@@ -171,8 +184,13 @@ impl From<MemoryError> for InterpreterError {
 pub enum InterpreterException {}
 
 impl Interpreter {
-    pub(crate) const fn new(frames: LabelsFrameSizes, pc_field_to_int: HashMap<B32, u32>) -> Self {
+    pub(crate) const fn new(
+        isa: Box<dyn ISA>,
+        frames: LabelsFrameSizes,
+        pc_field_to_int: HashMap<B32, u32>,
+    ) -> Self {
         Self {
+            isa,
             pc: 1,
             fp: FramePointer(0),
             timestamp: 0,
@@ -245,6 +263,10 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        if !self.isa.is_supported(opcode) {
+            return Err(InterpreterError::UnsupportedOpcode(opcode));
+        }
+
         trace!(
             "Executing {:?} with args {:?}",
             opcode,
@@ -295,7 +317,8 @@ mod tests {
         frames.insert(B32::ONE, 12);
 
         let (trace, boundary_values) =
-            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
+            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+                .expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -460,9 +483,13 @@ mod tests {
         let mut frames_args_size = HashMap::new();
         frames_args_size.insert(B32::ONE, 10);
 
-        let (traces, boundary_values) =
-            ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)
-                .expect("Trace generation should not fail.");
+        let (traces, boundary_values) = ZCrayTrace::generate(
+            Box::new(GenericISA),
+            memory,
+            frames_args_size,
+            pc_field_to_int,
+        )
+        .expect("Trace generation should not fail.");
 
         traces.validate(boundary_values);
 

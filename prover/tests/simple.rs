@@ -39,6 +39,7 @@ fn generate_test_trace<const N: usize>(
 
     // Generate the trace from the compiled program
     let (zcray_trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,

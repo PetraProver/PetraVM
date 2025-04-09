@@ -610,6 +610,7 @@ mod tests {
     use crate::{
         event::mv::{MVInfo, MVKind},
         execution::{Interpreter, G},
+        isa::GenericISA,
         memory::Memory,
         opcodes::Opcode,
         util::code_to_prom,
@@ -655,7 +656,7 @@ mod tests {
 
         let memory = Memory::new(prom, vrom);
 
-        let mut interpreter = Interpreter::new(frames, HashMap::new());
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, HashMap::new());
 
         let _ = interpreter
             .run(memory)
@@ -754,7 +755,7 @@ mod tests {
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, 5);
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
 
         let traces = interpreter
             .run(memory)
@@ -861,7 +862,7 @@ mod tests {
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, target_pc);
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
 
         let traces = interpreter
             .run(memory)
@@ -993,7 +994,7 @@ mod tests {
         let memory = Memory::new(prom, vrom);
 
         let pc_field_to_int = HashMap::new();
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
 
         let traces = interpreter
             .run(memory)
@@ -1094,7 +1095,7 @@ mod tests {
         let memory = Memory::new(prom, vrom);
 
         let pc_field_to_int = HashMap::new();
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
 
         let traces = interpreter
             .run(memory)

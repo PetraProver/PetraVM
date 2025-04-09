@@ -1,7 +1,7 @@
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use num_traits::WrappingAdd;
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_fibonacci_integration() {
@@ -21,6 +21,7 @@ fn test_fibonacci_integration() {
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
