@@ -362,7 +362,7 @@ fn parse_line(
                     }
                     Rule::simple_jump => {
                         let mut simple_jump = instruction.into_inner();
-                        let rule =
+                        let _rule =
                             get_first_inner(simple_jump.next().unwrap(), "jump has instruction")
                                 .as_rule();
                         let dst = simple_jump
@@ -408,7 +408,7 @@ pub fn parse_program(input: &str) -> Result<Vec<InstructionsWithLabels>, Error> 
     let mut instrs = Vec::<InstructionsWithLabels>::new();
 
     let program = parser
-        .map_err(|_| Error::NoStartLabelOrInstructionFound)?
+        .map_err(|err| Error::PestParse(Box::new(err)))?
         .next()
         .ok_or(Error::NoStartLabelOrInstructionFound)?
         .into_inner();

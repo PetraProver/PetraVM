@@ -1,7 +1,4 @@
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use binius_field::{ExtensionField, Field, PackedField};
 use binius_m3::builder::{B16, B32};

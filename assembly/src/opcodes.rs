@@ -1,6 +1,5 @@
 use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use pest::pratt_parser::Op;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 

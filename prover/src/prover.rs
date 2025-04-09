@@ -19,6 +19,7 @@ use crate::{circuit::Circuit, isa::ISA, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
+pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
 
 /// Main prover for zCrayVM.
 pub struct Prover {
@@ -86,7 +87,7 @@ impl Prover {
         // 4. Fill VROM skip table with skipped addresses
         // Generate the list of skipped addresses (addresses not in vrom_writes)
         let write_addrs: std::collections::HashSet<u32> =
-            trace.vrom_writes.iter().map(|(addr, _)| *addr).collect();
+            trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
 
         let vrom_skips: Vec<u32> = (0..vrom_size as u32)
             .filter(|addr| !write_addrs.contains(addr))

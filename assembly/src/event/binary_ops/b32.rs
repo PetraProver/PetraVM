@@ -5,7 +5,7 @@ use super::BinaryOperation;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, context::EventContext, Event},
-    execution::{InterpreterError, ZCrayTrace, G},
+    execution::{InterpreterError, G},
     impl_32b_immediate_binary_operation, Opcode,
 };
 
@@ -162,11 +162,7 @@ impl Event for B32MuliEvent {
         Ok(())
     }
 
-    fn fire(
-        &self,
-        channels: &mut crate::execution::InterpreterChannels,
-        _tables: &crate::execution::InterpreterTables,
-    ) {
+    fn fire(&self, channels: &mut crate::execution::InterpreterChannels) {
         assert_eq!(
             self.dst_val,
             Self::operation(B32::new(self.src_val), self.imm.into()).into()

@@ -13,7 +13,8 @@ use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
 
 use crate::model::Trace;
-pub use crate::opcodes::{LdiTable, RetTable};
+// Re-export instruction-specific tables
+pub use crate::opcodes::{binary::B32MulTable, BnzTable, BzTable, LdiTable, RetTable};
 use crate::{channels::Channels, types::ProverPackedField};
 
 /// Trait implemented by all instruction tables in the zCrayVM circuit.

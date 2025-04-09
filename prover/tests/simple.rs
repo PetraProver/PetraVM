@@ -4,6 +4,7 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use binius_m3::builder::B32;
 use log::trace;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::isa::GenericISA;
@@ -18,12 +19,12 @@ use zcrayvm_prover::prover::{verify_proof, Prover};
 /// * `vrom_writes` - The VROM writes to be added to the trace.
 ///
 /// # Returns
-/// * A Trace containing executed instructions that loads `value` into VROM at
-///   address fp+2, followed by a RET instruction
-fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
+/// * A Trace containing executed instructions
+// TODO: we should extract VROM writes from zcray_trace
+fn generate_test_trace<const N: usize>(
     asm_code: String,
     init_values: [u32; N],
-    vrom_writes: F,
+    vrom_writes: Vec<(u32, u32, u32)>,
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
@@ -50,53 +51,56 @@ fn generate_test_trace<const N: usize, F: FnOnce(&Trace) -> Vec<(u32, u32)>>(
     // Add the program instructions to the trace
     zkvm_trace.add_instructions(program);
 
-    let vrom_writes: Vec<_> = vrom_writes(&zkvm_trace);
-
-    // Add initial VROM values for return PC and return FP
-    zkvm_trace.add_vrom_write(0, 0); // Initial return PC = 0
-    zkvm_trace.add_vrom_write(1, 0); // Initial return FP = 0
-
     // Add other VROM writes
-    for (dst, imm) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, imm);
+    let mut max_dst = 0;
+    for (dst, imm, multiplicity) in vrom_writes {
+        zkvm_trace.add_vrom_write(dst, imm, multiplicity);
+        max_dst = max_dst.max(dst);
     }
 
-    dbg!(&zkvm_trace);
+    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
+    // gadget
+    zkvm_trace.add_vrom_write(max_dst + 1, 0, 0);
 
     Ok(zkvm_trace)
 }
 
-/// Creates a basic execution trace with just LDI and RET instructions.
+/// Creates a basic execution trace with just LDI, B32_MUL and RET instructions.
 ///
 /// # Arguments
 /// * `value` - The value to load into VROM.
 ///
 /// # Returns
-/// * A trace containing an LDI instruction that loads `value` into VROM at
-///   address fp+2, followed by a RET instruction
-fn generate_ldi_ret_trace(value: u32) -> Result<Trace> {
+/// * A trace containing an LDI, B32_MUL and RET instruction
+fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
     // - Used framesize for stack allocation
     let asm_code = format!(
         "#[framesize(0x10)]\n\
-         _start: LDI.W @2, #{}\n\
-         RET\n",
+         _start:
+           LDI.W @2, #{}\n\
+           LDI.W @3, #2\n\
+           B32_MUL @4, @2, @3\n\
+           RET\n",
         value
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0, value];
+    let init_values = [0, 0];
 
-    // Add VROM writes from LDI events
-    let vrom_writes = |zkvm_trace: &Trace| {
-        zkvm_trace
-            .ldi_events()
-            .iter()
-            .map(|event| (event.dst as u32, event.imm))
-            .collect()
-    };
+    let mul_result = (B32::new(value) * B32::new(2)).val();
+    let vrom_writes = vec![
+        // LDI events
+        (2, value, 2),
+        (3, 2, 2),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        // B32_MUL event
+        (4, mul_result, 1),
+    ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
@@ -126,20 +130,20 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     let init_values = [0, 0, cond_val];
 
     // Add VROM writes from BNZ events
-    let vrom_writes = |zkvm_trace: &Trace| {
-        if cond_val != 0 {
-            zkvm_trace
-                .bnz_events()
-                .iter()
-                .map(|event| (event.cond as u32, event.cond_val))
-                .collect()
-        } else {
-            zkvm_trace
-                .bz_events()
-                .iter()
-                .map(|event| (event.cond as u32, 0))
-                .collect()
-        }
+    let vrom_writes = if cond_val != 0 {
+        vec![
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            (2, 1, 1),
+        ]
+    } else {
+        vec![
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            (2, 0, 1),
+        ]
     };
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -187,31 +191,36 @@ where
 }
 
 #[test]
-fn test_ldi_ret() -> Result<()> {
+fn test_ldi_b32_mul_ret() -> Result<()> {
     test_from_trace_generator(
         || {
             // Test value to load
             let value = 0x12345678;
-            generate_ldi_ret_trace(value)
+            generate_ldi_ret_mul32_trace(value)
         },
         |trace| {
             assert_eq!(
                 trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
+                4,
+                "Program should have exactly 4 instructions"
             );
             assert_eq!(
                 trace.ldi_events().len(),
-                1,
-                "Should have exactly one LDI event"
+                2,
+                "Should have exactly two LDI events"
             );
             assert_eq!(
                 trace.ret_events().len(),
                 1,
                 "Should have exactly one RET event"
             );
+            assert_eq!(
+                trace.b32_mul_events().len(),
+                1,
+                "Should have exactly one B32_MUL event"
+            );
         },
-        3,
+        6,
     )
 }
 
@@ -236,7 +245,7 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        3,
+        4,
     )
 }
 
@@ -261,6 +270,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        3,
+        4,
     )
 }

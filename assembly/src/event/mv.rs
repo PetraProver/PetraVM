@@ -4,10 +4,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     event::Event,
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError, ZCrayTrace},
     fire_non_jump_event,
     memory::MemoryError,
     opcodes::Opcode,
@@ -57,7 +54,7 @@ macro_rules! impl_mv_event {
                 Ok(())
             }
 
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+            fn fire(&self, channels: &mut InterpreterChannels) {
                 fire_non_jump_event!(self, channels);
             }
         }
@@ -230,7 +227,7 @@ impl MVVWEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
@@ -241,11 +238,31 @@ impl MVVWEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
 
+        // If `dst_addr` is set, we check whether the value at the destination is
+        // already set. If that's the case, we can set the source value.
+        if let Some(dst_addr) = opt_dst_addr {
+            let opt_dst_val = ctx.load_vrom_opt_u32(dst_addr ^ offset.val() as u32)?;
+            // If the destination value is set, we set the source value.
+            if let Some(dst_val) = opt_dst_val {
+                execute_mv_u32(ctx, ctx.addr(src.val()), dst_val)?;
+
+                return Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }));
+            }
+        }
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
@@ -257,9 +274,7 @@ impl MVVWEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        ctx.incr_pc();
-
-        ctx.store_vrom_u32(ctx.addr(offset.val()), src_val)?;
+        execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -357,7 +372,7 @@ impl MVVLEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
@@ -368,11 +383,31 @@ impl MVVLEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
         let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
 
+        // If `dst_addr` is set, we check whether the value at the destination is
+        // already set. If that's the case, we can set the source value.
+        if let Some(dst_addr) = opt_dst_addr {
+            let opt_dst_val = ctx.load_vrom_opt_u128(dst_addr ^ offset.val() as u32)?;
+            // If the destination value is set, we set the source value.
+            if let Some(dst_val) = opt_dst_val {
+                execute_mv_u128(ctx, ctx.addr(src.val()), dst_val)?;
+
+                return Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }));
+            }
+        }
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
@@ -384,7 +419,7 @@ impl MVVLEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        ctx.store_vrom_u128(ctx.addr(offset.val()), src_val)?;
+        execute_mv_u128(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -457,15 +492,14 @@ impl MVIHEvent {
         offset: B16,
         imm: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            ctx.store_vrom_u32(ctx.addr(offset.val()), imm.val() as u32)?;
-            ctx.incr_pc();
+            execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
             Ok(Some(Self {
                 pc: field_pc,
@@ -507,13 +541,12 @@ impl LDIEvent {
         imm_low: B16,
         imm_high: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
-        ctx.incr_pc();
+        execute_mv_u32(ctx, ctx.addr(dst.val()), imm.val())?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -553,6 +586,20 @@ fn delegate_move(
     ctx.incr_pc();
 }
 
+fn execute_mv_u32(ctx: &mut EventContext, dst_addr: u32, value: u32) -> Result<(), MemoryError> {
+    ctx.store_vrom_u32(dst_addr, value)?;
+    ctx.incr_pc();
+
+    Ok(())
+}
+
+fn execute_mv_u128(ctx: &mut EventContext, dst_addr: u32, value: u128) -> Result<(), MemoryError> {
+    ctx.store_vrom_u128(dst_addr, value)?;
+    ctx.incr_pc();
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -562,9 +609,8 @@ mod tests {
 
     use crate::{
         event::mv::{MVInfo, MVKind},
-        execution::trace::ZCrayTrace,
         execution::{Interpreter, G},
-        memory::{Memory, VromPendingUpdates, VromUpdate},
+        memory::Memory,
         opcodes::Opcode,
         util::code_to_prom,
         ValueRom,
@@ -579,17 +625,17 @@ mod tests {
         // Slot 3: dst_storage1
         // Slot 4: src_val1: not written yet.
         // Slot 5: dst_addr2 = 0
-        // Slot 6: dst_storage2
-        // Slot 7: padding for alignment.
-        // Slot 8: src_val2: not written yet.
+        // Slot 6-7: Padding for alignment
+        // Slot 8-11: dst_storage2
+        // Slot 12-15: src_val2: not written yet.
 
         let zero = B16::zero();
         let dst_addr1 = 2.into();
         let offset1 = 3.into();
         let src_addr1 = 4.into();
         let dst_addr2 = 5.into();
-        let offset2 = 6.into();
-        let src_addr2 = 8.into();
+        let offset2 = 8.into();
+        let src_addr2 = 12.into();
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
             [Opcode::Mvvw.get_field_elt(), dst_addr1, offset1, src_addr1],
@@ -598,7 +644,7 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(B32::one(), 9);
+        frames.insert(B32::one(), 16);
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
@@ -867,6 +913,210 @@ mod tests {
         assert_eq!(
             traces.get_vrom_u32(storage.val() as u32).unwrap(),
             traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_mv_dst_no_src() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: Padding for alignment
+        // Slot 3: Padding for alignment
+        // Slot 4-7: Storage
+        // Slot 8-11: Src_val_mvvl
+        // Slot 12: Src_val_mvvw
+
+        let cur_fp = B16::one();
+        let zero = B16::zero();
+        let storage_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
+        let src_addr_mvvl = 8.into();
+        let src_addr_mvvw = 12.into();
+        let imm = 12.into();
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        // The value is previously set by MVI.H. This way, the two source values can be
+        // set orrectly.
+        let instructions = vec![
+            // Store `imm` into the storage value.
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                imm,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[1],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[2],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[3],
+                zero,
+            ],
+            // Set the source value for MVV.L
+            [
+                Opcode::Mvvl.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                src_addr_mvvl,
+            ],
+            // Set the source value for MVV.W
+            [
+                Opcode::Mvvw.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                src_addr_mvvw,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(B32::one(), 13);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+
+        // We do not set `src_addr_mvvl` and `src_val_mvvw`.
+        let memory = Memory::new(prom, vrom);
+
+        let pc_field_to_int = HashMap::new();
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        assert_eq!(
+            traces
+                .get_vrom_u128(storage_offsets[0].val() as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces.get_vrom_u128(src_addr_mvvl.val() as u32).unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(traces.get_vrom_u32(src_addr_mvvw.val() as u32).unwrap(), 12);
+    }
+
+    #[test]
+    fn test_normal_mv() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: dst_addr
+        // Slot 3: Padding for alignment
+        // Slot 4-7: Storage MVIH
+        // Slot 8-11: Storage MVVL
+        // Slot 12: Storage MVVW
+
+        let cur_fp = B16::one();
+        let zero = B16::zero();
+        let dst = 2;
+        let dst_val = 4;
+        let storage_mvih_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
+        let storage_mvvl = (8 ^ dst_val).into();
+        let storage_mvvw = (12 ^ dst_val).into();
+        let imm = 12.into();
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        // The value is previously set by MVI.H. This way, the two source values can be
+        // set orrectly.
+        let instructions = vec![
+            // Store `imm` into the storage value.
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[0],
+                imm,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[1],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[2],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[3],
+                zero,
+            ],
+            // Set the source value for MVV.L. We use `dst` here to ensure the computation is
+            // correct in `generate_event`.
+            [
+                Opcode::Mvvl.get_field_elt(),
+                dst.into(),
+                storage_mvvl,
+                storage_mvih_offsets[0],
+            ],
+            // Set the source value for MVV.W
+            [
+                Opcode::Mvvw.get_field_elt(),
+                dst.into(),
+                storage_mvvw,
+                storage_mvih_offsets[0],
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(B32::one(), 13);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.set_u32(0, 0).unwrap();
+        vrom.set_u32(1, 0).unwrap();
+        // Set the destination address.
+        vrom.set_u32(dst as u32, dst_val as u32).unwrap();
+
+        // We do not set `src_addr_mvvl` and `src_val_mvvw`.
+        let memory = Memory::new(prom, vrom);
+
+        let pc_field_to_int = HashMap::new();
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        assert_eq!(
+            traces
+                .get_vrom_u128(storage_mvih_offsets[0].val() as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .get_vrom_u128((storage_mvvl.val() ^ dst_val) as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .get_vrom_u32((storage_mvvw.val() ^ dst_val) as u32)
+                .unwrap(),
+            imm.val() as u32
         );
     }
 }

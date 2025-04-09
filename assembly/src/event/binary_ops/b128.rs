@@ -4,10 +4,7 @@ use super::BinaryOperation;
 use crate::{
     define_bin128_op_event,
     event::{context::EventContext, Event},
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace, G,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError, G},
 };
 
 define_bin128_op_event!(
@@ -45,6 +42,7 @@ mod tests {
         memory::{Memory, ValueRom},
         opcodes::Opcode,
         util::code_to_prom,
+        ZCrayTrace,
     };
 
     #[test]
@@ -125,7 +123,7 @@ mod tests {
         let b_val = 0x5555555566666666u128 | (0x7777777788888888u128 << 64);
         let c_val = 0x9999999988888888u128 | (0x7777777766666666u128 << 64);
 
-        let mut init_values = vec![
+        let init_values = vec![
             // Return PC and FP
             0,
             0,

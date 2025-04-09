@@ -1,20 +1,16 @@
 use core::fmt::Debug;
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 
-use binius_field::underlier::UnderlierType;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, Event},
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    impl_binary_operation, impl_immediate_binary_operation, Opcode,
+    Opcode,
 };
 
 define_bin32_imm_op_event!(
@@ -71,7 +67,7 @@ impl Event for MuliEvent {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
@@ -89,7 +85,7 @@ impl Event for MuliEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(
             self.dst_val,
             (self.src_val as i32 as i64).wrapping_mul(self.imm as i16 as i64) as u64
@@ -138,7 +134,7 @@ impl Event for MuluEvent {
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let mulu_event = Self {
@@ -187,7 +183,7 @@ impl Event for MuluEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(
             self.dst_val,
             (self.src1_val as u64).wrapping_mul(self.src2_val as u64)
@@ -207,7 +203,6 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
     let num_ys_bytes = std::mem::size_of::<T>();
     let ys = &imm_val.into().to_le_bytes()[..num_ys_bytes];
 
-    let num_aux = num_ys_bytes * 2;
     let mut aux = vec![0; num_ys_bytes * 2];
     // Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
     // containing the summands that wont't overlap
@@ -238,8 +233,7 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
         cum_sums[0] = aux_sums[0] + (aux_sums[1] << 8);
         (1..num_ys_bytes - 2)
-            .map(|i| cum_sums[i] = cum_sums[i - 1] + (aux_sums[i + 1] << (8 * (i + 1))))
-            .collect::<Vec<_>>();
+            .for_each(|i| cum_sums[i] = cum_sums[i - 1] + (aux_sums[i + 1] << (8 * (i + 1))));
         cum_sums
     } else {
         vec![]
@@ -380,7 +374,7 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
 
         ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
@@ -400,7 +394,7 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
         fire_non_jump_event!(self, channels);
     }
@@ -479,8 +473,7 @@ define_bin32_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation};
-    use crate::{get_last_event, Memory, ProgramRom, ValueRom};
+    use crate::{execution::Interpreter, get_last_event, ZCrayTrace};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -749,8 +742,6 @@ mod tests {
             let mut interpreter = Interpreter::default();
             interpreter.timestamp = 0;
             interpreter.pc = 1;
-
-            let trace = ZCrayTrace::default();
 
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();

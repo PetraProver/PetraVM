@@ -12,8 +12,7 @@ use binius_m3::builder::ConstraintSystem;
 
 use crate::{
     channels::Channels,
-    memory::{BnzTable, BzTable},
-    table::{FillableTable, LdiTable, RetTable, Table},
+    table::{B32MulTable, BnzTable, BzTable, FillableTable, LdiTable, RetTable, Table},
 };
 
 // TODO(Robin): Maybe create some `VirtualMachine` object on the
@@ -102,6 +101,7 @@ define_isa!(
     GenericISA => [
     (BzTable, bz_events),
     (BnzTable, bnz_events),
+    (B32MulTable, b32_mul_events),
     (LdiTable, ldi_events),
     (RetTable, ret_events),
 ]);

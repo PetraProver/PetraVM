@@ -2,10 +2,12 @@
 //!
 //! This module contains the tables for each opcode instruction.
 
+pub mod binary;
 pub mod branch;
 pub mod ldi;
 pub mod ret;
 
+pub use binary::B32MulTable;
 pub use branch::{BnzTable, BzTable};
 pub use ldi::LdiTable;
 pub use ret::RetTable;

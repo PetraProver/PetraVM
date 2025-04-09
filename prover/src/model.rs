@@ -6,7 +6,7 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
 };
 
 /// Generates event accessors for a trace.
@@ -71,8 +71,8 @@ pub struct Trace {
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<Instruction>,
-    /// List of VROM writes (address, value) pairs
-    pub vrom_writes: Vec<(u32, u32)>,
+    /// List of VROM writes (address, value, multiplicity) pairs
+    pub vrom_writes: Vec<(u32, u32, u32)>,
 }
 
 impl Default for Trace {
@@ -135,8 +135,9 @@ impl Trace {
     /// # Arguments
     /// * `addr` - The address to write to
     /// * `value` - The value to write
-    pub fn add_vrom_write(&mut self, addr: u32, value: u32) {
-        self.vrom_writes.push((addr, value));
+    /// * `multiplicity` - The multiplicity of pulls of this VROM write
+    pub fn add_vrom_write(&mut self, addr: u32, value: u32, multiplicity: u32) {
+        self.vrom_writes.push((addr, value, multiplicity));
     }
 
     /// Ensures the trace has enough data for proving.
@@ -173,5 +174,6 @@ impl Trace {
 // Generate event accessors
 impl_event_accessor!(ldi_events, LDIEvent, ldi);
 impl_event_accessor!(ret_events, RetEvent, ret);
+impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
 impl_event_accessor!(bnz_events, BnzEvent, bnz);
 impl_event_accessor!(bz_events, BzEvent, bz);

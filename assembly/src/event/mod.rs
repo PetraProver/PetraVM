@@ -9,13 +9,11 @@
 //! This module defines a generic [`Event`] trait to be implemented by all
 //! supported instructions
 
-use std::fmt::Debug;
-
-use binius_m3::builder::{B16, B32};
+use binius_m3::builder::B16;
 use context::EventContext;
 
 use crate::{
-    execution::{InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace},
+    execution::{InterpreterChannels, InterpreterError},
     Opcode,
 };
 
@@ -50,7 +48,7 @@ pub trait Event {
 
     /// Executes the flushing rules associated to this `Event`, pushing to /
     /// pulling from their target channels.
-    fn fire(&self, channels: &mut InterpreterChannels, tables: &InterpreterTables);
+    fn fire(&self, channels: &mut InterpreterChannels);
 }
 
 impl Opcode {

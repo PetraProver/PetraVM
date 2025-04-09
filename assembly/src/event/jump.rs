@@ -2,12 +2,7 @@ use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
-use crate::{
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-    },
-    ZCrayTrace,
-};
+use crate::execution::{FramePointer, InterpreterChannels, InterpreterError};
 
 /// Event for Jumpv.
 ///
@@ -33,7 +28,7 @@ impl Event for JumpvEvent {
     ) -> Result<(), InterpreterError> {
         let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         ctx.jump_to(target.into());
 
@@ -49,7 +44,7 @@ impl Event for JumpvEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
@@ -80,7 +75,7 @@ impl Event for JumpiEvent {
         target_high: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -98,7 +93,7 @@ impl Event for JumpiEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));

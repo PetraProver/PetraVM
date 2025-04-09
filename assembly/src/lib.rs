@@ -20,6 +20,7 @@ mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
+pub use event::binary_ops::b32::{B32MulEvent, B32MuliEvent};
 pub use event::{
     branch::{BnzEvent, BzEvent},
     mv::LDIEvent,

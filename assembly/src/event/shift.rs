@@ -1,16 +1,13 @@
 use core::fmt::Debug;
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 
-use binius_field::Field;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
-    event::{binary_ops::*, Event},
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-    },
-    fire_non_jump_event, Opcode, ZCrayTrace,
+    event::Event,
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
+    fire_non_jump_event,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -188,7 +185,6 @@ where
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
         let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
-        let src2_offset = src2.val();
         let new_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
@@ -230,7 +226,7 @@ where
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         fire_non_jump_event!(self, channels);
     }
 }
@@ -288,12 +284,10 @@ impl_generic_shift_event!(Sra, SraEvent);
 mod test {
     use std::collections::HashMap;
 
-    use binius_field::PackedField;
+    use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{
-        event::ret::RetEvent, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom,
-    };
+    use crate::{memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, ZCrayTrace};
 
     #[test]
     fn test_shift_event_calculate_comprehensive() {
