@@ -149,8 +149,8 @@ impl ValueRom {
 
     /// Ensures the VROM has enough capacity for an access, resizing if
     /// necessary.
-    fn ensure_capacity<T: AccessSize>(&mut self, addr: u32) {
-        let required_size = addr as usize + T::byte_size();
+    fn ensure_capacity<T: VromValueT>(&mut self, addr: u32) {
+        let required_size = addr as usize + T::word_size();
         if required_size > self.data.len() {
             self.data.resize(required_size.next_power_of_two(), None);
         }
