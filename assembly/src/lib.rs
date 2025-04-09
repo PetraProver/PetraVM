@@ -14,20 +14,16 @@ pub mod assembler;
 pub mod event;
 pub mod execution;
 pub mod gadgets;
+pub mod isa;
 pub mod memory;
 pub mod opcodes;
 mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use event::binary_ops::b32::{B32MulEvent, B32MuliEvent};
-pub use event::{
-    branch::{BnzEvent, BzEvent},
-    mv::LDIEvent,
-    ret::RetEvent,
-};
+pub use event::*;
 pub use execution::emulator::{Instruction, InterpreterInstruction};
 pub use execution::trace::BoundaryValues;
 pub use execution::trace::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
-pub use opcodes::Opcode;
+pub use opcodes::{InstructionInfo, Opcode};

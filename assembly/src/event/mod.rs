@@ -30,6 +30,22 @@ pub(crate) mod shift;
 
 pub(crate) use binary_ops::{b128, b32};
 
+// Re-exports
+pub use self::{
+    b128::{B128AddEvent, B128MulEvent},
+    b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
+    branch::{BnzEvent, BzEvent},
+    call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+    integer_ops::{
+        AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
+        SltiuEvent, SltuEvent, SubEvent,
+    },
+    jump::{JumpiEvent, JumpvEvent},
+    mv::{LDIEvent, MVIHEvent, MVVLEvent, MVVWEvent},
+    ret::RetEvent,
+    shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
+};
+
 /// An `Event` represents an instruction that can be executed by the VM.
 ///
 /// This trait is implemented by every instruction supported by the VM
@@ -100,7 +116,7 @@ impl Opcode {
             Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
+            _ => Err(InterpreterError::InvalidOpcode),
         }
     }
 }

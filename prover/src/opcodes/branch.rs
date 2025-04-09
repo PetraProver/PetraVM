@@ -19,6 +19,7 @@ pub struct BnzTable {
     cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
 }
+
 impl Table for BnzTable {
     type Event = BnzEvent;
 

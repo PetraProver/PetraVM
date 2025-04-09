@@ -12,7 +12,10 @@ fn test_opcodes() {
     for instr in &compiled_program.prom {
         seen.insert(mem::discriminant(&instr.opcode()));
     }
-    assert_eq!(seen.len(), Opcode::OP_COUNT);
+    assert_eq!(
+        seen.len(),
+        Opcode::OP_COUNT - 1 /* Bz isn't an actual opcode */
+    );
 
     // Generate the program ROM and associated data
     let vrom = ValueRom::new_with_init_vals(&[0, 0]);

@@ -11,11 +11,18 @@ use anyhow::anyhow;
 use binius_m3::builder::ConstraintSystem;
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
+use zcrayvm_assembly::opcodes::InstructionInfo;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
 pub use crate::opcodes::{binary::B32MulTable, BnzTable, BzTable, LdiTable, RetTable};
 use crate::{channels::Channels, types::ProverPackedField};
+
+pub trait TableInfo: InstructionInfo {
+    type Table: TableFiller<ProverPackedField> + Table + 'static;
+
+    fn accessor() -> fn(&Trace) -> &[<Self::Table as Table>::Event];
+}
 
 /// Trait implemented by all instruction tables in the zCrayVM circuit.
 ///
@@ -96,3 +103,19 @@ where
         (self.get_events)(trace).len()
     }
 }
+
+// pub fn register_tables_for_isa<I: ISA + ?Sized>(
+//     isa: &I,
+//     cs: &mut ConstraintSystem,
+//     channels: &Channels,
+// ) -> Vec<Box<dyn FillableTable>> {
+//     let mut tables = Vec::new();
+
+//     for &opcode in isa.supported_opcodes() {
+//         if let Some(entry) = build_table_for_opcode(opcode, cs, channels) {
+//             tables.push(entry);
+//         }
+//     }
+
+//     tables
+// }

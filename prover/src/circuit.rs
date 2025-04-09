@@ -4,12 +4,12 @@
 //! all the individual tables and channels.
 
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
+use zcrayvm_assembly::isa::ISA;
 
 use crate::{
     channels::Channels,
-    isa::ISA,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
-    model::Trace,
+    model::{build_table_for_opcode, Trace},
     table::FillableTable,
 };
 
@@ -54,7 +54,12 @@ impl Circuit {
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
 
-        let tables = isa.register_tables(&mut cs, &channels);
+        // Generate all tables required to prove the instructions supported by this ISA.
+        let tables = isa
+            .supported_opcodes()
+            .iter()
+            .filter_map(|op| build_table_for_opcode(*op, &mut cs, &channels))
+            .collect::<Vec<_>>();
 
         Self {
             isa,

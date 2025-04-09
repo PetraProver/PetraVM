@@ -14,8 +14,9 @@ use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
+use zcrayvm_assembly::isa::ISA;
 
-use crate::{circuit::Circuit, isa::ISA, model::Trace, types::ProverPackedField};
+use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;

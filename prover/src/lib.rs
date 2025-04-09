@@ -8,7 +8,6 @@
 pub mod channels;
 pub mod circuit;
 pub mod gadgets;
-pub mod isa;
 pub mod memory;
 pub mod model;
 pub mod opcodes;

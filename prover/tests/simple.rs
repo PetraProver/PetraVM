@@ -6,8 +6,8 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use log::trace;
+use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
-use zcrayvm_prover::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
