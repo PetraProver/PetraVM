@@ -3,8 +3,8 @@ mod common;
 use common::test_utils::execute_test_asm;
 
 fn run_test(input: u32, expected: u32, condition: &str) {
-    let mut frames = execute_test_asm(include_str!("../../examples/branch.asm"), &[input]);
-    let branch_frame = frames.add_frame("branches");
+    let mut info = execute_test_asm(include_str!("../../examples/branch.asm"), &[input]);
+    let branch_frame = info.frames.add_frame("branches");
 
     assert_eq!(
         branch_frame.get_vrom_expected::<u32>(3),

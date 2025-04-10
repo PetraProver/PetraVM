@@ -5,8 +5,8 @@ use common::test_utils::execute_test_asm;
 #[test]
 fn test_bit_shifts_integration() {
     // Generate the trace for the `bit_shifts.asm` program
-    let mut frames = execute_test_asm(include_str!("../../examples/bit_shifts.asm"), &[]);
-    let bit_shifts_frame = frames.add_frame("bit_shifts");
+    let mut info = execute_test_asm(include_str!("../../examples/bit_shifts.asm"), &[]);
+    let bit_shifts_frame = info.frames.add_frame("bit_shifts");
 
     // Verify the results of the bit shift operations
     assert_eq!(bit_shifts_frame.get_vrom_expected::<u32>(3), 5, "x = 5");

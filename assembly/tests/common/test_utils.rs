@@ -34,7 +34,7 @@ impl Deref for TestFrameHandle {
 /// `AllocatedFrame`s (which have their own frame VROM slice). The idea is at
 /// the start, the test writer defines the frames in the order that they are
 /// expected to be constructed through a run of the program.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Frames {
     /// Map of frame templates names to instantiated frames of that template (in
     /// order of allocation).
@@ -178,10 +178,16 @@ fn extract_frame_templates_from_assembled_program(
     frame_templates
 }
 
+#[derive(Clone, Debug)]
+pub struct ExecutedTestProgInfo {
+    pub frames: Frames,
+    pub compiled_program: AssembledProgram,
+}
+
 /// Common logic that all ASM tests need to run.
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
-pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
+pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> ExecutedTestProgInfo {
     // Init the tracing subscriber if not already initialized.
     let _ = tracing_subscriber::fmt::try_init();
 
@@ -199,19 +205,22 @@ pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
     processed_init_vals.extend(init_vals.iter().map(|x| G.pow([*x as u64]).val()));
 
     let vrom = ValueRom::new_with_init_vals(&processed_init_vals);
-    let memory = Memory::new(compiled_program.prom, vrom);
+    let memory = Memory::new(compiled_program.prom.clone(), vrom);
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
         Box::new(GenericISA),
         memory,
-        compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.frame_sizes.clone(),
+        compiled_program.pc_field_to_int.clone(),
     )
     .expect("Trace generation should not fail");
 
     // Validate the trace
     trace.validate(boundary_values);
 
-    Frames::new(Rc::new(trace), frame_templates)
+    ExecutedTestProgInfo {
+        frames: Frames::new(Rc::new(trace), frame_templates),
+        compiled_program,
+    }
 }

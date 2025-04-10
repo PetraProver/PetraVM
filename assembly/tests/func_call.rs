@@ -7,10 +7,10 @@ fn test_func_call_integration() {
     tracing_subscriber::fmt::init();
 
     // Generate the trace for the `func_call.asm` program
-    let mut frames = execute_test_asm(include_str!("../../examples/func_call.asm"), &[]);
+    let mut info = execute_test_asm(include_str!("../../examples/func_call.asm"), &[]);
 
-    let func_call_frame = frames.add_frame("func_call");
-    let add_two_numbers_frame = frames.add_frame("add_two_numbers");
+    let func_call_frame = info.frames.add_frame("func_call");
+    let add_two_numbers_frame = info.frames.add_frame("add_two_numbers");
 
     // Verify the results of the function call
     assert_eq!(

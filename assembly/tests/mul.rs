@@ -5,8 +5,8 @@ use common::test_utils::execute_test_asm;
 #[test]
 fn test_mul_integration() {
     // Generate the trace for the `add.asm` program
-    let mut frames = execute_test_asm(include_str!("../../examples/mul.asm"), &[]);
-    let mul_frame = frames.add_frame("mul");
+    let mut info = execute_test_asm(include_str!("../../examples/mul.asm"), &[]);
+    let mul_frame = info.frames.add_frame("mul");
 
     // Verify the result of the addition
 

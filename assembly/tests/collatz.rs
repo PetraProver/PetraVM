@@ -9,9 +9,9 @@ fn test_collatz_integration() {
     // Execute the program multiple times with different initial values
     for initial_value in init_vals {
         // Load in Collatz binary.
-        let mut frames =
+        let mut info =
             execute_test_asm(include_str!("../../examples/collatz.asm"), &[initial_value]);
-        let collatz_frame = frames.add_frame("collatz");
+        let collatz_frame = info.frames.add_frame("collatz");
 
         // Verify the final result is 1, as expected for the Collatz conjecture
         assert_eq!(

@@ -1,7 +1,7 @@
 use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum::EnumCount;
-use strum_macros::{Display, EnumCount};
+use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
 use crate::{event::context::EventContext, execution::InterpreterError};
@@ -19,6 +19,8 @@ use crate::{event::context::EventContext, execution::InterpreterError};
     IntoPrimitive,
     PartialEq,
     Eq,
+    VariantArray,
+    IntoStaticStr,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
