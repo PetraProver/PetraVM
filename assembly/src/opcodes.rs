@@ -203,6 +203,7 @@ impl_instruction_info!(
     (SraiEvent, Opcode::Srai),
     (SrlEvent, Opcode::Srl),
     (SrliEvent, Opcode::Srli),
+    (SubEvent, Opcode::Sub),
     (TailiEvent, Opcode::Taili),
     (TailVEvent, Opcode::Tailv),
     (XorEvent, Opcode::Xor),
