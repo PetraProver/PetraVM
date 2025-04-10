@@ -139,7 +139,7 @@ impl Event for B32MuliEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         debug_assert!(field_pc == G.pow(pc as u64 - 1));
@@ -153,7 +153,7 @@ impl Event for B32MuliEvent {
             src_val,
             imm.val(),
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
         // The instruction is over two rows in the PROM.
         ctx.incr_pc();
         ctx.incr_pc();

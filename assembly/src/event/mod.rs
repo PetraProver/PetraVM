@@ -77,7 +77,7 @@ impl Opcode {
         arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
-            Opcode::Bnz => event_helper::generate_bnz(ctx, arg0, arg1, arg2),
+            Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")
             }
@@ -134,23 +134,6 @@ mod event_helper {
         Event,
     };
     use crate::{execution::InterpreterError, gadgets::Add32Gadget};
-
-    /// Helper method to generate `BnzEvent` and `BnzEvent`.
-    pub fn generate_bnz(
-        ctx: &mut EventContext,
-        cond: B16,
-        target_low: B16,
-        target_high: B16,
-    ) -> Result<(), InterpreterError> {
-        // TODO: group events?
-        let cond_val = ctx.load_vrom_u32(ctx.addr(cond.val()))?;
-
-        if cond_val != 0 {
-            BnzEvent::generate(ctx, cond, target_low, target_high)
-        } else {
-            BzEvent::generate(ctx, cond, target_low, target_high)
-        }
-    }
 
     /// Helper method to generate `AddEvent` and associated `Add32Gadget`.
     pub fn generate_add(

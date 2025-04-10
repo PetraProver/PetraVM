@@ -37,8 +37,8 @@ impl Event for TailiEvent {
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
         let target = B32::from_bases([target_low, target_high])
@@ -50,8 +50,8 @@ impl Event for TailiEvent {
 
         ctx.jump_to(target);
 
-        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
+        ctx.vrom_write(ctx.addr(0u32), return_addr)?;
+        ctx.vrom_write(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
             pc: field_pc,
@@ -109,11 +109,11 @@ impl Event for TailVEvent {
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        let old_fp_val = ctx.load_vrom_u32(ctx.addr(1u32))?;
+        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -122,8 +122,8 @@ impl Event for TailVEvent {
         // Jump to the target,
         ctx.jump_to(B32::new(target));
 
-        ctx.store_vrom_u32(ctx.addr(0u32), return_addr)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), old_fp_val)?;
+        ctx.vrom_write(ctx.addr(0u32), return_addr)?;
+        ctx.vrom_write(ctx.addr(1u32), old_fp_val)?;
 
         let event = Self {
             pc: field_pc,
@@ -190,8 +190,8 @@ impl Event for CalliEvent {
         ctx.jump_to(target);
 
         let return_pc = (field_pc * G).val();
-        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
+        ctx.vrom_write(ctx.addr(0u32), return_pc)?;
+        ctx.vrom_write(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: field_pc,
@@ -246,7 +246,7 @@ impl Event for CallvEvent {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
-        let target = ctx.load_vrom_u32(ctx.addr(offset.val()))?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -256,8 +256,8 @@ impl Event for CallvEvent {
         ctx.jump_to(B32::new(target));
 
         let return_pc = (field_pc * G).val();
-        ctx.store_vrom_u32(ctx.addr(0u32), return_pc)?;
-        ctx.store_vrom_u32(ctx.addr(1u32), *fp)?;
+        ctx.vrom_write(ctx.addr(0u32), return_pc)?;
+        ctx.vrom_write(ctx.addr(1u32), *fp)?;
 
         let event = Self {
             pc: field_pc,
@@ -338,10 +338,9 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(target_addr.val() as u32, target.val())
-            .unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(target_addr.val() as u32, target.val()).unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
@@ -353,10 +352,11 @@ mod tests {
         // Check that there are no MOVE events that have yet to be executed.
         assert!(trace.vrom_pending_updates().is_empty());
         // Check that the next frame pointer was set correctly.
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was not executed.
         assert!(trace
-            .get_vrom_u32(unaccessed_dst_addr.val() as u32)
+            .vrom()
+            .read::<u32>(unaccessed_dst_addr.val() as u32)
             .is_err());
     }
 
@@ -401,10 +401,9 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(target_addr.val() as u32, target.val())
-            .unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(target_addr.val() as u32, target.val()).unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
@@ -415,10 +414,10 @@ mod tests {
                 .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());
-        assert_eq!(trace.get_vrom_u32(3).unwrap(), 6u32);
+        assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was executed.
         assert_eq!(
-            trace.get_vrom_u32(dst_addr.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(dst_addr.val() as u32).unwrap(),
             imm.val() as u32
         );
     }

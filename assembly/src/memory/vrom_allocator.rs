@@ -19,14 +19,6 @@ pub struct VromAllocator {
 }
 
 impl VromAllocator {
-    /// Creates a new VromAllocator.
-    pub const fn new() -> Self {
-        Self {
-            pos: 0,
-            slack: BTreeMap::new(),
-        }
-    }
-
     /// Get the size of the VROM.
     pub fn size(&self) -> usize {
         self.pos as usize
@@ -190,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_alloc_minimal_frame_size() {
-        let mut allocator = VromAllocator::new();
+        let mut allocator = VromAllocator::default();
         // A request smaller than MIN_FRAME_SIZE is bumped to MIN_FRAME_SIZE.
         let addr1 = allocator.alloc(1); // next_power_of_two(1)=1, but max(1,2)=2.
         assert_eq!(addr1, 0);
@@ -206,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_alloc_with_slack_various() {
-        let mut allocator = VromAllocator::new();
+        let mut allocator = VromAllocator::default();
 
         // --- Step 1: alloc(17) ---
         // p = 32, allocated at 0, pos becomes 32.
@@ -277,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_random_allocations_space_efficiency() {
-        let mut allocator = VromAllocator::new();
+        let mut allocator = VromAllocator::default();
         let mut allocations = Vec::new();
         let mut total_requested = 0u32;
         let mut rng = rand::rng();

@@ -1,7 +1,6 @@
-use std::mem::size_of;
-
 use binius_m3::builder::B32;
 
+use super::AccessSize;
 use crate::memory::MemoryError;
 
 /// Represents the RAM for the zCrayVM
@@ -16,53 +15,51 @@ pub struct Ram {
 /// Minimum RAM size in bytes (1KB)
 pub const MIN_RAM_SIZE: usize = 1024;
 
+/// The concrete type of accessed RAM values.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RamValue {
+    /// 8-bit value
+    Byte(u8),
+    /// 16-bit value
+    HalfWord(u16),
+    /// 32-bit value
+    Word(u32),
+}
+
 /// Represents a RAM access event for tracing/proving
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RamAccessEvent {
+    /// Address at which the RAM access happened.
     pub address: u32,
-    pub value: u32,
-    pub previous_value: u32,
+    /// Value read/written in RAM at `address`
+    pub value: RamValue,
+    /// Value previously stored at `address`.
+    /// This will be `None` for READ operations and `Some(v)` for WRITE ones.
+    pub previous_value: Option<RamValue>,
+    /// Timestamp at which the RAM access happened.
     pub timestamp: u32,
+    /// Program Counter at which the RAM access happened.
     pub pc: B32,
+    /// Type of the RAM access, i.e. whether READ or WRITE.
     pub is_write: bool,
-    pub size: AccessSize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccessSize {
-    Byte = 1,
-    HalfWord = 2,
-    Word = 4,
-}
-
-impl AccessSize {
-    pub fn byte_size(&self) -> usize {
-        match self {
-            AccessSize::Byte => 1,
-            AccessSize::HalfWord => 2,
-            AccessSize::Word => 4,
-        }
-    }
-
-    pub fn for_type<T>() -> Self {
-        match size_of::<T>() {
-            1 => AccessSize::Byte,
-            2 => AccessSize::HalfWord,
-            4 => AccessSize::Word,
-            _ => panic!("Unsupported type size for RAM access"),
-        }
-    }
-}
-
-/// Trait for types that can be read from or written to RAM
-pub trait RamValue: Copy + Sized {
+/// Trait for types that can be read from or written to the RAM.
+pub trait RamValueT: Copy + Default + Sized + AccessSize {
+    /// Converts a slice of bytes into a [`RamValueT`].
+    ///
+    /// *NOTE*: This will panic if the provided slice is too small.
     fn from_le_bytes(bytes: &[u8]) -> Self;
+
     fn to_le_bytes(self) -> Vec<u8>;
-    fn to_u32(self) -> u32;
+
+    /// Converts this [`RamValueT`] into a concrete [`RamValue`].
+    fn value(self) -> RamValue;
 }
 
-impl RamValue for u8 {
+impl RamValueT for u8 {
     fn from_le_bytes(bytes: &[u8]) -> Self {
+        assert!(!bytes.is_empty());
         bytes[0]
     }
 
@@ -70,13 +67,14 @@ impl RamValue for u8 {
         vec![self]
     }
 
-    fn to_u32(self) -> u32 {
-        self as u32
+    fn value(self) -> RamValue {
+        RamValue::Byte(self)
     }
 }
 
-impl RamValue for u16 {
+impl RamValueT for u16 {
     fn from_le_bytes(bytes: &[u8]) -> Self {
+        assert!(bytes.len() >= 2);
         u16::from_le_bytes([bytes[0], bytes[1]])
     }
 
@@ -84,13 +82,14 @@ impl RamValue for u16 {
         self.to_le_bytes().to_vec()
     }
 
-    fn to_u32(self) -> u32 {
-        self as u32
+    fn value(self) -> RamValue {
+        RamValue::HalfWord(self)
     }
 }
 
-impl RamValue for u32 {
+impl RamValueT for u32 {
     fn from_le_bytes(bytes: &[u8]) -> Self {
+        assert!(bytes.len() >= 4);
         u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
     }
 
@@ -98,8 +97,8 @@ impl RamValue for u32 {
         self.to_le_bytes().to_vec()
     }
 
-    fn to_u32(self) -> u32 {
-        self
+    fn value(self) -> RamValue {
+        RamValue::Word(self)
     }
 }
 
@@ -134,81 +133,75 @@ impl Ram {
         &self.access_history
     }
 
-    /// Ensures RAM has enough capacity for an access, resizing if necessary
-    fn ensure_capacity(&mut self, addr: u32, size: AccessSize) {
-        let required_size = addr as usize + size.byte_size();
+    /// Ensures RAM has enough capacity for an access, resizing if necessary.
+    fn ensure_capacity<T: AccessSize>(&mut self, addr: u32) {
+        let required_size = addr as usize + T::byte_size();
         if required_size > self.data.len() {
             self.data.resize(required_size.next_power_of_two(), 0);
         }
     }
 
     /// Checks if an access is properly aligned
-    fn check_alignment(&self, addr: u32, size: AccessSize) -> Result<(), MemoryError> {
+    fn check_alignment<T: AccessSize>(&self, addr: u32) -> Result<(), MemoryError> {
         let addr_usize = addr as usize;
 
-        if addr_usize % size.byte_size() != 0 {
-            let size_u8 = size.byte_size().min(u8::MAX as usize) as u8;
-            return Err(MemoryError::RamMisalignedAccess(addr, size.byte_size()));
+        if addr_usize % T::byte_size() != 0 {
+            return Err(MemoryError::RamMisalignedAccess(addr, T::byte_size()));
         }
 
         Ok(())
     }
 
-    /// Checks if an address is within the current bounds of RAM
-    fn check_bounds(&self, addr: u32, size: AccessSize) -> Result<(), MemoryError> {
-        let end_addr = addr as usize + size.byte_size();
+    /// Checks if an address is within the current bounds of RAM.
+    fn check_bounds<T: AccessSize>(&self, addr: u32) -> Result<(), MemoryError> {
+        let end_addr = addr as usize + T::byte_size();
 
         if end_addr > self.data.len() {
-            return Err(MemoryError::RamAddressOutOfBounds(addr, size.byte_size()));
+            return Err(MemoryError::RamAddressOutOfBounds(addr, T::byte_size()));
         }
 
         Ok(())
     }
 
     /// Generic read method for supported types (u8, u16, u32)
-    pub fn read<T: RamValue>(
+    pub fn read<T: RamValueT>(
         &mut self,
         addr: u32,
         timestamp: u32,
         pc: B32,
     ) -> Result<T, MemoryError> {
-        let access_size = AccessSize::for_type::<T>();
-
-        self.check_alignment(addr, access_size)?;
-        self.check_bounds(addr, access_size)?;
+        self.check_alignment::<T>(addr)?;
+        self.check_bounds::<T>(addr)?;
 
         let addr_usize = addr as usize;
-        let end_addr = addr_usize + access_size.byte_size();
+        let end_addr = addr_usize + T::byte_size();
         let value = T::from_le_bytes(&self.data[addr_usize..end_addr]);
 
         self.access_history.push(RamAccessEvent {
             address: addr,
-            value: value.to_u32(),
-            previous_value: value.to_u32(),
+            value: value.value(),
+            previous_value: None,
             timestamp,
             pc,
             is_write: false,
-            size: access_size,
         });
 
         Ok(value)
     }
 
     /// Generic write method for supported types (u8, u16, u32)
-    pub fn write<T: RamValue>(
+    pub fn write<T: RamValueT>(
         &mut self,
         addr: u32,
         value: T,
         timestamp: u32,
         pc: B32,
     ) -> Result<(), MemoryError> {
-        let access_size = AccessSize::for_type::<T>();
-
-        self.check_alignment(addr, access_size)?;
-        self.ensure_capacity(addr, access_size);
+        self.check_alignment::<T>(addr)?;
+        self.ensure_capacity::<T>(addr);
 
         let addr_usize = addr as usize;
-        let end_addr = addr_usize + access_size.byte_size();
+        let end_addr = addr_usize + T::byte_size();
 
         let previous_value = T::from_le_bytes(&self.data[addr_usize..end_addr]);
 
@@ -217,12 +210,11 @@ impl Ram {
 
         self.access_history.push(RamAccessEvent {
             address: addr,
-            value: value.to_u32(),
-            previous_value: previous_value.to_u32(),
+            value: value.value(),
+            previous_value: Some(previous_value.value()),
             timestamp,
             pc,
             is_write: true,
-            size: access_size,
         });
 
         Ok(())
@@ -252,21 +244,19 @@ mod tests {
 
         let write_history = RamAccessEvent {
             address: 0,
-            value: 0x12345678,
-            previous_value: 0,
+            value: RamValue::Word(0x12345678),
+            previous_value: Some(RamValue::Word(0)),
             timestamp: 1,
             pc: B32::ONE,
             is_write: true,
-            size: AccessSize::Word,
         };
         let read_history = RamAccessEvent {
             address: 0,
-            value: 0x12345678,
-            previous_value: 0x12345678,
+            value: RamValue::Word(0x12345678),
+            previous_value: None,
             timestamp: 2,
             pc: B32::ONE,
             is_write: false,
-            size: AccessSize::Word,
         };
         assert_eq!(ram.access_history[0], write_history);
         assert_eq!(ram.access_history[1], read_history);

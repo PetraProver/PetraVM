@@ -6,7 +6,7 @@ use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError, ZCrayTrace},
     fire_non_jump_event,
-    memory::MemoryError,
+    memory::{MemoryError, VromValueT},
     opcodes::Opcode,
 };
 
@@ -199,15 +199,15 @@ impl MVVWEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -240,16 +240,16 @@ impl MVVWEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if let Some(dst_addr) = opt_dst_addr {
-            let opt_dst_val = ctx.load_vrom_opt_u32(dst_addr ^ offset.val() as u32)?;
+            let opt_dst_val = ctx.vrom_read_opt::<u32>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if let Some(dst_val) = opt_dst_val {
-                execute_mv_u32(ctx, ctx.addr(src.val()), dst_val)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
                     pc: field_pc,
@@ -274,7 +274,7 @@ impl MVVWEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -344,15 +344,15 @@ impl MVVLEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -385,16 +385,18 @@ impl MVVLEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if let Some(dst_addr) = opt_dst_addr {
-            let opt_dst_val = ctx.load_vrom_opt_u128(dst_addr ^ offset.val() as u32)?;
+            let opt_dst_val = ctx
+                .vrom()
+                .read_opt::<u128>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if let Some(dst_val) = opt_dst_val {
-                execute_mv_u128(ctx, ctx.addr(src.val()), dst_val)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
                     pc: field_pc,
@@ -419,7 +421,7 @@ impl MVVLEvent {
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        execute_mv_u128(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -471,9 +473,9 @@ impl MVIHEvent {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-        ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        ctx.vrom_write(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -494,12 +496,12 @@ impl MVIHEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            execute_mv_u32(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
             Ok(Some(Self {
                 pc: field_pc,
@@ -546,7 +548,7 @@ impl LDIEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        execute_mv_u32(ctx, ctx.addr(dst.val()), imm.val())?;
+        execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -586,15 +588,12 @@ fn delegate_move(
     ctx.incr_pc();
 }
 
-fn execute_mv_u32(ctx: &mut EventContext, dst_addr: u32, value: u32) -> Result<(), MemoryError> {
-    ctx.store_vrom_u32(dst_addr, value)?;
-    ctx.incr_pc();
-
-    Ok(())
-}
-
-fn execute_mv_u128(ctx: &mut EventContext, dst_addr: u32, value: u128) -> Result<(), MemoryError> {
-    ctx.store_vrom_u128(dst_addr, value)?;
+fn execute_mv<T: VromValueT>(
+    ctx: &mut EventContext,
+    dst_addr: u32,
+    value: T,
+) -> Result<(), MemoryError> {
+    ctx.vrom_write(dst_addr, value)?;
     ctx.incr_pc();
 
     Ok(())
@@ -649,10 +648,10 @@ mod tests {
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(2, 0).unwrap();
-        vrom.set_u32(5, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(2, 0u32).unwrap();
+        vrom.write(5, 0u32).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -738,18 +737,17 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set src vals.
-        let src_val1 = 1;
-        let src_val2 = 2;
-        vrom.set_u32(src_addr1.val() as u32, src_val1).unwrap();
-        vrom.set_u128(src_addr2.val() as u32, src_val2).unwrap();
+        let src_val1 = 1u32;
+        let src_val2 = 2u128;
+        vrom.write(src_addr1.val() as u32, src_val1).unwrap();
+        vrom.write(src_addr2.val() as u32, src_val2).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -767,19 +765,22 @@ mod tests {
         let next_fp = 16;
         assert_eq!(
             traces
-                .get_vrom_u32(next_fp as u32 + offset1.val() as u32)
+                .vrom()
+                .read::<u32>(next_fp as u32 + offset1.val() as u32)
                 .unwrap(),
             src_val1
         );
         assert_eq!(
             traces
-                .get_vrom_u128(next_fp as u32 + offset2.val() as u32)
+                .vrom()
+                .read::<u128>(next_fp as u32 + offset2.val() as u32)
                 .unwrap(),
             src_val2
         );
         assert_eq!(
             traces
-                .get_vrom_u32(next_fp as u32 + offset3.val() as u32)
+                .vrom()
+                .read::<u32>(next_fp as u32 + offset3.val() as u32)
                 .unwrap(),
             imm.val() as u32
         );
@@ -850,12 +851,11 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         // We do not set the src_addr.
         let memory = Memory::new(prom, vrom);
@@ -908,12 +908,18 @@ mod tests {
         // Check that `next_fp` has been set and the third MOVE operation was carried
         // out correctly,
         assert_eq!(
-            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap(),
+            traces
+                .vrom()
+                .read::<u32>(next_fp_offset.val() as u32)
+                .unwrap(),
             next_fp
         );
         assert_eq!(
-            traces.get_vrom_u32(storage.val() as u32).unwrap(),
-            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap()
+            traces.vrom().read::<u32>(storage.val() as u32).unwrap(),
+            traces
+                .vrom()
+                .read::<u32>(next_fp_offset.val() as u32)
+                .unwrap()
         );
     }
 
@@ -987,8 +993,8 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
@@ -1002,15 +1008,25 @@ mod tests {
 
         assert_eq!(
             traces
-                .get_vrom_u128(storage_offsets[0].val() as u32)
+                .vrom()
+                .read::<u128>(storage_offsets[0].val() as u32)
                 .unwrap(),
             imm.val() as u128
         );
         assert_eq!(
-            traces.get_vrom_u128(src_addr_mvvl.val() as u32).unwrap(),
+            traces
+                .vrom()
+                .read::<u128>(src_addr_mvvl.val() as u32)
+                .unwrap(),
             imm.val() as u128
         );
-        assert_eq!(traces.get_vrom_u32(src_addr_mvvw.val() as u32).unwrap(), 12);
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u32>(src_addr_mvvw.val() as u32)
+                .unwrap(),
+            12
+        );
     }
 
     #[test]
@@ -1086,10 +1102,10 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
         // Set the destination address.
-        vrom.set_u32(dst as u32, dst_val as u32).unwrap();
+        vrom.write(dst as u32, dst_val as u32).unwrap();
 
         // We do not set `src_addr_mvvl` and `src_val_mvvw`.
         let memory = Memory::new(prom, vrom);
@@ -1103,19 +1119,22 @@ mod tests {
 
         assert_eq!(
             traces
-                .get_vrom_u128(storage_mvih_offsets[0].val() as u32)
+                .vrom()
+                .read::<u128>(storage_mvih_offsets[0].val() as u32)
                 .unwrap(),
             imm.val() as u128
         );
         assert_eq!(
             traces
-                .get_vrom_u128((storage_mvvl.val() ^ dst_val) as u32)
+                .vrom()
+                .read::<u128>((storage_mvvl.val() ^ dst_val) as u32)
                 .unwrap(),
             imm.val() as u128
         );
         assert_eq!(
             traces
-                .get_vrom_u32((storage_mvvw.val() ^ dst_val) as u32)
+                .vrom()
+                .read::<u32>((storage_mvvw.val() ^ dst_val) as u32)
                 .unwrap(),
             imm.val() as u32
         );

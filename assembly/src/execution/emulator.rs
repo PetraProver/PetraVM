@@ -521,12 +521,12 @@ mod tests {
 
         for i in 0..nb_frames {
             assert_eq!(
-                traces.get_vrom_u32(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
-                ((i + 1) * 16) as u32                            // next_fp_val
+                traces.vrom().read::<u32>(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
+                ((i + 1) * 16) as u32                                  // next_fp_val
             );
             assert_eq!(
-                traces.get_vrom_u32(i as u32 * 16 + 2).unwrap(), // n (slot 2)
-                cur_val                                          // n_val
+                traces.vrom().read::<u32>(i as u32 * 16 + 2).unwrap(), // n (slot 2)
+                cur_val                                                // n_val
             );
 
             if cur_val % 2 == 0 {
@@ -537,6 +537,6 @@ mod tests {
         }
 
         // Check return value.
-        assert_eq!(traces.get_vrom_u32(3).unwrap(), 1);
+        assert_eq!(traces.vrom().read::<u32>(3).unwrap(), 1);
     }
 }

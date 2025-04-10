@@ -2,9 +2,10 @@ mod ram;
 mod vrom;
 mod vrom_allocator;
 
+pub(crate) use ram::{Ram, RamValueT};
 use strum_macros::Display;
 pub use vrom::ValueRom;
-pub(crate) use vrom::{VromPendingUpdates, VromUpdate};
+pub(crate) use vrom::{VromPendingUpdates, VromUpdate, VromValueT};
 
 use crate::execution::InterpreterInstruction;
 
@@ -14,8 +15,66 @@ pub enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),
+    VromAddressOutOfBounds(u32, usize),
     RamAddressOutOfBounds(u32, usize),
     RamMisalignedAccess(u32, usize),
+}
+
+/// Trait that defines access granularity in memory, like word size (e.g., u32,
+/// u128). Can be used to determine how many 32-bit words are required.
+pub trait AccessSize {
+    fn byte_size() -> usize;
+    fn word_size() -> usize;
+}
+
+impl AccessSize for u8 {
+    fn byte_size() -> usize {
+        1
+    }
+
+    fn word_size() -> usize {
+        1 // TODO: Should it panic instead?
+    }
+}
+
+impl AccessSize for u16 {
+    fn byte_size() -> usize {
+        2
+    }
+
+    fn word_size() -> usize {
+        1 // TODO: Should it panic instead?
+    }
+}
+
+impl AccessSize for u32 {
+    fn byte_size() -> usize {
+        4
+    }
+
+    fn word_size() -> usize {
+        1
+    }
+}
+
+impl AccessSize for u64 {
+    fn byte_size() -> usize {
+        8
+    }
+
+    fn word_size() -> usize {
+        2
+    }
+}
+
+impl AccessSize for u128 {
+    fn byte_size() -> usize {
+        16
+    }
+
+    fn word_size() -> usize {
+        4
+    }
 }
 
 /// The Program ROM, or Instruction Memory, is an immutable memory where code is
@@ -52,62 +111,14 @@ impl Memory {
         &mut self.vrom
     }
 
-    // ValueROM access methods
-
-    /// Reads a 32-bit value in VROM at the provided index.
-    ///
-    /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u32` everywhere outside of CALL procedures.
-    pub(crate) fn get_vrom_u32(&self, index: u32) -> Result<u32, MemoryError> {
-        self.vrom.get_u32(index)
+    /// Returns a reference to the RAM.
+    pub const fn ram(&self) -> &Ram {
+        todo!()
     }
 
-    /// Reads an optional 32-bit value in VROM at the provided index.
-    ///
-    /// Used for MOVE operations that are part of a CALL procedure, since the
-    /// value to move may not yet be known.
-    pub(crate) fn get_vrom_opt_u32(&self, index: u32) -> Result<Option<u32>, MemoryError> {
-        self.vrom.get_opt_u32(index)
-    }
-
-    /// Reads a 64-bit value in VROM at the provided index.
-    ///
-    /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u64` everywhere outside of CALL procedures.
-    pub(crate) fn get_vrom_u64(&self, index: u32) -> Result<u64, MemoryError> {
-        self.vrom.get_u64(index)
-    }
-
-    /// Reads a 128-bit value in VROM at the provided index.
-    ///
-    /// Returns an error if the value is not found. This method should be used
-    /// instead of `get_vrom_opt_u128` everywhere outside of CALL procedures.
-    pub(crate) fn get_vrom_u128(&self, index: u32) -> Result<u128, MemoryError> {
-        self.vrom.get_u128(index)
-    }
-
-    /// Reads an optional 128-bit value in VROM at the provided index.
-    ///
-    /// Used for MOVE operations that are part of a CALL procedure, since the
-    /// value to move may not yet be known.
-    pub(crate) fn get_vrom_opt_u128(&self, index: u32) -> Result<Option<u128>, MemoryError> {
-        self.vrom.get_opt_u128(index)
-    }
-
-    /// Sets a 32-bit value in VROM at the provided index.
-    pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom.set_u32(index, value)
-    }
-
-    /// Sets a 64-bit value in VROM at the provided index.
-    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.vrom.set_u64(index, value)
-    }
-
-    /// Sets a u128 value and handles pending entries.
-    pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        // Set the value in VROM
-        self.vrom.set_u128(index, value)
+    /// Returns a mutable reference to the RAM.
+    pub fn ram_mut(&mut self) -> &mut Ram {
+        todo!()
     }
 
     /// Returns a reference to the pending VROM updates map.
@@ -118,17 +129,5 @@ impl Memory {
     /// Returns a mutable reference to the pending VROM updates map.
     pub(crate) fn vrom_pending_updates_mut(&mut self) -> &mut VromPendingUpdates {
         &mut self.vrom.pending_updates
-    }
-
-    /// Inserts a pending value in VROM to be set later.
-    ///
-    /// Maps a destination address to a `VromUpdate` which contains necessary
-    /// information to create a MOVE event once the value is available.
-    pub(crate) fn insert_pending(
-        &mut self,
-        dst: u32,
-        pending_update: VromUpdate,
-    ) -> Result<(), MemoryError> {
-        self.vrom.insert_pending(dst, pending_update)
     }
 }

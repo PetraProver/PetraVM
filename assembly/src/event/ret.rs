@@ -27,8 +27,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.load_vrom_u32(ctx.addr(0u32))?,
-            fp_next: ctx.load_vrom_u32(ctx.addr(1u32))?,
+            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32))?,
+            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32))?,
         })
     }
 }
@@ -42,9 +42,9 @@ impl Event for RetEvent {
     ) -> Result<(), InterpreterError> {
         let ret_event = RetEvent::new(ctx)?;
 
-        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
         ctx.jump_to(B32::new(target));
-        ctx.set_fp(ctx.load_vrom_u32(ctx.addr(1u32))?);
+        ctx.set_fp(ctx.vrom_read::<u32>(ctx.addr(1u32))?);
 
         ctx.trace.ret.push(ret_event);
         Ok(())

@@ -49,7 +49,7 @@ pub(crate) trait ImmediateBinaryOperation:
         src: B16,
         imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
@@ -64,7 +64,7 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }
@@ -92,8 +92,8 @@ pub(crate) trait NonImmediateBinaryOperation:
         src1: B16,
         src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
         let dst_val = Self::operation(B32::new(src1_val), B32::new(src2_val));
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
@@ -109,7 +109,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }
