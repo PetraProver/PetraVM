@@ -182,6 +182,9 @@ fn extract_frame_templates_from_assembled_program(
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
 pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
+    // Init the tracing subscriber if not already initialized.
+    let _ = tracing_subscriber::fmt::try_init();
+
     // Use the multiplicative generator G for calculations
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
