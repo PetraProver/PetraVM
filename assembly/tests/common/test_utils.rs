@@ -138,12 +138,6 @@ impl AllocatedFrame {
     }
 }
 
-#[derive(Debug)]
-pub struct TestAsmOutput {
-    pub trace: Rc<ZCrayTrace>,
-    pub frames: Frames,
-}
-
 /// Create frame templates from all labels annotated with `#[framesize(0x*)]`.
 fn extract_frame_templates_from_assembled_program(
     assembled_program: &AssembledProgram,
@@ -168,7 +162,7 @@ fn extract_frame_templates_from_assembled_program(
 /// Common logic that all ASM tests need to run.
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
-pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> TestAsmOutput {
+pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
     // Use the multiplicative generator G for calculations
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
@@ -196,12 +190,5 @@ pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> TestAsmOutput {
     // Validate the trace
     trace.validate(boundary_values);
 
-    let rc_trace = Rc::new(trace);
-
-    let frames = Frames::new(rc_trace.clone(), frame_templates);
-
-    TestAsmOutput {
-        trace: rc_trace,
-        frames,
-    }
+    Frames::new(Rc::new(trace), frame_templates)
 }
