@@ -12,8 +12,6 @@ use zcrayvm_assembly::{
     AssembledProgram, Assembler, Memory, ValueRom, ZCrayTrace,
 };
 
-type VromAddr = u32;
-
 // Lightweight handle that can be dereferenced to the actual frame.
 pub struct TestFrameHandle {
     frames_ref: Rc<AllocatedFrame>,
@@ -54,7 +52,7 @@ pub struct Frames {
 }
 
 impl Frames {
-    pub fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
+    fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
         Self {
             frames: HashMap::new(),
             trace,

@@ -2,7 +2,7 @@ use common::test_utils::execute_test_asm;
 
 // filepath: /home/brendan/work/predicate_labs/our_repos/zCrayVM/assembly/tests/
 // bit_ops.rs
-mod common;
+pub mod common;
 
 #[test]
 fn test_bit_ops_integration() {

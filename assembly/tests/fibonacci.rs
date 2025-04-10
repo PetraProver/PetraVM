@@ -1,4 +1,4 @@
-mod common;
+pub mod common;
 
 use common::test_utils::execute_test_asm;
 use num_traits::WrappingAdd;
