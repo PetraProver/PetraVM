@@ -6,7 +6,8 @@ use std::{
 
 use binius_field::{BinaryField, BinaryField32b, Field};
 use zcrayvm_assembly::{
-    memory::vrom_allocator::VromAllocator, Assembler, Memory, ValueRom, ZCrayTrace,
+    memory::vrom_allocator::VromAllocator, AssembledProgram, Assembler, Memory, ValueRom,
+    ZCrayTrace,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.
@@ -29,11 +30,14 @@ impl Deref for TestFrameHandle {
 /// `AllocatedFrame`s (which have their own frame VROM slice). The idea is at
 /// the start, the test writer defines the frames in the order that they are
 /// expected to be constructed through a run of the program.
+#[derive(Debug)]
 pub struct Frames {
     /// Map of frame templates names to instantiated frames of that template (in
     /// order of allocation).
-    frames: HashMap<&'static str, Vec<Rc<AllocatedFrame>>>,
+    frames: HashMap<String, Vec<Rc<AllocatedFrame>>>,
     trace: Rc<ZCrayTrace>,
+
+    frame_templates: HashMap<String, FrameTemplate>,
 
     /// When writing a test, we know the size of the frames that should be
     /// allocated. However, we do not know (and also should not know) the
@@ -46,19 +50,29 @@ pub struct Frames {
 }
 
 impl Frames {
-    pub fn new(trace: Rc<ZCrayTrace>) -> Self {
+    pub fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
         Self {
             frames: HashMap::new(),
             trace,
+            frame_templates,
             mock_allocator: VromAllocator::default(),
         }
     }
 
-    pub fn add_frame(&mut self, frame_temp: &FrameTemplate) -> TestFrameHandle {
-        let start_addr = self.mock_allocator.alloc(frame_temp.frame_size);
-        let frame = Rc::new(frame_temp.clone().build(self.trace.clone(), start_addr));
+    pub fn add_frame(&mut self, frame_name: &str) -> TestFrameHandle {
+        let frame_temp = self
+            .frame_templates
+            .get(frame_name)
+            .cloned()
+            .expect("Frame template should exist");
+        self.add_frame_intern(frame_temp)
+    }
 
-        let label_frames = self.frames.entry(frame.label).or_default();
+    fn add_frame_intern(&mut self, frame_temp: FrameTemplate) -> TestFrameHandle {
+        let start_addr = self.mock_allocator.alloc(frame_temp.frame_size);
+        let frame = Rc::new(frame_temp.build(self.trace.clone(), start_addr));
+
+        let label_frames = self.frames.entry(frame.label.clone()).or_default();
         label_frames.push(frame.clone());
 
         TestFrameHandle { frames_ref: frame }
@@ -75,17 +89,16 @@ impl Index<&'static str> for Frames {
 
 /// Information describing a frame that will be constructed by a `CALL*` or
 /// `TAIL` call. Templates are used to instantiate actual frames during a test.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct FrameTemplate {
-    label: &'static str,
+    label: String,
+
+    // Technically this can only be a `u16`, but upcasting it to a `u32` lets us avoid casts in a
+    // bunch of other areas.
     frame_size: u32,
 }
 
 impl FrameTemplate {
-    pub fn new(label: &'static str, frame_size: u32) -> Self {
-        Self { label, frame_size }
-    }
-
     pub fn build(self, trace: Rc<ZCrayTrace>, frame_start_addr: u32) -> AllocatedFrame {
         AllocatedFrame {
             label: self.label,
@@ -96,6 +109,7 @@ impl FrameTemplate {
     }
 }
 
+#[derive(Debug)]
 /// A frame that has been created from a template.
 ///
 /// Unlike a template, a `AllocatedFrame` has it's own range of VROM addresses
@@ -103,7 +117,7 @@ impl FrameTemplate {
 /// behind this is to avoid having to calculate VROM addresses accessed during a
 /// test "by hand" and instead only worry about slot offsets from a given frame.
 pub struct AllocatedFrame {
-    label: &'static str,
+    label: String,
     trace: Rc<ZCrayTrace>,
     frame_start_addr: u32,
     frame_size: u32,
@@ -124,14 +138,42 @@ impl AllocatedFrame {
     }
 }
 
+#[derive(Debug)]
+pub struct TestAsmOutput {
+    pub trace: Rc<ZCrayTrace>,
+    pub frames: Frames,
+}
+
+/// Create frame templates from all labels annotated with `#[framesize(0x*)]`.
+fn extract_frame_templates_from_assembled_program(
+    assembled_program: &AssembledProgram,
+) -> HashMap<String, FrameTemplate> {
+    let mut frame_templates = HashMap::new();
+
+    for (label, pc_location) in assembled_program.labels.iter() {
+        // If the label has a frame size, then create a template for it.
+        if let Some(frame_size) = assembled_program.frame_sizes.get(pc_location) {
+            let frame_temp = FrameTemplate {
+                label: label.clone(),
+                frame_size: *frame_size as u32,
+            };
+
+            frame_templates.insert(label.clone(), frame_temp);
+        }
+    }
+
+    frame_templates
+}
+
 /// Common logic that all ASM tests need to run.
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
-pub fn generate_trace_and_validate(asm_bytes: &str, init_vals: &[u32]) -> Rc<ZCrayTrace> {
+pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> TestAsmOutput {
     // Use the multiplicative generator G for calculations
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
     let compiled_program = Assembler::from_code(asm_bytes).unwrap();
+    let frame_templates = extract_frame_templates_from_assembled_program(&compiled_program);
 
     let mut processed_init_vals = Vec::with_capacity(2 + init_vals.len());
 
@@ -154,5 +196,12 @@ pub fn generate_trace_and_validate(asm_bytes: &str, init_vals: &[u32]) -> Rc<ZCr
     // Validate the trace
     trace.validate(boundary_values);
 
-    Rc::new(trace)
+    let rc_trace = Rc::new(trace);
+
+    let frames = Frames::new(rc_trace.clone(), frame_templates);
+
+    TestAsmOutput {
+        trace: rc_trace,
+        frames,
+    }
 }

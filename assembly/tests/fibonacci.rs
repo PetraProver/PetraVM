@@ -1,6 +1,6 @@
 mod common;
 
-use common::test_runner::{generate_trace_and_validate, FrameTemplate, Frames};
+use common::test_utils::execute_test_asm;
 use num_traits::WrappingAdd;
 
 #[test]
@@ -10,22 +10,17 @@ fn test_fibonacci_integration() {
     // Set initial value
     let init_val = 4;
 
-    let trace = generate_trace_and_validate(include_str!("../../examples/fib.asm"), &[init_val]);
-    let mut frames = Frames::new(trace);
-
-    // There are two frame "types" that exist in the program.
-    let fib_helper_frame_temp = FrameTemplate::new("fib_helper", 16);
-    let fib_frame_temp = FrameTemplate::new("fib", 5);
+    let mut info = execute_test_asm(include_str!("../../examples/fib.asm"), &[init_val]);
 
     // Push a frame for `fib_frame_temp`.
-    let fib_frame = frames.add_frame(&fib_frame_temp);
+    let fib_frame = info.frames.add_frame("fib");
 
     // Check all intermediary values
     for i in 0..init_val {
         let s = cur_fibs[0].wrapping_add(&cur_fibs[1]);
 
         // Push a frame for each recursive call to `fib_helper`.
-        let fib_helper_frame = frames.add_frame(&fib_helper_frame_temp);
+        let fib_helper_frame = info.frames.add_frame("fib_helper");
 
         // Check current a value
         assert_eq!(
@@ -56,7 +51,7 @@ fn test_fibonacci_integration() {
         cur_fibs[1] = s;
     }
 
-    let final_fib_helper_frame = &frames["fib_helper"][init_val as usize - 1];
+    let final_fib_helper_frame = &info.frames["fib_helper"][init_val as usize - 1];
     let final_fib_ret_val = final_fib_helper_frame.get_vrom_u32_expected(5);
 
     // Check the final return value
