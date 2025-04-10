@@ -1,3 +1,8 @@
+;; Rust equivalent:
+;; ------------
+;; return 2 + 6
+;; ------------
+
 #[framesize(0x4)]
 add:
     ;; Frame
