@@ -18,24 +18,29 @@ pub struct U32U16Add {
     // Inputs
     pub xin: Col<B1, 32>,
     pub yin: Col<B1, 16>,
+    pub xin_low: Col<B1, 16>,  // Virtual
+    pub xin_high: Col<B1, 16>, // Virtual
 
     // Private
+    // Shifted carry
     cin: Col<B1, 32>,
+    // Carry
     cout: Col<B1, 32>,
     cout_shl: Col<B1, 32>,
+    // Projections (lower and higher bits)
+    cin_low: Col<B1, 16>,   // Virtual
+    cin_high: Col<B1, 16>,  // Virtual
+    cout_low: Col<B1, 16>,  // Virtual
+    cout_high: Col<B1, 16>, // Virtual
 
     // Outputs
     /// The output column, either committed if `flags.commit_zout` is set,
     /// otherwise a linear combination derived column.
     pub zout: Col<B1, 32>,
-    pub cin_low: Col<B1, 16>,
-    pub cin_high: Col<B1, 16>,
-    pub cout_low: Col<B1, 16>,
-    pub cout_high: Col<B1, 16>,
-    pub xin_low: Col<B1, 16>,
-    pub xin_high: Col<B1, 16>,
+    // Projections (lower and higher bits) of the output column.
     pub zout_low: Col<B1, 16>,  // Virtual
     pub zout_high: Col<B1, 16>, // Virtual
+    // Final carry of the lower 16 bits.
     pub final_carry_low: Col<B1, 16>,
     /// This is `Some` if `flags.expose_final_carry` is set, otherwise it is
     /// `None`.
@@ -64,40 +69,49 @@ impl U32U16Add {
             .expose_final_carry
             .then(|| table.add_selected("final_carry", cout, 31));
 
-        let final_carry_low_16b_unpacked = table.add_committed("final carry low unpacked");
-
-        // table.add_selected(name, col, index)
+        // Query values and start index for the lower and higher bits projections.
         let query_low = 0b0 as usize;
         let query_high = 0b1 as usize;
         let start_index = 4;
+
+        // Get lower and higher bits values for the necessary columns.
         let xin_low = table.add_projected("xin_low", xin, 1, query_low, start_index);
         let xin_high: Col<B1, 16> =
             table.add_projected("xin_high", xin, 1, query_high, start_index);
-
         let cout_low = table.add_projected("cin_low", cout, 1, query_low, start_index);
         let cout_high = table.add_projected("cin_high", cout, 1, query_high, start_index);
+
+        // TODO: If we have padding on the left as a virtual column, then we do not need
+        // to commit to this column.
+        let final_carry_low_16b_unpacked = table.add_committed("final carry low unpacked");
         let final_carry_low: Col<B16> =
             upcast_col(table.add_selected("final carry low", cout_low, 15));
 
+        // Check that the committed final carry for the lower bits is correct.
         let packed = table.add_packed("low carry packed", final_carry_low_16b_unpacked);
         table.assert_zero("packed low carry", packed - final_carry_low);
 
         let cin_low = table.add_projected("cin_low", cin, 1, query_low, start_index);
         let cin_high_bits = table.add_projected("cin_high", cin, 1, query_high, start_index);
+        // Compute the carry for the higher bits, taking the final lower bits carry into
+        // account.
         let cin_high = table.add_computed(
             "cin high full",
             cin_high_bits + final_carry_low_16b_unpacked,
         );
 
+        // Check that the carry for the lower bits is correct.
         table.assert_zero(
             "carry_out_low",
             (xin_low + cin_low) * (yin + cin_low) + cin_low - cout_low,
         );
+        // Check that the carry for the higher bits is correct.
         table.assert_zero(
             "carry_out_high",
             (xin_high + cin_high) * cin_high + cin_high - cout_high,
         );
 
+        // Check that the output is correct.
         let zout = table.add_committed::<B1, 32>("zout");
         let zout_low = table.add_projected("zout_low", zout, 1, query_low, start_index);
         let zout_high = table.add_projected("zout high", zout, 1, query_high, start_index);
@@ -162,6 +176,7 @@ impl U32U16Add {
                 (zout[i], carry1) = x_plus_y.overflowing_add(carry_in_bit[i]);
                 let carry = carry0 | carry1;
 
+                // Fill the projected values.
                 xin_low[i] = xin[i] as u16;
                 xin_high[i] = (xin[i] >> 16) as u16;
                 cin_low[i] = cin[i] as u16;
@@ -190,6 +205,7 @@ impl U32U16Add {
                 cin[i] = xin[i] ^ yin[i] as u32 ^ zout[i];
                 cout[i] = (carry as u32) << 31 | cin[i] >> 1;
 
+                // Fill the projected values.
                 xin_low[i] = xin[i] as u16;
                 xin_high[i] = (xin[i] >> 16) as u16;
                 cin_low[i] = cin[i] as u16;
