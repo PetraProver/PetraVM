@@ -155,20 +155,22 @@ fn generate_addi_ret_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
     // - Used framesize for stack allocation
     let asm_code = format!(
         "#[framesize(0x10)]\n\
-         _start: ADDI @3, @2, #{}\n\
-         RET\n",
-        imm_value
+         _start: 
+            LDI.W @2, #{}\n\
+            ADDI @3, @2, #{}\n\
+            RET\n",
+        src_value, imm_value
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0, src_value];
+    let init_values = [0, 0];
 
     // Add VROM writes from LDI eventsff
     let vrom_writes = vec![
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
-        (2, src_value, 1),
+        (2, src_value, 2),
         // ADDI event
         (3, src_value + imm_value as u32, 1),
     ];
@@ -302,24 +304,29 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
 }
 
 #[test]
-fn test_addi_zcray_pipeline() -> Result<()> {
+fn test_ldi_addi_ret() -> Result<()> {
     test_from_trace_generator(
         || {
             // Test value to load
-            let src_value = 2;
+            let src_value = 0x12345678;
             let imm_value = 3;
             generate_addi_ret_trace(src_value, imm_value)
         },
         |trace| {
             assert_eq!(
                 trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
+                3,
+                "Program should have exactly 3 instructions"
             );
             assert_eq!(
                 trace.addi_events().len(),
                 1,
-                "Should have exactly one ADDI events"
+                "Should have exactly one ADDI event"
+            );
+            assert_eq!(
+                trace.ldi_events().len(),
+                1,
+                "Should have exactly one LDI event"
             );
             assert_eq!(
                 trace.ret_events().len(),

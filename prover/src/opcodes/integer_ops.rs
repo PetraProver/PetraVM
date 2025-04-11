@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32, B64,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::u32::U32AddFlags,
 };
@@ -13,10 +13,9 @@ use crate::{
     channels::Channels,
     gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
     types::ProverPackedField,
-    utils::{pack_vrom_entry, pack_vrom_entry_u64},
 };
 
-const ADD_OPCODE: u16 = Opcode::Add as u16;
+const ADDI_OPCODE: u16 = Opcode::Addi as u16;
 
 /// ADD table.
 ///
@@ -32,7 +31,7 @@ const ADD_OPCODE: u16 = Opcode::Add as u16;
 pub struct AddiTable {
     id: TableId,
     // TODO: Use the cpu gadget
-    cpu_cols: CpuColumns<{ Opcode::Add as u16 }>,
+    cpu_cols: CpuColumns<ADDI_OPCODE>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
     src_abs: Col<B32>, // Virtual
@@ -40,9 +39,6 @@ pub struct AddiTable {
     src_val_packed: Col<B32>,
     imm_unpacked: Col<B1, 16>,
     add_op: U32U16Add,
-
-    vrom_src: Col<B64>,
-    vrom_dst: Col<B64>,
 }
 
 impl AddiTable {
@@ -78,13 +74,10 @@ impl AddiTable {
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Read src1
-        let vrom_src = table.add_computed("vrom_src", pack_vrom_entry(src_abs, src_val_packed));
-        table.pull(vrom_channel, [vrom_src]);
+        table.pull(vrom_channel, [src_abs, src_val_packed]);
 
         // Write dst
-        let vrom_dst =
-            table.add_computed("vrom_dst", pack_vrom_entry(dst_abs, dst_val_packed.into()));
-        table.pull(vrom_channel, [vrom_dst]);
+        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
 
         Self {
             id: table.id(),
@@ -96,8 +89,6 @@ impl AddiTable {
             imm_unpacked,
             add_op,
             dst_val_packed,
-            vrom_src,
-            vrom_dst,
         }
     }
 }
@@ -119,20 +110,12 @@ impl TableFiller<ProverPackedField> for AddiTable {
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_unpacked)?;
-            let mut vrom_src = witness.get_mut_as(self.vrom_src)?;
-            let mut vrom_dst = witness.get_mut_as(self.vrom_dst)?;
+
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 src_abs[i] = event.fp.addr(event.src as u32);
                 src_val[i] = event.src_val;
                 imm[i] = event.imm;
-                vrom_src[i] = pack_vrom_entry_u64(event.src as u32, event.src_val);
-                vrom_dst[i] = pack_vrom_entry_u64(event.dst as u32, event.dst_val);
-                dbg!("Add fill", src_val[i], vrom_src[i], vrom_dst[i],);
-                println!(
-                    "vrom_scr = {:x},  vrom_dst = {:x}",
-                    vrom_src[i], vrom_dst[i]
-                );
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

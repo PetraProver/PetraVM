@@ -28,6 +28,12 @@ pub struct U32U16Add {
     /// The output column, either committed if `flags.commit_zout` is set,
     /// otherwise a linear combination derived column.
     pub zout: Col<B1, 32>,
+    pub cin_low: Col<B1, 16>,
+    pub cin_high: Col<B1, 16>,
+    pub cout_low: Col<B1, 16>,
+    pub cout_high: Col<B1, 16>,
+    pub xin_low: Col<B1, 16>,
+    pub xin_high: Col<B1, 16>,
     pub zout_low: Col<B1, 16>,  // Virtual
     pub zout_high: Col<B1, 16>, // Virtual
     pub final_carry_low: Col<B1, 16>,
@@ -107,6 +113,12 @@ impl U32U16Add {
             final_carry_low: final_carry_low_16b_unpacked,
             final_carry,
             zout,
+            xin_low,
+            xin_high,
+            cin_low,
+            cin_high,
+            cout_low,
+            cout_high,
             zout_low,
             zout_high,
             flags,
@@ -121,6 +133,12 @@ impl U32U16Add {
         let yin: std::cell::RefMut<'_, [u16]> = index.get_mut_as(self.yin)?;
         let mut cout = index.get_mut_as(self.cout)?;
         let mut zout = index.get_mut_as(self.zout)?;
+        let mut cin_low = index.get_mut_as(self.cin_low)?;
+        let mut cin_high = index.get_mut_as(self.cin_high)?;
+        let mut cout_low = index.get_mut_as(self.cout_low)?;
+        let mut cout_high = index.get_mut_as(self.cout_high)?;
+        let mut xin_low = index.get_mut_as(self.xin_low)?;
+        let mut xin_high = index.get_mut_as(self.xin_high)?;
         let mut zout_low = index.get_mut_as(self.zout_low)?;
         let mut zout_high = index.get_mut_as(self.zout_high)?;
         let mut final_carry_low: std::cell::RefMut<'_, [u16]> =
@@ -144,6 +162,12 @@ impl U32U16Add {
                 (zout[i], carry1) = x_plus_y.overflowing_add(carry_in_bit[i]);
                 let carry = carry0 | carry1;
 
+                xin_low[i] = xin[i] as u16;
+                xin_high[i] = (xin[i] >> 16) as u16;
+                cin_low[i] = cin[i] as u16;
+                cin_high[i] = (cin[i] >> 16) as u16;
+                cout_low[i] = cout[i] as u16;
+                cout_high[i] = (cout[i] >> 16) as u16;
                 zout_low[i] = zout[i] as u16;
                 zout_high[i] = (zout[i] >> 16) as u16;
 
@@ -151,10 +175,6 @@ impl U32U16Add {
                 cout[i] = (carry as u32) << 31 | cin[i] >> 1;
                 cout_shl[i] = cout[i] << 1;
 
-                println!(
-                    "zout_low {:?} xin_low {:?}, yin {:?}, cin low {:?}",
-                    zout_low[i], xin[i] as u16, yin[i], cin[i] as u16
-                );
                 let carry_val = (cout[i] >> 16) & 1;
                 final_carry_low[i] = carry_val as u16;
                 if let Some(ref mut final_carry) = final_carry {
@@ -164,25 +184,20 @@ impl U32U16Add {
         } else {
             // When the carry in bit is fixed to zero, we can simplify the logic.
             let mut cin = index.get_mut_as(self.cin)?;
-            println!("index size {}", index.size());
-            println!(
-                "xin len {} yin len {} zout len {}",
-                xin.len(),
-                yin.len(),
-                zout.len()
-            );
             for i in 0..index.size() {
                 let carry;
                 (zout[i], carry) = xin[i].overflowing_add(yin[i] as u32);
                 cin[i] = xin[i] ^ yin[i] as u32 ^ zout[i];
                 cout[i] = (carry as u32) << 31 | cin[i] >> 1;
 
+                xin_low[i] = xin[i] as u16;
+                xin_high[i] = (xin[i] >> 16) as u16;
+                cin_low[i] = cin[i] as u16;
+                cin_high[i] = (cin[i] >> 16) as u16;
+                cout_low[i] = cout[i] as u16;
+                cout_high[i] = (cout[i] >> 16) as u16;
                 zout_low[i] = zout[i] as u16;
                 zout_high[i] = (zout[i] >> 16) as u16;
-                println!(
-                    "zout_low {:#b} xin_low {:#b}, yin {:#b}, cin low {:#b}",
-                    zout_low[i], xin[i] as u16, yin[i], cin[i] as u16
-                );
 
                 let carry_val = (cout[i] >> 16) & 1;
                 final_carry_low[i] = carry_val as u16;
