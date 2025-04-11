@@ -1,3 +1,15 @@
+;; Rust equivalent:
+;; ------------
+;; fn div(a: u32, b: u32) -> (q, r) {
+;;      if a < b {
+;;          let (q, r) = div(a - b, b);
+;;          (q + 1, r)
+;;      } else {
+;;          (0, a)
+;;      }
+;; }
+;; ------------
+
 #[framesize(0xa)]
 div:
     ;; Frame:
