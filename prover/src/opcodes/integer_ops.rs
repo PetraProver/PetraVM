@@ -8,26 +8,21 @@ use binius_m3::{
 };
 use zcrayvm_assembly::{event::integer_ops::AddiEvent, opcodes::Opcode};
 
-use super::gadgets::U32U16Add;
 use crate::{
     channels::Channels,
-    gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+    gadgets::{
+        cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+        u32u16::U32U16Add,
+    },
     types::ProverPackedField,
 };
 
 const ADDI_OPCODE: u16 = Opcode::Addi as u16;
 
-/// ADD table.
+/// ADDI table.
 ///
-/// This table handles the ADD instruction, which returns from a function
-/// call by loading the return PC and FP from the current frame.
-///
-/// Logic:
-/// 1. Load the current PC and FP from the state channel
-/// 2. Get the instruction from PROM channel
-/// 3. Verify this is a RET instruction
-/// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
-/// 5. Update the state with the new PC and FP values
+/// This table handles the ADDI instruction, which performs integer
+/// multiplication between a 32-bit element and a 16-bit immediate.
 pub struct AddiTable {
     id: TableId,
     // TODO: Use the cpu gadget
@@ -62,14 +57,15 @@ impl AddiTable {
             },
         );
 
+        // Pull the destination and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
-
         let src_abs = table.add_computed("src", cpu_cols.fp + upcast_col(cpu_cols.arg1));
         let src_val = table.add_committed("src_val");
         let src_val_packed = table.add_packed("src_val_packed", src_val);
 
         let imm_unpacked = table.add_committed("imm_unpacked");
 
+        // Carry out the multiplication.
         let add_op = U32U16Add::new(&mut table, src_val, imm_unpacked, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 

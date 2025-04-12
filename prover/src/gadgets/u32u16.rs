@@ -6,13 +6,16 @@ use binius_m3::{
     },
     gadgets::u32::U32AddFlags,
 };
-
-/// A gadget for performing 32-bit integer addition on vertically-packed bit
-/// columns.
+/// TODO: It might be better to use a new version of ZeroPadding that would
+/// allow to pad "in the middle" so we can go from 16 bits to 32 bits. We would
+/// no longer need this gadget in that case.
 ///
-/// This gadget has input columns `xin` and `yin` for the two 32-bit integers to
-/// be added, and an output column `zout`, and it constrains that `xin + yin =
-/// zout` as integers.
+/// A gadget for performing the addition of a 32-bit integer with a 16-bit
+/// immediate on vertically-packed bit columns.
+///
+/// This gadget has input columns `xin` and `yin` for the 32-bit and 16-bit
+/// integers to be added, and an output column `zout`, and it constrains that
+/// `xin + yin = zout` as integers.
 #[derive(Debug)]
 pub struct U32U16Add {
     // Inputs
