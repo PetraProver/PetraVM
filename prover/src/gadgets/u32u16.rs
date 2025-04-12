@@ -73,8 +73,8 @@ impl U32U16Add {
             .then(|| table.add_selected("final_carry", cout, 31));
 
         // Query values and start index for the lower and higher bits projections.
-        let query_low = 0b0 as usize;
-        let query_high = 0b1 as usize;
+        let query_low = 0b0_usize;
+        let query_high = 0b1_usize;
         let start_index = 4;
 
         // Get lower and higher bits values for the necessary columns.
