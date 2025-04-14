@@ -96,15 +96,16 @@ impl Prover {
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
+        // 5. Fill the respective opcode tables
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
         witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
-
-        // 7. Fill BNZ table with branch not zero events
         witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
-
-        // 8. Fill BZ table with branch zero events
         witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+        witness.fill_table_sequential(
+            &self.circuit.srli_table,
+            &trace.srli_events().collect::<Vec<_>>(),
+        )?;
 
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();

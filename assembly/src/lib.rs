@@ -25,6 +25,7 @@ pub use event::{
     branch::{BnzEvent, BzEvent},
     mv::LDIEvent,
     ret::RetEvent,
+    shift::{AnyShiftEvent, SrliEvent},
 };
 pub use execution::emulator::{Instruction, InterpreterInstruction};
 pub use execution::trace::BoundaryValues;

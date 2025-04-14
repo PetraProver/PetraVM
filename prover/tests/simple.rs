@@ -148,6 +148,28 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
+fn generate_srli_ret_trace() -> Result<Trace> {
+    let asm_code = "#[framesize(0x10)]\n\
+        _start:\n\
+        SRLI @3, @2, #2 \n\
+        ret:\n\
+            RET\n"
+        .to_string();
+
+    let init_values = [0, 0, 127];
+
+    let vrom_writes = vec![
+        // LDI event
+        (3, 127 >> 2, 1),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        (2, 127, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 fn test_from_trace_generator<F, G>(
     trace_generator: F,
     check_events: G,
@@ -270,5 +292,30 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
             );
         },
         4,
+    )
+}
+
+#[test]
+fn test_srli_ret() -> Result<()> {
+    test_from_trace_generator(
+        || generate_srli_ret_trace(),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.srli_events().collect::<Vec<_>>().len(),
+                1,
+                "Should have exactly one bz event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        5,
     )
 }

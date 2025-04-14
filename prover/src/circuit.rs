@@ -8,6 +8,7 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
+    opcodes::SrliTable,
     tables::{
         B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
         VromSkipTable, VromWriteTable,
@@ -43,6 +44,8 @@ pub struct Circuit {
     pub bnz_table: BnzTable,
     /// BNZ branch zero instruction table
     pub bz_table: BzTable,
+    /// SRLI shift right immediate logical instruction table
+    pub srli_table: SrliTable,
 }
 
 impl Default for Circuit {
@@ -70,6 +73,7 @@ impl Circuit {
         let b32_mul_table = B32MulTable::new(&mut cs, &channels);
         let bnz_table = BnzTable::new(&mut cs, &channels);
         let bz_table = BzTable::new(&mut cs, &channels);
+        let srli_table = SrliTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -83,6 +87,7 @@ impl Circuit {
             b32_mul_table,
             bnz_table,
             bz_table,
+            srli_table,
         }
     }
 
@@ -131,6 +136,8 @@ impl Circuit {
         let b32_mul_size = trace.b32_mul_events().len();
         let bnz_size = trace.bnz_events().len();
         let bz_size = trace.bz_events().len();
+        let srli_size = trace.srli_events().collect::<Vec<_>>().len();
+        println!("SRLI size: {}", srli_size);
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -143,6 +150,7 @@ impl Circuit {
             b32_mul_size,         // B32_MUL table size
             bnz_size,             // BNZ table size
             bz_size,              // BZ table size
+            srli_size,            // SRLI table size
         ];
 
         // Create the statement with all boundaries

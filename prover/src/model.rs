@@ -6,7 +6,8 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    AnyShiftEvent, B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode,
+    RetEvent, SrliEvent, ZCrayTrace,
 };
 
 /// Macro to generate event accessors
@@ -171,3 +172,19 @@ impl_event_accessor!(ret_events, RetEvent, ret);
 impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
 impl_event_accessor!(bnz_events, BnzEvent, bnz);
 impl_event_accessor!(bz_events, BzEvent, bz);
+
+impl Trace {
+    /// Returns a reference to the Srli events from the trace.
+    ///
+    /// These events represent each Srli instruction executed during the trace.
+    pub fn srli_events(&self) -> impl Iterator<Item = SrliEvent> + use<'_> {
+        // TODO: Should we call collect to return a Vec instad?
+        self.trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Srli(event) => Some(event),
+                _ => None,
+            })
+    }
+}
