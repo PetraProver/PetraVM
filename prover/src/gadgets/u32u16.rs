@@ -72,17 +72,11 @@ impl U32U16Add {
             .expose_final_carry
             .then(|| table.add_selected("final_carry", cout, 31));
 
-        // Query values and start index for the lower and higher bits projections.
-        let query_low = 0b0_usize;
-        let query_high = 0b1_usize;
-        let start_index = 4;
-
         // Get lower and higher bits values for the necessary columns.
-        let xin_low = table.add_projected("xin_low", xin, 1, query_low, start_index);
-        let xin_high: Col<B1, 16> =
-            table.add_projected("xin_high", xin, 1, query_high, start_index);
-        let cout_low = table.add_projected("cin_low", cout, 1, query_low, start_index);
-        let cout_high = table.add_projected("cin_high", cout, 1, query_high, start_index);
+        let xin_low = table.add_selected_block("xin_low", xin, 0);
+        let xin_high: Col<B1, 16> = table.add_selected_block("xin_high", xin, 1);
+        let cout_low = table.add_selected_block("cin_low", cout, 0);
+        let cout_high = table.add_selected_block("cin_high", cout, 1);
 
         // TODO: If we have padding on the left as a virtual column, then we do not need
         // to commit to this column.
@@ -94,8 +88,8 @@ impl U32U16Add {
         let packed = table.add_packed("low carry packed", final_carry_low_16b_unpacked);
         table.assert_zero("packed low carry", packed - final_carry_low);
 
-        let cin_low = table.add_projected("cin_low", cin, 1, query_low, start_index);
-        let cin_high_bits = table.add_projected("cin_high", cin, 1, query_high, start_index);
+        let cin_low = table.add_selected_block("cin_low", cin, 0);
+        let cin_high_bits = table.add_selected_block("cin_high", cin, 1);
         // Compute the carry for the higher bits, taking the final lower bits carry into
         // account.
         let cin_high = table.add_computed(
@@ -116,8 +110,8 @@ impl U32U16Add {
 
         // Check that the output is correct.
         let zout = table.add_committed::<B1, 32>("zout");
-        let zout_low = table.add_projected("zout_low", zout, 1, query_low, start_index);
-        let zout_high = table.add_projected("zout high", zout, 1, query_high, start_index);
+        let zout_low = table.add_selected_block("zout_low", zout, 0);
+        let zout_high = table.add_selected_block("zout high", zout, 1);
         table.assert_zero("zout_low_zerocheck", xin_low + yin + cin_low - zout_low);
         table.assert_zero("zout_high_zerocheck", xin_high + cin_high - zout_high);
 
