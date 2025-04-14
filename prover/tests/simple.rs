@@ -148,26 +148,27 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-/// Creates an execution trace for a simple program that uses only LDI.W, MVV.W,
+/// Creates an execution trace for a simple program that uses only MVI.W,
 /// BNZ, TAILI, and RET.
 ///
 /// # Returns
 /// * A Trace containing a simple program with a loop using TAILI
 fn generate_simple_taili_trace() -> Result<Trace> {
     // Create a very simple assembly program that:
-    // 1. Sets up a counter in @2 (starts at 2)
-    // 2. BNZ executes in loop to check if counter is non-zero
-    // 3. Loop decrements counter and is implemented with TAILI
+    // 1. _start sets up initial values and tail calls to loop
+    // 2. loop checks if @2 is non-zero and either returns or continues
+    // 3. case_recurse tail calls back to loop
     let asm_code = "#[framesize(0x10)]\n\
-         _start:
+         _start:\n\
            LDI.W @2, #2\n\
-         loop:
-           BNZ continue, @2\n\
+           MVV.W @3[2], @2\n\
+           TAILI loop, @3\n\
+         #[framesize(0x10)]\n\
+         loop:\n\
+           BNZ case_recurse, @2\n\
            RET\n\
-         continue:
-           LDI.W @3, #0\n\
-           MVV.W @4[2], @3\n\
-           TAILI loop, @4\n"
+         case_recurse:\n\
+           TAILI loop, @3\n"
         .to_string();
 
     // Initialize memory with return PC = 0, return FP = 0
@@ -178,13 +179,10 @@ fn generate_simple_taili_trace() -> Result<Trace> {
         // Initial values
         (0, 0, 1), // Return PC
         (1, 0, 1), // Return FP
-        // Initial LDI events
-        (2, 2, 1), // counter = 2
-        // First iteration
-        (3, 0, 1), // LDI.W @3, #0
-        (2, 0, 1), /* MVV.W @4[2], @3 - Write 0 to location 2
-                    * Second iteration
-                    * No more iterations because counter became 0 */
+        // Initial LDI event
+        (2, 2, 1), // LDI.W @2, #2
+        // Initial MVV.W event
+        (5, 2, 1), // MVV.W @3[2], @2 - Write 2 to location 5 (FP 3 + offset 2)
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -320,27 +318,38 @@ fn test_simple_taili_loop() -> Result<()> {
     test_from_trace_generator(
         generate_simple_taili_trace,
         |trace| {
-            // Verify the program has expected number of instructions
-            assert!(
-                trace.program.len() == 7,
-                "Program should have 7 instructions"
-            );
-
-            // Verify we have the expected BNZ operations
-            let bnz_events = trace.bnz_events();
+            // Verify exact number of instructions (easier to maintain)
             assert_eq!(
-                bnz_events.len(),
-                1,
-                "Should have one BNZ event that's taken"
+                trace.program.len(),
+                6,
+                "Program should have exactly 6 instructions"
             );
 
-            // Verify we have one RET event
+            // Verify we have one LDI event (for @2 initialization)
+            assert_eq!(
+                trace.ldi_events().len(),
+                1,
+                "Should have exactly one LDI event"
+            );
+
+            // Verify we have one BNZ event (first is taken, continues to case_recurse)
+            let bnz_events = trace.bnz_events();
+            assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
+
+            // Verify we have one RET event (after counter becomes 0)
             assert_eq!(
                 trace.ret_events().len(),
                 1,
-                "Should have exactly 1 RET event"
+                "Should have exactly one RET event"
+            );
+
+            // Verify there are no B32_MUL operations (we aren't using them)
+            assert_eq!(
+                trace.b32_mul_events().len(),
+                0,
+                "Should have no B32_MUL events"
             );
         },
-        5, // 5 VROM writes total
+        4, // 4 VROM writes total
     )
 }
