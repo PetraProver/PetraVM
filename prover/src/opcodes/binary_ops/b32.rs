@@ -156,15 +156,15 @@ impl TableFiller<ProverPackedField> for AndiTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-            let mut dst_val = witness.get_mut_as(self.dst_val)?;
+            let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
-            let mut src_val = witness.get_mut_as(self.src_val)?;
+            let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             println!("rows: {:?}", rows.clone().collect::<Vec<_>>());
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
-                dst_val[i] = event.dst_val;
+                dst_val_unpacked[i] = event.dst_val;
                 src_abs[i] = event.fp.addr(event.src as u32);
-                src_val[i] = event.src_val;
+                src_val_unpacked[i] = event.src_val;
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
