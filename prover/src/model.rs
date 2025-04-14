@@ -3,6 +3,8 @@
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
@@ -64,7 +66,7 @@ pub struct Trace {
     /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
-    pub program: Vec<Instruction>,
+    pub program: Vec<(Instruction, u32)>,
     /// List of VROM writes (address, value, multiplicity) pairs
     pub vrom_writes: Vec<(u32, u32, u32)>,
 }
@@ -96,32 +98,38 @@ impl Trace {
     /// TODO: Refactor this approach to directly obtain the zkVMTrace from
     /// program emulation rather than requiring separate population of
     /// program instructions.
-    pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
-        Self {
-            trace,
-            program: Vec::new(),
-            vrom_writes: Vec::new(),
-        }
-    }
-
-    /// Add an interpreter instruction to the program.
-    ///
-    /// This converts the interpreter instruction to our simplified format.
-    pub fn add_instruction(&mut self, instr: InterpreterInstruction) {
-        self.program.push(instr.into());
+    pub fn from_zcray_trace(program: Vec<InterpreterInstruction>, trace: ZCrayTrace) -> Self {
+        // Add the program instructions to the trace
+        let mut zkvm_trace = Self::new();
+        zkvm_trace.add_instructions(program, &trace.instruction_counter);
+        zkvm_trace.trace = trace;
+        zkvm_trace
     }
 
     /// Add multiple interpreter instructions to the program.
     ///
+    /// Instructions are added in descending order of their execution count.
+    ///
     /// # Arguments
     /// * `instructions` - An iterator of InterpreterInstructions to add
-    pub fn add_instructions<I>(&mut self, instructions: I)
+    pub fn add_instructions<I>(&mut self, instructions: I, instruction_counter: &HashMap<B32, u32>)
     where
         I: IntoIterator<Item = InterpreterInstruction>,
     {
-        for instr in instructions {
-            self.add_instruction(instr);
-        }
+        // Collect all instructions with their counts
+        let mut instructions_with_counts: Vec<_> = instructions
+            .into_iter()
+            .map(|instr| {
+                let count = instruction_counter.get(&instr.field_pc).unwrap_or(&0);
+                (instr.into(), *count)
+            })
+            .collect();
+
+        // Sort by count in descending order
+        instructions_with_counts.sort_by(|(_, count_a), (_, count_b)| count_b.cmp(count_a));
+
+        // Add instructions in sorted order
+        self.program = instructions_with_counts;
     }
 
     /// Add a VROM write event.

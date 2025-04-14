@@ -75,7 +75,7 @@ pub struct ZCrayTrace {
     memory: Memory,
     /// A map of an instruction's field PC to the number of times that
     /// instruction has been executed.
-    instruction_counter: HashMap<B32, u32>,
+    pub instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {

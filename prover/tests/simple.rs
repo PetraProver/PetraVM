@@ -44,11 +44,10 @@ fn generate_test_trace<const N: usize>(
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
-    // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
+    dbg!(&zcray_trace);
 
-    // Add the program instructions to the trace
-    zkvm_trace.add_instructions(program);
+    // Convert to Trace format for the prover
+    let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
     // Add other VROM writes
     let mut max_dst = 0;
