@@ -8,7 +8,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
 
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::{channels::Channels, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
@@ -61,7 +61,7 @@ impl LdiTable {
 
         let vrom_abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
-        // Push value to VROM write table using absolute address
+        // Pull value to VROM write table using absolute address
         let imm = table.add_computed("imm", pack_b16_into_b32([imm_low.into(), imm_high.into()]));
         table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
 
@@ -94,7 +94,7 @@ impl TableFiller<ProverPackedField> for LdiTable {
                 imm[i] = event.imm;
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,

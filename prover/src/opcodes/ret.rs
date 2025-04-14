@@ -13,10 +13,12 @@ use zcrayvm_assembly::{Opcode, RetEvent};
 /// 3. Verify this is a RET instruction
 /// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
 /// 5. Update the state with the new PC and FP values
-use super::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent, NextPc};
-use crate::{channels::Channels, types::ProverPackedField};
+use super::cpu::{CpuColumns, CpuColumnsOptions, NextPc};
+use crate::{channels::Channels, gadgets::cpu::CpuGadget, types::ProverPackedField};
 pub struct RetTable {
+    /// Table ID
     id: TableId,
+    /// CPU columns
     cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
     fp_xor_1: Col<B32>, // Virtual
     next_pc: Col<B32>,
@@ -43,7 +45,7 @@ impl RetTable {
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
 
         // Read the next_pc
-        table.pull(channels.vrom_channel, [next_pc, fp0]);
+        table.pull(channels.vrom_channel, [fp0, next_pc]);
 
         // Read the next_fp
         table.pull(channels.vrom_channel, [fp_xor_1, next_fp]);
@@ -75,12 +77,12 @@ impl TableFiller<ProverPackedField> for RetTable {
             let mut next_pc = witness.get_mut_as(self.next_pc)?;
             let mut next_fp = witness.get_mut_as(self.next_fp)?;
             for (i, event) in rows.clone().enumerate() {
-                fp_xor_1[i] = *event.fp ^ 1;
+                fp_xor_1[i] = event.fp.addr(1u32);
                 next_pc[i] = event.pc_next;
                 next_fp[i] = event.fp_next;
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.into(),
             next_pc: Some(event.pc_next),
             fp: *event.fp,

@@ -1,19 +1,15 @@
 use core::fmt::Debug;
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 
-use binius_field::{underlier::UnderlierType, BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, Event},
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    impl_binary_operation, impl_event_for_binary_operation, impl_immediate_binary_operation,
     Opcode,
 };
 
@@ -26,36 +22,8 @@ define_bin32_imm_op_event!(
     ///   1. FP[dst] = FP[src] + imm
     AddiEvent,
     addi,
-    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
+    |a: B32, imm: B16| B32::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
 );
-
-impl AddiEvent {
-    pub fn generate_event(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
-        // The following addition is checked thanks to the ADD32 table.
-        let dst_val = AddiEvent::operation(src_val.into(), imm).val();
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val)?;
-
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-
-        Ok(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src: src.val(),
-            src_val,
-            imm: imm.val(),
-        })
-    }
-}
 
 // Note: The addition is checked thanks to the ADD32 table.
 define_bin32_op_event!(
@@ -67,39 +35,39 @@ define_bin32_op_event!(
     ///   1. FP[dst] = FP[src1] + FP[src2]
     AddEvent,
     add,
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
+    |a: B32, b: B32| B32::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
 );
 
 /// Event for MULI.
 ///
 /// Performs a MUL between a signed 32-bit integer and a 16-bit immediate.
 #[derive(Debug, Clone)]
-pub(crate) struct MuliEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src: u16,
-    pub(crate) src_val: u32,
-    imm: u16,
+pub struct MuliEvent {
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src: u16,
+    pub src_val: u32,
+    pub imm: u16,
 }
 
 impl Event for MuliEvent {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<(), InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
@@ -117,7 +85,7 @@ impl Event for MuliEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(
             self.dst_val,
             (self.src_val as i32 as i64).wrapping_mul(self.imm as i16 as i64) as u64
@@ -132,81 +100,41 @@ impl Event for MuliEvent {
 /// result.
 #[derive(Debug, Clone)]
 pub struct MuluEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    src2_val: u32,
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src1: u16,
+    pub src1_val: u32,
+    pub src2: u16,
+    pub src2_val: u32,
     // Auxiliary commitments
-    pub(crate) aux: [u32; 8],
+    pub aux: [u32; 8],
     // Stores all aux[2i] + aux[2i + 1] << 8.
-    pub(crate) aux_sums: [u64; 4],
+    pub aux_sums: [u64; 4],
     // Stores the cumulative sums: cum_sum[i] = cum_sum[i-1] + aux_sum[i] << 8*i
-    pub(crate) cum_sums: [u64; 2],
-}
-
-impl MuluEvent {
-    pub fn generate_event(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
-
-        let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
-
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
-
-        let (aux, aux_sums, cum_sums) =
-            schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
-
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-        Ok(Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-            aux: aux.try_into().expect("Created an incorrect aux vector."),
-            aux_sums: aux_sums
-                .try_into()
-                .expect("Created an incorrect aux_sums vector."),
-            cum_sums: cum_sums
-                .try_into()
-                .expect("Created an incorrect cum_sums vector."),
-        })
-    }
+    pub cum_sums: [u64; 2],
 }
 
 impl Event for MuluEvent {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
         let (aux, aux_sums, cum_sums) =
             schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
 
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let mulu_event = Self {
@@ -255,7 +183,7 @@ impl Event for MuluEvent {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(
             self.dst_val,
             (self.src1_val as u64).wrapping_mul(self.src2_val as u64)
@@ -275,7 +203,6 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
     let num_ys_bytes = std::mem::size_of::<T>();
     let ys = &imm_val.into().to_le_bytes()[..num_ys_bytes];
 
-    let num_aux = num_ys_bytes * 2;
     let mut aux = vec![0; num_ys_bytes * 2];
     // Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
     // containing the summands that wont't overlap
@@ -306,8 +233,7 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
         cum_sums[0] = aux_sums[0] + (aux_sums[1] << 8);
         (1..num_ys_bytes - 2)
-            .map(|i| cum_sums[i] = cum_sums[i - 1] + (aux_sums[i + 1] << (8 * (i + 1))))
-            .collect::<Vec<_>>();
+            .for_each(|i| cum_sums[i] = cum_sums[i - 1] + (aux_sums[i + 1] << (8 * (i + 1))));
         cum_sums
     } else {
         vec![]
@@ -339,7 +265,7 @@ pub trait SignedMulOperation: Debug + Clone {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MulsuOp;
+pub struct MulsuOp;
 impl SignedMulOperation for MulsuOp {
     fn mul_op(input1: u32, input2: u32) -> u64 {
         // If the value is signed, first turn into an i32 to get the sign, then into an
@@ -361,7 +287,7 @@ impl SignedMulOperation for MulsuOp {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct MulOp;
+pub struct MulOp;
 impl SignedMulOperation for MulOp {
     fn mul_op(input1: u32, input2: u32) -> u64 {
         // If the value is signed, first turn into an i32 to get the sign, then into an
@@ -382,7 +308,7 @@ impl SignedMulOperation for MulOp {
     }
 }
 
-/// Group of all shift events for convenient downcasting.
+/// Group of all signed mul events for convenient downcasting.
 pub enum AnySignedMulEvent {
     Mul(MulEvent),
     Mulsu(MulsuEvent),
@@ -392,6 +318,17 @@ pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnySignedMulEvent;
 }
 
+/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for MV
+/// events.
+///
+/// It takes as argument the variant name of the instruction within the
+/// [`AnySignedMulEvent`] object, and the corresponding instruction's [`Event`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+/// ```
 macro_rules! impl_generic_signed_mul_event {
     ($variant:ident, $ty:ty) => {
         impl GenericSignedMulEvent for $ty {
@@ -409,16 +346,16 @@ impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
 ///
 /// Performs a MUL between two signed 32-bit integers.
 #[derive(Debug, Clone)]
-pub(crate) struct SignedMulEvent<SignedMulOperation> {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_val: u64,
-    src1: u16,
-    pub(crate) src1_val: u32,
-    src2: u16,
-    src2_val: u32,
+pub struct SignedMulEvent<SignedMulOperation> {
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_val: u64,
+    pub src1: u16,
+    pub src1_val: u32,
+    pub src2: u16,
+    pub src2_val: u32,
 
     _phantom: PhantomData<SignedMulOperation>,
 }
@@ -426,18 +363,17 @@ pub(crate) struct SignedMulEvent<SignedMulOperation> {
 impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
 
         let dst_val = T::mul_op(src1_val, src2_val);
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        ctx.store_vrom_u64(ctx.addr(dst.val()), dst_val)?;
-
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
         let event = Self {
@@ -457,7 +393,7 @@ impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
         fire_non_jump_event!(self, channels);
     }
@@ -477,7 +413,7 @@ define_bin32_op_event!(
     SltuEvent,
     sltu,
     // LT is checked using a SUB gadget.
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new((a.val() < b.val()) as u32)
+    |a: B32, b: B32| B32::new((a.val() < b.val()) as u32)
 );
 
 // Note: The addition is checked thanks to the ADD32 table.
@@ -491,7 +427,7 @@ define_bin32_op_event!(
     SltEvent,
     slt,
     // LT is checked using a SUB gadget.
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32) < (b.val() as i32)) as u32)
+    |a: B32, b: B32| B32::new(((a.val() as i32) < (b.val() as i32)) as u32)
 );
 
 define_bin32_imm_op_event!(
@@ -504,7 +440,7 @@ define_bin32_imm_op_event!(
     SltiuEvent,
     sltiu,
     // LT is checked using a SUB gadget.
-    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new((a.val() < imm.val() as u32) as u32)
+    |a: B32, imm: B16| B32::new((a.val() < imm.val() as u32) as u32)
 );
 
 define_bin32_imm_op_event!(
@@ -517,7 +453,7 @@ define_bin32_imm_op_event!(
     SltiEvent,
     slti,
     // LT is checked using a SUB gadget.
-    |a: BinaryField32b, imm: BinaryField16b| BinaryField32b::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
+    |a: B32, imm: B16| B32::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
 );
 
 define_bin32_op_event!(
@@ -530,14 +466,13 @@ define_bin32_op_event!(
     SubEvent,
     sub,
     // SUB is checked using a specific gadget, similarly to ADD.
-    |a: BinaryField32b, b: BinaryField32b| BinaryField32b::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
+    |a: B32, b: B32| B32::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
 );
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::event::binary_ops::{ImmediateBinaryOperation, NonImmediateBinaryOperation};
-    use crate::{Memory, ProgramRom, ValueRom};
+    use crate::{execution::Interpreter, get_last_event, ZCrayTrace};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -569,16 +504,16 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src1_offset = BinaryField16b::new(2);
-            let src2_offset = BinaryField16b::new(3);
-            let dst_offset = BinaryField16b::new(4);
+            let src1_offset = B16::new(2);
+            let src2_offset = B16::new(3);
+            let dst_offset = B16::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                AddEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            AddEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, add);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -633,16 +568,16 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src1_offset = BinaryField16b::new(2);
-            let src2_offset = BinaryField16b::new(3);
-            let dst_offset = BinaryField16b::new(4);
+            let src1_offset = B16::new(2);
+            let src2_offset = B16::new(3);
+            let dst_offset = B16::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SubEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SubEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, sub);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -684,14 +619,15 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src_offset = BinaryField16b::new(2);
-            let dst_offset = BinaryField16b::new(4);
+            let src_offset = B16::new(2);
+            let dst_offset = B16::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
-            let imm = BinaryField16b::new(imm_val);
+            let imm = B16::new(imm_val);
 
-            let event = AddiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            AddiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, addi);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -777,9 +713,9 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src1_offset = BinaryField16b::new(2);
-            let src2_offset = BinaryField16b::new(3);
-            let dst_offset = BinaryField16b::new(4);
+            let src1_offset = B16::new(2);
+            let src2_offset = B16::new(3);
+            let dst_offset = B16::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
@@ -789,7 +725,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
+            let event = match get_last_event!(ctx, signed_mul).as_any() {
                 AnySignedMulEvent::Mul(ev) => ev,
                 _ => panic!("Expected MulEvent"),
             };
@@ -806,16 +742,14 @@ mod tests {
             interpreter.timestamp = 0;
             interpreter.pc = 1;
 
-            let trace = ZCrayTrace::default();
-
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                MuluEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            MuluEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, mulu);
 
             assert_eq!(
                 event.dst_val, mulu_expected,
@@ -834,7 +768,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match ctx.trace.signed_mul.last().unwrap().as_any() {
+            let event = match get_last_event!(ctx, signed_mul).as_any() {
                 AnySignedMulEvent::Mulsu(ev) => ev,
                 _ => panic!("Expected MulsuEvent"),
             };
@@ -895,17 +829,17 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src_offset = BinaryField16b::new(2);
-            let dst_offset = BinaryField16b::new(4);
+            let src_offset = B16::new(2);
+            let dst_offset = B16::new(4);
 
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
-            let imm = BinaryField16b::new(imm_val);
+            let imm = B16::new(imm_val);
 
             MuliEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             // Extract the event
-            let event = ctx.trace.muli.last().unwrap();
+            let event = get_last_event!(ctx, muli);
 
             assert_eq!(
                 event.dst_val, expected,
@@ -950,16 +884,16 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src1_offset = BinaryField16b::new(2);
-            let src2_offset = BinaryField16b::new(3);
-            let dst_offset = BinaryField16b::new(4);
+            let src1_offset = B16::new(2);
+            let src2_offset = B16::new(3);
+            let dst_offset = B16::new(4);
 
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SltEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SltEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, slt);
 
             assert_eq!(
                 event.dst_val, slt_expected,
@@ -975,8 +909,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            let event =
-                SltuEvent::generate_event(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            SltuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
+            let event = get_last_event!(ctx, sltu);
 
             assert_eq!(
                 event.dst_val, sltu_expected,
@@ -1046,14 +980,15 @@ mod tests {
             let mut interpreter = Interpreter::default();
             let mut trace = ZCrayTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src_offset = BinaryField16b::new(2);
-            let dst_offset = BinaryField16b::new(4);
-            let imm = BinaryField16b::new(imm_val);
+            let src_offset = B16::new(2);
+            let dst_offset = B16::new(4);
+            let imm = B16::new(imm_val);
 
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            SltiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, slti);
 
             assert_eq!(
                 event.dst_val, slti_expected,
@@ -1068,7 +1003,8 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            let event = SltiuEvent::generate_event(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            SltiuEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
+            let event = get_last_event!(ctx, sltiu);
 
             assert_eq!(
                 event.dst_val, sltiu_expected,

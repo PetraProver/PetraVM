@@ -1,9 +1,7 @@
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
-use crate::execution::{
-    FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables, ZCrayTrace,
-};
+use crate::execution::{FramePointer, InterpreterChannels, InterpreterError};
 
 /// Event for RET.
 ///
@@ -14,7 +12,7 @@ use crate::execution::{
 ///   2. FP = FP[1]
 #[derive(Debug, PartialEq, Clone)]
 pub struct RetEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub pc_next: u32,
@@ -29,8 +27,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.load_vrom_u32(ctx.addr(0u32))?,
-            fp_next: ctx.load_vrom_u32(ctx.addr(1u32))?,
+            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32))?,
+            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32))?,
         })
     }
 }
@@ -38,28 +36,26 @@ impl RetEvent {
 impl Event for RetEvent {
     fn generate(
         ctx: &mut EventContext,
-        _unused0: BinaryField16b,
-        _unused1: BinaryField16b,
-        _unused2: BinaryField16b,
+        _unused0: B16,
+        _unused1: B16,
+        _unused2: B16,
     ) -> Result<(), InterpreterError> {
         let ret_event = RetEvent::new(ctx)?;
 
-        let target = ctx.load_vrom_u32(ctx.addr(0u32))?;
-        ctx.jump_to(BinaryField32b::new(target));
-        ctx.set_fp(ctx.load_vrom_u32(ctx.addr(1u32))?);
+        let target = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        ctx.jump_to(B32::new(target));
+        ctx.set_fp(ctx.vrom_read::<u32>(ctx.addr(1u32))?);
 
         ctx.trace.ret.push(ret_event);
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         channels
             .state_channel
             .pull((self.pc, *self.fp, self.timestamp));
-        channels.state_channel.push((
-            BinaryField32b::new(self.pc_next),
-            self.fp_next,
-            self.timestamp,
-        ));
+        channels
+            .state_channel
+            .push((B32::new(self.pc_next), self.fp_next, self.timestamp));
     }
 }

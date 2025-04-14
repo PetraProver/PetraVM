@@ -1,14 +1,12 @@
-use binius_field::{BinaryField16b, BinaryField32b, ExtensionField};
+use binius_field::ExtensionField;
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
     event::Event,
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-        ZCrayTrace,
-    },
+    execution::{FramePointer, InterpreterChannels, InterpreterError, ZCrayTrace},
     fire_non_jump_event,
-    memory::MemoryError,
+    memory::{MemoryError, VromValueT},
     opcodes::Opcode,
 };
 
@@ -22,22 +20,31 @@ pub(crate) enum MVKind {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MVInfo {
     pub(crate) mv_kind: MVKind,
-    pub(crate) dst: BinaryField16b,
-    pub(crate) offset: BinaryField16b,
-    pub(crate) src: BinaryField16b,
-    pub(crate) pc: BinaryField32b,
+    pub(crate) dst: B16,
+    pub(crate) offset: B16,
+    pub(crate) src: B16,
+    pub(crate) pc: B32,
     pub(crate) timestamp: u32,
 }
 
-/// Convenience macro to implement the `Event` trait for MV events.
+/// Convenience macro to implement the [`Event`] trait for MV events.
+///
+/// It takes as argument the instruction and its corresponding field name in the
+/// [`ZCrayTrace`] where such events are being logged.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_mv_event!(MVVWEvent, mvvw);
+/// ```
 macro_rules! impl_mv_event {
     ($event:ty, $trace_field:ident) => {
         impl Event for $event {
             fn generate(
                 ctx: &mut EventContext,
-                arg0: BinaryField16b,
-                arg1: BinaryField16b,
-                arg2: BinaryField16b,
+                arg0: B16,
+                arg1: B16,
+                arg2: B16,
             ) -> Result<(), InterpreterError> {
                 let opt_event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 if let Some(event) = opt_event {
@@ -47,7 +54,7 @@ macro_rules! impl_mv_event {
                 Ok(())
             }
 
-            fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+            fn fire(&self, channels: &mut InterpreterChannels) {
                 fire_non_jump_event!(self, channels);
             }
         }
@@ -57,12 +64,12 @@ macro_rules! impl_mv_event {
 pub(crate) struct MVEventOutput {
     pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
-    pub(crate) field_pc: BinaryField32b, // field PC
-    pub(crate) fp: FramePointer,         // fp
-    pub(crate) timestamp: u32,           // timestamp
-    pub(crate) dst: BinaryField16b,      // dst
-    pub(crate) src: BinaryField16b,      // src
-    pub(crate) offset: BinaryField16b,   // offset
+    pub(crate) field_pc: B32,    // field PC
+    pub(crate) fp: FramePointer, // fp
+    pub(crate) timestamp: u32,   // timestamp
+    pub(crate) dst: B16,         // dst
+    pub(crate) src: B16,         // src
+    pub(crate) offset: B16,      // offset
     pub(crate) src_val: u128,
 }
 
@@ -71,12 +78,12 @@ impl MVEventOutput {
     pub(crate) const fn new(
         parent: u32, // parent addr
         opcode: Opcode,
-        field_pc: BinaryField32b, // field PC
-        fp: FramePointer,         // fp
-        timestamp: u32,           // timestamp
-        dst: BinaryField16b,      // dst
-        src: BinaryField16b,      // src
-        offset: BinaryField16b,   // offset
+        field_pc: B32,    // field PC
+        fp: FramePointer, // fp
+        timestamp: u32,   // timestamp
+        dst: B16,         // dst
+        src: B16,         // src
+        offset: B16,      // offset
         src_val: u128,
     ) -> Self {
         Self {
@@ -145,14 +152,14 @@ impl MVEventOutput {
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
 pub struct MVVWEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    src: u16,
-    src_val: u32,
-    offset: u16,
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub src: u16,
+    pub src_val: u32,
+    pub offset: u16,
 }
 
 // TODO: this is a 4-byte move instruction. So it needs to be updated once we
@@ -160,7 +167,7 @@ pub struct MVVWEvent {
 impl MVVWEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -185,22 +192,22 @@ impl MVVWEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -220,46 +227,54 @@ impl MVVWEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.load_vrom_opt_u32(ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
 
+        // If `dst_addr` is set, we check whether the value at the destination is
+        // already set. If that's the case, we can set the source value.
+        if let Some(dst_addr) = opt_dst_addr {
+            let opt_dst_val = ctx.vrom_read_opt::<u32>(dst_addr ^ offset.val() as u32)?;
+            // If the destination value is set, we set the source value.
+            if let Some(dst_val) = opt_dst_val {
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+
+                return Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }));
+            }
+        }
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if opt_dst_addr.is_none() || opt_src_val.is_none() {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvvw,
-                dst,
-                offset,
-                src,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        ctx.incr_pc();
-
-        ctx.store_vrom_u32(ctx.addr(offset.val()), src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -284,20 +299,20 @@ impl_mv_event!(MVVWEvent, mvvw);
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
 pub struct MVVLEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    src: u16,
-    src_val: u128,
-    offset: u16,
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub src: u16,
+    pub src_val: u128,
+    pub offset: u16,
 }
 
 impl MVVLEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -322,22 +337,22 @@ impl MVVLEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if let Some(src_val) = opt_src_val {
-            ctx.store_vrom_u128(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -357,44 +372,56 @@ impl MVVLEvent {
             ctx.trace.insert_pending(
                 dst_addr ^ offset.val() as u32,
                 (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
-            );
+            )?;
             Ok(None)
         }
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        src: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.load_vrom_opt_u128(ctx.addr(src.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
+        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
 
+        // If `dst_addr` is set, we check whether the value at the destination is
+        // already set. If that's the case, we can set the source value.
+        if let Some(dst_addr) = opt_dst_addr {
+            let opt_dst_val = ctx
+                .vrom()
+                .read_opt::<u128>(dst_addr ^ offset.val() as u32)?;
+            // If the destination value is set, we set the source value.
+            if let Some(dst_val) = opt_dst_val {
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+
+                return Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }));
+            }
+        }
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if opt_dst_addr.is_none() || opt_src_val.is_none() {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvvl,
-                dst,
-                offset,
-                src,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
         let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
         let src_val = opt_src_val.expect("We checked previously that src_val is some");
 
-        ctx.store_vrom_u128(ctx.addr(offset.val()), src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -420,13 +447,13 @@ impl_mv_event!(MVVLEvent, mvvl);
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
 pub struct MVIHEvent {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,
-    dst_addr: u32,
-    imm: u16,
-    offset: u16,
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,
+    pub dst_addr: u32,
+    pub imm: u16,
+    pub offset: u16,
 }
 
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
@@ -436,19 +463,19 @@ impl MVIHEvent {
     /// procedure.
     pub(crate) fn generate_event_from_info(
         ctx: &mut EventContext,
-        pc: BinaryField32b,
+        pc: B32,
         timestamp: u32,
         fp: FramePointer,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        imm: B16,
     ) -> Result<Self, InterpreterError> {
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = ctx.load_vrom_u32(ctx.addr(dst.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-        ctx.store_vrom_u32(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        ctx.vrom_write(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
         Ok(Self {
             pc,
@@ -461,21 +488,20 @@ impl MVIHEvent {
         })
     }
 
-    pub fn generate_event(
+    pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        offset: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        offset: B16,
+        imm: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.load_vrom_opt_u32(ctx.addr(dst.val()))?;
+        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if let Some(dst_addr) = opt_dst_addr {
-            ctx.store_vrom_u32(ctx.addr(offset.val()), imm.val() as u32)?;
-            ctx.incr_pc();
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
             Ok(Some(Self {
                 pc: field_pc,
@@ -487,17 +513,7 @@ impl MVIHEvent {
                 offset: offset.val(),
             }))
         } else {
-            let new_mv_info = MVInfo {
-                mv_kind: MVKind::Mvih,
-                dst,
-                offset,
-                src: imm,
-                pc: field_pc,
-                timestamp,
-            };
-            // This move needs to be handled later, in the CALL.
-            ctx.moves_to_apply.push(new_mv_info);
-            ctx.incr_pc();
+            delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc, timestamp);
             Ok(None)
         }
     }
@@ -513,7 +529,7 @@ impl_mv_event!(MVIHEvent, mvih);
 ///   1. FP[dst] = imm
 #[derive(Debug, Clone)]
 pub struct LDIEvent {
-    pub pc: BinaryField32b,
+    pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
@@ -523,17 +539,16 @@ pub struct LDIEvent {
 impl LDIEvent {
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        imm_low: BinaryField16b,
-        imm_high: BinaryField16b,
+        dst: B16,
+        imm_low: B16,
+        imm_high: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let imm = BinaryField32b::from_bases([imm_low, imm_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let imm =
+            B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), imm.val())?;
-        ctx.incr_pc();
+        execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 
         Ok(Some(Self {
             pc: field_pc,
@@ -547,17 +562,54 @@ impl LDIEvent {
 
 impl_mv_event!(LDIEvent, ldi);
 
+/// If the source value of a MOVE operations is missing or the destination
+/// address is still unknown, it means we are in a MOVE that precedes a CALL,
+/// and we have to handle the MOVE operation later.
+fn delegate_move(
+    ctx: &mut EventContext,
+    mv_kind: MVKind,
+    dst: B16,
+    offset: B16,
+    src: B16,
+    pc: B32,
+    timestamp: u32,
+) {
+    let new_mv_info = MVInfo {
+        mv_kind,
+        dst,
+        offset,
+        src,
+        pc,
+        timestamp,
+    };
+
+    // This move needs to be handled later, in the CALL.
+    ctx.moves_to_apply.push(new_mv_info);
+    ctx.incr_pc();
+}
+
+fn execute_mv<T: VromValueT>(
+    ctx: &mut EventContext,
+    dst_addr: u32,
+    value: T,
+) -> Result<(), MemoryError> {
+    ctx.vrom_write(dst_addr, value)?;
+    ctx.incr_pc();
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use binius_field::{BinaryField16b, BinaryField32b, Field, PackedField};
+    use binius_field::{Field, PackedField};
+    use binius_m3::builder::{B16, B32};
 
     use crate::{
         event::mv::{MVInfo, MVKind},
-        execution::trace::ZCrayTrace,
         execution::{Interpreter, G},
-        memory::{Memory, VromPendingUpdates, VromUpdate},
+        memory::Memory,
         opcodes::Opcode,
         util::code_to_prom,
         ValueRom,
@@ -572,17 +624,17 @@ mod tests {
         // Slot 3: dst_storage1
         // Slot 4: src_val1: not written yet.
         // Slot 5: dst_addr2 = 0
-        // Slot 6: dst_storage2
-        // Slot 7: padding for alignment.
-        // Slot 8: src_val2: not written yet.
+        // Slot 6-7: Padding for alignment
+        // Slot 8-11: dst_storage2
+        // Slot 12-15: src_val2: not written yet.
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let dst_addr1 = 2.into();
         let offset1 = 3.into();
         let src_addr1 = 4.into();
         let dst_addr2 = 5.into();
-        let offset2 = 6.into();
-        let src_addr2 = 8.into();
+        let offset2 = 8.into();
+        let src_addr2 = 12.into();
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
             [Opcode::Mvvw.get_field_elt(), dst_addr1, offset1, src_addr1],
@@ -591,14 +643,14 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 9);
+        frames.insert(B32::one(), 16);
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
-        vrom.set_u32(2, 0).unwrap();
-        vrom.set_u32(5, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        vrom.write(2, 0u32).unwrap();
+        vrom.write(5, 0u32).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -614,7 +666,7 @@ mod tests {
             dst: dst_addr1,
             offset: offset1,
             src: src_addr1,
-            pc: BinaryField32b::ONE,
+            pc: B32::ONE,
             timestamp: 0,
         };
         let second_move = MVInfo {
@@ -640,7 +692,7 @@ mod tests {
         // Slot 8: target
         // Slot 9: next_fp
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let offset1 = 2.into();
         let src_addr1 = 2.into();
         let offset2 = 4.into();
@@ -678,24 +730,23 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(B32::one(), 10);
         frames.insert(target, 9);
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set src vals.
-        let src_val1 = 1;
-        let src_val2 = 2;
-        vrom.set_u32(src_addr1.val() as u32, src_val1).unwrap();
-        vrom.set_u128(src_addr2.val() as u32, src_val2).unwrap();
+        let src_val1 = 1u32;
+        let src_val2 = 2u128;
+        vrom.write(src_addr1.val() as u32, src_val1).unwrap();
+        vrom.write(src_addr2.val() as u32, src_val2).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
@@ -713,19 +764,22 @@ mod tests {
         let next_fp = 16;
         assert_eq!(
             traces
-                .get_vrom_u32(next_fp as u32 + offset1.val() as u32)
+                .vrom()
+                .read::<u32>(next_fp as u32 + offset1.val() as u32)
                 .unwrap(),
             src_val1
         );
         assert_eq!(
             traces
-                .get_vrom_u128(next_fp as u32 + offset2.val() as u32)
+                .vrom()
+                .read::<u128>(next_fp as u32 + offset2.val() as u32)
                 .unwrap(),
             src_val2
         );
         assert_eq!(
             traces
-                .get_vrom_u32(next_fp as u32 + offset3.val() as u32)
+                .vrom()
+                .read::<u32>(next_fp as u32 + offset3.val() as u32)
                 .unwrap(),
             imm.val() as u32
         );
@@ -742,7 +796,7 @@ mod tests {
         // Slot 8: Target
         // Slot 9: Next_fp
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
         let offset1 = 2.into();
         let offset2 = 4.into();
         let src_addr = 4.into();
@@ -790,18 +844,17 @@ mod tests {
         ];
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::one(), 10);
+        frames.insert(B32::one(), 10);
         frames.insert(target, 9);
 
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
-        vrom.set_u32(0, 0).unwrap();
-        vrom.set_u32(1, 0).unwrap();
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
 
         // Set target
-        vrom.set_u32(call_offset.val() as u32, target.val())
-            .unwrap();
+        vrom.write(call_offset.val() as u32, target.val()).unwrap();
 
         // We do not set the src_addr.
         let memory = Memory::new(prom, vrom);
@@ -818,7 +871,7 @@ mod tests {
         let first_move = (
             src_addr.val() as u32, // Address to set
             Opcode::Mvvw,          // Opcode
-            BinaryField32b::ONE,   // PC
+            B32::ONE,              // PC
             0u32,                  // FP
             0u32,                  // Timestamp
             next_fp_offset,        // Dst
@@ -854,12 +907,235 @@ mod tests {
         // Check that `next_fp` has been set and the third MOVE operation was carried
         // out correctly,
         assert_eq!(
-            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap(),
+            traces
+                .vrom()
+                .read::<u32>(next_fp_offset.val() as u32)
+                .unwrap(),
             next_fp
         );
         assert_eq!(
-            traces.get_vrom_u32(storage.val() as u32).unwrap(),
-            traces.get_vrom_u32(next_fp_offset.val() as u32).unwrap()
+            traces.vrom().read::<u32>(storage.val() as u32).unwrap(),
+            traces
+                .vrom()
+                .read::<u32>(next_fp_offset.val() as u32)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_mv_dst_no_src() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: Padding for alignment
+        // Slot 3: Padding for alignment
+        // Slot 4-7: Storage
+        // Slot 8-11: Src_val_mvvl
+        // Slot 12: Src_val_mvvw
+
+        let cur_fp = B16::one();
+        let zero = B16::zero();
+        let storage_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
+        let src_addr_mvvl = 8.into();
+        let src_addr_mvvw = 12.into();
+        let imm = 12.into();
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        // The value is previously set by MVI.H. This way, the two source values can be
+        // set orrectly.
+        let instructions = vec![
+            // Store `imm` into the storage value.
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                imm,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[1],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[2],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_offsets[3],
+                zero,
+            ],
+            // Set the source value for MVV.L
+            [
+                Opcode::Mvvl.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                src_addr_mvvl,
+            ],
+            // Set the source value for MVV.W
+            [
+                Opcode::Mvvw.get_field_elt(),
+                cur_fp,
+                storage_offsets[0],
+                src_addr_mvvw,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(B32::one(), 13);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+
+        // We do not set `src_addr_mvvl` and `src_val_mvvw`.
+        let memory = Memory::new(prom, vrom);
+
+        let pc_field_to_int = HashMap::new();
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u128>(storage_offsets[0].val() as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u128>(src_addr_mvvl.val() as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u32>(src_addr_mvvw.val() as u32)
+                .unwrap(),
+            12
+        );
+    }
+
+    #[test]
+    fn test_normal_mv() {
+        // Frame
+        // Slot 0: Return PC
+        // Slot 1: Return FP
+        // Slot 2: dst_addr
+        // Slot 3: Padding for alignment
+        // Slot 4-7: Storage MVIH
+        // Slot 8-11: Storage MVVL
+        // Slot 12: Storage MVVW
+
+        let cur_fp = B16::one();
+        let zero = B16::zero();
+        let dst = 2;
+        let dst_val = 4;
+        let storage_mvih_offsets = (4..8).map(|i| i.into()).collect::<Vec<_>>();
+        let storage_mvvl = (8 ^ dst_val).into();
+        let storage_mvvw = (12 ^ dst_val).into();
+        let imm = 12.into();
+
+        // Do MVVW and MVVL with an unaccessible source value.
+        // The value is previously set by MVI.H. This way, the two source values can be
+        // set orrectly.
+        let instructions = vec![
+            // Store `imm` into the storage value.
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[0],
+                imm,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[1],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[2],
+                zero,
+            ],
+            [
+                Opcode::Mvih.get_field_elt(),
+                cur_fp,
+                storage_mvih_offsets[3],
+                zero,
+            ],
+            // Set the source value for MVV.L. We use `dst` here to ensure the computation is
+            // correct in `generate_event`.
+            [
+                Opcode::Mvvl.get_field_elt(),
+                dst.into(),
+                storage_mvvl,
+                storage_mvih_offsets[0],
+            ],
+            // Set the source value for MVV.W
+            [
+                Opcode::Mvvw.get_field_elt(),
+                dst.into(),
+                storage_mvvw,
+                storage_mvih_offsets[0],
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+
+        let mut frames = HashMap::new();
+        frames.insert(B32::one(), 13);
+
+        let prom = code_to_prom(&instructions);
+        let mut vrom = ValueRom::default();
+        // Set FP and PC
+        vrom.write(0, 0u32).unwrap();
+        vrom.write(1, 0u32).unwrap();
+        // Set the destination address.
+        vrom.write(dst as u32, dst_val as u32).unwrap();
+
+        // We do not set `src_addr_mvvl` and `src_val_mvvw`.
+        let memory = Memory::new(prom, vrom);
+
+        let pc_field_to_int = HashMap::new();
+        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+
+        let traces = interpreter
+            .run(memory)
+            .expect("The interpreter should run smoothly.");
+
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u128>(storage_mvih_offsets[0].val() as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u128>((storage_mvvl.val() ^ dst_val) as u32)
+                .unwrap(),
+            imm.val() as u128
+        );
+        assert_eq!(
+            traces
+                .vrom()
+                .read::<u32>((storage_mvvw.val() ^ dst_val) as u32)
+                .unwrap(),
+            imm.val() as u32
         );
     }
 }

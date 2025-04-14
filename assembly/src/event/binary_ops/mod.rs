@@ -1,12 +1,9 @@
 use core::fmt::Debug;
 
-use binius_field::{BinaryField16b, BinaryField32b};
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
-use crate::{
-    execution::{FramePointer, InterpreterError},
-    ZCrayTrace,
-};
+use crate::execution::{FramePointer, InterpreterError};
 
 pub(crate) mod b128;
 pub(crate) mod b32;
@@ -31,15 +28,13 @@ pub(crate) trait OutputOp {
     type Output: PartialEq + Debug;
     fn output(&self) -> Self::Output;
 }
-// TODO: Add type parameter for operation over other fields?
 pub(crate) trait ImmediateBinaryOperation:
-    BinaryOperation<Left = BinaryField32b, Right = BinaryField16b, Output = BinaryField32b>
+    BinaryOperation<Left = B32, Right = B16, Output = B32>
 {
-    // TODO: Add some trick to implement new only once
     #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         dst: u16,
         dst_val: u32,
@@ -50,12 +45,12 @@ pub(crate) trait ImmediateBinaryOperation:
 
     fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
-        let dst_val = Self::operation(BinaryField32b::new(src_val), imm);
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let dst_val = Self::operation(B32::new(src_val), imm);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -69,19 +64,19 @@ pub(crate) trait ImmediateBinaryOperation:
             src_val,
             imm.into(),
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }
 }
 
 pub(crate) trait NonImmediateBinaryOperation:
-    BinaryOperation<Left = BinaryField32b, Right = BinaryField32b, Output = BinaryField32b>
+    BinaryOperation<Left = B32, Right = B32, Output = B32>
 {
     #[allow(clippy::too_many_arguments)]
     fn new(
         timestamp: u32,
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         dst: u16,
         dst_val: u32,
@@ -93,13 +88,13 @@ pub(crate) trait NonImmediateBinaryOperation:
 
     fn generate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src1_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let src2_val = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
-        let dst_val = Self::operation(BinaryField32b::new(src1_val), BinaryField32b::new(src2_val));
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+        let dst_val = Self::operation(B32::new(src1_val), B32::new(src2_val));
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -114,7 +109,7 @@ pub(crate) trait NonImmediateBinaryOperation:
             src2.val(),
             src2_val,
         );
-        ctx.store_vrom_u32(ctx.addr(dst.val()), dst_val.val())?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
         ctx.incr_pc();
         Ok(event)
     }

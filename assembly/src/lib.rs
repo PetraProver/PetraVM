@@ -1,3 +1,9 @@
+//! The `assembly` crate provides the core components and functionalities for
+//! assembling and executing programs with the zCray Virtual Machine (zCrayVM).
+//!
+//! This includes instruction definitions, program parsing and program
+//! execution.
+
 // TODO: Remove these once stable enough
 #![allow(unused)]
 #![allow(dead_code)]
@@ -16,6 +22,8 @@ mod util;
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use event::{
     binary_ops::b32::{AndiEvent, XoriEvent},
+    binary_ops::b32::{B32MulEvent, B32MuliEvent},
+    branch::{BnzEvent, BzEvent},
     mv::LDIEvent,
     ret::RetEvent,
 };

@@ -1,16 +1,14 @@
 #[cfg(test)]
 mod test_parser {
 
-    use std::str::FromStr;
-
-    use binius_field::{BinaryField16b, ExtensionField, Field, PackedField};
+    use binius_field::{ExtensionField, Field, PackedField};
+    use binius_m3::builder::B16;
     use pest::Parser;
 
     use crate::execution::G;
     use crate::opcodes::Opcode;
-    use crate::parser::instruction_args::Slot;
     use crate::parser::InstructionsWithLabels;
-    use crate::parser::{parse_line, parse_program, AsmParser, Rule};
+    use crate::parser::{parse_program, AsmParser, Rule};
     use crate::util::code_to_prom;
     use crate::util::get_binary_slot;
     use crate::Assembler;
@@ -168,16 +166,14 @@ mod test_parser {
 
     #[test]
     fn test_parsing_collatz() {
-        let collatz = BinaryField16b::ONE;
-        let case_recurse = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(4))
-            .collect::<Vec<BinaryField16b>>();
-        let case_odd = ExtensionField::<BinaryField16b>::iter_bases(&G.pow(10))
-            .collect::<Vec<BinaryField16b>>();
+        let collatz = B16::ONE;
+        let case_recurse = ExtensionField::<B16>::iter_bases(&G.pow(4)).collect::<Vec<B16>>();
+        let case_odd = ExtensionField::<B16>::iter_bases(&G.pow(10)).collect::<Vec<B16>>();
 
         let compiled_program =
             Assembler::from_code(include_str!("../../../examples/collatz.asm")).unwrap();
 
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         let expected_prom = vec![
             // collatz:

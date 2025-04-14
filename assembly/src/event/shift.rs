@@ -1,15 +1,13 @@
 use core::fmt::Debug;
-use std::{any::Any, marker::PhantomData};
+use std::marker::PhantomData;
 
-use binius_field::{BinaryField16b, BinaryField32b, Field};
+use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
 use crate::{
-    event::{binary_ops::*, Event},
-    execution::{
-        FramePointer, Interpreter, InterpreterChannels, InterpreterError, InterpreterTables,
-    },
-    fire_non_jump_event, Opcode, ZCrayTrace,
+    event::Event,
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
+    fire_non_jump_event,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -88,13 +86,13 @@ where
     S: ShiftSource + Send + Sync + 'static,
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
-    pc: BinaryField32b,
-    fp: FramePointer,
-    timestamp: u32,
-    dst: u16,                // 16-bit destination VROM offset
-    dst_val: u32,            // 32-bit result value
-    src: u16,                // 16-bit source VROM offset
-    pub(crate) src_val: u32, // 32-bit source value
+    pub pc: B32,
+    pub fp: FramePointer,
+    pub timestamp: u32,
+    pub dst: u16,     // 16-bit destination VROM offset
+    pub dst_val: u32, // 32-bit result value
+    pub src: u16,     // 16-bit source VROM offset
+    pub src_val: u32, // 32-bit source value
 
     _phantom: PhantomData<(S, O)>,
 }
@@ -105,7 +103,7 @@ where
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
     pub const fn new(
-        pc: BinaryField32b,
+        pc: B32,
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
@@ -143,38 +141,25 @@ where
         O::shift_op(src_val, effective_shift)
     }
 
-    fn generate_event(
-        ctx: &mut EventContext,
-        dst: BinaryField16b,
-        arg1: BinaryField16b,
-        arg2: BinaryField16b,
-    ) -> Result<Self, InterpreterError> {
-        if S::is_immediate() {
-            Self::generate_immediate_event(ctx, dst, arg1, arg2)
-        } else {
-            Self::generate_vrom_event(ctx, dst, arg1, arg2)
-        }
-    }
-
     /// Generate a ShiftEvent for immediate shift operations.
     ///
     /// For immediate shifts (like SLLI, SRLI, SRAI), the shift amount comes
     /// directly from the instruction (as a 16-bit immediate) and masked to 5
     /// bits.
-    pub fn generate_immediate_event(
+    pub(crate) fn generate_immediate_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src: BinaryField16b,
-        imm: BinaryField16b,
+        dst: B16,
+        src: B16,
+        imm: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let new_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -192,20 +177,19 @@ where
     ///
     /// For VROM-based shifts (like SLL, SRL, SRA), the shift amount is read
     /// from another VROM location and masked to 5 bits.
-    pub fn generate_vrom_event(
+    pub(crate) fn generate_vrom_event(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<Self, InterpreterError> {
-        let src_val = ctx.load_vrom_u32(ctx.addr(src1.val()))?;
-        let shift_amount = ctx.load_vrom_u32(ctx.addr(src2.val()))?;
-        let src2_offset = src2.val();
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
         let new_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.store_vrom_u32(ctx.addr(dst.val()), new_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), new_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -228,9 +212,9 @@ where
 {
     fn generate(
         ctx: &mut EventContext,
-        dst: BinaryField16b,
-        src1: BinaryField16b,
-        src2: BinaryField16b,
+        dst: B16,
+        src1: B16,
+        src2: B16,
     ) -> Result<(), InterpreterError> {
         let event = if S::is_immediate() {
             Self::generate_immediate_event(ctx, dst, src1, src2)?
@@ -242,7 +226,7 @@ where
         Ok(())
     }
 
-    fn fire(&self, channels: &mut InterpreterChannels, _tables: &InterpreterTables) {
+    fn fire(&self, channels: &mut InterpreterChannels) {
         fire_non_jump_event!(self, channels);
     }
 }
@@ -261,6 +245,17 @@ pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnyShiftEvent;
 }
 
+/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
+/// events.
+///
+/// It takes as argument the variant name of the instruction within the
+/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_generic_shift_event!(Sll, SllEvent);
+/// ```
 macro_rules! impl_generic_shift_event {
     ($variant:ident, $ty:ty) => {
         impl GenericShiftEvent for $ty {
@@ -289,12 +284,10 @@ impl_generic_shift_event!(Sra, SraEvent);
 mod test {
     use std::collections::HashMap;
 
-    use binius_field::PackedField;
+    use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{
-        event::ret::RetEvent, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom,
-    };
+    use crate::{memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, ZCrayTrace};
 
     #[test]
     fn test_shift_event_calculate_comprehensive() {
@@ -400,12 +393,12 @@ mod test {
 
     #[test]
     fn test_shift_event_integration() {
-        let zero = BinaryField16b::zero();
+        let zero = B16::zero();
 
         // Initialize VROM
         let mut vrom = ValueRom::default();
-        vrom.set_u32(0, 0).unwrap(); // Return PC
-        vrom.set_u32(1, 0).unwrap(); // Return FP
+        vrom.write(0, 0u32).unwrap(); // Return PC
+        vrom.write(1, 0u32).unwrap(); // Return FP
 
         // Create source value slots
         let src_pos = vrom.set_value_at_offset(2, 0x00000003);
@@ -417,16 +410,16 @@ mod test {
         let shift_32 = vrom.set_value_at_offset(6, 32);
 
         // Create destination slots
-        let slli_result = BinaryField16b::new(10);
-        let srli_result = BinaryField16b::new(11);
-        let srai_result = BinaryField16b::new(12);
-        let slli_zero_result = BinaryField16b::new(13);
-        let sll_result = BinaryField16b::new(14);
-        let srl_result = BinaryField16b::new(15);
-        let sra_result = BinaryField16b::new(16);
-        let sll_zero_result = BinaryField16b::new(17);
-        let srl_32_result = BinaryField16b::new(18);
-        let sra_32_result = BinaryField16b::new(19);
+        let slli_result = B16::new(10);
+        let srli_result = B16::new(11);
+        let srai_result = B16::new(12);
+        let slli_zero_result = B16::new(13);
+        let sll_result = B16::new(14);
+        let srl_result = B16::new(15);
+        let sra_result = B16::new(16);
+        let sll_zero_result = B16::new(17);
+        let srl_32_result = B16::new(18);
+        let sra_32_result = B16::new(19);
 
         // Build a sequence of instructions
         let instructions = vec![
@@ -435,19 +428,19 @@ mod test {
                 Opcode::Slli.get_field_elt(),
                 slli_result,
                 src_pos,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             [
                 Opcode::Srli.get_field_elt(),
                 srli_result,
                 src_pos,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             [
                 Opcode::Srai.get_field_elt(),
                 srai_result,
                 src_neg,
-                BinaryField16b::new(3),
+                B16::new(3),
             ],
             // Edge case: immediate shift by 0
             [
@@ -501,7 +494,7 @@ mod test {
         let frame_size = 20; // Highest used offset + 1
 
         let mut frames = HashMap::new();
-        frames.insert(BinaryField32b::ONE, frame_size);
+        frames.insert(B32::ONE, frame_size);
 
         let prom = code_to_prom(&instructions);
         let memory = Memory::new(prom, vrom);
@@ -511,45 +504,48 @@ mod test {
 
         // Check results for immediate shift operations
         assert_eq!(
-            trace.get_vrom_u32(slli_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(slli_result.val() as u32).unwrap(),
             0x00000018,
             "SLLI: 3 << 3 should be 24 (0x00000018)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srli_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srli_result.val() as u32).unwrap(),
             0x00000000,
             "SRLI: 3 >> 3 should be 0"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srai_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srai_result.val() as u32).unwrap(),
             0xf0000000,
             "SRAI: 0x80000000 >> 3 (arithmetic) should be 0xF0000000"
         );
 
         // Check edge case: immediate shift by 0
         assert_eq!(
-            trace.get_vrom_u32(slli_zero_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(slli_zero_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "Shift by 0 should return original value"
         );
 
         // Check results for VROM-based shift operations
         assert_eq!(
-            trace.get_vrom_u32(sll_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(sll_result.val() as u32).unwrap(),
             0x00000018,
             "SLL: 3 << 3 should be 24 (0x00000018)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(srl_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(srl_result.val() as u32).unwrap(),
             0x00000000,
             "SRL: 3 >> 3 should be 0"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(sra_result.val() as u32).unwrap(),
+            trace.vrom().read::<u32>(sra_result.val() as u32).unwrap(),
             0xf0000000,
             "SRA: 0x80000000 >> 3 (arithmetic) should be 0xF0000000"
         );
@@ -557,20 +553,29 @@ mod test {
         // Check VROM-based edge cases (modular behavior):
         // A shift by 32 is equivalent to a shift by 0.
         assert_eq!(
-            trace.get_vrom_u32(sll_zero_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(sll_zero_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "VROM-based shift by 0 should return original value"
         );
 
         // For shift amount 32, effective shift = 0, so original value is returned.
         assert_eq!(
-            trace.get_vrom_u32(srl_32_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(srl_32_result.val() as u32)
+                .unwrap(),
             0x00000003,
             "SRL by 32 should return original value (mod 32 behavior)"
         );
 
         assert_eq!(
-            trace.get_vrom_u32(sra_32_result.val() as u32).unwrap(),
+            trace
+                .vrom()
+                .read::<u32>(sra_32_result.val() as u32)
+                .unwrap(),
             0x80000000,
             "SRA by 32 on negative value should return original value (mod 32 behavior)"
         );

@@ -18,13 +18,15 @@ fn test_naive_div() {
 
     assert_eq!(
         trace
-            .get_vrom_u32(4)
+            .vrom()
+            .read::<u32>(4)
             .expect("Return value for quotient not set."),
         a / b
     );
     assert_eq!(
         trace
-            .get_vrom_u32(5)
+            .vrom()
+            .read::<u32>(5)
             .expect("Return value for remainder not set."),
         a % b
     );
@@ -55,21 +57,24 @@ fn test_bezout() {
     // gcd
     assert_eq!(
         trace
-            .get_vrom_u32(4)
+            .vrom()
+            .read::<u32>(4)
             .expect("Return value for quotient not set."),
         3
     );
     // a's coefficient
     assert_eq!(
         trace
-            .get_vrom_u32(5)
+            .vrom()
+            .read::<u32>(5)
             .expect("Return value for remainder not set."),
         0
     );
     // b's coefficient
     assert_eq!(
         trace
-            .get_vrom_u32(6)
+            .vrom()
+            .read::<u32>(6)
             .expect("Return value for remainder not set."),
         1
     );
@@ -95,13 +100,15 @@ fn test_non_tail_long_div() {
 
     assert_eq!(
         trace
-            .get_vrom_u32(4)
+            .vrom()
+            .read::<u32>(4)
             .expect("Return value for quotient not set."),
         a / b
     );
     assert_eq!(
         trace
-            .get_vrom_u32(5)
+            .vrom()
+            .read::<u32>(5)
             .expect("Return value for remainder not set."),
         a % b
     );
@@ -126,13 +133,15 @@ fn test_tail_long_div() {
 
     assert_eq!(
         trace
-            .get_vrom_u32(4)
+            .vrom()
+            .read::<u32>(4)
             .expect("Return value for quotient not set."),
         a / b
     );
     assert_eq!(
         trace
-            .get_vrom_u32(5)
+            .vrom()
+            .read::<u32>(5)
             .expect("Return value for remainder not set."),
         a % b
     );

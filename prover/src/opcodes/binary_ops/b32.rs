@@ -6,7 +6,8 @@ use zcrayvm_assembly::{AndiEvent, Opcode, XoriEvent};
 
 use crate::{
     channels::Channels,
-    opcodes::cpu::{CpuColumns, CpuColumnsOptions, CpuEvent},
+    gadgets::cpu::CpuGadget,
+    opcodes::cpu::{CpuColumns, CpuColumnsOptions},
     types::ProverPackedField,
 };
 
@@ -79,7 +80,7 @@ impl TableFiller<ProverPackedField> for XoriTable {
                 src_val[i] = event.src_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -160,13 +161,13 @@ impl TableFiller<ProverPackedField> for AndiTable {
             let mut src_val = witness.get_mut_as(self.src_val)?;
             println!("rows: {:?}", rows.clone().collect::<Vec<_>>());
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = *event.fp ^ (event.dst as u32);
+                dst_abs[i] = event.fp.addr(event.dst as u32);
                 dst_val[i] = event.dst_val;
-                src_abs[i] = *event.fp ^ (event.src as u32);
+                src_abs[i] = event.fp.addr(event.src as u32);
                 src_val[i] = event.src_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuEvent {
+        let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
