@@ -32,6 +32,7 @@ use crate::{
     gadgets::{Add32Gadget, Add64Gadget},
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
+
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
     pub bnz: Vec<BnzEvent>,
@@ -72,6 +73,9 @@ pub struct ZCrayTrace {
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
+    /// A map of an instruction's field PC to the number of times that
+    /// instruction has been executed.
+    instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -260,5 +264,11 @@ impl ZCrayTrace {
     #[cfg(test)]
     pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
+    }
+
+    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
+        *self.instruction_counter
+            .entry(field_pc)
+            .or_insert(0) += 1;
     }
 }
