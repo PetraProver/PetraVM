@@ -148,6 +148,48 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
+/// Creates an execution trace for a simple program that uses only LDI.W, MVV.W,
+/// BNZ, TAILI, and RET.
+///
+/// # Returns
+/// * A Trace containing a simple program with a loop using TAILI
+fn generate_simple_taili_trace() -> Result<Trace> {
+    // Create a very simple assembly program that:
+    // 1. Sets up a counter in @2 (starts at 2)
+    // 2. BNZ executes in loop to check if counter is non-zero
+    // 3. Loop decrements counter and is implemented with TAILI
+    let asm_code = "#[framesize(0x10)]\n\
+         _start:
+           LDI.W @2, #2\n\
+         loop:
+           BNZ continue, @2\n\
+           RET\n\
+         continue:
+           LDI.W @3, #0\n\
+           MVV.W @4[2], @3\n\
+           TAILI loop, @4\n"
+        .to_string();
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0];
+
+    // Build the vector of VROM writes
+    let vrom_writes = vec![
+        // Initial values
+        (0, 0, 1), // Return PC
+        (1, 0, 1), // Return FP
+        // Initial LDI events
+        (2, 2, 1), // counter = 2
+        // First iteration
+        (3, 0, 1), // LDI.W @3, #0
+        (2, 0, 1), /* MVV.W @4[2], @3 - Write 0 to location 2
+                    * Second iteration
+                    * No more iterations because counter became 0 */
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 fn test_from_trace_generator<F, G>(
     trace_generator: F,
     check_events: G,
@@ -270,5 +312,35 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
             );
         },
         4,
+    )
+}
+
+#[test]
+fn test_simple_taili_loop() -> Result<()> {
+    test_from_trace_generator(
+        generate_simple_taili_trace,
+        |trace| {
+            // Verify the program has expected number of instructions
+            assert!(
+                trace.program.len() == 7,
+                "Program should have 7 instructions"
+            );
+
+            // Verify we have the expected BNZ operations
+            let bnz_events = trace.bnz_events();
+            assert_eq!(
+                bnz_events.len(),
+                1,
+                "Should have one BNZ event that's taken"
+            );
+
+            // Verify we have one RET event
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly 1 RET event"
+            );
+        },
+        5, // 5 VROM writes total
     )
 }
