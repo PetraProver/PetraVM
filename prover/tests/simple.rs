@@ -168,7 +168,9 @@ fn generate_simple_taili_trace() -> Result<Trace> {
            BNZ case_recurse, @2\n\
            RET\n\
          case_recurse:\n\
-           TAILI loop, @3\n"
+           LDI.W @3, #0\n\
+           MVV.W @4[2], @3\n\
+           TAILI loop, @4\n"
         .to_string();
 
     // Initialize memory with return PC = 0, return FP = 0
@@ -183,6 +185,10 @@ fn generate_simple_taili_trace() -> Result<Trace> {
         (2, 2, 1), // LDI.W @2, #2
         // Initial MVV.W event
         (5, 2, 1), // MVV.W @3[2], @2 - Write 2 to location 5 (FP 3 + offset 2)
+        // LDI.W in case_recurse
+        (3, 0, 1), // LDI.W @3, #0 - Set @3 to 0
+        // Additional MVV.W in case_recurse
+        (6, 0, 1), // MVV.W @4[2], @3 - Write 0 to location 6 (FP 4 + offset 2)
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -321,15 +327,15 @@ fn test_simple_taili_loop() -> Result<()> {
             // Verify exact number of instructions (easier to maintain)
             assert_eq!(
                 trace.program.len(),
-                6,
-                "Program should have exactly 6 instructions"
+                8,
+                "Program should have exactly 8 instructions"
             );
 
             // Verify we have one LDI event (for @2 initialization)
             assert_eq!(
                 trace.ldi_events().len(),
-                1,
-                "Should have exactly one LDI event"
+                2,
+                "Should have exactly two LDI events"
             );
 
             // Verify we have one BNZ event (first is taken, continues to case_recurse)
@@ -350,6 +356,6 @@ fn test_simple_taili_loop() -> Result<()> {
                 "Should have no B32_MUL events"
             );
         },
-        4, // 4 VROM writes total
+        7, // 7 VROM writes total
     )
 }
