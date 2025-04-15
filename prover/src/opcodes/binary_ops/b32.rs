@@ -162,7 +162,7 @@ impl TableFiller<ProverPackedField> for AndiTable {
             println!("rows: {:?}", rows.clone().collect::<Vec<_>>());
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
-                dst_val_unpacked[i] = event.dst_val;
+                dst_val_unpacked[i] = event.dst_val as u16;
                 src_abs[i] = event.fp.addr(event.src as u32);
                 src_val_unpacked[i] = event.src_val;
             }
