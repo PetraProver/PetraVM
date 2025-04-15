@@ -28,10 +28,8 @@ pub struct AddTable {
     dst_val_packed: Col<B32>,
     src1_abs: Col<B32>, // Virtual
     src1_val: Col<B1, 32>,
-    src1_val_packed: Col<B32>,
     src2_abs: Col<B32>, // Virtual
     src2_val: Col<B1, 32>,
-    src2_val_packed: Col<B32>,
     add_op: U32Add,
 }
 
@@ -85,10 +83,8 @@ impl AddTable {
             dst_abs,
             src1_abs,
             src1_val,
-            src1_val_packed,
             src2_abs,
             src2_val,
-            src2_val_packed,
             add_op,
             dst_val_packed,
         }
