@@ -103,19 +103,3 @@ where
         (self.get_events)(trace).len()
     }
 }
-
-// pub fn register_tables_for_isa<I: ISA + ?Sized>(
-//     isa: &I,
-//     cs: &mut ConstraintSystem,
-//     channels: &Channels,
-// ) -> Vec<Box<dyn FillableTable>> {
-//     let mut tables = Vec::new();
-
-//     for &opcode in isa.supported_opcodes() {
-//         if let Some(entry) = build_table_for_opcode(opcode, cs, channels) {
-//             tables.push(entry);
-//         }
-//     }
-
-//     tables
-// }
