@@ -3,7 +3,7 @@
 //! Each instruction executed by the VM, such as arithmetic operations,
 //! branching, or function calls, results in an `Event`, which records the state
 //! changes of that instruction.
-//! These events are then used to generate arithmetic constraints during the
+//! These events are then used to fill the respective tables during the
 //! proof generation.
 //!
 //! This module defines a generic [`Event`] trait to be implemented by all
