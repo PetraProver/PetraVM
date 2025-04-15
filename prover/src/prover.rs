@@ -107,6 +107,12 @@ impl Prover {
         // 8. Fill BZ table with branch zero events
         witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
 
+        // 9. Fill TAILI table with tail immediate events
+        witness.fill_table_sequential(&self.circuit.taili_table, trace.taili_events())?;
+
+        // 10. Fill MVV.W table with move events
+        witness.fill_table_sequential(&self.circuit.mvvw_table, trace.mvvw_events())?;
+
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();
 

@@ -4,10 +4,14 @@
 
 pub mod binary;
 pub mod branch;
+pub mod call;
 pub mod ldi;
+pub mod mv;
 pub mod ret;
 
 pub use binary::B32MulTable;
 pub use branch::{BnzTable, BzTable};
+pub use call::TailiTable;
 pub use ldi::LdiTable;
+pub use mv::MvvwTable;
 pub use ret::RetTable;

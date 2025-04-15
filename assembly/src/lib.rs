@@ -20,10 +20,11 @@ mod parser;
 mod util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
-pub use event::binary_ops::b32::{B32MulEvent, B32MuliEvent};
 pub use event::{
+    binary_ops::b32::{B32MulEvent, B32MuliEvent},
     branch::{BnzEvent, BzEvent},
-    mv::LDIEvent,
+    call::TailiEvent,
+    mv::{LDIEvent, MVVWEvent},
     ret::RetEvent,
 };
 pub use execution::emulator::{Instruction, InterpreterInstruction};

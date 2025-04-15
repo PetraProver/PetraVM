@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, MVVWEvent, Opcode, RetEvent,
+    TailiEvent, ZCrayTrace,
 };
 
 /// Macro to generate event accessors
@@ -179,3 +180,5 @@ impl_event_accessor!(ret_events, RetEvent, ret);
 impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
 impl_event_accessor!(bnz_events, BnzEvent, bnz);
 impl_event_accessor!(bz_events, BzEvent, bz);
+impl_event_accessor!(taili_events, TailiEvent, taili);
+impl_event_accessor!(mvvw_events, MVVWEvent, mvvw);

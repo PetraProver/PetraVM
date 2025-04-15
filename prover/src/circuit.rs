@@ -9,8 +9,8 @@ use crate::{
     channels::Channels,
     model::Trace,
     tables::{
-        B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
-        VromSkipTable, VromWriteTable,
+        B32MulTable, BnzTable, BzTable, LdiTable, MvvwTable, PromTable, RetTable, TailiTable,
+        VromAddrSpaceTable, VromSkipTable, VromWriteTable,
     },
 };
 
@@ -43,6 +43,10 @@ pub struct Circuit {
     pub bnz_table: BnzTable,
     /// BNZ branch zero instruction table
     pub bz_table: BzTable,
+    /// TAILI tail call immediate instruction table
+    pub taili_table: TailiTable,
+    /// MVV.W move value instruction table
+    pub mvvw_table: MvvwTable,
 }
 
 impl Default for Circuit {
@@ -70,6 +74,8 @@ impl Circuit {
         let b32_mul_table = B32MulTable::new(&mut cs, &channels);
         let bnz_table = BnzTable::new(&mut cs, &channels);
         let bz_table = BzTable::new(&mut cs, &channels);
+        let taili_table = TailiTable::new(&mut cs, &channels);
+        let mvvw_table = MvvwTable::new(&mut cs, &channels);
 
         Self {
             cs,
@@ -83,6 +89,8 @@ impl Circuit {
             b32_mul_table,
             bnz_table,
             bz_table,
+            taili_table,
+            mvvw_table,
         }
     }
 
@@ -90,7 +98,6 @@ impl Circuit {
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace
-    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
@@ -131,6 +138,8 @@ impl Circuit {
         let b32_mul_size = trace.b32_mul_events().len();
         let bnz_size = trace.bnz_events().len();
         let bz_size = trace.bz_events().len();
+        let taili_size = trace.taili_events().len();
+        let mvvw_size = trace.mvvw_events().len();
 
         // Define the table sizes in order of table creation
         let table_sizes = vec![
@@ -143,6 +152,8 @@ impl Circuit {
             b32_mul_size,         // B32_MUL table size
             bnz_size,             // BNZ table size
             bz_size,              // BZ table size
+            taili_size,           // TAILI table size
+            mvvw_size,            // MVV.W table size
         ];
 
         // Create the statement with all boundaries
