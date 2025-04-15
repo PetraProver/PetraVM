@@ -16,10 +16,10 @@ use crate::{
 
 const ADD_OPCODE: u16 = Opcode::Add as u16;
 
-/// ADDI table.
+/// ADD table.
 ///
-/// This table handles the ADDI instruction, which performs integer
-/// multiplication between a 32-bit element and a 16-bit immediate.
+/// This table handles the ADD instruction, which performs integer
+/// addition between two 32-bit elements.
 pub struct AddTable {
     id: TableId,
     // TODO: Use the cpu gadget

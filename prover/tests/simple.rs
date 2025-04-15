@@ -324,7 +324,7 @@ fn test_ldi_add_ret() -> Result<()> {
             assert_eq!(
                 trace.add_events().len(),
                 1,
-                "Should have exactly one ADDI event"
+                "Should have exactly one ADD event"
             );
             assert_eq!(
                 trace.ldi_events().len(),
