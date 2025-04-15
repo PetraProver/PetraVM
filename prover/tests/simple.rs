@@ -148,6 +148,39 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
+fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI, ADD and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+         _start: 
+            LDI.W @2, #{}\n\
+            LDI.W @3, #{}\n\
+            ADD @4, @2, @3\n\
+            RET\n",
+        src1_value, src2_value
+    );
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0];
+
+    // Add VROM writes from LDI and ADD events
+    let vrom_writes = vec![
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        // LDI events
+        (2, src1_value, 2),
+        (3, src2_value, 2),
+        // ADD event
+        (4, src1_value + src2_value, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 fn test_from_trace_generator<F, G>(
     trace_generator: F,
     check_events: G,
@@ -270,5 +303,45 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
             );
         },
         4,
+    )
+}
+
+#[test]
+fn test_ldi_add_ret() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let src1_value = 0x12345678;
+            let src2_value = 0x4567;
+            generate_add_ret_trace(src1_value, src2_value)
+        },
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                4,
+                "Program should have exactly 3 instructions"
+            );
+            assert_eq!(
+                trace.add_events().len(),
+                1,
+                "Should have exactly one ADDI event"
+            );
+            assert_eq!(
+                trace.ldi_events().len(),
+                2,
+                "Should have exactly two LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+            assert_eq!(
+                trace.b32_mul_events().len(),
+                0,
+                "Shouldn't have any B32_MUL event"
+            );
+        },
+        6,
     )
 }

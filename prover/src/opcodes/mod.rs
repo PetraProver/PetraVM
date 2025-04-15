@@ -4,6 +4,7 @@
 
 pub mod binary;
 pub mod branch;
+pub mod integer_ops;
 pub mod ldi;
 pub mod ret;
 
