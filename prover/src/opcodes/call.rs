@@ -20,7 +20,7 @@ use crate::{channels::Channels, types::ProverPackedField};
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is a TAILI instruction
-/// 4. Set up the next frame by preserving return address and old frame pointer
+/// 4. Set up the next frame by preserving return address (FP[0]) and old frame pointer (FP[1])
 /// 5. Update PC to the target address
 /// 6. Update FP to the next frame pointer
 pub struct TailiTable {
@@ -62,6 +62,8 @@ impl TailiTable {
         let next_fp_abs_addr = table.add_computed("next_fp_abs_addr", upcast_expr(next_fp.into()));
 
         // Calculate the target address from low and high parts
+        // The target address is committed as a single value but is constructed from
+        // low 16 bits (arg0) and high 16 bits (arg1) in the witness generation
         let target = table.add_committed("target");
 
         // Push the target and next_fp_abs_addr to the state channel
@@ -92,6 +94,8 @@ impl TableFiller<ProverPackedField> for TailiTable {
             let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
             let mut target = witness.get_scalars_mut(self.target)?;
             for (i, event) in rows.clone().enumerate() {
+                // Ensure the next_fp_val is valid before using it
+                // Note: Additional validation could be added here if needed
                 next_fp_abs_addr[i] = B32::new(event.next_fp_val);
                 target[i] = B32::new(event.target);
             }

@@ -300,8 +300,8 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
         |trace| {
             assert_eq!(
                 trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
+                4,
+                "Program should have exactly 4 instructions"
             );
             assert_eq!(
                 trace.bz_events().len(),

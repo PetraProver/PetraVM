@@ -65,8 +65,8 @@ impl Circuit {
         let channels = Channels::new(&mut cs);
 
         // Create all the tables
-        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let prom_table = PromTable::new(&mut cs, &channels);
+        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
         let ldi_table = LdiTable::new(&mut cs, &channels);
@@ -80,8 +80,8 @@ impl Circuit {
         Self {
             cs,
             channels,
-            vrom_write_table,
             prom_table,
+            vrom_write_table,
             vrom_addr_space_table,
             vrom_skip_table,
             ldi_table,
