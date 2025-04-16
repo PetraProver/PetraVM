@@ -12,6 +12,7 @@ use binius_core::{
 use binius_field::arch::OptimalUnderlier128b;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_m3::builder::TableFiller;
 use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
 
@@ -20,6 +21,9 @@ use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
+// TODO: currently the vrom write table requires a minimum of 128 entries,
+// so we need a minimum of 256 entries in the address space table
+pub(crate) const MIN_VROM_ADDR_SPACE: usize = 256;
 
 /// Main prover for zCrayVM.
 // TODO: should be customizable by supported opcodes
@@ -70,7 +74,7 @@ impl Prover {
         let mut witness = self
             .circuit
             .cs
-            .build_witness::<ProverPackedField>(&allocator, &statement)?;
+            .build_witness::<ProverPackedField>(&allocator);
 
         // Fill all table witnesses in sequence
 
@@ -78,8 +82,8 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
-        let vrom_size = trace.trace.vrom_size().next_power_of_two();
-        let vrom_addr_space: Vec<u32> = (0..vrom_size as u32).collect();
+        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
+        let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
         // 3. Fill VROM write table with writes
@@ -90,7 +94,7 @@ impl Prover {
         let write_addrs: std::collections::HashSet<u32> =
             trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
 
-        let vrom_skips: Vec<u32> = (0..vrom_size as u32)
+        let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)
             .filter(|addr| !write_addrs.contains(addr))
             .collect();
 

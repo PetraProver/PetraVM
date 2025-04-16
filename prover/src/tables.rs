@@ -145,6 +145,7 @@ impl VromWriteTable {
     /// * `channels` - Channel IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
+        table.require_power_of_two_size();
 
         // Add columns for address and value
         let addr = table.add_committed("addr");
