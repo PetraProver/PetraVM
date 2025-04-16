@@ -6,6 +6,7 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use log::trace;
+use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
@@ -38,6 +39,7 @@ fn generate_test_trace<const N: usize>(
 
     // Generate the trace from the compiled program
     let (zcray_trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
@@ -52,15 +54,21 @@ fn generate_test_trace<const N: usize>(
 
     // Add other VROM writes
     let mut max_dst = 0;
+    // TODO: the lookup gadget requires a minimum of 128 entries
+    let vrom_write_size = vrom_writes.len().next_power_of_two().max(128);
     for (dst, imm, multiplicity) in vrom_writes {
         zkvm_trace.add_vrom_write(dst, imm, multiplicity);
         max_dst = max_dst.max(dst);
     }
 
-    // TODO: we have to add a zero multiplicity entry due to the bug in the lookup
-    // gadget
-    zkvm_trace.add_vrom_write(max_dst + 1, 0, 0);
+    // TODO: we have to add a zero multiplicity entry at the end and pad to 128 due
+    // to the bug in the lookup gadget
+    for _ in zkvm_trace.vrom_writes.len()..vrom_write_size {
+        max_dst += 1;
+        zkvm_trace.add_vrom_write(max_dst, 0, 0);
+    }
 
+    zkvm_trace.max_vrom_addr = max_dst as usize;
     Ok(zkvm_trace)
 }
 
@@ -181,11 +189,7 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-fn test_from_trace_generator<F, G>(
-    trace_generator: F,
-    check_events: G,
-    n_vrom_writes: usize,
-) -> Result<()>
+fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
     G: FnOnce(&Trace),
@@ -195,20 +199,13 @@ where
     // Verify trace has correct structure
     check_events(&trace);
 
-    assert_eq!(
-        trace.vrom_writes.len(),
-        n_vrom_writes,
-        "Should have {} VROM writes",
-        n_vrom_writes
-    );
-
     // Step 2: Validate trace
     trace!("Validating trace internal structure...");
     trace.validate()?;
 
     // Step 3: Create prover
     trace!("Creating prover...");
-    let prover = Prover::new();
+    let prover = Prover::new(Box::new(GenericISA));
 
     // Step 4: Generate proof
     trace!("Generating proof...");
@@ -252,7 +249,6 @@ fn test_ldi_b32_mul_ret() -> Result<()> {
                 "Should have exactly one B32_MUL event"
             );
         },
-        6,
     )
 }
 
@@ -277,7 +273,6 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        4,
     )
 }
 
@@ -302,7 +297,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
         },
-        4,
     )
 }
 
@@ -342,6 +336,5 @@ fn test_ldi_add_ret() -> Result<()> {
                 "Shouldn't have any B32_MUL event"
             );
         },
-        6,
     )
 }

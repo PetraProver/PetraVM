@@ -1,6 +1,6 @@
 use std::{collections::HashSet, mem};
 
-use zcrayvm_assembly::{Assembler, Memory, Opcode, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, Opcode, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_opcodes() {
@@ -12,7 +12,10 @@ fn test_opcodes() {
     for instr in &compiled_program.prom {
         seen.insert(mem::discriminant(&instr.opcode()));
     }
-    assert_eq!(seen.len(), Opcode::OP_COUNT);
+    assert_eq!(
+        seen.len(),
+        Opcode::OP_COUNT - 1 /* Bz isn't an actual opcode */
+    );
 
     // Generate the program ROM and associated data
     let vrom = ValueRom::new_with_init_vals(&[0, 0]);
@@ -20,6 +23,7 @@ fn test_opcodes() {
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,

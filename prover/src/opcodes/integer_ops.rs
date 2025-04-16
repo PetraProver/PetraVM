@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{any::Any, ops::Deref};
 
 use binius_m3::{
     builder::{
@@ -11,6 +11,7 @@ use zcrayvm_assembly::{opcodes::Opcode, AddEvent};
 use crate::{
     channels::Channels,
     gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -33,8 +34,14 @@ pub struct AddTable {
     add_op: U32Add,
 }
 
-impl AddTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for AddTable {
+    type Event = AddEvent;
+
+    fn name(&self) -> &'static str {
+        "AddTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("add");
 
         let Channels {
@@ -88,6 +95,10 @@ impl AddTable {
             add_op,
             dst_val_packed,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
