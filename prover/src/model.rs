@@ -233,7 +233,7 @@ impl Trace {
 
 // Generate event accessors and table info.
 impl_table_info_and_accessor!(
-    (LDIEvent, LdiTable, ldi_events, ldi),
+    (LdiEvent, LdiTable, ldi_events, ldi),
     (RetEvent, RetTable, ret_events, ret),
     (BzEvent, BzTable, bz_events, bz),
     (BnzEvent, BnzTable, bnz_events, bnz),
@@ -242,7 +242,7 @@ impl_table_info_and_accessor!(
 
 // Map all opcodes to their related event and table.
 define_table_registry!(
-    (LDIEvent, LdiTable, Ldi),
+    (LdiEvent, LdiTable, Ldi),
     (RetEvent, RetTable, Ret),
     // `BzEvent` is actually triggered through the `Bnz` instruction
     (BzEvent, BzTable, Bz),
