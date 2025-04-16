@@ -103,7 +103,7 @@ impl Table for BzTable {
     type Event = BzEvent;
 
     fn name(&self) -> &'static str {
-        "RetTable"
+        "BzTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {

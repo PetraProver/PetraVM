@@ -38,7 +38,7 @@ impl Table for LdiTable {
     type Event = LDIEvent;
 
     fn name(&self) -> &'static str {
-        "RetTable"
+        "LdiTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {

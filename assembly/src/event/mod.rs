@@ -7,7 +7,7 @@
 //! proof generation.
 //!
 //! This module defines a generic [`Event`] trait to be implemented by all
-//! supported instructions
+//! supported instructions.
 
 use binius_m3::builder::B16;
 use context::EventContext;
