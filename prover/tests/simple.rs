@@ -336,7 +336,7 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
 #[test]
 fn test_andi_ret() -> Result<()> {
     test_from_trace_generator(
-        || generate_andi_ret_trace(),
+        generate_andi_ret_trace,
         |trace| {
             assert_eq!(
                 trace.program.len(),
@@ -361,7 +361,7 @@ fn test_andi_ret() -> Result<()> {
 #[test]
 fn test_xori_ret() -> Result<()> {
     test_from_trace_generator(
-        || generate_xori_ret_trace(),
+        generate_xori_ret_trace,
         |trace| {
             assert_eq!(
                 trace.program.len(),
