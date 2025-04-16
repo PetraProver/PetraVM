@@ -6,8 +6,8 @@ use std::{
 
 use binius_field::{BinaryField, BinaryField32b, Field};
 use zcrayvm_assembly::{
-    memory::vrom_allocator::VromAllocator, AssembledProgram, Assembler, Memory, ValueRom,
-    ZCrayTrace,
+    isa::GenericISA, memory::vrom_allocator::VromAllocator, AssembledProgram, Assembler, Memory,
+    ValueRom, ZCrayTrace,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.
@@ -181,6 +181,7 @@ pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,

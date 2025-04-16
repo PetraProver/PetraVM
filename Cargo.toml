@@ -7,6 +7,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
+anyhow = "1.0"
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }

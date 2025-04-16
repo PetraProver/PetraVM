@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B16, B32,
@@ -8,6 +10,7 @@ use crate::{
     channels::Channels,
     gadgets::cpu::CpuGadget,
     opcodes::cpu::{CpuColumns, CpuColumnsOptions},
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -20,8 +23,14 @@ pub struct XoriTable {
     src_val: Col<B32>,
 }
 
-impl XoriTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for XoriTable {
+    type Event = XoriEvent;
+
+    fn name(&self) -> &'static str {
+        "XoriTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
         let src_val = table.add_committed("src_val");
 
@@ -51,6 +60,10 @@ impl XoriTable {
             src_abs,
             src_val,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -103,8 +116,14 @@ pub struct AndiTable {
     src_val: Col<B16>,             // Virtual
 }
 
-impl AndiTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for AndiTable {
+    type Event = AndiEvent;
+
+    fn name(&self) -> &'static str {
+        "AndiTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("and");
         let src_val_unpacked: Col<B1, 16> = table.add_committed("src_val");
         let src_val = table.add_packed("src_val", src_val_unpacked);
@@ -139,6 +158,10 @@ impl AndiTable {
             dst_val_unpacked,
             src_val_unpacked,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
