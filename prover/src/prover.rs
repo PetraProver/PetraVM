@@ -12,6 +12,7 @@ use binius_core::{
 use binius_field::arch::OptimalUnderlier128b;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_m3::builder::TableFiller;
 use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
 
@@ -81,11 +82,7 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
-        let vrom_addr_space_size = trace
-            .trace
-            .vrom_size()
-            .next_power_of_two()
-            .max(MIN_VROM_ADDR_SPACE);
+        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
         let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
