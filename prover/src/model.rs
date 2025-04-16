@@ -68,6 +68,8 @@ pub struct Trace {
     pub program: Vec<Instruction>,
     /// List of VROM writes (address, value, multiplicity) pairs
     pub vrom_writes: Vec<(u32, u32, u32)>,
+    /// Maximum VROM address in the trace
+    pub max_vrom_addr: usize,
 }
 
 impl Default for Trace {
@@ -83,6 +85,7 @@ impl Trace {
             trace: ZCrayTrace::default(),
             program: Vec::new(),
             vrom_writes: Vec::new(),
+            max_vrom_addr: 0,
         }
     }
 
@@ -102,6 +105,7 @@ impl Trace {
             trace,
             program: Vec::new(),
             vrom_writes: Vec::new(),
+            max_vrom_addr: 0,
         }
     }
 

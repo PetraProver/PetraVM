@@ -66,7 +66,6 @@ impl TableFiller<ProverPackedField> for BnzTable {
             for (i, event) in rows.clone().enumerate() {
                 cond_abs[i] = event.fp.addr(event.cond);
                 cond_val[i] = event.cond_val;
-                dbg!("Bnz fill", cond_val[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
