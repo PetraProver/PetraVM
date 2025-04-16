@@ -193,25 +193,6 @@ impl Trace {
         // Sort by count in descending order
         instructions_with_counts.sort_by(|(_, count_a), (_, count_b)| count_b.cmp(count_a));
 
-        // TODO: we need to add a instruction with multiplicity 0 due to a bug in lookup
-        // gadget which requires a minimum number of instructions
-        instructions_with_counts.push((
-            Instruction {
-                pc: B32::new(0),
-                opcode: Opcode::Bnz,
-                args: vec![],
-            },
-            0,
-        ));
-        instructions_with_counts.push((
-            Instruction {
-                pc: B32::new(0),
-                opcode: Opcode::Ldi,
-                args: vec![],
-            },
-            0,
-        ));
-
         // Add instructions in sorted order
         self.program = instructions_with_counts;
     }

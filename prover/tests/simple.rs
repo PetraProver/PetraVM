@@ -4,10 +4,13 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
 use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{
+    Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
+};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
@@ -31,7 +34,16 @@ fn generate_test_trace<const N: usize>(
     trace!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
-    let program = compiled_program.prom.clone();
+    let mut program = compiled_program.prom.clone();
+
+    // TODO: pad program to 128 instructions required by lookup gadget
+    let prom_size = program.len().next_power_of_two().max(128);
+    let mut max_pc = program.last().map_or(B32::ZERO, |instr| instr.field_pc);
+
+    for _ in program.len()..prom_size {
+        max_pc *= B32::MULTIPLICATIVE_GENERATOR;
+        program.push(InterpreterInstruction::new(Instruction::default(), max_pc));
+    }
 
     // Initialize memory with return PC = 0, return FP = 0
     let vrom = ValueRom::new_with_init_vals(&init_values);
@@ -45,8 +57,6 @@ fn generate_test_trace<const N: usize>(
         compiled_program.pc_field_to_int,
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
-
-    dbg!(&zcray_trace);
 
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
@@ -241,11 +251,6 @@ fn test_ldi_b32_mul_ret() -> Result<()> {
         },
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                4,
-                "Program should have exactly 4 instructions"
-            );
-            assert_eq!(
                 trace.ldi_events().len(),
                 2,
                 "Should have exactly two LDI events"
@@ -270,11 +275,6 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
         || generate_bnz_ret_trace(1),
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
                 trace.bnz_events().len(),
                 1,
                 "Should have exactly one LDI event"
@@ -294,11 +294,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
         || generate_bnz_ret_trace(0),
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                4,
-                "Program should have exactly 4 instructions"
-            );
-            assert_eq!(
                 trace.bz_events().len(),
                 1,
                 "Should have exactly one bz event"
@@ -315,13 +310,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
     test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify exact number of instructions (easier to maintain)
-        assert_eq!(
-            trace.program.len(),
-            8,
-            "Program should have exactly 8 instructions"
-        );
-
         // Verify we have one LDI event (for @2 initialization)
         assert_eq!(
             trace.ldi_events().len(),
