@@ -31,8 +31,9 @@ pub struct TailiTable {
     pub id: TableId,
     /// CPU columns
     cpu_cols: CpuColumns<{ Opcode::Taili as u16 }>,
-    next_fp_abs_addr: Col<B32>, // Virtual
-    target: Col<B32>,           // Virtual
+    next_fp: Col<B32>,
+    next_fp_off_upcast: Col<B32>,
+    next_fp_abs_addr: Col<B32>,
 }
 
 impl Table for TailiTable {
@@ -44,6 +45,7 @@ impl Table for TailiTable {
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("taili");
+        let next_fp = table.add_committed("next_fp");
 
         let cpu_cols = CpuColumns::new(
             &mut table,
@@ -51,33 +53,29 @@ impl Table for TailiTable {
             channels.prom_channel,
             CpuColumnsOptions {
                 next_pc: NextPc::Immediate,
-                next_fp: None,
+                next_fp: Some(next_fp),
             },
         );
 
         let CpuColumns {
-            arg0: _target_low,
-            arg1: _target_high,
-            arg2: next_fp,
+            fp,
+            arg2: next_fp_off,
             ..
         } = cpu_cols;
 
         // Compute the absolute address for the next frame pointer
-        let next_fp_abs_addr = table.add_computed("next_fp_abs_addr", upcast_expr(next_fp.into()));
+        let next_fp_off_upcast = table.add_computed("next_fp_off", upcast_expr(next_fp_off.into()));
+        let next_fp_abs_addr = table.add_computed("next_fp_abs_addr", fp + next_fp_off_upcast);
 
-        // Calculate the target address from low and high parts
-        // The target address is committed as a single value but is constructed from
-        // low 16 bits (arg0) and high 16 bits (arg1) in the witness generation
-        let target = table.add_committed("target");
-
-        // Push the target and next_fp_abs_addr to the state channel
-        table.push(channels.state_channel, [target, next_fp_abs_addr]);
+        // Pull next_fp from VROM
+        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp]);
 
         Self {
             id: table.id(),
             cpu_cols,
+            next_fp,
+            next_fp_off_upcast,
             next_fp_abs_addr,
-            target,
         }
     }
 
@@ -99,23 +97,26 @@ impl TableFiller<ProverPackedField> for TailiTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
-            let mut target = witness.get_scalars_mut(self.target)?;
+            let mut next_fp = witness.get_mut_as(self.next_fp)?;
+            let mut next_fp_off_upcast = witness.get_mut_as(self.next_fp_off_upcast)?;
+            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
+            
             for (i, event) in rows.clone().enumerate() {
-                // Ensure the next_fp_val is valid before using it
-                // Note: Additional validation could be added here if needed
-                next_fp_abs_addr[i] = B32::new(event.next_fp_val);
-                target[i] = B32::new(event.target);
+                next_fp[i] = event.next_fp_val;
+                next_fp_off_upcast[i] = event.next_fp as u32;
+                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
             }
         }
+        
         let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target),
             fp: *event.fp,
-            arg0: (event.target & 0xFFFF) as u16,
-            arg1: (event.target >> 16) as u16,
-            arg2: event.next_fp,
+            arg0: (event.target & 0xFFFF) as u16,            // target_low
+            arg1: ((event.target >> 16) & 0xFFFF) as u16,    // target_high
+            arg2: event.next_fp,                            // next_fp
         });
+        
         self.cpu_cols.populate(witness, cpu_rows)
     }
 }
