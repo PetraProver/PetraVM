@@ -90,7 +90,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             NextPc::Increment => table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR),
             NextPc::Target(target) => target,
             NextPc::Immediate => {
-                table.add_computed("next_pc", pack_b16_into_b32([arg1.into(), arg2.into()]))
+                table.add_computed("next_pc", pack_b16_into_b32([arg0.into(), arg1.into()]))
             }
         };
         let next_fp = options.next_fp.unwrap_or(fp);
@@ -150,7 +150,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             next_pc_col[i] = match self.options.next_pc {
                 NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
                 NextPc::Target(_) => next_pc.expect("next_pc must be Some when NextPc::Target"),
-                NextPc::Immediate => arg1 as u32 | (arg2 as u32) << 16,
+                NextPc::Immediate => arg0 as u32 | (arg1 as u32) << 16,
             };
 
             prom_pull[i] = pack_instruction_u128(pc, OPCODE, arg0, arg1, arg2);
