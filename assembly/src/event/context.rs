@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use binius_m3::builder::{B16, B32};
 
-use super::mv::{MvihEvent, MVKind, MvvlEvent, MvvwEvent};
+use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{AccessSize, MemoryError, Ram, RamValueT, VromValueT},

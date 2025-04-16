@@ -35,7 +35,7 @@ pub use self::{
     b128::{B128AddEvent, B128MulEvent},
     b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
     branch::{BnzEvent, BzEvent},
-    call::{CalliEvent, CallvEvent, TailvEvent, TailiEvent},
+    call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
     integer_ops::{
         AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
         SltiuEvent, SltuEvent, SubEvent,
