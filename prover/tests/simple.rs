@@ -6,6 +6,7 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use log::trace;
+use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
@@ -38,6 +39,7 @@ fn generate_test_trace<const N: usize>(
 
     // Generate the trace from the compiled program
     let (zcray_trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
@@ -200,7 +202,7 @@ where
 
     // Step 3: Create prover
     trace!("Creating prover...");
-    let prover = Prover::new();
+    let prover = Prover::new(Box::new(GenericISA));
 
     // Step 4: Generate proof
     trace!("Generating proof...");

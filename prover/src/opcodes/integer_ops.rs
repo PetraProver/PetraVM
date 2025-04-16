@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{any::Any, ops::Deref};
 
 use binius_m3::{
     builder::{
@@ -14,6 +14,7 @@ use crate::{
         cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
         u32u16::U32U16Add,
     },
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -36,8 +37,14 @@ pub struct AddiTable {
     add_op: U32U16Add,
 }
 
-impl AddiTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for AddiTable {
+    type Event = AddiEvent;
+
+    fn name(&self) -> &'static str {
+        "AddiTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("add");
 
         let Channels {
@@ -86,6 +93,10 @@ impl AddiTable {
             add_op,
             dst_val_packed,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

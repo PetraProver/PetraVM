@@ -287,7 +287,9 @@ mod test {
     use binius_field::{Field, PackedField};
 
     use super::*;
-    use crate::{memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, ZCrayTrace};
+    use crate::{
+        isa::GenericISA, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, ZCrayTrace,
+    };
 
     #[test]
     fn test_shift_event_calculate_comprehensive() {
@@ -499,7 +501,7 @@ mod test {
         let prom = code_to_prom(&instructions);
         let memory = Memory::new(prom, vrom);
 
-        let (trace, _) = ZCrayTrace::generate(memory, frames, HashMap::new())
+        let (trace, _) = ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
         // Check results for immediate shift operations

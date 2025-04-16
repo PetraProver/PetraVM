@@ -2,6 +2,8 @@
 //!
 //! This module contains tables for binary field arithmetic operations.
 
+use std::any::Any;
+
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
@@ -10,6 +12,7 @@ use zcrayvm_assembly::{opcodes::Opcode, B32MulEvent};
 use crate::{
     channels::Channels,
     gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -39,10 +42,14 @@ pub struct B32MulTable {
     pub dst_abs_addr: Col<B32>,
 }
 
-impl B32MulTable {
-    /// Create a new B32_MUL table with the given constraint system and
-    /// channels.
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for B32MulTable {
+    type Event = B32MulEvent;
+
+    fn name(&self) -> &'static str {
+        "B32MulTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b32_mul");
 
         let cpu_cols = CpuColumns::new(
@@ -89,6 +96,10 @@ impl B32MulTable {
             src2_abs_addr,
             dst_abs_addr,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

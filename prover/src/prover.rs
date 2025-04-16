@@ -3,7 +3,7 @@
 //! This module provides the main entry point for creating proofs from
 //! zCrayVM execution traces.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use binius_core::{
     constraint_system::{prove, validate, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
@@ -15,6 +15,7 @@ use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
+use zcrayvm_assembly::isa::ISA;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
@@ -26,25 +27,20 @@ pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
 pub(crate) const MIN_VROM_ADDR_SPACE: usize = 256;
 
 /// Main prover for zCrayVM.
-// TODO: should be customizable by supported opcodes
 pub struct Prover {
     /// Arithmetic circuit for zCrayVM
     circuit: Circuit,
 }
 
-impl Default for Prover {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Prover {
     /// Create a new zCrayVM prover.
-    pub fn new() -> Self {
+    pub fn new(isa: Box<dyn ISA>) -> Self {
         Self {
-            circuit: Circuit::new(),
+            circuit: Circuit::new(isa),
         }
     }
+
+    // TODO: Split witness generation from actual proving?
 
     /// Prove a zCrayVM execution trace.
     ///
@@ -65,7 +61,11 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
-        let compiled_cs = self.circuit.compile(&statement)?;
+        let compiled_cs = self
+            .circuit
+            .cs
+            .compile(&statement)
+            .map_err(|e| anyhow!(e))?;
 
         // Create a memory allocator for the witness
         let allocator = Bump::new();
@@ -100,16 +100,10 @@ impl Prover {
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
-        witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
-        witness.fill_table_sequential(&self.circuit.addi_table, trace.addi_events())?;
-        witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
-        witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
-
-        // 7. Fill BNZ table with branch not zero events
-        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
-
-        // 8. Fill BZ table with branch zero events
-        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+        // 5. Fill all event tables
+        for table in &self.circuit.tables {
+            table.fill(&mut witness, trace)?;
+        }
 
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();

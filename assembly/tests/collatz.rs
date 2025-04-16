@@ -1,4 +1,4 @@
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_collatz_integration() {
@@ -14,6 +14,7 @@ fn test_collatz_integration() {
 
         // Execute the program and generate the trace
         let (trace, boundary_values) = ZCrayTrace::generate(
+            Box::new(GenericISA),
             memory,
             compiled_program.frame_sizes.clone(),
             compiled_program.pc_field_to_int.clone(),
