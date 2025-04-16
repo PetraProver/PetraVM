@@ -1,14 +1,15 @@
 use binius_core::oracle::ShiftVariant;
-use binius_field::underlier::U1;
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, Expr, TableFiller, TableId, TableWitnessSegment, B1, B16,
-    B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
 };
 use zcrayvm_assembly::{Opcode, SrliEvent};
 
 use crate::{
     channels::Channels,
-    gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
+    gadgets::{
+        barrel_shifter::{BarrelShifter, BarrelShifterFlags},
+        cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
+    },
     types::ProverPackedField,
 };
 
@@ -25,17 +26,11 @@ const MAX_SHIFT_BITS: usize = 5;
 pub struct SrliTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Srli as u16 }>,
-    /// Partial shift columns containing intermediate results of the shift.
-    partial_shift: [Col<B1, 32>; MAX_SHIFT_BITS],
+    shifter: BarrelShifter,
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B32>, // Virtual
     src_abs: Col<B32>, // Virtual
     src_val: Col<B32>, // Virtual
-    /// Packed partial shift columns containing intermediate results of the
-    /// shift.
-    shifted: Vec<Col<B1, 32>>, // Virtual
-    /// Binary decomposition of the shifted amount.
-    imm_bit: Vec<Col<B1>>, // Virtual
 }
 
 impl SrliTable {
@@ -53,41 +48,17 @@ impl SrliTable {
         let dst_abs = table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
         let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
 
-        let partial_shift =
-            core::array::from_fn(|i| table.add_committed(format!("partial_shift_{i}")));
-        let mut shifted = Vec::with_capacity(MAX_SHIFT_BITS);
-        let mut imm_bit = Vec::with_capacity(MAX_SHIFT_BITS);
+        let shifter = BarrelShifter::new(
+            &mut table,
+            src_val_unpacked,
+            cpu_cols.arg2_unpacked,
+            BarrelShifterFlags {
+                variant: ShiftVariant::LogicalRight,
+                commit_output: false,
+            },
+        );
 
-        // Note that even though the immediate is 16 bits, we only need to
-        // shift by 5 bits.
-        let imm = cpu_cols.arg2_unpacked;
-        let mut current_shift = src_val_unpacked;
-        for i in 0..MAX_SHIFT_BITS {
-            imm_bit.push(table.add_selected(format!("imm_bit_{i}"), imm, i));
-            shifted.push(table.add_shifted(
-                "shifted",
-                current_shift,
-                5,
-                1 << i,
-                ShiftVariant::LogicalRight,
-            ));
-            let partial_shift_packed: Col<B32> =
-                table.add_packed(format!("partial_shift_packed_{i}"), partial_shift[i]);
-            let shifted_packed: Expr<B32, 1> = table
-                .add_packed(format!("shifted_packed_{i}"), shifted[i])
-                .into();
-            let current_shift_packed: Col<B32> =
-                table.add_packed(format!("current_shift_packed_{i}"), current_shift);
-            // table.assert_zero(
-            //     format!("correct_partial_shift_{i}"),
-            //     partial_shift_packed
-            //         - (shifted_packed * upcast_col(imm_bit)
-            //             + current_shift_packed * (upcast_expr(imm_bit.into()) + B32::ONE)
-            //             ),
-            // );
-            current_shift = partial_shift[i];
-        }
-        let dst_val = table.add_packed("dst_val", partial_shift[MAX_SHIFT_BITS - 1]);
+        let dst_val = table.add_packed("dst_val", shifter.output);
 
         table.pull(channels.vrom_channel, [dst_abs, dst_val]);
         table.pull(channels.vrom_channel, [src_abs, src_val]);
@@ -95,13 +66,11 @@ impl SrliTable {
         Self {
             id: table.id(),
             cpu_cols,
+            shifter,
             dst_abs,
             dst_val,
             src_abs,
             src_val,
-            partial_shift,
-            shifted,
-            imm_bit,
         }
     }
 }
@@ -121,39 +90,11 @@ impl TableFiller<ProverPackedField> for SrliTable {
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
-            // TODO: Propagate the error
-            let mut partial_shift: [_; MAX_SHIFT_BITS] =
-                core::array::from_fn(|i| witness.get_mut_as(self.partial_shift[i]).unwrap());
-            let mut shifted: [_; MAX_SHIFT_BITS] =
-                core::array::from_fn(|i| witness.get_mut_as(self.shifted[i]).unwrap());
-            let mut imm_bit: [_; MAX_SHIFT_BITS] =
-                core::array::from_fn(|i| witness.get_mut_as(self.imm_bit[i]).unwrap());
 
             for (i, event) in rows.clone().enumerate() {
-                println!("shift ammunt = {:b}", event.shift_amount);
                 src_val[i] = event.src_val;
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 src_abs[i] = event.fp.addr(event.src as u32);
-                let mut current_shift = event.src_val;
-                for j in 0..MAX_SHIFT_BITS {
-                    imm_bit[j][i] = (((event.shift_amount >> j) & 1) == 1) as u16;
-                    shifted[j][i] = current_shift >> (1 << j);
-                    println!(
-                        "bit[{j}][{i}] = {:?}, current_shift = {current_shift}",
-                        imm_bit[j][i]
-                    );
-                    // println!(
-                    //     "(bit * (current_shift >> (1 << j)) + (1-bit) * current_shift) = {}",
-                    //     ((imm_bit[j][i] as u32) * (current_shift >> (1 << j))
-                    //         + (1 - (imm_bit[j][i] as u32)) * current_shift)
-                    // );
-                    if imm_bit[j][i] == 1 {
-                        current_shift = shifted[j][i];
-                    }
-                    partial_shift[j][i] = current_shift;
-                    // println!("partial_shift[{i}][{j}] = {}",
-                    // partial_shift[j][i]);
-                }
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
@@ -166,6 +107,7 @@ impl TableFiller<ProverPackedField> for SrliTable {
             ..Default::default()
         });
         self.cpu_cols.populate(witness, cpu_rows)?;
+        self.shifter.populate(witness)?;
         Ok(())
     }
 }
