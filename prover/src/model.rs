@@ -9,7 +9,7 @@ use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
 
-use crate::table::{B32MulTable, BnzTable, BzTable, LdiTable, RetTable};
+use crate::{opcodes::{MvvwTable, TailiTable}, table::{B32MulTable, BnzTable, BzTable, LdiTable, RetTable}};
 
 /// Implements the [`TableInfo`](crate::table::TableInfo) trait that lifts
 /// [`InstructionInfo`](zcrayvm_assembly::InstructionInfo) and maps events to
@@ -244,7 +244,9 @@ impl_table_info_and_accessor!(
     (RetEvent, RetTable, ret_events, ret),
     (BzEvent, BzTable, bz_events, bz),
     (BnzEvent, BnzTable, bnz_events, bnz),
-    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul)
+    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
+    (TailiEvent, TailiTable, taili_events, taili),
+    (MvvwEvent, MvvwTable, mvvw_events, mvvw)
 );
 
 // Map all opcodes to their related event and table.
@@ -255,4 +257,6 @@ define_table_registry!(
     (BzEvent, BzTable, Bz),
     (BnzEvent, BnzTable, Bnz),
     (B32MulEvent, B32MulTable, B32Mul),
+    (TailiEvent, TailiTable, Taili),
+    (MvvwEvent, MvvwTable, Mvvw)
 );

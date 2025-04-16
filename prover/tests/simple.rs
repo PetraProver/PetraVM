@@ -78,6 +78,7 @@ fn generate_test_trace<const N: usize>(
     }
 
     zkvm_trace.max_vrom_addr = max_dst as usize;
+    dbg!(&zkvm_trace);
     Ok(zkvm_trace)
 }
 
@@ -333,6 +334,27 @@ fn test_simple_taili_loop() -> Result<()> {
             trace.b32_mul_events().len(),
             0,
             "Should have no B32_MUL events"
+        );
+        
+        // Verify we have two TAILI events (initial call to loop and recursive call)
+        assert_eq!(
+            trace.taili_events().len(),
+            2,
+            "Should have exactly two TAILI events"
+        );
+        
+        // Verify we have two MVVW events (one in _start and one in case_recurse)
+        assert_eq!(
+            trace.mvvw_events().len(),
+            2,
+            "Should have exactly two MVVW events"
+        );
+        
+        // Verify we have one BZ event (when counter becomes 0)
+        assert_eq!(
+            trace.bz_events().len(),
+            1,
+            "Should have exactly one BZ event"
         );
     })
 }
