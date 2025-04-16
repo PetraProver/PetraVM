@@ -18,6 +18,7 @@ use crate::{
         },
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
+        groestl::{GroestlCompressEvent, GroestlOutputEvent},
         integer_ops::{
             AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
@@ -76,6 +77,8 @@ pub struct ZCrayTrace {
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
+    pub groestl_compress: Vec<GroestlCompressEvent>,
+    pub groestl_output: Vec<GroestlOutputEvent>,
 
     memory: Memory,
     /// A map of an instruction's field PC to the number of times that
