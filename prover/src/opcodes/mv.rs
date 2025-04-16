@@ -3,11 +3,11 @@
 //! This module contains the MVV.W table which handles moving values between
 //! VROM locations in the zCrayVM execution.
 //!
-//! Note: The assembly implementation of MVV.W (in assembly/src/event/mv.rs) 
-//! includes a complex system for handling cases where source or destination 
-//! addresses might not be available yet, using "pending updates" and "delegate_move".
-//! This prover implementation only deals with the successfully generated events
-//! where all addresses and values were available.
+//! Note: The assembly implementation of MVV.W (in assembly/src/event/mv.rs)
+//! includes a complex system for handling cases where source or destination
+//! addresses might not be available yet, using "pending updates" and
+//! "delegate_move". This prover implementation only deals with the successfully
+//! generated events where all addresses and values were available.
 
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -18,7 +18,6 @@ use zcrayvm_assembly::{opcodes::Opcode, MVVWEvent};
 // - MVV.L (Move Value Long - 128-bit)
 // - MVI.H (Move Immediate Half-word)
 // - LDI (Load Immediate)
-
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::{channels::Channels, types::ProverPackedField};
 
@@ -82,8 +81,9 @@ impl MvvwTable {
         // Compute final destination address with offset
         // In binary fields, addition (+) is equivalent to XOR (^)
         // This matches the XOR operation used in the witness generation
-        // The XOR operation is used for address calculation to combine base address with offset
-        // rather than simple addition, which is a specific feature of the zCrayVM memory model
+        // The XOR operation is used for address calculation to combine base address
+        // with offset rather than simple addition, which is a specific feature
+        // of the zCrayVM memory model
         let final_dst_addr = table.add_computed("final_dst_addr", dst_abs_addr + offset_col);
 
         // Source value to be moved
@@ -120,10 +120,11 @@ impl TableFiller<ProverPackedField> for MvvwTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         // This fill method populates the witness with MVV.W events
-        // In the assembly implementation, MVV.W events are generated through a complex process
-        // that handles cases where source or destination addresses might not be available yet
-        // Here we're only concerned with filling in values for events that have been 
-        // successfully generated (with all required addresses and values available)
+        // In the assembly implementation, MVV.W events are generated through a complex
+        // process that handles cases where source or destination addresses
+        // might not be available yet Here we're only concerned with filling in
+        // values for events that have been successfully generated (with all
+        // required addresses and values available)
         {
             let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;

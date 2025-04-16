@@ -314,80 +314,74 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
 
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
-    test_from_trace_generator(
-        generate_simple_taili_trace,
-        |trace| {
-            // Verify exact number of instructions (easier to maintain)
-            assert_eq!(
-                trace.program.len(),
-                8,
-                "Program should have exactly 8 instructions"
-            );
+    test_from_trace_generator(generate_simple_taili_trace, |trace| {
+        // Verify exact number of instructions (easier to maintain)
+        assert_eq!(
+            trace.program.len(),
+            8,
+            "Program should have exactly 8 instructions"
+        );
 
-            // Verify we have one LDI event (for @2 initialization)
-            assert_eq!(
-                trace.ldi_events().len(),
-                2,
-                "Should have exactly two LDI events"
-            );
+        // Verify we have one LDI event (for @2 initialization)
+        assert_eq!(
+            trace.ldi_events().len(),
+            2,
+            "Should have exactly two LDI events"
+        );
 
-            // Verify we have one BNZ event (first is taken, continues to case_recurse)
-            let bnz_events = trace.bnz_events();
-            assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
+        // Verify we have one BNZ event (first is taken, continues to case_recurse)
+        let bnz_events = trace.bnz_events();
+        assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
 
-            // Verify we have one RET event (after counter becomes 0)
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
+        // Verify we have one RET event (after counter becomes 0)
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
 
-            // Verify there are no B32_MUL operations (we aren't using them)
-            assert_eq!(
-                trace.b32_mul_events().len(),
-                0,
-                "Should have no B32_MUL events"
-            );
-        },
-    )
+        // Verify there are no B32_MUL operations (we aren't using them)
+        assert_eq!(
+            trace.b32_mul_events().len(),
+            0,
+            "Should have no B32_MUL events"
+        );
+    })
 }
 
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
-    test_from_trace_generator(
-        generate_simple_taili_trace,
-        |trace| {
-            // Verify exact number of instructions (easier to maintain)
-            assert_eq!(
-                trace.program.len(),
-                8,
-                "Program should have exactly 8 instructions"
-            );
+    test_from_trace_generator(generate_simple_taili_trace, |trace| {
+        // Verify exact number of instructions (easier to maintain)
+        assert_eq!(
+            trace.program.len(),
+            8,
+            "Program should have exactly 8 instructions"
+        );
 
-            // Verify we have one LDI event (for @2 initialization)
-            assert_eq!(
-                trace.ldi_events().len(),
-                2,
-                "Should have exactly two LDI events"
-            );
+        // Verify we have one LDI event (for @2 initialization)
+        assert_eq!(
+            trace.ldi_events().len(),
+            2,
+            "Should have exactly two LDI events"
+        );
 
-            // Verify we have one BNZ event (first is taken, continues to case_recurse)
-            let bnz_events = trace.bnz_events();
-            assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
+        // Verify we have one BNZ event (first is taken, continues to case_recurse)
+        let bnz_events = trace.bnz_events();
+        assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
 
-            // Verify we have one RET event (after counter becomes 0)
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
+        // Verify we have one RET event (after counter becomes 0)
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
 
-            // Verify there are no B32_MUL operations (we aren't using them)
-            assert_eq!(
-                trace.b32_mul_events().len(),
-                0,
-                "Should have no B32_MUL events"
-            );
-        },
-    )
+        // Verify there are no B32_MUL operations (we aren't using them)
+        assert_eq!(
+            trace.b32_mul_events().len(),
+            0,
+            "Should have no B32_MUL events"
+        );
+    })
 }

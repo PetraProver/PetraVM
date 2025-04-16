@@ -20,7 +20,8 @@ use crate::{channels::Channels, types::ProverPackedField};
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is a TAILI instruction
-/// 4. Set up the next frame by preserving return address (FP[0]) and old frame pointer (FP[1])
+/// 4. Set up the next frame by preserving return address (FP[0]) and old frame
+///    pointer (FP[1])
 /// 5. Update PC to the target address
 /// 6. Update FP to the next frame pointer
 pub struct TailiTable {
