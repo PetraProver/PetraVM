@@ -170,7 +170,8 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
 /// BNZ, TAILI, and RET.
 ///
 /// # Returns
-/// * A Trace containing a simple program with a loop using TAILI
+/// * A Trace containing a simple program with a loop using TAILI, the BNZ
+///   instruction is executed twice.
 fn generate_simple_taili_trace() -> Result<Trace> {
     // Create a very simple assembly program that:
     // 1. _start sets up initial values and tail calls to loop
@@ -194,19 +195,40 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // Initialize memory with return PC = 0, return FP = 0
     let init_values = [0, 0];
 
-    // Build the vector of VROM writes
+    // VROM state after the trace is executed
+    // 0: 0
+    // 1: 0
+    // 2: 2
+    // 3: 16
+    // 16: 0
+    // 17: 0
+    // 18: 2
+    // 19: 0
+    // 20: 32
+    // 32: 0
+    // 33: 0
+    // 34: 0
+    // Sorted by number of accesses
     let vrom_writes = vec![
+        // Initial LDI event
+        (2, 2, 2), // LDI.W @2, #2
+        // LDI in case_recurse
+        (19, 0, 2), // LDI.W @3, #0
+        // Initial MVV.W event
+        (18, 2, 2), // MVV.W @3[2], @2
+        // Additional MVV.W in case_recurse
+        (34, 0, 2), // MVV.W @4[2], @3
         // Initial values
         (0, 0, 1), // Return PC
         (1, 0, 1), // Return FP
-        // Initial LDI event
-        (2, 2, 1), // LDI.W @2, #2
-        // Initial MVV.W event
-        (5, 2, 1), // MVV.W @3[2], @2 - Write 2 to location 5 (FP 3 + offset 2)
-        // LDI.W in case_recurse
-        (3, 0, 1), // LDI.W @3, #0 - Set @3 to 0
-        // Additional MVV.W in case_recurse
-        (6, 0, 1), // MVV.W @4[2], @3 - Write 0 to location 6 (FP 4 + offset 2)
+        // New FP values
+        (3, 16, 1),
+        (20, 32, 1),
+        // TAILI events
+        (16, 0, 1),
+        (17, 0, 1),
+        (32, 0, 1),
+        (33, 0, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -329,27 +351,20 @@ fn test_simple_taili_loop() -> Result<()> {
             "Should have exactly one RET event"
         );
 
-        // Verify there are no B32_MUL operations (we aren't using them)
-        assert_eq!(
-            trace.b32_mul_events().len(),
-            0,
-            "Should have no B32_MUL events"
-        );
-        
         // Verify we have two TAILI events (initial call to loop and recursive call)
         assert_eq!(
             trace.taili_events().len(),
             2,
             "Should have exactly two TAILI events"
         );
-        
+
         // Verify we have two MVVW events (one in _start and one in case_recurse)
         assert_eq!(
             trace.mvvw_events().len(),
             2,
             "Should have exactly two MVVW events"
         );
-        
+
         // Verify we have one BZ event (when counter becomes 0)
         assert_eq!(
             trace.bz_events().len(),

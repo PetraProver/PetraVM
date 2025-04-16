@@ -13,7 +13,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{opcodes::Opcode, MVVWEvent};
+use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
 // TODO: Implement tables for other move operations that exist in the assembly implementation:
 // - MVV.L (Move Value Long - 128-bit)
@@ -49,7 +49,7 @@ pub struct MvvwTable {
 }
 
 impl Table for MvvwTable {
-    type Event = MVVWEvent;
+    type Event = MvvwEvent;
 
     fn name(&self) -> &'static str {
         "MvvwTable"
@@ -95,7 +95,7 @@ impl Table for MvvwTable {
         // Pull source value from VROM
         table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
 
-        // Write source value to destination using VROM write channel
+        // Make sure the source value is written to the destination address
         table.pull(channels.vrom_channel, [final_dst_addr, src_val]);
 
         Self {
@@ -115,7 +115,7 @@ impl Table for MvvwTable {
 }
 
 impl TableFiller<ProverPackedField> for MvvwTable {
-    type Event = MVVWEvent;
+    type Event = MvvwEvent;
 
     fn id(&self) -> TableId {
         self.id
