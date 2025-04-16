@@ -159,7 +159,6 @@ impl TableFiller<ProverPackedField> for AndiTable {
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-            println!("rows: {:?}", rows.clone().collect::<Vec<_>>());
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 dst_val_unpacked[i] = event.dst_val as u16;
