@@ -21,7 +21,7 @@ use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
-pub(crate) const PROM_MULTIPLICITY_BITS: usize = 8;
+pub(crate) const PROM_MULTIPLICITY_BITS: usize = 32;
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
 // TODO: currently the vrom write table requires a minimum of 128 entries,
 // so we need a minimum of 256 entries in the address space table
@@ -105,12 +105,6 @@ impl Prover {
         for table in &self.circuit.tables {
             table.fill(&mut witness, trace)?;
         }
-
-        // 9. Fill TAILI table with tail immediate events
-        witness.fill_table_sequential(&self.circuit.taili_table, trace.taili_events())?;
-
-        // 10. Fill MVV.W table with move events
-        witness.fill_table_sequential(&self.circuit.mvvw_table, trace.mvvw_events())?;
 
         // Convert witness to multilinear extension format for validation
         let witness = witness.into_multilinear_extension_index();

@@ -163,13 +163,12 @@ impl Trace {
     /// TODO: Refactor this approach to directly obtain the zkVMTrace from
     /// program emulation rather than requiring separate population of
     /// program instructions.
-    pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
-        Self {
-            trace,
-            program: Vec::new(),
-            vrom_writes: Vec::new(),
-            max_vrom_addr: 0,
-        }
+    pub fn from_zcray_trace(program: Vec<InterpreterInstruction>, trace: ZCrayTrace) -> Self {
+        // Add the program instructions to the trace
+        let mut zkvm_trace = Self::new();
+        zkvm_trace.add_instructions(program, &trace.instruction_counter);
+        zkvm_trace.trace = trace;
+        zkvm_trace
     }
 
     /// Add multiple interpreter instructions to the program.
