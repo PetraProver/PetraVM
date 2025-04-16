@@ -62,9 +62,6 @@ impl PromTable {
         let instruction =
             pack_instruction(&mut table, "instruction", pc, opcode, [arg1, arg2, arg3]);
 
-        // Push to the PROM channel
-        table.push(channels.prom_channel, [instruction]);
-
         let lookup_producer = LookupProducer::new(
             &mut table,
             channels.prom_channel,
