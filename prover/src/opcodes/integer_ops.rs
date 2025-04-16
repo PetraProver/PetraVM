@@ -6,7 +6,7 @@ use binius_m3::{
     },
     gadgets::u32::U32AddFlags,
 };
-use zcrayvm_assembly::{event::integer_ops::AddiEvent, opcodes::Opcode};
+use zcrayvm_assembly::{opcodes::Opcode, AddiEvent};
 
 use crate::{
     channels::Channels,

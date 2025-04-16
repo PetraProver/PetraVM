@@ -8,11 +8,10 @@ use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, 
 use crate::{
     channels::Channels,
     model::Trace,
-    opcodes::integer_ops::AddiTable,
     prover::MIN_VROM_ADDR_SPACE,
     tables::{
-        B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
-        VromSkipTable, VromWriteTable,
+        AddiTable, B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable,
+        VromAddrSpaceTable, VromSkipTable, VromWriteTable,
     },
 };
 

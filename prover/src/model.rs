@@ -6,8 +6,8 @@
 use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{
-    event::integer_ops::AddiEvent, B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction,
-    LDIEvent, Opcode, RetEvent, ZCrayTrace,
+    AddiEvent, B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode, RetEvent,
+    ZCrayTrace,
 };
 
 /// Macro to generate event accessors

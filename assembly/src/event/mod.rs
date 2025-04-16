@@ -12,7 +12,7 @@ pub(crate) mod binary_ops;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod context;
-pub mod integer_ops;
+pub(crate) mod integer_ops;
 pub(crate) mod jump;
 pub(crate) mod macros;
 pub(crate) mod mv;
