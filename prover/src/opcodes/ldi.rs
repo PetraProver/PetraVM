@@ -8,7 +8,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{opcodes::Opcode, LDIEvent};
+use zcrayvm_assembly::{opcodes::Opcode, LdiEvent};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};
@@ -35,7 +35,7 @@ pub struct LdiTable {
 }
 
 impl Table for LdiTable {
-    type Event = LDIEvent;
+    type Event = LdiEvent;
 
     fn name(&self) -> &'static str {
         "LdiTable"
@@ -82,7 +82,7 @@ impl Table for LdiTable {
 }
 
 impl TableFiller<ProverPackedField> for LdiTable {
-    type Event = LDIEvent;
+    type Event = LdiEvent;
 
     fn id(&self) -> TableId {
         self.id
