@@ -117,8 +117,7 @@ impl Circuit {
         let prom_size = trace.program.len();
 
         let vrom_addr_space_size = trace
-            .trace
-            .vrom_size()
+            .max_vrom_addr
             .next_power_of_two()
             .max(MIN_VROM_ADDR_SPACE);
 
