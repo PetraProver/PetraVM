@@ -2,6 +2,7 @@
 //!
 //! This module contains the TAILI table which handles tail calls to immediate
 //! addresses in the zCrayVM execution.
+use std::any::Any;
 
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -9,6 +10,7 @@ use binius_m3::builder::{
 use zcrayvm_assembly::{opcodes::Opcode, TailiEvent};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::table::Table;
 use crate::{channels::Channels, types::ProverPackedField};
 
 /// TAILI (Tail Call Immediate) table.
@@ -33,13 +35,14 @@ pub struct TailiTable {
     target: Col<B32>,           // Virtual
 }
 
-impl TailiTable {
-    /// Create a new TAILI table with the given constraint system and channels.
-    ///
-    /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for TailiTable {
+    type Event = TailiEvent;
+
+    fn name(&self) -> &'static str {
+        "TailiTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("taili");
 
         let cpu_cols = CpuColumns::new(
@@ -76,6 +79,10 @@ impl TailiTable {
             next_fp_abs_addr,
             target,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

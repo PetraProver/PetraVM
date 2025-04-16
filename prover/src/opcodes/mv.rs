@@ -8,6 +8,7 @@
 //! addresses might not be available yet, using "pending updates" and
 //! "delegate_move". This prover implementation only deals with the successfully
 //! generated events where all addresses and values were available.
+use std::any::Any;
 
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -19,6 +20,7 @@ use zcrayvm_assembly::{opcodes::Opcode, MVVWEvent};
 // - MVI.H (Move Immediate Half-word)
 // - LDI (Load Immediate)
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::table::Table;
 use crate::{channels::Channels, types::ProverPackedField};
 
 /// MVV.W (Move Value to Value) table.
@@ -46,13 +48,14 @@ pub struct MvvwTable {
     src_val: Col<B32>,        // Value to be moved
 }
 
-impl MvvwTable {
-    /// Create a new MVV.W table with the given constraint system and channels.
-    ///
-    /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for MvvwTable {
+    type Event = MVVWEvent;
+
+    fn name(&self) -> &'static str {
+        "MvvwTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("mvvw");
 
         let cpu_cols = CpuColumns::new(
@@ -104,6 +107,10 @@ impl MvvwTable {
             offset_col,
             src_val,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
