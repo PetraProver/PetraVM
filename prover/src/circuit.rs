@@ -10,6 +10,7 @@ use crate::{
     channels::Channels,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::{build_table_for_opcode, Trace},
+    prover::MIN_VROM_ADDR_SPACE,
     table::FillableTable,
 };
 
@@ -82,8 +83,6 @@ impl Circuit {
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
     pub fn create_statement(&self, trace: &Trace) -> anyhow::Result<Statement> {
-        let vrom_size = trace.trace.vrom_size().next_power_of_two();
-
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
@@ -104,8 +103,10 @@ impl Circuit {
 
         let prom_size = trace.program.len();
 
-        // Use the provided VROM address space size
-        let vrom_addr_space_size = vrom_size;
+        let vrom_addr_space_size = trace
+            .max_vrom_addr
+            .next_power_of_two()
+            .max(MIN_VROM_ADDR_SPACE);
 
         // VROM write size is the number of addresses we write to
         let vrom_write_size = trace.vrom_writes.len();
