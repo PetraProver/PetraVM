@@ -1,11 +1,24 @@
 use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum::EnumCount;
-use strum_macros::EnumCount;
+use strum_macros::{Display, EnumCount};
+
+use crate::event::*;
+use crate::{event::context::EventContext, execution::InterpreterError};
 
 /// Represents the set of instructions supported by the zCrayVM.
 #[derive(
-    Debug, Clone, Copy, Default, EnumCount, TryFromPrimitive, IntoPrimitive, PartialEq, Eq,
+    Debug,
+    Display,
+    Clone,
+    Copy,
+    Hash,
+    Default,
+    EnumCount,
+    TryFromPrimitive,
+    IntoPrimitive,
+    PartialEq,
+    Eq,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
@@ -58,6 +71,11 @@ pub enum Opcode {
 
     // Branch instructions
     Bnz = 0x01,
+    /// Bz is only declared to allow for proper mapping with the associated
+    /// table. This is an *invalid* instruction and should never be reached.
+    /// [`BzEvent`] should only be generated through the execution of
+    /// [`Opcode::Bnz`] when no branching occurs.
+    Bz = 0xffff,
 
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
@@ -85,6 +103,7 @@ impl Opcode {
     pub fn num_args(&self) -> usize {
         match self {
             Opcode::Bnz => 3,     // cond, target_low, target_high
+            Opcode::Bz => 0,      // non-existing instruction
             Opcode::Jumpi => 2,   // target_low, target_high
             Opcode::Jumpv => 1,   // offset
             Opcode::Xori => 3,    // dst, src, imm
@@ -127,3 +146,66 @@ impl Opcode {
         }
     }
 }
+
+/// Trait implemented by each [`Event`](crate::event::Event) type.
+pub trait InstructionInfo {
+    /// The unique opcode associated with this instruction.
+    fn opcode() -> Opcode;
+}
+
+#[macro_export]
+macro_rules! impl_instruction_info {
+    ( $( ($event_ty:ty, $opcode:path) ),* $(,)? ) => {
+        $(
+            impl InstructionInfo for $event_ty {
+                fn opcode() -> Opcode {
+                    $opcode
+                }
+            }
+        )*
+    };
+}
+
+impl_instruction_info!(
+    (AddEvent, Opcode::Add),
+    (AddiEvent, Opcode::Addi),
+    (AndEvent, Opcode::And),
+    (AndiEvent, Opcode::Andi),
+    (BnzEvent, Opcode::Bnz),
+    // `BzEvent` is actually triggered through the `Bnz` instruction
+    (BzEvent, Opcode::Bz),
+    (B32MulEvent, Opcode::B32Mul),
+    (B32MuliEvent, Opcode::B32Muli),
+    (B128AddEvent, Opcode::B128Add),
+    (B128MulEvent, Opcode::B128Mul),
+    (CalliEvent, Opcode::Calli),
+    (CallvEvent, Opcode::Callv),
+    (JumpiEvent, Opcode::Jumpi),
+    (JumpvEvent, Opcode::Jumpv),
+    (LDIEvent, Opcode::Ldi),
+    (MulEvent, Opcode::Mul),
+    (MuliEvent, Opcode::Muli),
+    (MuluEvent, Opcode::Mulu),
+    (MulsuEvent, Opcode::Mulsu),
+    (MVIHEvent, Opcode::Mvih),
+    (MVVLEvent, Opcode::Mvvl),
+    (MVVWEvent, Opcode::Mvvw),
+    (OrEvent, Opcode::Or),
+    (OriEvent, Opcode::Ori),
+    (RetEvent, Opcode::Ret),
+    (SllEvent, Opcode::Sll),
+    (SlliEvent, Opcode::Slli),
+    (SltEvent, Opcode::Slt),
+    (SltiEvent, Opcode::Slti),
+    (SltuEvent, Opcode::Sltu),
+    (SltiuEvent, Opcode::Sltiu),
+    (SraEvent, Opcode::Sra),
+    (SraiEvent, Opcode::Srai),
+    (SrlEvent, Opcode::Srl),
+    (SrliEvent, Opcode::Srli),
+    (SubEvent, Opcode::Sub),
+    (TailiEvent, Opcode::Taili),
+    (TailVEvent, Opcode::Tailv),
+    (XorEvent, Opcode::Xor),
+    (XoriEvent, Opcode::Xori),
+);

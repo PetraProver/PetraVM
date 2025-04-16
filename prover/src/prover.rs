@@ -3,7 +3,7 @@
 //! This module provides the main entry point for creating proofs from
 //! zCrayVM execution traces.
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use binius_core::{
     constraint_system::{prove, validate, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
@@ -12,8 +12,10 @@ use binius_core::{
 use binius_field::arch::OptimalUnderlier128b;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
+use binius_m3::builder::TableFiller;
 use binius_m3::builder::{Statement, B128};
 use bumpalo::Bump;
+use zcrayvm_assembly::isa::ISA;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
@@ -21,27 +23,25 @@ const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
 pub(crate) const PROM_MULTIPLICITY_BITS: usize = 8;
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
+// TODO: currently the vrom write table requires a minimum of 128 entries,
+// so we need a minimum of 256 entries in the address space table
+pub(crate) const MIN_VROM_ADDR_SPACE: usize = 256;
 
 /// Main prover for zCrayVM.
-// TODO: should be customizable by supported opcodes
 pub struct Prover {
     /// Arithmetic circuit for zCrayVM
     circuit: Circuit,
 }
 
-impl Default for Prover {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Prover {
     /// Create a new zCrayVM prover.
-    pub fn new() -> Self {
+    pub fn new(isa: Box<dyn ISA>) -> Self {
         Self {
-            circuit: Circuit::new(),
+            circuit: Circuit::new(isa),
         }
     }
+
+    // TODO: Split witness generation from actual proving?
 
     /// Prove a zCrayVM execution trace.
     ///
@@ -62,7 +62,11 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
-        let compiled_cs = self.circuit.compile(&statement)?;
+        let compiled_cs = self
+            .circuit
+            .cs
+            .compile(&statement)
+            .map_err(|e| anyhow!(e))?;
 
         // Create a memory allocator for the witness
         let allocator = Bump::new();
@@ -71,7 +75,7 @@ impl Prover {
         let mut witness = self
             .circuit
             .cs
-            .build_witness::<ProverPackedField>(&allocator, &statement)?;
+            .build_witness::<ProverPackedField>(&allocator);
 
         // Fill all table witnesses in sequence
 
@@ -79,8 +83,8 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
-        let vrom_size = trace.trace.vrom_size().next_power_of_two();
-        let vrom_addr_space: Vec<u32> = (0..vrom_size as u32).collect();
+        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
+        let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
         // 3. Fill VROM write table with writes
@@ -91,21 +95,16 @@ impl Prover {
         let write_addrs: std::collections::HashSet<u32> =
             trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
 
-        let vrom_skips: Vec<u32> = (0..vrom_size as u32)
+        let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)
             .filter(|addr| !write_addrs.contains(addr))
             .collect();
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
-        witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
-        witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
-        witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
-
-        // 7. Fill BNZ table with branch not zero events
-        witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
-
-        // 8. Fill BZ table with branch zero events
-        witness.fill_table_sequential(&self.circuit.bz_table, trace.bz_events())?;
+        // 5. Fill all event tables
+        for table in &self.circuit.tables {
+            table.fill(&mut witness, trace)?;
+        }
 
         // 9. Fill TAILI table with tail immediate events
         witness.fill_table_sequential(&self.circuit.taili_table, trace.taili_events())?;

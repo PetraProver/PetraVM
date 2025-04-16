@@ -290,7 +290,10 @@ mod tests {
     use binius_field::{Field, PackedField};
     use binius_m3::builder::{B16, B32};
 
-    use crate::{execution::G, opcodes::Opcode, util::code_to_prom, Memory, ValueRom, ZCrayTrace};
+    use crate::{
+        execution::G, isa::GenericISA, opcodes::Opcode, util::code_to_prom, Memory, ValueRom,
+        ZCrayTrace,
+    };
 
     #[test]
     fn test_tailv() {
@@ -342,8 +345,9 @@ mod tests {
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
         let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
-            .expect("Trace generation should not fail.");
+        let (trace, _) =
+            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+                .expect("Trace generation should not fail.");
 
         // Check that there are no MOVE events that have yet to be executed.
         assert!(trace.vrom_pending_updates().is_empty());
@@ -405,8 +409,9 @@ mod tests {
         pc_field_to_int.insert(target, ret_pc as u32);
         pc_field_to_int.insert(ldi, ldi_pc as u32);
         let memory = Memory::new(prom, vrom);
-        let (trace, _) = ZCrayTrace::generate(memory, frames, pc_field_to_int)
-            .expect("Trace generation should not fail.");
+        let (trace, _) =
+            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+                .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());
         assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);

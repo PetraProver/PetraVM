@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -5,7 +7,7 @@ use binius_m3::builder::{
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
-use crate::{channels::Channels, types::ProverPackedField};
+use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
 ///
@@ -18,8 +20,14 @@ pub struct BnzTable {
     cond_val: Col<B32>,
 }
 
-impl BnzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for BnzTable {
+    type Event = BnzEvent;
+
+    fn name(&self) -> &'static str {
+        "BnzTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
         table.assert_nonzero(cond_val);
@@ -46,6 +54,10 @@ impl BnzTable {
             cond_val,
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl TableFiller<ProverPackedField> for BnzTable {
@@ -56,10 +68,10 @@ impl TableFiller<ProverPackedField> for BnzTable {
     }
 
     fn fill<'a>(
-        &self,
+        &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> anyhow::Result<()> {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
@@ -87,8 +99,14 @@ pub struct BzTable {
     cond_abs: Col<B32>, // Virtual
 }
 
-impl BzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for BzTable {
+    type Event = BzEvent;
+
+    fn name(&self) -> &'static str {
+        "BzTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bz");
 
         let cpu_cols = CpuColumns::new(
@@ -111,6 +129,10 @@ impl BzTable {
             cpu_cols,
             cond_abs,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
