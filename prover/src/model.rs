@@ -143,8 +143,8 @@ impl Trace {
     ///
     /// This will verify that:
     /// 1. The program has at least one instruction
-    /// 2. The trace has at least one LDI or ADDI event
-    /// 3. The trace has at least one RET event
+    /// 2. The trace has at least one RET event
+    /// 3. The trace has at least one VROM write
     ///
     /// # Returns
     /// * Ok(()) if the trace is valid, or an error with a description of what's
