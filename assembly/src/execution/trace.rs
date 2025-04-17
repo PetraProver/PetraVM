@@ -32,7 +32,7 @@ use crate::{
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    SrliEvent,
+    AnyShiftEvent, SrliEvent,
 };
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
@@ -124,7 +124,16 @@ impl ZCrayTrace {
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
-        let trace = interpreter.run(memory)?;
+        let mut trace = interpreter.run(memory)?;
+        // FIXME: I'm doing this for now, but we should probably find a better way.
+        trace.srli = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Srli(event) => Some(event),
+                _ => None,
+            })
+            .collect();
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()

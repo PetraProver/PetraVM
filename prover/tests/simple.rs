@@ -156,7 +156,6 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-<<<<<<< HEAD
 fn generate_srli_ret_trace() -> Result<Trace> {
     let asm_code = "#[framesize(0x10)]\n\
         _start:\n\
@@ -179,14 +178,7 @@ fn generate_srli_ret_trace() -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-fn test_from_trace_generator<F, G>(
-    trace_generator: F,
-    check_events: G,
-    n_vrom_writes: usize,
-) -> Result<()>
-=======
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
->>>>>>> origin/main
 where
     F: FnOnce() -> Result<Trace>,
     G: FnOnce(&Trace),
@@ -299,25 +291,21 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
 
 #[test]
 fn test_srli_ret() -> Result<()> {
-    test_from_trace_generator(
-        || generate_srli_ret_trace(),
-        |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
-                trace.srli_events().collect::<Vec<_>>().len(),
-                1,
-                "Should have exactly one bz event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-        5,
-    )
+    test_from_trace_generator(generate_srli_ret_trace, |trace| {
+        assert_eq!(
+            trace.program.len(),
+            2,
+            "Program should have exactly 2 instructions"
+        );
+        assert_eq!(
+            trace.srli_events().len(),
+            1,
+            "Should have exactly one bz event"
+        );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
 }
