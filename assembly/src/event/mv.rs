@@ -114,7 +114,7 @@ impl MVEventOutput {
 
         match opcode {
             Opcode::Mvvl => {
-                let new_event = MVVLEvent::new(
+                let new_event = MvvlEvent::new(
                     field_pc,
                     fp,
                     timestamp,
@@ -127,7 +127,7 @@ impl MVEventOutput {
                 trace.mvvl.push(new_event);
             }
             Opcode::Mvvw => {
-                let new_event = MVVWEvent::new(
+                let new_event = MvvwEvent::new(
                     field_pc,
                     fp,
                     timestamp,
@@ -151,7 +151,7 @@ impl MVEventOutput {
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = FP[src]
 #[derive(Debug, Clone)]
-pub struct MVVWEvent {
+pub struct MvvwEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -164,7 +164,7 @@ pub struct MVVWEvent {
 
 // TODO: this is a 4-byte move instruction. So it needs to be updated once we
 // have multi-granularity.
-impl MVVWEvent {
+impl MvvwEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: B32,
@@ -289,7 +289,7 @@ impl MVVWEvent {
     }
 }
 
-impl_mv_event!(MVVWEvent, mvvw);
+impl_mv_event!(MvvwEvent, mvvw);
 
 /// Event for MVV.L.
 ///
@@ -298,7 +298,7 @@ impl_mv_event!(MVVWEvent, mvvw);
 /// Logic:
 ///   1. VROM128[FP[dst] + offset] = FP128[src]
 #[derive(Debug, Clone)]
-pub struct MVVLEvent {
+pub struct MvvlEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -309,7 +309,7 @@ pub struct MVVLEvent {
     pub offset: u16,
 }
 
-impl MVVLEvent {
+impl MvvlEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: B32,
@@ -436,7 +436,7 @@ impl MVVLEvent {
     }
 }
 
-impl_mv_event!(MVVLEvent, mvvl);
+impl_mv_event!(MvvlEvent, mvvl);
 
 /// Event for MVI.H.
 ///
@@ -446,7 +446,7 @@ impl_mv_event!(MVVLEvent, mvvl);
 /// Logic:
 ///   1. VROM[FP[dst] + offset] = ZeroExtend(imm)
 #[derive(Debug, Clone)]
-pub struct MVIHEvent {
+pub struct MvihEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -458,7 +458,7 @@ pub struct MVIHEvent {
 
 // TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
 // zero-extended. So it needs to be updated once we have multi-granularity.
-impl MVIHEvent {
+impl MvihEvent {
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
     pub(crate) fn generate_event_from_info(
@@ -519,7 +519,7 @@ impl MVIHEvent {
     }
 }
 
-impl_mv_event!(MVIHEvent, mvih);
+impl_mv_event!(MvihEvent, mvih);
 
 /// Event for LDI (Load Immediate).
 ///
@@ -528,7 +528,7 @@ impl_mv_event!(MVIHEvent, mvih);
 /// Logic:
 ///   1. FP[dst] = imm
 #[derive(Debug, Clone)]
-pub struct LDIEvent {
+pub struct LdiEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -536,7 +536,7 @@ pub struct LDIEvent {
     pub imm: u32,
 }
 
-impl LDIEvent {
+impl LdiEvent {
     pub(crate) fn generate_event(
         ctx: &mut EventContext,
         dst: B16,
@@ -560,7 +560,7 @@ impl LDIEvent {
     }
 }
 
-impl_mv_event!(LDIEvent, ldi);
+impl_mv_event!(LdiEvent, ldi);
 
 /// If the source value of a MOVE operations is missing or the destination
 /// address is still unknown, it means we are in a MOVE that precedes a CALL,

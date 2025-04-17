@@ -88,7 +88,7 @@ impl Event for TailiEvent {
 ///   3. FP = FP[next_fp]
 ///   4. PC = FP[offset]
 #[derive(Debug, Clone)]
-pub struct TailVEvent {
+pub struct TailvEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -100,7 +100,7 @@ pub struct TailVEvent {
     pub target: u32,
 }
 
-impl Event for TailVEvent {
+impl Event for TailvEvent {
     fn generate(
         ctx: &mut EventContext,
         offset: B16,
