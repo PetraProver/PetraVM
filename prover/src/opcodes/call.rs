@@ -18,17 +18,17 @@ pub struct TailiTable {
     /// CPU-related columns for instruction handling
     cpu_cols: CpuColumns<{ Opcode::Taili as u16 }>,
     /// New frame pointer value
-    next_fp: Col<B32>,
-    /// Absolute address of the next frame pointer slot (FP + next_fp_off)
+    next_fp_val: Col<B32>,
+    /// Absolute address of the next frame pointer slot (FP + next_fp)
     next_fp_abs_addr: Col<B32>,
-    /// Value at current frame slot 0 (return address)
-    cur_fp_0_val: Col<B32>,
-    /// Value at current frame slot 1 (old frame pointer)
-    cur_fp_1_val: Col<B32>,
+    /// Return address from caller
+    return_addr: Col<B32>,
+    /// Old frame pointer value
+    old_fp_val: Col<B32>,
     /// Address of current frame slot 1 (FP + 1)
-    cur_fp_1: Col<B32>,
-    /// Address of new frame slot 1 (next_fp + 1)
-    next_fp_1: Col<B32>,
+    fp_plus_1: Col<B32>,
+    /// Address of new frame slot 1 (next_fp_val + 1)
+    next_fp_plus_1: Col<B32>,
 }
 
 impl Table for TailiTable {
@@ -42,7 +42,7 @@ impl Table for TailiTable {
         let mut table = cs.add_table("taili");
 
         // Column for the new frame pointer value
-        let next_fp = table.add_committed("next_fp");
+        let next_fp_val = table.add_committed("next_fp_val");
 
         // Set up CPU columns with immediate PC update and new frame pointer
         let cpu_cols = CpuColumns::new(
@@ -51,50 +51,50 @@ impl Table for TailiTable {
             channels.prom_channel,
             CpuColumnsOptions {
                 next_pc: NextPc::Immediate, // Jump directly to target address
-                next_fp: Some(next_fp),     // Update frame pointer
+                next_fp: Some(next_fp_val), // Update frame pointer
             },
         );
 
         // Extract relevant instruction arguments
         let CpuColumns {
             fp: cur_fp,
-            arg2: next_fp_off,
+            arg2: next_fp,
             ..
         } = cpu_cols;
 
         // Compute the absolute address for the next frame pointer
         let next_fp_abs_addr =
-            table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp_off.into()));
+            table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
 
         // Read the next frame pointer value from VROM
-        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp]);
+        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
 
         // Read current frame's return address and old frame pointer
-        let cur_fp_0_val = table.add_committed("cur_fp_0_val"); // Return address at slot 0
-        let cur_fp_1 = table.add_computed("fp_1", cur_fp + B32::new(1)); // Address of slot 1
-        let cur_fp_1_val = table.add_committed("cur_fp_1_val"); // Old frame pointer at slot 1
+        let return_addr = table.add_committed("return_addr"); // Return address at slot 0
+        let fp_plus_1 = table.add_computed("fp_plus_1", cur_fp + B32::new(1)); // Address of slot 1
+        let old_fp_val = table.add_committed("old_fp_val"); // Old frame pointer at slot 1
 
         // Pull values from current frame
-        table.pull(channels.vrom_channel, [cur_fp, cur_fp_0_val]);
-        table.pull(channels.vrom_channel, [cur_fp_1, cur_fp_1_val]);
+        table.pull(channels.vrom_channel, [cur_fp, return_addr]);
+        table.pull(channels.vrom_channel, [fp_plus_1, old_fp_val]);
 
         // Compute address of slot 1 in new frame
-        let next_fp_1 = table.add_computed("next_fp_1", next_fp + B32::new(1));
+        let next_fp_plus_1 = table.add_computed("next_fp_plus_1", next_fp_val + B32::new(1));
 
         // Verify that return address and old frame pointer are correctly copied to new
         // frame
-        table.pull(channels.vrom_channel, [next_fp, cur_fp_0_val]);
-        table.pull(channels.vrom_channel, [next_fp_1, cur_fp_1_val]);
+        table.pull(channels.vrom_channel, [next_fp_val, return_addr]);
+        table.pull(channels.vrom_channel, [next_fp_plus_1, old_fp_val]);
 
         Self {
             id: table.id(),
             cpu_cols,
-            next_fp,
+            next_fp_val,
             next_fp_abs_addr,
-            cur_fp_0_val,
-            cur_fp_1_val,
-            cur_fp_1,
-            next_fp_1,
+            return_addr,
+            old_fp_val,
+            fp_plus_1,
+            next_fp_plus_1,
         }
     }
 
@@ -121,21 +121,21 @@ impl TableFiller<ProverPackedField> for TailiTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp = witness.get_mut_as(self.next_fp)?;
+            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
             let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut cur_fp_0_val = witness.get_mut_as(self.cur_fp_0_val)?;
-            let mut cur_fp_1_val = witness.get_mut_as(self.cur_fp_1_val)?;
-            let mut cur_fp_1 = witness.get_mut_as(self.cur_fp_1)?;
-            let mut next_fp_1 = witness.get_mut_as(self.next_fp_1)?;
+            let mut return_addr = witness.get_mut_as(self.return_addr)?;
+            let mut old_fp_val = witness.get_mut_as(self.old_fp_val)?;
+            let mut fp_plus_1 = witness.get_mut_as(self.fp_plus_1)?;
+            let mut next_fp_plus_1 = witness.get_mut_as(self.next_fp_plus_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp[i] = event.next_fp_val;
+                next_fp_val[i] = event.next_fp_val;
                 next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                cur_fp_0_val[i] = event.return_addr;
-                cur_fp_1[i] = event.fp.addr(1u32);
-                cur_fp_1_val[i] = event.old_fp_val;
-                next_fp_1[i] = event.next_fp_val + 1;
+                return_addr[i] = event.return_addr;
+                fp_plus_1[i] = event.fp.addr(1u32);
+                old_fp_val[i] = event.old_fp_val;
+                next_fp_plus_1[i] = event.next_fp_val + 1;
             }
         }
 

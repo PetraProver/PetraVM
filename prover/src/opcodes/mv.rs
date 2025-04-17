@@ -25,10 +25,10 @@ pub struct MvvwTable {
     dst_abs_addr: Col<B32>,
     /// Base source address (FP + src)
     src_abs_addr: Col<B32>,
-    /// Final destination address with offset (next_fp_val + offset)
+    /// Final destination address with offset (dst_addr + offset)
     final_dst_addr: Col<B32>,
-    /// Value at dst_abs_addr in VROM (the offset)
-    next_fp_val: Col<B32>,
+    /// Destination address value from VROM
+    dst_addr: Col<B32>,
     /// Value to be moved (from src_abs_addr)
     src_val: Col<B32>,
 }
@@ -72,12 +72,12 @@ impl Table for MvvwTable {
 
         // Read the value at dst_abs_addr (this is the base address for final
         // destination)
-        let next_fp_val = table.add_committed("next_fp_val");
-        table.pull(channels.vrom_channel, [dst_abs_addr, next_fp_val]);
+        let dst_addr = table.add_committed("dst_addr");
+        table.pull(channels.vrom_channel, [dst_abs_addr, dst_addr]);
 
         // Compute final destination address with offset
         let final_dst_addr =
-            table.add_computed("final_dst_addr", next_fp_val + upcast_expr(offset.into()));
+            table.add_computed("final_dst_addr", dst_addr + upcast_expr(offset.into()));
 
         // Read source value from VROM
         table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
@@ -91,7 +91,7 @@ impl Table for MvvwTable {
             dst_abs_addr,
             src_abs_addr,
             final_dst_addr,
-            next_fp_val,
+            dst_addr,
             src_val,
         }
     }
@@ -122,14 +122,14 @@ impl TableFiller<ProverPackedField> for MvvwTable {
             let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut final_dst_addr = witness.get_scalars_mut(self.final_dst_addr)?;
-            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut dst_addr = witness.get_scalars_mut(self.dst_addr)?;
             let mut src_val = witness.get_scalars_mut(self.src_val)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
                 dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
-                next_fp_val[i] = B32::new(event.dst_addr);
+                dst_addr[i] = B32::new(event.dst_addr);
                 final_dst_addr[i] = B32::new(event.dst_addr ^ event.offset as u32);
                 src_val[i] = B32::new(event.src_val);
             }
