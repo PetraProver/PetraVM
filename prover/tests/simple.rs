@@ -290,16 +290,47 @@ fn generate_xor_ret_trace() -> Result<Trace> {
 
     trace!("asm_code:\n {:?}", asm_code);
 
-    let init_values = [0, 0, 1, 2];
+    let init_values = [0, 0, 7, 42];
 
     let vrom_writes = vec![
         // XOR event
-        (4, 1 + 2, 1),
+        (4, 42 ^ 7, 1),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
-        (2, 1, 1),
-        (3, 2, 1),
+        (2, 7, 1),
+        (3, 42, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+// Creates a basic execution trace with just OR and RET instructions.
+///
+/// # Returns
+/// * A Trace containing an OR instruction followed by a RET instruction
+fn generate_or_ret_trace() -> Result<Trace> {
+    // Create a simple assembly program with OR and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = "#[framesize(0x10)]\n\
+        _start: OR @4, @3, @2\n\
+        RET\n"
+        .to_string();
+
+    trace!("asm_code:\n {:?}", asm_code);
+
+    let init_values = [0, 0, 7, 42];
+
+    let vrom_writes = vec![
+        // OR event
+        (4, 42 | 7, 1),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        (2, 7, 1),
+        (3, 42, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -307,6 +338,7 @@ fn generate_xor_ret_trace() -> Result<Trace> {
 
 #[test]
 fn test_xor_ret() -> Result<()> {
+    zcrayvm_assembly::init_logger();
     test_from_trace_generator(
         || generate_xor_ret_trace(),
         |trace| {
@@ -317,6 +349,31 @@ fn test_xor_ret() -> Result<()> {
             );
             assert_eq!(
                 trace.xor_events().len(),
+                1,
+                "Should have exactly one XOR event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+    )
+}
+
+#[test]
+fn test_or_ret() -> Result<()> {
+    zcrayvm_assembly::init_logger();
+    test_from_trace_generator(
+        || generate_or_ret_trace(),
+        |trace| {
+            assert_eq!(
+                trace.program.len(),
+                2,
+                "Program should have exactly 2 instructions"
+            );
+            assert_eq!(
+                trace.or_events().len(),
                 1,
                 "Should have exactly one XOR event"
             );

@@ -240,6 +240,7 @@ impl_table_info_and_accessor!(
     (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
     (AndEvent, AndTable, and_events, and),
     (XorEvent, XorTable, xor_events, xor),
+    (OrEvent, OrTable, or_events, or),
 );
 
 // Map all opcodes to their related event and table.
@@ -252,4 +253,5 @@ define_table_registry!(
     (B32MulEvent, B32MulTable, B32Mul),
     (AndEvent, AndTable, And),
     (XorEvent, XorTable, Xor),
+    (OrEvent, OrTable, Or),
 );
