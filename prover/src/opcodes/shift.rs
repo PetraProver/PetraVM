@@ -10,6 +10,7 @@ use crate::{
         barrel_shifter::{BarrelShifter, BarrelShifterFlags},
         cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
     },
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -33,8 +34,14 @@ pub struct SrliTable {
     src_val: Col<B32>, // Virtual
 }
 
-impl SrliTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for SrliTable {
+    type Event = SrliEvent;
+
+    fn name(&self) -> &'static str {
+        "SrliTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("srli");
         let cpu_cols = CpuColumns::new(
             &mut table,
@@ -73,7 +80,12 @@ impl SrliTable {
             src_val,
         }
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
+
 impl TableFiller<ProverPackedField> for SrliTable {
     type Event = SrliEvent;
 
