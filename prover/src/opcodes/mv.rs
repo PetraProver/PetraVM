@@ -13,8 +13,9 @@ use crate::{channels::Channels, types::ProverPackedField};
 
 /// MVV.W (Move Value to Value) table implementation.
 ///
-/// This table verifies the Move Value to Value (word) instruction, which moves a 32-bit
-/// value from one VROM location to another, with optional offset addressing.
+/// This table verifies the Move Value to Value (word) instruction, which moves
+/// a 32-bit value from one VROM location to another, with optional offset
+/// addressing.
 pub struct MvvwTable {
     /// Table identifier
     pub id: TableId,
@@ -69,7 +70,8 @@ impl Table for MvvwTable {
         // Value to be moved from source
         let src_val = table.add_committed("src_val");
 
-        // Read the value at dst_abs_addr (this is the base address for final destination)
+        // Read the value at dst_abs_addr (this is the base address for final
+        // destination)
         let next_fp_val = table.add_committed("next_fp_val");
         table.pull(channels.vrom_channel, [dst_abs_addr, next_fp_val]);
 

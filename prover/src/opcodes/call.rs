@@ -40,7 +40,7 @@ impl Table for TailiTable {
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("taili");
-        
+
         // Column for the new frame pointer value
         let next_fp = table.add_committed("next_fp");
 
@@ -73,15 +73,16 @@ impl Table for TailiTable {
         let cur_fp_0_val = table.add_committed("cur_fp_0_val"); // Return address at slot 0
         let cur_fp_1 = table.add_computed("fp_1", cur_fp + B32::new(1)); // Address of slot 1
         let cur_fp_1_val = table.add_committed("cur_fp_1_val"); // Old frame pointer at slot 1
-        
+
         // Pull values from current frame
         table.pull(channels.vrom_channel, [cur_fp, cur_fp_0_val]);
         table.pull(channels.vrom_channel, [cur_fp_1, cur_fp_1_val]);
 
         // Compute address of slot 1 in new frame
         let next_fp_1 = table.add_computed("next_fp_1", next_fp + B32::new(1));
-        
-        // Verify that return address and old frame pointer are correctly copied to new frame
+
+        // Verify that return address and old frame pointer are correctly copied to new
+        // frame
         table.pull(channels.vrom_channel, [next_fp, cur_fp_0_val]);
         table.pull(channels.vrom_channel, [next_fp_1, cur_fp_1_val]);
 
@@ -141,11 +142,11 @@ impl TableFiller<ProverPackedField> for TailiTable {
         // Create CPU gadget rows from events
         let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
-            next_pc: Some(event.target),        // Jump to target address
+            next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
-            arg0: (event.target & 0xFFFF) as u16,          // target_low (lower 16 bits)
+            arg0: (event.target & 0xFFFF) as u16, // target_low (lower 16 bits)
             arg1: ((event.target >> 16) & 0xFFFF) as u16, // target_high (upper 16 bits)
-            arg2: event.next_fp,                // next_fp address
+            arg2: event.next_fp,                  // next_fp address
         });
 
         // Populate CPU columns with the gadget rows
