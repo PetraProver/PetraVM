@@ -269,8 +269,6 @@ impl ZCrayTrace {
     }
 
     pub(crate) fn record_instruction(&mut self, field_pc: B32) {
-        *self.instruction_counter
-            .entry(field_pc)
-            .or_insert(0) += 1;
+        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
     }
 }
