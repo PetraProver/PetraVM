@@ -209,15 +209,6 @@ impl ZCrayTrace {
         self.flush_pending_updates(index, value)
     }
 
-    pub(crate) fn vrom_write_no_count<T: VromValueT>(
-        &mut self,
-        index: u32,
-        value: T,
-    ) -> Result<(), MemoryError> {
-        self.vrom_mut().write_no_count(index, value)?;
-        self.flush_pending_updates(index, value)
-    }
-
     fn flush_pending_updates<T: VromValueT>(
         &mut self,
         index: u32,
