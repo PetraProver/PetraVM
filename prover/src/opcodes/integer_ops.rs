@@ -23,7 +23,6 @@ const ADD_OPCODE: u16 = Opcode::Add as u16;
 /// addition between two 32-bit elements.
 pub struct AddTable {
     id: TableId,
-    // TODO: Use the cpu gadget
     cpu_cols: CpuColumns<ADD_OPCODE>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
