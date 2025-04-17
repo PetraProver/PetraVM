@@ -1,8 +1,16 @@
+//! RET (Return) table implementation for the zCrayVM M3 circuit.
+//!
+//! This module contains the RET table which handles return operations
+//! in the zCrayVM execution.
+
+use std::any::Any;
+
 use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
-use zcrayvm_assembly::{Opcode, RetEvent};
+use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, NextPc};
+use crate::{channels::Channels, gadgets::cpu::CpuGadget, table::Table, types::ProverPackedField};
 /// RET (Return) table.
 ///
 /// This table handles the Return instruction, which returns from a function
@@ -14,7 +22,6 @@ use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, NextPc};
 /// 3. Verify this is a RET instruction
 /// 4. Load the return PC from VROM[fp+0] and return FP from VROM[fp+1]
 /// 5. Update the state with the new PC and FP values
-use crate::{channels::Channels, gadgets::cpu::CpuGadget, types::ProverPackedField};
 pub struct RetTable {
     /// Table ID
     id: TableId,
@@ -25,8 +32,14 @@ pub struct RetTable {
     next_fp: Col<B32>,
 }
 
-impl RetTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for RetTable {
+    type Event = RetEvent;
+
+    fn name(&self) -> &'static str {
+        "RetTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
         let next_pc = table.add_committed("next_pc");
         let next_fp = table.add_committed("next_fp");
@@ -57,6 +70,10 @@ impl RetTable {
             next_pc,
             next_fp,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

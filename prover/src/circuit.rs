@@ -4,16 +4,14 @@
 //! all the individual tables and channels.
 
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
+use zcrayvm_assembly::isa::ISA;
 
 use crate::{
     channels::Channels,
-    model::Trace,
-    opcodes::binary_ops::b32::{AndiTable, XoriTable},
+    memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
+    model::{build_table_for_opcode, Trace},
     prover::MIN_VROM_ADDR_SPACE,
-    tables::{
-        B32MulTable, BnzTable, BzTable, LdiTable, PromTable, RetTable, VromAddrSpaceTable,
-        VromSkipTable, VromWriteTable,
-    },
+    table::FillableTable,
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -22,6 +20,9 @@ use crate::{
 /// It contains all the tables and channels needed to encode program execution
 /// as arithmetic constraints.
 pub struct Circuit {
+    /// The Instruction Set Architecture [`ISA`] targeted for this [`Circuit`]
+    /// instance.
+    pub isa: Box<dyn ISA>,
     /// Constraint system
     pub cs: ConstraintSystem,
     /// Channels for connecting tables
@@ -35,26 +36,8 @@ pub struct Circuit {
     pub vrom_write_table: VromWriteTable,
     /// VROM Skip table
     pub vrom_skip_table: VromSkipTable,
-    /// LDI instruction table
-    pub ldi_table: LdiTable,
-    /// RET instruction table
-    pub ret_table: RetTable,
-    /// ANDI instruction table
-    pub andi_table: AndiTable,
-    /// XORI instruction table
-    pub xori_table: XoriTable,
-    /// B32_MUL instruction table
-    pub b32_mul_table: B32MulTable,
-    /// BNZ branch non-zero instruction table
-    pub bnz_table: BnzTable,
-    /// BNZ branch zero instruction table
-    pub bz_table: BzTable,
-}
-
-impl Default for Circuit {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// Instruction tables
+    pub tables: Vec<Box<dyn FillableTable>>,
 }
 
 impl Circuit {
@@ -62,7 +45,7 @@ impl Circuit {
     ///
     /// This initializes the constraint system, channels, and all tables
     /// needed for the zCrayVM execution.
-    pub fn new() -> Self {
+    pub fn new(isa: Box<dyn ISA>) -> Self {
         let mut cs = ConstraintSystem::new();
         let channels = Channels::new(&mut cs);
 
@@ -71,28 +54,23 @@ impl Circuit {
         let prom_table = PromTable::new(&mut cs, &channels);
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
-        let ldi_table = LdiTable::new(&mut cs, &channels);
-        let ret_table = RetTable::new(&mut cs, &channels);
-        let andi_table = AndiTable::new(&mut cs, &channels);
-        let xori_table = XoriTable::new(&mut cs, &channels);
-        let b32_mul_table = B32MulTable::new(&mut cs, &channels);
-        let bnz_table = BnzTable::new(&mut cs, &channels);
-        let bz_table = BzTable::new(&mut cs, &channels);
+
+        // Generate all tables required to prove the instructions supported by this ISA.
+        let tables = isa
+            .supported_opcodes()
+            .iter()
+            .filter_map(|op| build_table_for_opcode(*op, &mut cs, &channels))
+            .collect::<Vec<_>>();
 
         Self {
+            isa,
             cs,
             channels,
             vrom_write_table,
             prom_table,
             vrom_addr_space_table,
             vrom_skip_table,
-            ldi_table,
-            ret_table,
-            andi_table,
-            xori_table,
-            b32_mul_table,
-            bnz_table,
-            bz_table,
+            tables,
         }
     }
 
@@ -136,28 +114,18 @@ impl Circuit {
         // VROM skip size is the number of addresses we skip
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
 
-        let ldi_size = trace.ldi_events().len();
-        let ret_size = trace.ret_events().len();
-        let andi_size = trace.andi_events().len();
-        let xori_size = trace.xori_events().len();
-        let b32_mul_size = trace.b32_mul_events().len();
-        let bnz_size = trace.bnz_events().len();
-        let bz_size = trace.bz_events().len();
-
         // Define the table sizes in order of table creation
-        let table_sizes = vec![
+        let mut table_sizes = vec![
             vrom_write_size,      // VROM write table size
             prom_size,            // PROM table size
             vrom_addr_space_size, // VROM address space table size
             vrom_skip_size,       // VROM skip table size
-            ldi_size,             // LDI table size
-            ret_size,             // RET table size
-            andi_size,            // ANDI table size
-            xori_size,            // XORI table size
-            b32_mul_size,         // B32_MUL table size
-            bnz_size,             // BNZ table size
-            bz_size,              // BZ table size
         ];
+
+        // Add table sizes for each supported instruction
+        for table in &self.tables {
+            table_sizes.push(table.num_events(trace));
+        }
 
         // Create the statement with all boundaries
         let statement = Statement {
@@ -166,19 +134,5 @@ impl Circuit {
         };
 
         Ok(statement)
-    }
-
-    /// Compile the circuit with a given statement.
-    ///
-    /// # Arguments
-    /// * `statement` - The statement to compile
-    ///
-    /// # Returns
-    /// * A compiled constraint system
-    pub fn compile(
-        &self,
-        statement: &Statement,
-    ) -> anyhow::Result<binius_core::constraint_system::ConstraintSystem<B128>> {
-        Ok(self.cs.compile(statement)?)
     }
 }

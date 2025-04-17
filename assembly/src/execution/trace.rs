@@ -30,6 +30,7 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
+    isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
 #[derive(Debug, Default)]
@@ -112,11 +113,12 @@ impl ZCrayTrace {
     }
 
     pub fn generate(
+        isa: Box<dyn ISA>,
         memory: Memory,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<B32, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
         let trace = interpreter.run(memory)?;
 

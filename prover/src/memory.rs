@@ -1,6 +1,6 @@
-//! Tables for the zCrayVM M3 circuit.
+//! Memory tables for the zCrayVM M3 circuit.
 //!
-//! This module contains the definitions of all the arithmetic tables needed
+//! This module contains the definitions of all the memory tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::Field;
@@ -8,9 +8,6 @@ use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 use binius_m3::gadgets::lookup::LookupProducer;
 
-// Re-export instruction-specific tables
-pub use crate::opcodes::binary::B32MulTable;
-pub use crate::opcodes::{BnzTable, BzTable, LdiTable, RetTable};
 use crate::prover::VROM_MULTIPLICITY_BITS;
 use crate::{
     channels::Channels,
@@ -46,8 +43,8 @@ impl PromTable {
     /// Create a new PROM table with the given constraint system and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
 
@@ -141,8 +138,8 @@ impl VromWriteTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
         table.require_power_of_two_size();
@@ -221,8 +218,8 @@ impl VromSkipTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_skip");
 
@@ -282,8 +279,8 @@ impl VromAddrSpaceTable {
     /// and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_addr_space");
 

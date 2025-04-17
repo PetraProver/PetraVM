@@ -9,6 +9,7 @@ pub mod ldi;
 pub mod ret;
 
 pub use binary::B32MulTable;
+pub use binary_ops::b32::{AndiTable, XoriTable};
 pub use branch::{BnzTable, BzTable};
 pub use ldi::LdiTable;
 pub use ret::RetTable;

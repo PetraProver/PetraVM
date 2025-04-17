@@ -8,6 +8,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use anyhow::ensure;
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
 use tracing::trace;
@@ -35,6 +36,7 @@ use crate::{
     execution::{StateChannel, ZCrayTrace},
     gadgets::Add32Gadget,
     get_last_event,
+    isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
     opcodes::Opcode,
 };
@@ -86,6 +88,9 @@ impl DerefMut for FramePointer {
 /// and state updates.
 #[derive(Debug)]
 pub struct Interpreter {
+    /// The Instruction Set Architecture [`ISA`] to be supported for this
+    /// [`Interpreter`] instance.
+    pub isa: Box<dyn ISA>,
     /// The integer PC represents to the exponent of the actual field
     /// PC (which starts at `B32::ONE` and iterate over the
     /// multiplicative group). Since we need to have a value for 0 as well
@@ -111,6 +116,7 @@ pub struct Interpreter {
 impl Default for Interpreter {
     fn default() -> Self {
         Self {
+            isa: Box::new(GenericISA),
             pc: 1, // default starting value for PC
             fp: FramePointer(0),
             timestamp: 0,
@@ -152,12 +158,19 @@ impl InterpreterInstruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum InterpreterError {
+    #[error("The opcode is not a valid one.")]
     InvalidOpcode,
+    #[error("The opcode {0} is not supported by this instruction set.")]
+    UnsupportedOpcode(Opcode),
+    #[error("The Program Counter is incorrect.")]
     BadPc,
+    #[error("The arguments to this opcode are invalid.")]
     InvalidInput,
+    #[error("A memory access failed with error {0}")]
     MemoryError(MemoryError),
+    #[error("An exception occured.")]
     Exception(InterpreterException),
 }
 
@@ -171,8 +184,13 @@ impl From<MemoryError> for InterpreterError {
 pub enum InterpreterException {}
 
 impl Interpreter {
-    pub(crate) const fn new(frames: LabelsFrameSizes, pc_field_to_int: HashMap<B32, u32>) -> Self {
+    pub(crate) const fn new(
+        isa: Box<dyn ISA>,
+        frames: LabelsFrameSizes,
+        pc_field_to_int: HashMap<B32, u32>,
+    ) -> Self {
         Self {
+            isa,
             pc: 1,
             fp: FramePointer(0),
             timestamp: 0,
@@ -234,7 +252,7 @@ impl Interpreter {
         }
     }
 
-    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<Option<()>, InterpreterError> {
+    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
         if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
@@ -245,6 +263,10 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        if !self.isa.is_supported(opcode) {
+            return Err(InterpreterError::UnsupportedOpcode(opcode));
+        }
+
         trace!(
             "Executing {:?} with args {:?}",
             opcode,
@@ -259,89 +281,7 @@ impl Interpreter {
             field_pc,
         };
 
-        match opcode {
-            Opcode::Bnz => BnzEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpi => JumpiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Jumpv => JumpvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xori => XoriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Xor => XorEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slli => SlliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srli => SrliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srai => SraiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sll => SllEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Srl => SrlEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sra => SraEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Addi => Self::generate_addi(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Add => Self::generate_add(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sub => SubEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slt => SltEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Slti => SltiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltu => SltuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Sltiu => SltiuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Muli => MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulu => MuluEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mulsu => MulsuEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mul => MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ret => RetEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Taili => TailiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Tailv => TailVEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Calli => CalliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Callv => CallvEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::And => AndEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Andi => AndiEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Or => OrEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ori => OriEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvih => MVIHEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvw => MVVWEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Mvvl => MVVLEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Ldi => LDIEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Mul => B32MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B32Muli => B32MuliEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Add => B128AddEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::B128Mul => B128MulEvent::generate(&mut ctx, arg0, arg1, arg2)?,
-            Opcode::Invalid => return Err(InterpreterError::InvalidOpcode),
-        }
-        Ok(Some(()))
-    }
-
-    fn generate_add(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        AddEvent::generate(ctx, dst, src1, src2)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_add_event = get_last_event!(ctx, add);
-
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
-    }
-
-    fn generate_addi(
-        ctx: &mut EventContext,
-        dst: B16,
-        src: B16,
-        imm: B16,
-    ) -> Result<(), InterpreterError> {
-        AddiEvent::generate(ctx, dst, src, imm)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_addi_event = get_last_event!(ctx, addi);
-
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
+        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
     }
 
     pub(crate) fn allocate_new_frame(
@@ -377,7 +317,8 @@ mod tests {
         frames.insert(B32::ONE, 12);
 
         let (trace, boundary_values) =
-            ZCrayTrace::generate(memory, frames, HashMap::new()).expect("Ouch!");
+            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+                .expect("Ouch!");
         trace.validate(boundary_values);
     }
 
@@ -542,9 +483,13 @@ mod tests {
         let mut frames_args_size = HashMap::new();
         frames_args_size.insert(B32::ONE, 10);
 
-        let (traces, boundary_values) =
-            ZCrayTrace::generate(memory, frames_args_size, pc_field_to_int)
-                .expect("Trace generation should not fail.");
+        let (traces, boundary_values) = ZCrayTrace::generate(
+            Box::new(GenericISA),
+            memory,
+            frames_args_size,
+            pc_field_to_int,
+        )
+        .expect("Trace generation should not fail.");
 
         traces.validate(boundary_values);
 
