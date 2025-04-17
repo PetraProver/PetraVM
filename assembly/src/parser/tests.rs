@@ -188,7 +188,7 @@ mod test_parser {
                 case_recurse[0],
                 case_recurse[1],
                 get_binary_slot(5),
-            ], //  1G: BNZ @5, case_recurse
+            ], //  1G: BNZ case_recurse, @5
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
@@ -209,7 +209,7 @@ mod test_parser {
                 case_odd[0],
                 case_odd[1],
                 get_binary_slot(6),
-            ], //  5G: BNZ @6, case_odd
+            ], //  5G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),

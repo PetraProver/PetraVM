@@ -391,7 +391,7 @@ mod tests {
                 case_recurse[0],
                 case_recurse[1],
                 get_binary_slot(5),
-            ], //  1G: BNZ @5, case_recurse,
+            ], //  1G: BNZ case_recurse, @5
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
