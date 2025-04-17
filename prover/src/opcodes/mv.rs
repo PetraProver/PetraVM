@@ -1,13 +1,5 @@
-//! MVV.W (Move Value to Value) table implementation for the zCrayVM M3 circuit.
-//!
-//! This module contains the MVV.W table which handles moving values between
-//! VROM locations in the zCrayVM execution.
-//!
-//! Note: The assembly implementation of MVV.W (in assembly/src/event/mv.rs)
-//! includes a complex system for handling cases where source or destination
-//! addresses might not be available yet, using "pending updates" and
-//! "delegate_move". This prover implementation only deals with the successfully
-//! generated events where all addresses and values were available.
+//! Move Value tables implementation for the zCrayVM M3 circuit.
+
 use std::any::Any;
 
 use binius_m3::builder::{
@@ -15,37 +7,29 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
-// TODO: Implement tables for other move operations that exist in the assembly implementation:
-// - MVV.L (Move Value Long - 128-bit)
-// - MVI.H (Move Immediate Half-word)
-// - LDI (Load Immediate)
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::table::Table;
 use crate::{channels::Channels, types::ProverPackedField};
 
-/// MVV.W (Move Value to Value) table.
+/// MVV.W (Move Value to Value) table implementation.
 ///
-/// This table handles the Move Value to Value instruction, which moves a 32-bit
-/// value from one VROM location to another.
-///
-/// Logic:
-/// 1. Load the current PC and FP from the state channel
-/// 2. Get the instruction from PROM channel
-/// 3. Verify this is an MVV.W instruction
-/// 4. Get the destination address (FP[dst] + offset)
-/// 5. Get the source value from VROM
-/// 6. Store the source value at the destination address
-/// 7. Update PC to move to the next instruction
+/// This table verifies the Move Value to Value (word) instruction, which moves a 32-bit
+/// value from one VROM location to another, with optional offset addressing.
 pub struct MvvwTable {
-    /// Table ID
+    /// Table identifier
     pub id: TableId,
-    /// CPU columns
+    /// CPU-related columns for instruction handling
     cpu_cols: CpuColumns<{ Opcode::Mvvw as u16 }>,
-    dst_abs_addr: Col<B32>,   // Destination address
-    src_abs_addr: Col<B32>,   // Source address
-    final_dst_addr: Col<B32>, // Destination address with offset
-    next_fp_val: Col<B32>,    // Offset
-    src_val: Col<B32>,        // Value to be moved
+    /// Base destination address (FP + dst)
+    dst_abs_addr: Col<B32>,
+    /// Base source address (FP + src)
+    src_abs_addr: Col<B32>,
+    /// Final destination address with offset (next_fp_val + offset)
+    final_dst_addr: Col<B32>,
+    /// Value at dst_abs_addr in VROM (the offset)
+    next_fp_val: Col<B32>,
+    /// Value to be moved (from src_abs_addr)
+    src_val: Col<B32>,
 }
 
 impl Table for MvvwTable {
@@ -58,6 +42,7 @@ impl Table for MvvwTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("mvvw");
 
+        // Set up CPU columns with standard instruction handling
         let cpu_cols = CpuColumns::new(
             &mut table,
             channels.state_channel,
@@ -68,6 +53,7 @@ impl Table for MvvwTable {
             },
         );
 
+        // Extract instruction arguments from CPU columns
         let CpuColumns {
             fp,
             arg0: dst,
@@ -76,24 +62,25 @@ impl Table for MvvwTable {
             ..
         } = cpu_cols;
 
-        // Compute the absolute addresses for destination and source
+        // Compute absolute addresses for source and destination
         let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
         let src_abs_addr = table.add_computed("src_abs_addr", fp + upcast_expr(src.into()));
 
-        // Source value to be moved
+        // Value to be moved from source
         let src_val = table.add_committed("src_val");
 
-        // Pull destination address from VROM
+        // Read the value at dst_abs_addr (this is the base address for final destination)
         let next_fp_val = table.add_committed("next_fp_val");
         table.pull(channels.vrom_channel, [dst_abs_addr, next_fp_val]);
 
+        // Compute final destination address with offset
         let final_dst_addr =
             table.add_computed("final_dst_addr", next_fp_val + upcast_expr(offset.into()));
 
-        // Pull source value from VROM
+        // Read source value from VROM
         table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
 
-        // Make sure the source value is written to the destination address
+        // Verify the source value is written to the final destination address
         table.pull(channels.vrom_channel, [final_dst_addr, src_val]);
 
         Self {
@@ -119,18 +106,24 @@ impl TableFiller<ProverPackedField> for MvvwTable {
         self.id
     }
 
+    /// Fill the table witness with data from MVV.W events
+    ///
+    /// This populates the witness data based on the execution events from
+    /// the corresponding assembly MVV.W operations.
     fn fill<'a>(
         &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
+            // Get mutable references to witness columns
             let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut final_dst_addr = witness.get_scalars_mut(self.final_dst_addr)?;
             let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
             let mut src_val = witness.get_scalars_mut(self.src_val)?;
 
+            // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
                 dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
@@ -140,15 +133,17 @@ impl TableFiller<ProverPackedField> for MvvwTable {
             }
         }
 
+        // Create CPU gadget rows from events
         let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
-            next_pc: None, // NextPc::Increment
+            next_pc: None, // NextPc::Increment handled by CPU columns
             fp: *event.fp,
             arg0: event.dst,
             arg1: event.offset,
             arg2: event.src,
         });
 
+        // Populate CPU columns with the gadget rows
         self.cpu_cols.populate(witness, cpu_rows)
     }
 }
