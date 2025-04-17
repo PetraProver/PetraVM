@@ -62,7 +62,7 @@ fn generate_test_trace<const N: usize>(
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
     // Validate that manually specified multiplicities match the actual ones
-    dbg!(zkvm_trace.trace.vrom().sorted_access_counts());
+    assert_eq!(zkvm_trace.trace.vrom().sorted_access_counts(), vrom_writes);
 
     // Add other VROM writes
     let mut max_dst = 0;
@@ -214,20 +214,20 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     let vrom_writes = vec![
         // Initial LDI event
         (2, 2, 2), // LDI.W @2, #2
-        // LDI in case_recurse
-        (19, 0, 2), // LDI.W @3, #0
-        // Initial MVV.W event
-        (18, 2, 2), // MVV.W @3[2], @2
-        // Additional MVV.W in case_recurse
-        (34, 0, 2), // MVV.W @4[2], @3
+        // New FP values
+        (3, 16, 2),
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
+        // Initial MVV.W event
+        (18, 2, 2), // MVV.W @3[2], @2
+        // LDI in case_recurse
+        (19, 0, 2), // LDI.W @3, #0
+        (20, 32, 2),
         (32, 0, 2),
         (33, 0, 2),
-        // New FP values
-        (3, 16, 2),
-        (20, 32, 2),
+        // Additional MVV.W in case_recurse
+        (34, 0, 2), // MVV.W @4[2], @3
         // Initial values
         (0, 0, 1), // Return PC
         (1, 0, 1), // Return FP
