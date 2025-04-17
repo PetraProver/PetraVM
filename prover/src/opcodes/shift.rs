@@ -116,7 +116,6 @@ impl TableFiller<ProverPackedField> for SrliTable {
             arg0: event.dst,
             arg1: event.src,
             arg2: event.shift_amount as u16,
-            ..Default::default()
         });
         self.cpu_cols.populate(witness, cpu_rows)?;
         self.shifter.populate(witness)?;

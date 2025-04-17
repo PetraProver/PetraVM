@@ -9,7 +9,7 @@ use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
 
 use crate::{
     opcodes::SrliTable,
-    table::{B32MulTable, BnzTable, BzTable, LdiTable, RetTable, Table, TableInfo},
+    table::{B32MulTable, BnzTable, BzTable, LdiTable, RetTable},
 };
 
 /// Implements the [`TableInfo`](crate::table::TableInfo) trait that lifts
@@ -234,35 +234,14 @@ impl Trace {
     }
 }
 
-// Implement the accessor for Srli events.
-impl Trace {
-    /// Returns a reference to the logged `LdiEvent`s from the trace.
-    pub fn srli_events(&self) -> impl Iterator<Item = SrliEvent> + use<'_> {
-        self.trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srli(event) => Some(event),
-                _ => None,
-            })
-    }
-}
-
-impl TableInfo for SrliEvent {
-    type Table = SrliTable;
-
-    fn accessor() -> fn(&Trace) -> &[<SrliTable as Table>::Event] {
-        |trace| Trace::srli_events(trace).collect::<Vec<_>>()
-    }
-}
-
 // Generate event accessors and table info.
 impl_table_info_and_accessor!(
     (LdiEvent, LdiTable, ldi_events, ldi),
     (RetEvent, RetTable, ret_events, ret),
     (BzEvent, BzTable, bz_events, bz),
     (BnzEvent, BnzTable, bnz_events, bnz),
-    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul)
+    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
+    (SrliEvent, SrliTable, srli_events, srli),
 );
 
 // Map all opcodes to their related event and table.

@@ -90,7 +90,6 @@ where
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,          // 16-bit destination VROM offset
-    pub dst_val: u32,      // 32-bit result value
     pub src: u16,          // 16-bit source VROM offset
     pub src_val: u32,      // 32-bit source value
     pub shift_amount: u32, // 32-bit amount to shift source value
@@ -108,7 +107,6 @@ where
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
-        dst_val: u32,
         src: u16,
         src_val: u32,
         shift_amount: u32,
@@ -118,7 +116,6 @@ where
             fp,
             timestamp,
             dst,
-            dst_val,
             src,
             src_val,
             shift_amount,
@@ -170,7 +167,6 @@ where
             fp,
             timestamp,
             dst.val(),
-            new_val,
             src.val(),
             src_val,
             shift_amount,
@@ -201,7 +197,6 @@ where
             fp,
             timestamp,
             dst.val(),
-            new_val,
             src1.val(),
             src_val,
             shift_amount,

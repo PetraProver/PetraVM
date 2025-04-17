@@ -4,12 +4,6 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::{packed::set_packed_slice, Field, PackedExtension, PackedFieldIndexable};
 use binius_m3::builder::{upcast_col, Col, Expr, TableBuilder, TableWitnessSegment, B1, B128, B32};
 
-/// A gadget for performing barrel shift operations (logical shifts and
-/// rotations).
-///
-/// The `BarrelShifter` gadget allows for left shifts, right shifts, and
-/// rotations on 32-bit inputs, with a configurable shift amount and direction.
-
 /// Maximum number of bits of the shift amount, i.e. 0 < shift_ammount < 1 <<
 /// SHIFT_MAX_BITS - 1 = 31 where dst_val = src_val >> shift_amount or dst_val =
 /// src_val << shift_amount
@@ -23,6 +17,12 @@ pub struct BarrelShifterFlags {
     /// Whether the output column should be committed or computed.
     pub(crate) commit_output: bool,
 }
+
+/// A gadget for performing barrel shift operations (logical shifts and
+/// rotations).
+///
+/// The `BarrelShifter` gadget allows for left shifts, right shifts, and
+/// rotations on 32-bit inputs, with a configurable shift amount and direction.
 pub struct BarrelShifter {
     /// The input column representing the 32-bit value to be shifted.
     input: Col<B1, 32>,
@@ -79,9 +79,8 @@ impl BarrelShifter {
         let mut current_shift = input;
         for i in 0..MAX_SHIFT_BITS {
             shifted.push(table.add_shifted("shifted", current_shift, 5, 1 << i, flags.variant));
-            let partial_shift_packed: Col<B32> = table
-                .add_packed(format!("partial_shift_packed_{i}"), partial_shift[i])
-                .into();
+            let partial_shift_packed: Col<B32> =
+                table.add_packed(format!("partial_shift_packed_{i}"), partial_shift[i]);
             let shifted_packed: Expr<B32, 1> = table
                 .add_packed(format!("shifted_packed_{i}"), shifted[i])
                 .into();
