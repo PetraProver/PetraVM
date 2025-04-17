@@ -10,7 +10,6 @@ use crate::{
     channels::Channels,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::{build_table_for_opcode, Trace},
-    prover::MIN_VROM_ADDR_SPACE,
     table::FillableTable,
 };
 
@@ -102,10 +101,7 @@ impl Circuit {
 
         let prom_size = trace.program.len();
 
-        let vrom_addr_space_size = trace
-            .max_vrom_addr
-            .next_power_of_two()
-            .max(MIN_VROM_ADDR_SPACE);
+        let vrom_addr_space_size = trace.max_vrom_addr.next_power_of_two();
 
         // VROM write size is the number of addresses we write to
         let vrom_write_size = trace.vrom_writes.len();

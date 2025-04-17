@@ -32,8 +32,11 @@ pub struct TailiTable {
     /// CPU columns
     cpu_cols: CpuColumns<{ Opcode::Taili as u16 }>,
     next_fp: Col<B32>,
-    next_fp_off_upcast: Col<B32>,
     next_fp_abs_addr: Col<B32>,
+    cur_fp_0_val: Col<B32>,
+    cur_fp_1_val: Col<B32>,
+    cur_fp_1: Col<B32>,
+    next_fp_1: Col<B32>,
 }
 
 impl Table for TailiTable {
@@ -58,24 +61,37 @@ impl Table for TailiTable {
         );
 
         let CpuColumns {
-            fp,
+            fp: cur_fp,
             arg2: next_fp_off,
             ..
         } = cpu_cols;
 
         // Compute the absolute address for the next frame pointer
-        let next_fp_off_upcast = table.add_computed("next_fp_off", upcast_expr(next_fp_off.into()));
-        let next_fp_abs_addr = table.add_computed("next_fp_abs_addr", fp + next_fp_off_upcast);
+        let next_fp_abs_addr =
+            table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp_off.into()));
 
         // Pull next_fp from VROM
         table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp]);
+
+        let cur_fp_0_val = table.add_committed("cur_fp_0_val");
+        let cur_fp_1 = table.add_computed("fp_1", cur_fp + B32::new(1));
+        let cur_fp_1_val = table.add_committed("cur_fp_1_val");
+        table.pull(channels.vrom_channel, [cur_fp, cur_fp_0_val]);
+        table.pull(channels.vrom_channel, [cur_fp_1, cur_fp_1_val]);
+
+        let next_fp_1 = table.add_computed("next_fp_1", next_fp + B32::new(1));
+        table.pull(channels.vrom_channel, [next_fp, cur_fp_0_val]);
+        table.pull(channels.vrom_channel, [next_fp_1, cur_fp_1_val]);
 
         Self {
             id: table.id(),
             cpu_cols,
             next_fp,
-            next_fp_off_upcast,
             next_fp_abs_addr,
+            cur_fp_0_val,
+            cur_fp_1_val,
+            cur_fp_1,
+            next_fp_1,
         }
     }
 
@@ -98,25 +114,31 @@ impl TableFiller<ProverPackedField> for TailiTable {
     ) -> anyhow::Result<()> {
         {
             let mut next_fp = witness.get_mut_as(self.next_fp)?;
-            let mut next_fp_off_upcast = witness.get_mut_as(self.next_fp_off_upcast)?;
             let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            
+            let mut cur_fp_0_val = witness.get_mut_as(self.cur_fp_0_val)?;
+            let mut cur_fp_1_val = witness.get_mut_as(self.cur_fp_1_val)?;
+            let mut cur_fp_1 = witness.get_mut_as(self.cur_fp_1)?;
+            let mut next_fp_1 = witness.get_mut_as(self.next_fp_1)?;
+
             for (i, event) in rows.clone().enumerate() {
                 next_fp[i] = event.next_fp_val;
-                next_fp_off_upcast[i] = event.next_fp as u32;
                 next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
+                cur_fp_0_val[i] = event.return_addr;
+                cur_fp_1[i] = event.fp.addr(1u32);
+                cur_fp_1_val[i] = event.old_fp_val;
+                next_fp_1[i] = event.next_fp_val + 1;
             }
         }
-        
+
         let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target),
             fp: *event.fp,
-            arg0: (event.target & 0xFFFF) as u16,            // target_low
-            arg1: ((event.target >> 16) & 0xFFFF) as u16,    // target_high
-            arg2: event.next_fp,                            // next_fp
+            arg0: (event.target & 0xFFFF) as u16, // target_low
+            arg1: ((event.target >> 16) & 0xFFFF) as u16, // target_high
+            arg2: event.next_fp,                  // next_fp
         });
-        
+
         self.cpu_cols.populate(witness, cpu_rows)
     }
 }

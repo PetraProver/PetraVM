@@ -200,8 +200,10 @@ impl TableFiller<ProverPackedField> for VromWriteTable {
 
             // Fill in values from events
             for (i, (addr, value, _)) in rows.clone().enumerate() {
+                dbg!(i, addr, value);
                 addr_col[i] = B32::new(*addr);
                 value_col[i] = B32::new(*value);
+                dbg!(addr_col[i], value_col[i]);
             }
         }
 

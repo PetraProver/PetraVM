@@ -65,8 +65,8 @@ fn generate_test_trace<const N: usize>(
     let mut max_dst = 0;
     // TODO: the lookup gadget requires a minimum of 128 entries
     let vrom_write_size = vrom_writes.len().next_power_of_two().max(128);
-    for (dst, imm, multiplicity) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, imm, multiplicity);
+    for (dst, val, multiplicity) in vrom_writes {
+        zkvm_trace.add_vrom_write(dst, val, multiplicity);
         max_dst = max_dst.max(dst);
     }
 
@@ -78,7 +78,6 @@ fn generate_test_trace<const N: usize>(
     }
 
     zkvm_trace.max_vrom_addr = max_dst as usize;
-    dbg!(&zkvm_trace);
     Ok(zkvm_trace)
 }
 
@@ -218,17 +217,17 @@ fn generate_simple_taili_trace() -> Result<Trace> {
         (18, 2, 2), // MVV.W @3[2], @2
         // Additional MVV.W in case_recurse
         (34, 0, 2), // MVV.W @4[2], @3
+        // TAILI events
+        (16, 0, 2),
+        (17, 0, 2),
+        (32, 0, 2),
+        (33, 0, 2),
+        // New FP values
+        (3, 16, 2),
+        (20, 32, 2),
         // Initial values
         (0, 0, 1), // Return PC
         (1, 0, 1), // Return FP
-        // New FP values
-        (3, 16, 1),
-        (20, 32, 1),
-        // TAILI events
-        (16, 0, 1),
-        (17, 0, 1),
-        (32, 0, 1),
-        (33, 0, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)

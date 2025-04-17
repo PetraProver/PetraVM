@@ -44,7 +44,7 @@ pub struct MvvwTable {
     dst_abs_addr: Col<B32>,   // Destination address
     src_abs_addr: Col<B32>,   // Source address
     final_dst_addr: Col<B32>, // Destination address with offset
-    offset_col: Col<B32>,     // Offset
+    next_fp_val: Col<B32>,    // Offset
     src_val: Col<B32>,        // Value to be moved
 }
 
@@ -79,18 +79,16 @@ impl Table for MvvwTable {
         // Compute the absolute addresses for destination and source
         let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
         let src_abs_addr = table.add_computed("src_abs_addr", fp + upcast_expr(src.into()));
-        let offset_col = table.add_computed("offset", upcast_expr(offset.into()));
-
-        // Compute final destination address with offset
-        // In binary fields, addition (+) is equivalent to XOR (^)
-        // This matches the XOR operation used in the witness generation
-        // The XOR operation is used for address calculation to combine base address
-        // with offset rather than simple addition, which is a specific feature
-        // of the zCrayVM memory model
-        let final_dst_addr = table.add_computed("final_dst_addr", dst_abs_addr + offset_col);
 
         // Source value to be moved
         let src_val = table.add_committed("src_val");
+
+        // Pull destination address from VROM
+        let next_fp_val = table.add_committed("next_fp_val");
+        table.pull(channels.vrom_channel, [dst_abs_addr, next_fp_val]);
+
+        let final_dst_addr =
+            table.add_computed("final_dst_addr", next_fp_val + upcast_expr(offset.into()));
 
         // Pull source value from VROM
         table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
@@ -104,7 +102,7 @@ impl Table for MvvwTable {
             dst_abs_addr,
             src_abs_addr,
             final_dst_addr,
-            offset_col,
+            next_fp_val,
             src_val,
         }
     }
@@ -126,25 +124,17 @@ impl TableFiller<ProverPackedField> for MvvwTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        // This fill method populates the witness with MVV.W events
-        // In the assembly implementation, MVV.W events are generated through a complex
-        // process that handles cases where source or destination addresses
-        // might not be available yet Here we're only concerned with filling in
-        // values for events that have been successfully generated (with all
-        // required addresses and values available)
         {
             let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut final_dst_addr = witness.get_scalars_mut(self.final_dst_addr)?;
-            let mut offset_col = witness.get_scalars_mut(self.offset_col)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
             let mut src_val = witness.get_scalars_mut(self.src_val)?;
 
             for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = B32::new(event.dst_addr);
+                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
-                offset_col[i] = B32::new(event.offset as u32);
-                // XOR operation here matches the + operation in the constraint
-                // since in binary fields, addition is equivalent to XOR
+                next_fp_val[i] = B32::new(event.dst_addr);
                 final_dst_addr[i] = B32::new(event.dst_addr ^ event.offset as u32);
                 src_val[i] = B32::new(event.src_val);
             }
