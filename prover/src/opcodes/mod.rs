@@ -5,7 +5,6 @@
 pub mod binary;
 pub mod binary_ops;
 pub mod branch;
-pub mod cpu;
 pub mod ldi;
 pub mod ret;
 
