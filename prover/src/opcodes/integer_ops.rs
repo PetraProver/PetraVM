@@ -26,7 +26,6 @@ const ADDI_OPCODE: u16 = Opcode::Addi as u16;
 /// multiplication between a 32-bit element and a 16-bit immediate.
 pub struct AddiTable {
     id: TableId,
-    // TODO: Use the cpu gadget
     cpu_cols: CpuColumns<ADDI_OPCODE>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
