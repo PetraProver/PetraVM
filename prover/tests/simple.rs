@@ -23,7 +23,6 @@ use zcrayvm_prover::prover::{verify_proof, Prover};
 ///
 /// # Returns
 /// * A Trace containing executed instructions
-// TODO: we should extract VROM writes from zcray_trace
 fn generate_test_trace<const N: usize>(
     asm_code: String,
     init_values: [u32; N],
