@@ -7,7 +7,7 @@ pub mod branch;
 pub mod ldi;
 pub mod ret;
 
-pub use binary::B32MulTable;
-pub use branch::{BnzTable, BzTable};
+pub use binary::*;
+pub use branch::*;
 pub use ldi::LdiTable;
 pub use ret::RetTable;

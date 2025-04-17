@@ -15,7 +15,7 @@ use zcrayvm_assembly::opcodes::InstructionInfo;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
-pub use crate::opcodes::{binary::B32MulTable, BnzTable, BzTable, LdiTable, RetTable};
+pub use crate::opcodes::*;
 use crate::{channels::Channels, types::ProverPackedField};
 
 pub trait TableInfo: InstructionInfo {
