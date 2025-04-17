@@ -61,6 +61,9 @@ fn generate_test_trace<const N: usize>(
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
+    // Validate that manually specified multiplicities match the actual ones
+    dbg!(zkvm_trace.trace.vrom().sorted_access_counts());
+
     // Add other VROM writes
     let mut max_dst = 0;
     // TODO: the lookup gadget requires a minimum of 128 entries
@@ -195,18 +198,18 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     let init_values = [0, 0];
 
     // VROM state after the trace is executed
-    // 0: 0
-    // 1: 0
-    // 2: 2
-    // 3: 16
-    // 16: 0
-    // 17: 0
-    // 18: 2
-    // 19: 0
-    // 20: 32
-    // 32: 0
-    // 33: 0
-    // 34: 0
+    // 0: 0 (1)
+    // 1: 0 (1)
+    // 2: 2 (2)
+    // 3: 16 (2)
+    // 16: 0 (2)
+    // 17: 0 (2)
+    // 18: 2 (2)
+    // 19: 0 (2)
+    // 20: 32 (2)
+    // 32: 0 (2)
+    // 33: 0 (2)
+    // 34: 0 (2)
     // Sorted by number of accesses
     let vrom_writes = vec![
         // Initial LDI event

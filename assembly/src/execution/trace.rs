@@ -206,7 +206,23 @@ impl ZCrayTrace {
         value: T,
     ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
+        self.flush_pending_updates(index, value)
+    }
 
+    pub(crate) fn vrom_write_no_count<T: VromValueT>(
+        &mut self,
+        index: u32,
+        value: T,
+    ) -> Result<(), MemoryError> {
+        self.vrom_mut().write_no_count(index, value)?;
+        self.flush_pending_updates(index, value)
+    }
+
+    fn flush_pending_updates<T: VromValueT>(
+        &mut self,
+        index: u32,
+        value: T,
+    ) -> Result<(), MemoryError> {
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
