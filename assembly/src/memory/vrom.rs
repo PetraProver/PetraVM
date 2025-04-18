@@ -223,7 +223,7 @@ impl ValueRom {
                 }
             })
             .collect();
-        entries.sort_unstable_by(|a, b| b.2.cmp(&a.2));
+        entries.sort_by(|a, b| b.2.cmp(&a.2));
         entries
     }
 }
