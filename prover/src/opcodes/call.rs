@@ -144,9 +144,9 @@ impl TableFiller<ProverPackedField> for TailiTable {
             pc: event.pc.val(),
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
-            arg0: (event.target & 0xFFFF) as u16, // target_low (lower 16 bits)
-            arg1: ((event.target >> 16) & 0xFFFF) as u16, // target_high (upper 16 bits)
-            arg2: event.next_fp,                  // next_fp address
+            arg0: event.target as u16,         // target_low (lower 16 bits)
+            arg1: (event.target >> 16) as u16, // target_high (upper 16 bits)
+            arg2: event.next_fp,               // next_fp address
         });
 
         // Populate CPU columns with the gadget rows

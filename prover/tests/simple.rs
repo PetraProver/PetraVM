@@ -198,7 +198,7 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-/// Creates an execution trace for a simple program that uses only MVI.W,
+/// Creates an execution trace for a simple program that uses only MVV.W,
 /// BNZ, TAILI, and RET.
 ///
 /// # Returns
@@ -399,7 +399,7 @@ fn test_ldi_add_ret() -> Result<()> {
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
     test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify we have one LDI event (for @2 initialization)
+        // Verify we have two LDI events (one in _start and one in case_recurse)
         assert_eq!(
             trace.ldi_events().len(),
             2,
@@ -410,7 +410,7 @@ fn test_simple_taili_loop() -> Result<()> {
         let bnz_events = trace.bnz_events();
         assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
 
-        // Verify we have one RET event (after counter becomes 0)
+        // Verify we have one RET event (after condition becomes 0)
         assert_eq!(
             trace.ret_events().len(),
             1,
@@ -431,7 +431,7 @@ fn test_simple_taili_loop() -> Result<()> {
             "Should have exactly two MVVW events"
         );
 
-        // Verify we have one BZ event (when counter becomes 0)
+        // Verify we have one BZ event (when condition becomes 0)
         assert_eq!(
             trace.bz_events().len(),
             1,
