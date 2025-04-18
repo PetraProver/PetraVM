@@ -238,14 +238,14 @@ impl TableFiller<ProverPackedField> for MvihTable {
     ) -> anyhow::Result<()> {
         {
             // Fill VROM reads/writes
-            let mut dst_abs = witness.get_scalars_mut(self.dst_abs_addr)?;
-            let mut base = witness.get_scalars_mut(self.dst_addr)?;
+            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
+            let mut dst_addr_col = witness.get_scalars_mut(self.dst_addr)?;
             let mut final_dst_addr_col = witness.get_scalars_mut(self.final_dst_addr)?;
             let mut imm_col = witness.get_scalars_mut(self.imm_val)?;
 
             for (i, ev) in rows.clone().enumerate() {
-                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
-                base[i] = B32::new(ev.dst_addr);
+                dst_abs_addr_col[i] = B32::new(ev.fp.addr(ev.dst));
+                dst_addr_col[i] = B32::new(ev.dst_addr);
                 final_dst_addr_col[i] = B32::new(ev.dst_addr ^ ev.offset as u32);
                 imm_col[i] = B32::new(ev.imm as u32);
             }
