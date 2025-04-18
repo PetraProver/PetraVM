@@ -213,8 +213,8 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // 3. case_recurse tail calls back to loop
     let asm_code = "#[framesize(0x10)]\n\
          _start:\n\
-           MVI.H @3[2], #2\n\
-           TAILI loop, @3\n\
+           MVI.H @2[2], #2\n\
+           TAILI loop, @2\n\
          #[framesize(0x10)]\n\
          loop:\n\
            BNZ case_recurse, @2\n\
@@ -231,8 +231,7 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // VROM state after the trace is executed
     // 0: 0 (1)
     // 1: 0 (1)
-    // 2: 2 (2)
-    // 3: 16 (2)
+    // 2: 16 (2)
     // 16: 0 (2)
     // 17: 0 (2)
     // 18: 2 (2)
@@ -243,10 +242,8 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // 34: 0 (2)
     // Sorted by number of accesses
     let vrom_writes = vec![
-        // Initial LDI event
-        (2, 2, 2), // LDI.W @2, #2
         // New FP values
-        (3, 16, 2),
+        (2, 16, 2),
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
