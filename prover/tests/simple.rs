@@ -252,26 +252,23 @@ fn generate_and_ret_trace() -> Result<Trace> {
 
 #[test]
 fn test_and_ret() -> Result<()> {
-    test_from_trace_generator(
-        || generate_and_ret_trace(),
-        |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
-                trace.and_events().len(),
-                1,
-                "Should have exactly one AND event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
+    test_from_trace_generator(generate_and_ret_trace, |trace| {
+        assert_eq!(
+            trace.program.len(),
+            2,
+            "Program should have exactly 2 instructions"
+        );
+        assert_eq!(
+            trace.and_events().len(),
+            1,
+            "Should have exactly one AND event"
+        );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
 }
 
 // Creates a basic execution trace with just XOR and RET instructions.
@@ -368,76 +365,65 @@ fn generate_ori_ret_trace() -> Result<Trace> {
 
 #[test]
 fn test_xor_ret() -> Result<()> {
-    zcrayvm_assembly::init_logger();
-    test_from_trace_generator(
-        || generate_xor_ret_trace(),
-        |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
-                trace.xor_events().len(),
-                1,
-                "Should have exactly one XOR event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
+    test_from_trace_generator(generate_xor_ret_trace, |trace| {
+        assert_eq!(
+            trace.program.len(),
+            2,
+            "Program should have exactly 2 instructions"
+        );
+        assert_eq!(
+            trace.xor_events().len(),
+            1,
+            "Should have exactly one XOR event"
+        );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
 }
 
 #[test]
 fn test_or_ret() -> Result<()> {
-    test_from_trace_generator(
-        || generate_or_ret_trace(),
-        |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
-                trace.or_events().len(),
-                1,
-                "Should have exactly one OR event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
+    test_from_trace_generator(generate_or_ret_trace, |trace| {
+        assert_eq!(
+            trace.program.len(),
+            2,
+            "Program should have exactly 2 instructions"
+        );
+        assert_eq!(
+            trace.or_events().len(),
+            1,
+            "Should have exactly one OR event"
+        );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
 }
 
 #[test]
 fn test_ori_ret() -> Result<()> {
-    zcrayvm_assembly::init_logger();
-    test_from_trace_generator(
-        || generate_ori_ret_trace(),
-        |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
-                trace.ori_events().len(),
-                1,
-                "Should have exactly one ORI event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
+    test_from_trace_generator(generate_ori_ret_trace, |trace| {
+        assert_eq!(
+            trace.program.len(),
+            2,
+            "Program should have exactly 2 instructions"
+        );
+        assert_eq!(
+            trace.ori_events().len(),
+            1,
+            "Should have exactly one ORI event"
+        );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
 }
 
 #[test]
