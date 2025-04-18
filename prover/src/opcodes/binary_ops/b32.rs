@@ -30,7 +30,7 @@ impl Table for XoriTable {
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("ret");
+        let mut table = cs.add_table("xori");
         let src_val = table.add_committed("src_val");
 
         let cpu_cols = CpuColumns::new(
@@ -86,9 +86,9 @@ impl TableFiller<ProverPackedField> for XoriTable {
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = *event.fp ^ (event.dst as u32);
+                dst_abs[i] = event.fp.addr(event.dst);
                 dst_val[i] = event.dst_val;
-                src_abs[i] = *event.fp ^ (event.src as u32);
+                src_abs[i] = event.fp.addr(event.src);
                 src_val[i] = event.src_val;
             }
         }
@@ -125,7 +125,7 @@ impl Table for AndiTable {
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("and");
+        let mut table = cs.add_table("andi");
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val");
         let src_val = table.add_packed("src_val", src_val_unpacked);
 
@@ -188,9 +188,9 @@ impl TableFiller<ProverPackedField> for AndiTable {
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             let mut src_val_low = witness.get_mut_as(self.src_val_low)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst as u32);
+                dst_abs[i] = event.fp.addr(event.dst);
                 dst_val_unpacked[i] = event.dst_val as u16;
-                src_abs[i] = event.fp.addr(event.src as u32);
+                src_abs[i] = event.fp.addr(event.src);
                 src_val_unpacked[i] = event.src_val;
                 src_val_low[i] = event.src_val as u16;
             }
