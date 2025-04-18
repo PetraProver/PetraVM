@@ -8,7 +8,7 @@ use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B32,
 };
-use zcrayvm_assembly::{opcodes::Opcode, AndEvent, B32MulEvent, OrEvent, XorEvent};
+use zcrayvm_assembly::{opcodes::Opcode, AndEvent, B32MulEvent, OrEvent, OriEvent, XorEvent};
 
 use crate::{
     channels::Channels,
@@ -502,6 +502,136 @@ impl TableFiller<ProverPackedField> for OrTable {
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
+        });
+        self.cpu_cols.populate(witness, cpu_rows)
+    }
+}
+
+pub struct OriTable {
+    /// Table ID
+    id: TableId,
+    /// CPU columns
+    cpu_cols: CpuColumns<{ Opcode::Ori as u16 }>,
+    /// Source value
+    pub src_val: Col<B32>,
+    /// Source value, unpacked
+    src_val_unpacked: Col<B1, 32>,
+    // TODO: `imm` and `imm_32b_unpacked` should not need to be part of this table as fetched
+    // directly from the CPU gadget. Revamp this once a new version of `ZeroPadding` is implemented
+    // on the binius side.
+    /// Immediate value
+    imm: Col<B1, 16>,
+    /// Immediate value, unpacked
+    imm_32b_unpacked: Col<B1, 32>,
+    /// Result value
+    pub dst_val: Col<B32>,
+    /// Result value, unpacked
+    dst_val_unpacked: Col<B1, 32>,
+    /// PROM channel pull value
+    pub src_abs_addr: Col<B32>,
+    /// Destination absolute address
+    pub dst_abs_addr: Col<B32>,
+}
+
+impl Table for OriTable {
+    type Event = OriEvent;
+
+    fn name(&self) -> &'static str {
+        "OriTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("ori");
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val");
+        let src_val = table.add_packed("src_val", src_val_unpacked);
+        let imm_32b_unpacked: Col<B1, 32> = table.add_committed("imm_32b");
+
+        let cpu_cols = CpuColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            CpuColumnsOptions::default(),
+        );
+
+        let dst_abs_addr =
+            table.add_computed("dst_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let src_abs_addr =
+            table.add_computed("src_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+
+        let imm: Col<B1, 16> = table.add_selected_block("imm", imm_32b_unpacked, 0);
+        table.assert_zero("imm_check", imm - cpu_cols.arg2_unpacked);
+
+        let imm_high: Col<B1, 16> = table.add_selected_block("imm_high", imm_32b_unpacked, 1);
+        table.assert_zero("imm_high_check", imm_high.into());
+
+        let dst_val_unpacked = table.add_computed(
+            "dst_val_unpacked",
+            // DeMorgan Law: a | b == a + b + (a * b)
+            src_val_unpacked + imm_32b_unpacked + (src_val_unpacked * imm_32b_unpacked),
+        );
+        let dst_val = table.add_packed("dst_val", dst_val_unpacked);
+
+        // Read src_val
+        table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
+
+        // Read dst_val
+        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+
+        Self {
+            id: table.id(),
+            cpu_cols,
+            src_abs_addr,
+            src_val,
+            src_val_unpacked,
+            imm,
+            imm_32b_unpacked,
+            dst_abs_addr,
+            dst_val,
+            dst_val_unpacked,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for OriTable {
+    type Event = OriEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs_addr = witness.get_mut_as(self.dst_abs_addr)?;
+            let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
+            let mut src_abs_addr = witness.get_mut_as(self.src_abs_addr)?;
+            let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut imm_32b_unpacked = witness.get_mut_as(self.imm_32b_unpacked)?;
+            let mut imm = witness.get_mut_as(self.imm)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs_addr[i] = event.fp.addr(event.dst);
+                dst_val_unpacked[i] = event.dst_val;
+                src_abs_addr[i] = event.fp.addr(event.src);
+                src_val_unpacked[i] = event.src_val;
+                imm[i] = event.imm;
+                imm_32b_unpacked[i] = event.imm as u32;
+            }
+        }
+        let cpu_rows = rows.map(|event| CpuGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm,
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }

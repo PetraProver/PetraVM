@@ -241,6 +241,7 @@ impl_table_info_and_accessor!(
     (AndEvent, AndTable, and_events, and),
     (XorEvent, XorTable, xor_events, xor),
     (OrEvent, OrTable, or_events, or),
+    (OriEvent, OriTable, ori_events, ori),
 );
 
 // Map all opcodes to their related event and table.
@@ -254,4 +255,5 @@ define_table_registry!(
     (AndEvent, AndTable, And),
     (XorEvent, XorTable, Xor),
     (OrEvent, OrTable, Or),
+    (OriEvent, OriTable, Ori),
 );
