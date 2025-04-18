@@ -2,7 +2,7 @@ use std::any::Any;
 
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
-    B32,
+    B16, B32,
 };
 use zcrayvm_assembly::{AndiEvent, Opcode, XoriEvent};
 
@@ -111,8 +111,10 @@ pub struct AndiTable {
     src_abs: Col<B32>,             // Virtual
     dst_val_unpacked: Col<B1, 16>, // Virtual
     src_val_unpacked: Col<B1, 32>,
-    dst_val: Col<B32>, // Virtual
     src_val: Col<B32>, // Virtual
+    dst_val: Col<B16>, // Virtual
+    /// The lower 16 bits of src_val.
+    src_val_low: Col<B1, 16>,
 }
 
 impl Table for AndiTable {
@@ -138,13 +140,13 @@ impl Table for AndiTable {
         let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
         let imm = cpu_cols.arg2_unpacked;
 
-        let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 9);
+        let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
         let dst_val_unpacked = table.add_computed("dst_val", src_val_low * imm);
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [dst_abs, upcast_col(dst_val)]);
 
         // Read src_val
         table.pull(channels.vrom_channel, [src_abs, src_val]);
@@ -158,6 +160,7 @@ impl Table for AndiTable {
             src_val,
             dst_val_unpacked,
             src_val_unpacked,
+            src_val_low,
         }
     }
 
@@ -183,11 +186,13 @@ impl TableFiller<ProverPackedField> for AndiTable {
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut src_val_low = witness.get_mut_as(self.src_val_low)?;
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 dst_val_unpacked[i] = event.dst_val as u16;
                 src_abs[i] = event.fp.addr(event.src as u32);
-                src_val_unpacked[i] = event.src_val as u16;
+                src_val_unpacked[i] = event.src_val;
+                src_val_low[i] = event.src_val as u16;
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
