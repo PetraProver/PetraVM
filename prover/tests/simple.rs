@@ -187,12 +187,12 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 
     // Add VROM writes from LDI and ADD events
     let vrom_writes = vec![
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
         // LDI events
         (2, src1_value, 2),
         (3, src2_value, 2),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
         // ADD event
         (4, src1_value + src2_value, 1),
     ];
@@ -201,74 +201,6 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 }
 
 /// Creates an execution trace for a simple program that uses only MVV.W,
-/// BNZ, TAILI, and RET.
-///
-/// # Returns
-/// * A Trace containing a simple program with a loop using TAILI, the BNZ
-///   instruction is executed twice.
-fn generate_simple_taili_trace() -> Result<Trace> {
-    // Create a very simple assembly program that:
-    // 1. _start sets up initial values and tail calls to loop
-    // 2. loop checks if @2 is non-zero and either returns or continues
-    // 3. case_recurse tail calls back to loop
-    let asm_code = "#[framesize(0x10)]\n\
-         _start:\n\
-           LDI.W @2, #2\n\
-           MVV.W @3[2], @2\n\
-           TAILI loop, @3\n\
-         #[framesize(0x10)]\n\
-         loop:\n\
-           BNZ case_recurse, @2\n\
-           RET\n\
-         case_recurse:\n\
-           LDI.W @3, #0\n\
-           MVV.W @4[2], @3\n\
-           TAILI loop, @4\n"
-        .to_string();
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
-
-    // VROM state after the trace is executed
-    // 0: 0
-    // 1: 0
-    // 2: 2
-    // 3: 16
-    // 16: 0
-    // 17: 0
-    // 18: 2
-    // 19: 0
-    // 20: 32
-    // 32: 0
-    // 33: 0
-    // 34: 0
-    // Sorted by number of accesses
-    let vrom_writes = vec![
-        // Initial LDI event
-        (2, 2, 2), // LDI.W @2, #2
-        // LDI in case_recurse
-        (19, 0, 2), // LDI.W @3, #0
-        // Initial MVV.W event
-        (18, 2, 2), // MVV.W @3[2], @2
-        // Additional MVV.W in case_recurse
-        (34, 0, 2), // MVV.W @4[2], @3
-        // TAILI events
-        (16, 0, 2),
-        (17, 0, 2),
-        (32, 0, 2),
-        (33, 0, 2),
-        // New FP values
-        (3, 16, 2),
-        (20, 32, 2),
-        // Initial values
-        (0, 0, 1), // Return PC
-        (1, 0, 1), // Return FP
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-/// Creates an execution trace for a simple program that uses only MVI.W,
 /// BNZ, TAILI, and RET.
 ///
 /// # Returns
@@ -502,50 +434,6 @@ fn test_simple_taili_loop() -> Result<()> {
         );
 
         // Verify we have one BZ event (when condition becomes 0)
-        assert_eq!(
-            trace.bz_events().len(),
-            1,
-            "Should have exactly one BZ event"
-        );
-    })
-}
-
-#[test]
-fn test_simple_taili_loop() -> Result<()> {
-    test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify we have one LDI event (for @2 initialization)
-        assert_eq!(
-            trace.ldi_events().len(),
-            2,
-            "Should have exactly two LDI events"
-        );
-
-        // Verify we have one BNZ event (first is taken, continues to case_recurse)
-        let bnz_events = trace.bnz_events();
-        assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
-
-        // Verify we have one RET event (after counter becomes 0)
-        assert_eq!(
-            trace.ret_events().len(),
-            1,
-            "Should have exactly one RET event"
-        );
-
-        // Verify we have two TAILI events (initial call to loop and recursive call)
-        assert_eq!(
-            trace.taili_events().len(),
-            2,
-            "Should have exactly two TAILI events"
-        );
-
-        // Verify we have two MVVW events (one in _start and one in case_recurse)
-        assert_eq!(
-            trace.mvvw_events().len(),
-            2,
-            "Should have exactly two MVVW events"
-        );
-
-        // Verify we have one BZ event (when counter becomes 0)
         assert_eq!(
             trace.bz_events().len(),
             1,
