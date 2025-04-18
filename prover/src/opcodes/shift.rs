@@ -105,8 +105,8 @@ impl TableFiller<ProverPackedField> for SrliTable {
 
             for (i, event) in rows.clone().enumerate() {
                 src_val[i] = event.src_val;
-                dst_abs[i] = event.fp.addr(event.dst as u32);
-                src_abs[i] = event.fp.addr(event.src as u32);
+                dst_abs[i] = event.fp.addr(event.dst);
+                src_abs[i] = event.fp.addr(event.src);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
