@@ -3,7 +3,7 @@ use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
-    gadgets::barrel_shifter::{BarrelShifter, BarrelShifterFlags},
+    gadgets::barrel_shifter::BarrelShifter,
 };
 use zcrayvm_assembly::{Opcode, SrliEvent};
 
@@ -54,10 +54,7 @@ impl Table for SrliTable {
             &mut table,
             src_val_unpacked,
             cpu_cols.arg2_unpacked,
-            BarrelShifterFlags {
-                variant: ShiftVariant::LogicalRight,
-                commit_output: false,
-            },
+            ShiftVariant::LogicalRight,
         );
 
         let dst_val = table.add_packed("dst_val", shifter.output);
