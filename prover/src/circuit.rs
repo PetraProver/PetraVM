@@ -47,7 +47,6 @@ impl Circuit {
     pub fn new(isa: Box<dyn ISA>) -> Self {
         let mut cs = ConstraintSystem::new();
         let channels = Channels::new(&mut cs);
-        println!("Channels: {:?}", channels);
 
         // Create all the tables
         let prom_table = PromTable::new(&mut cs, &channels);

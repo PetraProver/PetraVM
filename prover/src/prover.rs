@@ -80,9 +80,6 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
-        // The +1 accounts for the extra vrom write with 0 multiplicity
-        // because of the lookup issue.
-        // TODO: HAMYHAMY remove it.
         let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
         let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
