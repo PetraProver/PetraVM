@@ -78,7 +78,10 @@ impl Prover {
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
-        let vrom_size = trace.trace.vrom_size().next_power_of_two();
+        // The +1 accounts for the extra vrom write with 0 multiplicity
+        // because of the lookup issue.
+        // TODO: remove it.
+        let vrom_size = (trace.trace.vrom_size() + 1).next_power_of_two();
         let vrom_addr_space: Vec<u32> = (0..vrom_size as u32).collect();
         witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
@@ -95,10 +98,14 @@ impl Prover {
             .collect();
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
-
         witness.fill_table_sequential(&self.circuit.ldi_table, trace.ldi_events())?;
         witness.fill_table_sequential(&self.circuit.ret_table, trace.ret_events())?;
         witness.fill_table_sequential(&self.circuit.b32_mul_table, trace.b32_mul_events())?;
+        witness.fill_table_sequential(&self.circuit.b128_add_table, trace.b128_add_events())?;
+        // println!(
+        //     "{:#?}",
+        //     witness.get_table(self.circuit.b128_add_table.id()).unwrap()
+        // );
 
         // 7. Fill BNZ table with branch not zero events
         witness.fill_table_sequential(&self.circuit.bnz_table, trace.bnz_events())?;
