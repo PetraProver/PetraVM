@@ -56,7 +56,7 @@ impl EventContext<'_> {
         self.vrom().read(addr)
     }
 
-    pub fn vrom_check_value_set<T>(&self, addr: u32) -> bool
+    pub fn vrom_check_value_set<T>(&self, addr: u32) -> Result<bool, MemoryError>
     where
         T: VromValueT,
     {

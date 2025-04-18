@@ -201,7 +201,7 @@ impl MvvwEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr);
+        let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
@@ -241,14 +241,14 @@ impl MvvwEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()));
-        let src_val_set = ctx.vrom_check_value_set::<u32>(ctx.addr(src.val()));
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u32>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if dst_addr_set {
             let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-            let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as u32);
+            let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if dst_val_set {
                 let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
@@ -349,7 +349,7 @@ impl MvvlEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_addr = ctx.addr(src.val());
-        let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr);
+        let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
@@ -389,14 +389,14 @@ impl MvvlEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()));
-        let src_val_set = ctx.vrom_check_value_set::<u128>(ctx.addr(src.val()));
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u128>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if dst_addr_set {
             let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-            let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as u32);
+            let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if dst_val_set {
                 let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
@@ -500,7 +500,7 @@ impl MvihEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()));
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.

@@ -94,20 +94,19 @@ impl ValueRom {
     }
 
     /// Checks if the value at the given index is set.
-    pub fn check_value_set<T: VromValueT>(&self, index: u32) -> bool {
-        if self.check_alignment::<T>(index).is_err() {
-            return false;
-        }
+    pub fn check_value_set<T: VromValueT>(&self, index: u32) -> Result<bool, MemoryError> {
+        self.check_alignment::<T>(index)?;
         if self.check_bounds::<T>(index).is_err() {
-            return false;
-        }
+            // VROM hasn't been expanded to the target index, there is nothing to read yet.
+            return Ok(false);
+        };
         let read_data = &self.data[index as usize..index as usize + T::word_size()];
         for &opt_word in read_data {
             if opt_word.is_none() {
-                return false;
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 
     /// Generic write method for supported types. Counts each write access per
