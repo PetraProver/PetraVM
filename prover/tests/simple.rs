@@ -211,8 +211,7 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // 3. case_recurse tail calls back to loop
     let asm_code = "#[framesize(0x10)]\n\
          _start:\n\
-           LDI.W @2, #2\n\
-           MVV.W @3[2], @2\n\
+           MVI.H @3[2], #2\n\
            TAILI loop, @3\n\
          #[framesize(0x10)]\n\
          loop:\n\
@@ -399,11 +398,18 @@ fn test_ldi_add_ret() -> Result<()> {
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
     test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify we have two LDI events (one in _start and one in case_recurse)
+        // Verify we have one MVI.H
+        assert_eq!(
+            trace.mvih_events().len(),
+            1,
+            "Should have exactly one MVI.H event"
+        );
+
+        // Verify we have one LDI (in case_recurse)
         assert_eq!(
             trace.ldi_events().len(),
-            2,
-            "Should have exactly two LDI events"
+            1,
+            "Should have exactly one LDI event (in case_recurse)"
         );
 
         // Verify we have one BNZ event (first is taken, continues to case_recurse)
@@ -424,11 +430,11 @@ fn test_simple_taili_loop() -> Result<()> {
             "Should have exactly two TAILI events"
         );
 
-        // Verify we have two MVVW events (one in _start and one in case_recurse)
+        // Verify we have one MVVW event (in case_recurse)
         assert_eq!(
             trace.mvvw_events().len(),
-            2,
-            "Should have exactly two MVVW events"
+            1,
+            "Should have exactly one MVVW events"
         );
 
         // Verify we have one BZ event (when condition becomes 0)

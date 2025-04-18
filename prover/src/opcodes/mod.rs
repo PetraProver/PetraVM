@@ -15,5 +15,5 @@ pub use branch::{BnzTable, BzTable};
 pub use call::TailiTable;
 pub use integer_ops::AddTable;
 pub use ldi::LdiTable;
-pub use mv::MvvwTable;
+pub use mv::{MvihTable, MvvwTable};
 pub use ret::RetTable;

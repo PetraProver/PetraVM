@@ -247,7 +247,8 @@ impl_table_info_and_accessor!(
     (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
     (AddEvent, AddTable, add_events, add),
     (TailiEvent, TailiTable, taili_events, taili),
-    (MvvwEvent, MvvwTable, mvvw_events, mvvw)
+    (MvvwEvent, MvvwTable, mvvw_events, mvvw),
+    (MvihEvent, MvihTable, mvih_events, mvih),
 );
 
 // Map all opcodes to their related event and table.
@@ -260,5 +261,6 @@ define_table_registry!(
     (B32MulEvent, B32MulTable, B32Mul),
     (AddEvent, AddTable, Add),
     (TailiEvent, TailiTable, Taili),
-    (MvvwEvent, MvvwTable, Mvvw)
+    (MvvwEvent, MvvwTable, Mvvw),
+    (MvihEvent, MvihTable, Mvih),
 );
