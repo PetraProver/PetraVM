@@ -4,10 +4,13 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
 use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{
+    Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
+};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 
@@ -31,7 +34,16 @@ fn generate_test_trace<const N: usize>(
     trace!("compiled program = {:?}", compiled_program);
 
     // Keep a copy of the program for later
-    let program = compiled_program.prom.clone();
+    let mut program = compiled_program.prom.clone();
+
+    // TODO: pad program to 128 instructions required by lookup gadget
+    let prom_size = program.len().next_power_of_two().max(128);
+    let mut max_pc = program.last().map_or(B32::ZERO, |instr| instr.field_pc);
+
+    for _ in program.len()..prom_size {
+        max_pc *= B32::MULTIPLICATIVE_GENERATOR;
+        program.push(InterpreterInstruction::new(Instruction::default(), max_pc));
+    }
 
     // Initialize memory with return PC = 0, return FP = 0
     let vrom = ValueRom::new_with_init_vals(&init_values);
@@ -47,17 +59,14 @@ fn generate_test_trace<const N: usize>(
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(zcray_trace);
-
-    // Add the program instructions to the trace
-    zkvm_trace.add_instructions(program);
+    let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
     // Add other VROM writes
     let mut max_dst = 0;
     // TODO: the lookup gadget requires a minimum of 128 entries
     let vrom_write_size = vrom_writes.len().next_power_of_two().max(128);
-    for (dst, imm, multiplicity) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, imm, multiplicity);
+    for (dst, val, multiplicity) in vrom_writes {
+        zkvm_trace.add_vrom_write(dst, val, multiplicity);
         max_dst = max_dst.max(dst);
     }
 
@@ -156,6 +165,107 @@ fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
+fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI, ADD and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+         _start: 
+            LDI.W @2, #{}\n\
+            LDI.W @3, #{}\n\
+            ADD @4, @2, @3\n\
+            RET\n",
+        src1_value, src2_value
+    );
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0];
+
+    // Add VROM writes from LDI and ADD events
+    let vrom_writes = vec![
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        // LDI events
+        (2, src1_value, 2),
+        (3, src2_value, 2),
+        // ADD event
+        (4, src1_value + src2_value, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+/// Creates an execution trace for a simple program that uses only MVV.W,
+/// BNZ, TAILI, and RET.
+///
+/// # Returns
+/// * A Trace containing a simple program with a loop using TAILI, the BNZ
+///   instruction is executed twice.
+fn generate_simple_taili_trace() -> Result<Trace> {
+    // Create a very simple assembly program that:
+    // 1. _start sets up initial values and tail calls to loop
+    // 2. loop checks if @2 is non-zero and either returns or continues
+    // 3. case_recurse tail calls back to loop
+    let asm_code = "#[framesize(0x10)]\n\
+         _start:\n\
+           LDI.W @2, #2\n\
+           MVV.W @3[2], @2\n\
+           TAILI loop, @3\n\
+         #[framesize(0x10)]\n\
+         loop:\n\
+           BNZ case_recurse, @2\n\
+           RET\n\
+         case_recurse:\n\
+           LDI.W @3, #0\n\
+           MVV.W @4[2], @3\n\
+           TAILI loop, @4\n"
+        .to_string();
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0];
+
+    // VROM state after the trace is executed
+    // 0: 0
+    // 1: 0
+    // 2: 2
+    // 3: 16
+    // 16: 0
+    // 17: 0
+    // 18: 2
+    // 19: 0
+    // 20: 32
+    // 32: 0
+    // 33: 0
+    // 34: 0
+    // Sorted by number of accesses
+    let vrom_writes = vec![
+        // Initial LDI event
+        (2, 2, 2), // LDI.W @2, #2
+        // LDI in case_recurse
+        (19, 0, 2), // LDI.W @3, #0
+        // Initial MVV.W event
+        (18, 2, 2), // MVV.W @3[2], @2
+        // Additional MVV.W in case_recurse
+        (34, 0, 2), // MVV.W @4[2], @3
+        // TAILI events
+        (16, 0, 2),
+        (17, 0, 2),
+        (32, 0, 2),
+        (33, 0, 2),
+        // New FP values
+        (3, 16, 2),
+        (20, 32, 2),
+        // Initial values
+        (0, 0, 1), // Return PC
+        (1, 0, 1), // Return FP
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
@@ -195,11 +305,6 @@ fn test_ldi_b32_mul_ret() -> Result<()> {
             generate_ldi_ret_mul32_trace(value)
         },
         |trace| {
-            assert_eq!(
-                trace.program.len(),
-                4,
-                "Program should have exactly 4 instructions"
-            );
             assert_eq!(
                 trace.ldi_events().len(),
                 2,
@@ -253,11 +358,6 @@ fn generate_and_ret_trace() -> Result<Trace> {
 #[test]
 fn test_and_ret() -> Result<()> {
     test_from_trace_generator(generate_and_ret_trace, |trace| {
-        assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
         assert_eq!(
             trace.and_events().len(),
             1,
@@ -367,11 +467,6 @@ fn generate_ori_ret_trace() -> Result<Trace> {
 fn test_xor_ret() -> Result<()> {
     test_from_trace_generator(generate_xor_ret_trace, |trace| {
         assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
-        assert_eq!(
             trace.xor_events().len(),
             1,
             "Should have exactly one XOR event"
@@ -388,11 +483,6 @@ fn test_xor_ret() -> Result<()> {
 fn test_or_ret() -> Result<()> {
     test_from_trace_generator(generate_or_ret_trace, |trace| {
         assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
-        assert_eq!(
             trace.or_events().len(),
             1,
             "Should have exactly one OR event"
@@ -408,11 +498,6 @@ fn test_or_ret() -> Result<()> {
 #[test]
 fn test_ori_ret() -> Result<()> {
     test_from_trace_generator(generate_ori_ret_trace, |trace| {
-        assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
         assert_eq!(
             trace.ori_events().len(),
             1,
@@ -431,11 +516,6 @@ fn test_bnz_non_zero_branch_ret() -> Result<()> {
     test_from_trace_generator(
         || generate_bnz_ret_trace(1),
         |trace| {
-            assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
             assert_eq!(
                 trace.bnz_events().len(),
                 1,
@@ -456,11 +536,6 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
         || generate_bnz_ret_trace(0),
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                2,
-                "Program should have exactly 2 instructions"
-            );
-            assert_eq!(
                 trace.bz_events().len(),
                 1,
                 "Should have exactly one bz event"
@@ -472,4 +547,82 @@ fn test_bnz_zero_branch_ret() -> Result<()> {
             );
         },
     )
+}
+
+#[test]
+fn test_ldi_add_ret() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let src1_value = 0x12345678;
+            let src2_value = 0x4567;
+            generate_add_ret_trace(src1_value, src2_value)
+        },
+        |trace| {
+            assert_eq!(
+                trace.add_events().len(),
+                1,
+                "Should have exactly one ADD event"
+            );
+            assert_eq!(
+                trace.ldi_events().len(),
+                2,
+                "Should have exactly two LDI event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+            assert_eq!(
+                trace.b32_mul_events().len(),
+                0,
+                "Shouldn't have any B32_MUL event"
+            );
+        },
+    )
+}
+
+#[test]
+fn test_simple_taili_loop() -> Result<()> {
+    test_from_trace_generator(generate_simple_taili_trace, |trace| {
+        // Verify we have two LDI events (one in _start and one in case_recurse)
+        assert_eq!(
+            trace.ldi_events().len(),
+            2,
+            "Should have exactly two LDI events"
+        );
+
+        // Verify we have one BNZ event (first is taken, continues to case_recurse)
+        let bnz_events = trace.bnz_events();
+        assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
+
+        // Verify we have one RET event (after condition becomes 0)
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+
+        // Verify we have two TAILI events (initial call to loop and recursive call)
+        assert_eq!(
+            trace.taili_events().len(),
+            2,
+            "Should have exactly two TAILI events"
+        );
+
+        // Verify we have two MVVW events (one in _start and one in case_recurse)
+        assert_eq!(
+            trace.mvvw_events().len(),
+            2,
+            "Should have exactly two MVVW events"
+        );
+
+        // Verify we have one BZ event (when condition becomes 0)
+        assert_eq!(
+            trace.bz_events().len(),
+            1,
+            "Should have exactly one BZ event"
+        );
+    })
 }

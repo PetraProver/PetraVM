@@ -17,13 +17,13 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
         integer_ops::{
             AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
+        mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
         shift::GenericShiftEvent,
         Event,
@@ -33,6 +33,7 @@ use crate::{
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
+
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
     pub bnz: Vec<BnzEvent>,
@@ -59,20 +60,23 @@ pub struct ZCrayTrace {
     pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
     pub mulu: Vec<MuluEvent>,
     pub taili: Vec<TailiEvent>,
-    pub tailv: Vec<TailVEvent>,
+    pub tailv: Vec<TailvEvent>,
     pub calli: Vec<CalliEvent>,
     pub callv: Vec<CallvEvent>,
     pub ret: Vec<RetEvent>,
-    pub mvih: Vec<MVIHEvent>,
-    pub mvvw: Vec<MVVWEvent>,
-    pub mvvl: Vec<MVVLEvent>,
-    pub ldi: Vec<LDIEvent>,
+    pub mvih: Vec<MvihEvent>,
+    pub mvvw: Vec<MvvwEvent>,
+    pub mvvl: Vec<MvvlEvent>,
+    pub ldi: Vec<LdiEvent>,
     pub b32_mul: Vec<B32MulEvent>,
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
+    /// A map of an instruction's field PC to the number of times that
+    /// instruction has been executed.
+    pub instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -262,5 +266,9 @@ impl ZCrayTrace {
     #[cfg(test)]
     pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
+    }
+
+    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
+        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
     }
 }

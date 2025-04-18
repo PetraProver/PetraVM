@@ -21,10 +21,8 @@ use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
+pub(crate) const PROM_MULTIPLICITY_BITS: usize = 32;
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
-// TODO: currently the vrom write table requires a minimum of 128 entries,
-// so we need a minimum of 256 entries in the address space table
-pub(crate) const MIN_VROM_ADDR_SPACE: usize = 256;
 
 /// Main prover for zCrayVM.
 pub struct Prover {

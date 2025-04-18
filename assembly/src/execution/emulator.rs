@@ -21,14 +21,14 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
         context::EventContext,
         integer_ops::{
             AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVIHEvent, MVInfo, MVVLEvent, MVVWEvent},
+        mv::{LdiEvent, MVInfo, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
         shift::*,
         Event,
@@ -256,9 +256,12 @@ impl Interpreter {
         if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let instruction = &trace.prom()[self.pc as usize - 1];
-        let [opcode, arg0, arg1, arg2] = instruction.instruction;
-        let field_pc = instruction.field_pc;
+        let InterpreterInstruction {
+            instruction,
+            field_pc,
+        } = trace.prom()[self.pc as usize - 1];
+        let [opcode, arg0, arg1, arg2] = instruction;
+        trace.record_instruction(field_pc);
 
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
@@ -271,7 +274,7 @@ impl Interpreter {
             "Executing {:?} with args {:?}",
             opcode,
             (1..1 + opcode.num_args())
-                .map(|i| instruction.instruction[i].val())
+                .map(|i| instruction[i].val())
                 .collect::<Vec<_>>()
         );
 
@@ -388,10 +391,10 @@ mod tests {
             ], //  0G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ @5, case_recurse,
+                get_binary_slot(5),
+            ], //  1G: BNZ case_recurse, @5
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
@@ -409,10 +412,10 @@ mod tests {
             ], // 4G: ANDI @6, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ @6, case_odd
+                get_binary_slot(6),
+            ], //  5G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),

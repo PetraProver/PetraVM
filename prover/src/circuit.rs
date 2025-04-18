@@ -10,7 +10,6 @@ use crate::{
     channels::Channels,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::{build_table_for_opcode, Trace},
-    prover::MIN_VROM_ADDR_SPACE,
     table::FillableTable,
 };
 
@@ -50,8 +49,8 @@ impl Circuit {
         let channels = Channels::new(&mut cs);
 
         // Create all the tables
-        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let prom_table = PromTable::new(&mut cs, &channels);
+        let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
 
@@ -66,8 +65,8 @@ impl Circuit {
             isa,
             cs,
             channels,
-            vrom_write_table,
             prom_table,
+            vrom_write_table,
             vrom_addr_space_table,
             vrom_skip_table,
             tables,
@@ -78,7 +77,6 @@ impl Circuit {
     ///
     /// # Arguments
     /// * `trace` - The zCrayVM execution trace
-    /// * `vrom_size` - Size of the VROM address space (must be a power of 2)
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
@@ -103,10 +101,7 @@ impl Circuit {
 
         let prom_size = trace.program.len();
 
-        let vrom_addr_space_size = trace
-            .max_vrom_addr
-            .next_power_of_two()
-            .max(MIN_VROM_ADDR_SPACE);
+        let vrom_addr_space_size = trace.max_vrom_addr.next_power_of_two();
 
         // VROM write size is the number of addresses we write to
         let vrom_write_size = trace.vrom_writes.len();
