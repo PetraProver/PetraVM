@@ -9,10 +9,7 @@ use anyhow::Result;
 use binius_m3::builder::B32;
 use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
 
-use crate::{
-    opcodes::{MvvwTable, TailiTable},
-    table::{B32MulTable, BnzTable, BzTable, LdiTable, RetTable},
-};
+use crate::table::*;
 
 /// Implements the [`TableInfo`](crate::table::TableInfo) trait that lifts
 /// [`InstructionInfo`](zcrayvm_assembly::InstructionInfo) and maps events to
@@ -214,8 +211,8 @@ impl Trace {
     ///
     /// This will verify that:
     /// 1. The program has at least one instruction
-    /// 2. The trace has at least one LDI event
-    /// 3. The trace has at least one RET event
+    /// 2. The trace has at least one RET event
+    /// 3. The trace has at least one VROM write
     ///
     /// # Returns
     /// * Ok(()) if the trace is valid, or an error with a description of what's
@@ -248,6 +245,7 @@ impl_table_info_and_accessor!(
     (BzEvent, BzTable, bz_events, bz),
     (BnzEvent, BnzTable, bnz_events, bnz),
     (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
+    (AddEvent, AddTable, add_events, add),
     (TailiEvent, TailiTable, taili_events, taili),
     (MvvwEvent, MvvwTable, mvvw_events, mvvw)
 );
@@ -260,6 +258,7 @@ define_table_registry!(
     (BzEvent, BzTable, Bz),
     (BnzEvent, BnzTable, Bnz),
     (B32MulEvent, B32MulTable, B32Mul),
+    (AddEvent, AddTable, Add)
     (TailiEvent, TailiTable, Taili),
     (MvvwEvent, MvvwTable, Mvvw)
 );
