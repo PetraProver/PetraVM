@@ -23,7 +23,6 @@ use zcrayvm_prover::prover::{verify_proof, Prover};
 ///
 /// # Returns
 /// * A Trace containing executed instructions
-// TODO: we should extract VROM writes from zcray_trace
 fn generate_test_trace<const N: usize>(
     asm_code: String,
     init_values: [u32; N],
@@ -60,6 +59,9 @@ fn generate_test_trace<const N: usize>(
 
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
+
+    // Validate that manually specified multiplicities match the actual ones
+    assert_eq!(zkvm_trace.trace.vrom().sorted_access_counts(), vrom_writes);
 
     // Add other VROM writes
     let mut max_dst = 0;
@@ -185,12 +187,12 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 
     // Add VROM writes from LDI and ADD events
     let vrom_writes = vec![
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
         // LDI events
         (2, src1_value, 2),
         (3, src2_value, 2),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
         // ADD event
         (4, src1_value + src2_value, 1),
     ];
@@ -227,36 +229,36 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     let init_values = [0, 0];
 
     // VROM state after the trace is executed
-    // 0: 0
-    // 1: 0
-    // 2: 2
-    // 3: 16
-    // 16: 0
-    // 17: 0
-    // 18: 2
-    // 19: 0
-    // 20: 32
-    // 32: 0
-    // 33: 0
-    // 34: 0
+    // 0: 0 (1)
+    // 1: 0 (1)
+    // 2: 2 (2)
+    // 3: 16 (2)
+    // 16: 0 (2)
+    // 17: 0 (2)
+    // 18: 2 (2)
+    // 19: 0 (2)
+    // 20: 32 (2)
+    // 32: 0 (2)
+    // 33: 0 (2)
+    // 34: 0 (2)
     // Sorted by number of accesses
     let vrom_writes = vec![
         // Initial LDI event
         (2, 2, 2), // LDI.W @2, #2
-        // LDI in case_recurse
-        (19, 0, 2), // LDI.W @3, #0
-        // Initial MVV.W event
-        (18, 2, 2), // MVV.W @3[2], @2
-        // Additional MVV.W in case_recurse
-        (34, 0, 2), // MVV.W @4[2], @3
+        // New FP values
+        (3, 16, 2),
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
+        // Initial MVV.W event
+        (18, 2, 2), // MVV.W @3[2], @2
+        // LDI in case_recurse
+        (19, 0, 2), // LDI.W @3, #0
+        (20, 32, 2),
         (32, 0, 2),
         (33, 0, 2),
-        // New FP values
-        (3, 16, 2),
-        (20, 32, 2),
+        // Additional MVV.W in case_recurse
+        (34, 0, 2), // MVV.W @4[2], @3
         // Initial values
         (0, 0, 1), // Return PC
         (1, 0, 1), // Return FP

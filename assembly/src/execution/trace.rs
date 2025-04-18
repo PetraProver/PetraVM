@@ -206,7 +206,6 @@ impl ZCrayTrace {
         value: T,
     ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
-
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;

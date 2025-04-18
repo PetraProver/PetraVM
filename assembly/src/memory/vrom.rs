@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Shl};
+use std::{cell::Cell, collections::HashMap, ops::Shl};
 
 use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
@@ -23,8 +23,10 @@ pub(crate) type VromUpdate = (
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
 pub struct ValueRom {
-    /// Storage for values, each slot is a `Option<u32>`.
+    /// Storage for values, each slot is an Option<u32>.
     data: Vec<Option<u32>>,
+    /// Number of reads/writes per address (interior mutability).
+    access_counts: Vec<Cell<u32>>,
     /// Allocator for new frames
     vrom_allocator: VromAllocator,
     /// HashMap used to set values and push MV events during a CALL procedure.
@@ -40,9 +42,12 @@ pub struct ValueRom {
 impl ValueRom {
     /// Creates an new ValueRom.
     pub fn new(data: Vec<Option<u32>>) -> Self {
+        let len = data.len();
         Self {
             data,
-            ..Default::default()
+            access_counts: vec![Cell::new(0); len],
+            vrom_allocator: Default::default(),
+            pending_updates: Default::default(),
         }
     }
 
@@ -52,11 +57,13 @@ impl ValueRom {
 
     /// Creates a default VROM and intializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
-        let data = init_values.iter().copied().map(Some).collect();
-
+        let data = init_values.iter().copied().map(Some).collect::<Vec<_>>();
+        let len = data.len();
         Self {
             data,
-            ..Default::default()
+            access_counts: vec![Cell::new(0); len],
+            vrom_allocator: Default::default(),
+            pending_updates: Default::default(),
         }
     }
 
@@ -69,6 +76,7 @@ impl ValueRom {
     pub fn read<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
         self.check_bounds::<T>(index)?;
+        self.record_access(index, T::word_size());
 
         let mut value = T::zero();
 
@@ -85,37 +93,24 @@ impl ValueRom {
         Ok(value)
     }
 
-    /// Fallible version of the `Self::read` method, to account for values yet
-    /// to be set.
-    ///
-    /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
-    /// that will scale the frame pointer with the provided offset to obtain the
-    /// corresponding VROM address.
-    pub fn read_opt<T: VromValueT>(&self, index: u32) -> Result<Option<T>, MemoryError> {
+    /// Checks if the value at the given index is set.
+    pub fn check_value_set<T: VromValueT>(&self, index: u32) -> Result<bool, MemoryError> {
         self.check_alignment::<T>(index)?;
         if self.check_bounds::<T>(index).is_err() {
             // VROM hasn't been expanded to the target index, there is nothing to read yet.
-            return Ok(None);
+            return Ok(false);
         };
-
-        let mut value = T::zero();
-
-        // Read the entire chunk at once.
         let read_data = &self.data[index as usize..index as usize + T::word_size()];
-
-        for (i, &opt_word) in read_data.iter().enumerate() {
-            if let Some(v) = opt_word {
-                // Shift the word to its appropriate position and add to the value
-                value = value + (T::from(v) << (i * 32));
-            } else {
-                return Ok(None);
+        for &opt_word in read_data {
+            if opt_word.is_none() {
+                return Ok(false);
             }
         }
-
-        Ok(Some(value))
+        Ok(true)
     }
 
-    /// Generic write method for supported types.
+    /// Generic write method for supported types. Counts each write access per
+    /// address.
     ///
     /// *NOTE*: Do not pass an offset to this function. Call `ctx.addr(offset)`
     /// that will scale the frame pointer with the provided offset to obtain the
@@ -123,7 +118,7 @@ impl ValueRom {
     pub fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
         self.ensure_capacity::<T>(index);
-
+        self.record_access(index, T::word_size());
         for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
             let prev_value = &mut self.data[index as usize + i];
@@ -152,7 +147,9 @@ impl ValueRom {
     fn ensure_capacity<T: VromValueT>(&mut self, addr: u32) {
         let required_size = addr as usize + T::word_size();
         if required_size > self.data.len() {
-            self.data.resize(required_size.next_power_of_two(), None);
+            let new_len = required_size.next_power_of_two();
+            self.data.resize(new_len, None);
+            self.access_counts.resize(new_len, Cell::new(0));
         }
     }
 
@@ -199,6 +196,35 @@ impl ValueRom {
     pub fn set_value_at_offset(&mut self, offset: u16, value: u32) -> B16 {
         self.write(offset as u32, value).unwrap();
         B16::new(offset)
+    }
+
+    /// Record accesses for addresses [addr, addr+size).
+    fn record_access(&self, addr: u32, size: usize) {
+        for i in 0..size {
+            let idx = addr as usize + i;
+            let count = self.access_counts[idx].get();
+            self.access_counts[idx].set(count + 1);
+        }
+    }
+
+    /// Returns a vector of (addr, value, access_count) sorted by access_count
+    /// descending.
+    pub fn sorted_access_counts(&self) -> Vec<(u32, u32, u32)> {
+        let mut entries: Vec<(u32, u32, u32)> = self
+            .access_counts
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, cell)| {
+                let count = cell.get();
+                if count > 0 {
+                    self.data[idx].map(|val| (idx as u32, val, count))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        entries.sort_by(|a, b| b.2.cmp(&a.2));
+        entries
     }
 }
 
@@ -254,6 +280,17 @@ mod tests {
         assert_eq!(vrom.read::<u32>(1).unwrap(), 0x99AABBCC);
         assert_eq!(vrom.read::<u32>(2).unwrap(), 0x55667788);
         assert_eq!(vrom.read::<u32>(3).unwrap(), 0x11223344);
+
+        vrom.read::<u32>(3);
+        vrom.read::<u32>(2);
+        vrom.read::<u32>(2);
+
+        let vrom_access_counts = vrom.sorted_access_counts();
+        assert_eq!(vrom_access_counts.len(), 4);
+        assert_eq!(vrom_access_counts[0], (2, 0x55667788, 5));
+        assert_eq!(vrom_access_counts[1], (3, 0x11223344, 4));
+        assert_eq!(vrom_access_counts[2], (0, 0xDDEEFF00, 3));
+        assert_eq!(vrom_access_counts[3], (1, 0x99AABBCC, 3));
     }
 
     #[test]
