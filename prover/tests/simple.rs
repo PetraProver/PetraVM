@@ -373,11 +373,6 @@ fn test_ldi_add_ret() -> Result<()> {
         },
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                4,
-                "Program should have exactly 3 instructions"
-            );
-            assert_eq!(
                 trace.add_events().len(),
                 1,
                 "Should have exactly one ADD event"

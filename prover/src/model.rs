@@ -258,7 +258,7 @@ define_table_registry!(
     (BzEvent, BzTable, Bz),
     (BnzEvent, BnzTable, Bnz),
     (B32MulEvent, B32MulTable, B32Mul),
-    (AddEvent, AddTable, Add)
+    (AddEvent, AddTable, Add),
     (TailiEvent, TailiTable, Taili),
     (MvvwEvent, MvvwTable, Mvvw)
 );
