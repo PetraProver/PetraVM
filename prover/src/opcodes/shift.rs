@@ -1,29 +1,24 @@
 use binius_core::oracle::ShiftVariant;
-use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+use binius_m3::{
+    builder::{
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+    },
+    gadgets::barrel_shifter::{BarrelShifter, BarrelShifterFlags},
 };
 use zcrayvm_assembly::{Opcode, SrliEvent};
 
 use crate::{
     channels::Channels,
-    gadgets::{
-        barrel_shifter::{BarrelShifter, BarrelShifterFlags},
-        cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
-    },
+    gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
     table::Table,
     types::ProverPackedField,
 };
 
-/// Maximum number of bits of the shift amount, i.e. 0 < shift_ammount < 1 <<
-/// SHIFT_MAX_BITS - 1 = 31 where dst_val = src_val >> shift_amount or dst_val =
-/// src_val << shift_amount
-const MAX_SHIFT_BITS: usize = 5;
-
 /// Table for the SRLI (Shift Right Logical Immediate) instruction. It
 /// constraints the values src_val  to be equal to dst_val << shift_amount. The
 /// shift amount is given as an immediate. In addition to the standard CPU
-/// columns and src, dst columns, it also includes `MAX_SHIFT_BITS` partial
-/// shift columns to constraint intermediate results of the shift operation.
+/// columns and src, dst columns, it also includes columns for performing a
+/// Barrel shifter circuit.
 pub struct SrliTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Srli as u16 }>,

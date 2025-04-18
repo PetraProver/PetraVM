@@ -353,9 +353,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
-                    src.get_16bfield_val(),
                     targets_16b[0],
                     targets_16b[1],
+                    src.get_16bfield_val(),
                 ];
 
                 prom.push(InterpreterInstruction::new(instruction, *field_pc));

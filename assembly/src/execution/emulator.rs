@@ -388,10 +388,10 @@ mod tests {
             ], //  0G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(5),
                 case_recurse[0],
                 case_recurse[1],
-            ], //  1G: BNZ @5, case_recurse,
+                get_binary_slot(5),
+            ], //  1G: BNZ case_recurse, @5
             // case_return:
             [
                 Opcode::Xori.get_field_elt(),
@@ -409,10 +409,10 @@ mod tests {
             ], // 4G: ANDI @6, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
-                get_binary_slot(6),
                 case_odd[0],
                 case_odd[1],
-            ], //  5G: BNZ @6, case_odd
+                get_binary_slot(6),
+            ], //  5G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
