@@ -1,15 +1,16 @@
 mod ram;
 mod vrom;
-mod vrom_allocator;
+pub mod vrom_allocator;
 
 pub(crate) use ram::{Ram, RamValueT};
+use strum_macros::Display;
 pub use vrom::ValueRom;
 pub(crate) use vrom::{VromPendingUpdates, VromUpdate, VromValueT};
 
 use crate::execution::InterpreterInstruction;
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Debug)]
+#[derive(Debug, Display)]
 pub enum MemoryError {
     VromRewrite(u32),
     VromMisaligned(u8, u32),

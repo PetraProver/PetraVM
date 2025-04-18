@@ -1,6 +1,6 @@
-//! Tables for the zCrayVM M3 circuit.
+//! Memory tables for the zCrayVM M3 circuit.
 //!
-//! This module contains the definitions of all the arithmetic tables needed
+//! This module contains the definitions of all the memory tables needed
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::Field;
@@ -8,10 +8,7 @@ use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 use binius_m3::gadgets::lookup::LookupProducer;
 
-// Re-export instruction-specific tables
-pub use crate::opcodes::binary::B32MulTable;
-pub use crate::opcodes::{BnzTable, BzTable, LdiTable, RetTable};
-use crate::prover::VROM_MULTIPLICITY_BITS;
+use crate::prover::{PROM_MULTIPLICITY_BITS, VROM_MULTIPLICITY_BITS};
 use crate::{
     channels::Channels,
     model::Instruction,
@@ -40,16 +37,19 @@ pub struct PromTable {
     pub arg3: Col<B16>,
     /// Packed instruction for PROM channel
     pub instruction: Col<B128>,
+    /// To support multiple lookups, we need to create a lookup producer
+    pub lookup_producer: LookupProducer,
 }
 
 impl PromTable {
     /// Create a new PROM table with the given constraint system and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
+        table.require_power_of_two_size();
 
         // Add columns for PC and instruction components
         let pc = table.add_committed("pc");
@@ -62,8 +62,12 @@ impl PromTable {
         let instruction =
             pack_instruction(&mut table, "instruction", pc, opcode, [arg1, arg2, arg3]);
 
-        // Push to the PROM channel
-        table.push(channels.prom_channel, [instruction]);
+        let lookup_producer = LookupProducer::new(
+            &mut table,
+            channels.prom_channel,
+            &[instruction],
+            PROM_MULTIPLICITY_BITS,
+        );
 
         Self {
             id: table.id(),
@@ -73,12 +77,13 @@ impl PromTable {
             arg2,
             arg3,
             instruction,
+            lookup_producer,
         }
     }
 }
 
 impl TableFiller<ProverPackedField> for PromTable {
-    type Event = Instruction;
+    type Event = (Instruction, u32);
 
     fn id(&self) -> TableId {
         self.id
@@ -86,33 +91,39 @@ impl TableFiller<ProverPackedField> for PromTable {
 
     fn fill<'a>(
         &'a self,
-        rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        let mut pc_col = witness.get_scalars_mut(self.pc)?;
-        let mut opcode_col = witness.get_scalars_mut(self.opcode)?;
-        let mut arg1_col = witness.get_scalars_mut(self.arg1)?;
-        let mut arg2_col = witness.get_scalars_mut(self.arg2)?;
-        let mut arg3_col = witness.get_scalars_mut(self.arg3)?;
-        let mut instruction_col = witness.get_scalars_mut(self.instruction)?;
+        {
+            let mut pc_col = witness.get_scalars_mut(self.pc)?;
+            let mut opcode_col = witness.get_scalars_mut(self.opcode)?;
+            let mut arg1_col = witness.get_scalars_mut(self.arg1)?;
+            let mut arg2_col = witness.get_scalars_mut(self.arg2)?;
+            let mut arg3_col = witness.get_scalars_mut(self.arg3)?;
+            let mut instruction_col = witness.get_scalars_mut(self.instruction)?;
 
-        for (i, instr) in rows.enumerate() {
-            pc_col[i] = B32::new(instr.pc.val());
-            opcode_col[i] = B16::new(instr.opcode as u16);
+            for (i, (instr, _)) in rows.clone().enumerate() {
+                pc_col[i] = B32::new(instr.pc.val());
+                opcode_col[i] = B16::new(instr.opcode as u16);
 
-            // Fill arguments, using ZERO if the argument doesn't exist
-            arg1_col[i] = instr.args.first().map_or(B16::ZERO, |&arg| B16::new(arg));
-            arg2_col[i] = instr.args.get(1).map_or(B16::ZERO, |&arg| B16::new(arg));
-            arg3_col[i] = instr.args.get(2).map_or(B16::ZERO, |&arg| B16::new(arg));
+                // Fill arguments, using ZERO if the argument doesn't exist
+                arg1_col[i] = instr.args.first().map_or(B16::ZERO, |&arg| B16::new(arg));
+                arg2_col[i] = instr.args.get(1).map_or(B16::ZERO, |&arg| B16::new(arg));
+                arg3_col[i] = instr.args.get(2).map_or(B16::ZERO, |&arg| B16::new(arg));
 
-            instruction_col[i] = pack_instruction_b128(
-                pc_col[i],
-                opcode_col[i],
-                arg1_col[i],
-                arg2_col[i],
-                arg3_col[i],
-            );
+                instruction_col[i] = pack_instruction_b128(
+                    pc_col[i],
+                    opcode_col[i],
+                    arg1_col[i],
+                    arg2_col[i],
+                    arg3_col[i],
+                );
+            }
         }
+
+        // Populate lookup producer with multiplicity iterator
+        self.lookup_producer
+            .populate(witness, rows.map(|(_, multiplicity)| *multiplicity))?;
 
         Ok(())
     }
@@ -141,10 +152,11 @@ impl VromWriteTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_write");
+        table.require_power_of_two_size();
 
         // Add columns for address and value
         let addr = table.add_committed("addr");
@@ -220,8 +232,8 @@ impl VromSkipTable {
     /// channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_skip");
 
@@ -281,8 +293,8 @@ impl VromAddrSpaceTable {
     /// and channels.
     ///
     /// # Arguments
-    /// * `cs` - Constraint system to add the table to
-    /// * `channels` - Channel IDs for communication with other tables
+    /// * `cs` - [`ConstraintSystem`] to add the table to
+    /// * `channels` - [`Channels`] IDs for communication with other tables
     pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("vrom_addr_space");
 

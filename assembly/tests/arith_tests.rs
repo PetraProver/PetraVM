@@ -1,4 +1,4 @@
-use zcrayvm_assembly::{Assembler, Memory, ValueRom, ZCrayTrace};
+use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, ValueRom, ZCrayTrace};
 
 #[test]
 fn test_naive_div() {
@@ -10,6 +10,7 @@ fn test_naive_div() {
 
     let memory = Memory::new(compiled_program.prom, vrom);
     let (trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
@@ -48,6 +49,7 @@ fn test_bezout() {
 
     let memory = Memory::new(compiled_program.prom, vrom);
     let (trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
@@ -92,6 +94,7 @@ fn test_non_tail_long_div() {
 
     let memory = Memory::new(compiled_program.prom, vrom);
     let (trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
@@ -125,6 +128,7 @@ fn test_tail_long_div() {
 
     let memory = Memory::new(compiled_program.prom, vrom);
     let (trace, _) = ZCrayTrace::generate(
+        Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,

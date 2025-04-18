@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use binius_m3::builder::{B16, B32};
 
-use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
+use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{AccessSize, MemoryError, Ram, RamValueT, VromValueT},
@@ -67,7 +67,7 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        value.store(self, addr)
+        self.trace.vrom_write(addr, value)
     }
 
     // /// Inserts a pending value in VROM to be set later.
@@ -153,7 +153,7 @@ impl EventContext<'_> {
         while let Some(mv_info) = self.moves_to_apply.pop() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
-                    let opt_event = MVVWEvent::generate_event_from_info(
+                    let opt_event = MvvwEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -167,7 +167,7 @@ impl EventContext<'_> {
                     }
                 }
                 MVKind::Mvvl => {
-                    let opt_event = MVVLEvent::generate_event_from_info(
+                    let opt_event = MvvlEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -181,7 +181,7 @@ impl EventContext<'_> {
                     }
                 }
                 MVKind::Mvih => {
-                    let event = MVIHEvent::generate_event_from_info(
+                    let event = MvihEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -235,6 +235,6 @@ impl<'a> EventContext<'a> {
 
     /// Helper method to set a value in VROM.
     pub fn set_vrom(&mut self, slot: u16, value: u32) {
-        self.trace.set_vrom_u32(self.addr(slot), value).unwrap();
+        self.vrom_write(self.addr(slot), value).unwrap();
     }
 }

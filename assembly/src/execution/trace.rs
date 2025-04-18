@@ -17,21 +17,23 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
         integer_ops::{
             AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
+        mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
         shift::GenericShiftEvent,
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate},
+    isa::ISA,
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
+
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
     pub bnz: Vec<BnzEvent>,
@@ -58,20 +60,23 @@ pub struct ZCrayTrace {
     pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
     pub mulu: Vec<MuluEvent>,
     pub taili: Vec<TailiEvent>,
-    pub tailv: Vec<TailVEvent>,
+    pub tailv: Vec<TailvEvent>,
     pub calli: Vec<CalliEvent>,
     pub callv: Vec<CallvEvent>,
     pub ret: Vec<RetEvent>,
-    pub mvih: Vec<MVIHEvent>,
-    pub mvvw: Vec<MVVWEvent>,
-    pub mvvl: Vec<MVVLEvent>,
-    pub ldi: Vec<LDIEvent>,
+    pub mvih: Vec<MvihEvent>,
+    pub mvvw: Vec<MvvwEvent>,
+    pub mvvl: Vec<MvvlEvent>,
+    pub ldi: Vec<LdiEvent>,
     pub b32_mul: Vec<B32MulEvent>,
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
+    /// A map of an instruction's field PC to the number of times that
+    /// instruction has been executed.
+    pub instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -112,11 +117,12 @@ impl ZCrayTrace {
     }
 
     pub fn generate(
+        isa: Box<dyn ISA>,
         memory: Memory,
         frames: LabelsFrameSizes,
         pc_field_to_int: HashMap<B32, u32>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
         let trace = interpreter.run(memory)?;
 
@@ -190,14 +196,21 @@ impl ZCrayTrace {
         self.memory.vrom().size()
     }
 
-    /// Sets a u32 value at the specified index.
-    pub(crate) fn set_vrom_u32(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
+    /// Sets a value of one of the supported types at the provided index in
+    /// VROM.
+    ///
+    /// This will also execute pending VROM updates if necessary.
+    pub(crate) fn vrom_write<T: VromValueT>(
+        &mut self,
+        index: u32,
+        value: T,
+    ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
 
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u32(parent, value)?;
+                self.vrom_write(parent, value)?;
                 let event_out = MVEventOutput::new(
                     parent,
                     opcode,
@@ -207,59 +220,7 @@ impl ZCrayTrace {
                     dst,
                     src,
                     offset,
-                    value as u128,
-                );
-                event_out.push_mv_event(self);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Sets a u64 value at the specified index.
-    pub(crate) fn set_vrom_u64(&mut self, index: u32, value: u64) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
-
-        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u64(parent, value)?;
-                let event_out = MVEventOutput::new(
-                    parent,
-                    opcode,
-                    field_pc,
-                    fp.into(),
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                    value as u128,
-                );
-                event_out.push_mv_event(self);
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Sets a u128 value at the specified index.
-    pub(crate) fn set_vrom_u128(&mut self, index: u32, value: u128) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
-
-        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
-                self.set_vrom_u128(parent, value)?;
-                let event_out = MVEventOutput::new(
-                    parent,
-                    opcode,
-                    field_pc,
-                    fp.into(),
-                    timestamp,
-                    dst,
-                    src,
-                    offset,
-                    value,
+                    value.to_u128(),
                 );
                 event_out.push_mv_event(self);
             }
@@ -305,5 +266,9 @@ impl ZCrayTrace {
     #[cfg(test)]
     pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
+    }
+
+    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
+        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
     }
 }

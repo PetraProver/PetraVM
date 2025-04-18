@@ -2,6 +2,8 @@
 //!
 //! This module contains tables for binary field arithmetic operations.
 
+use std::any::Any;
+
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B128, B32,
 };
@@ -13,6 +15,7 @@ use crate::{
         b128_lookup::{B128LookupColumns, B128LookupGadget},
         cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
     },
+    table::Table,
     types::ProverPackedField,
 };
 
@@ -43,10 +46,14 @@ pub struct B32MulTable {
     pub dst_abs_addr: Col<B32>,
 }
 
-impl B32MulTable {
-    /// Create a new B32_MUL table with the given constraint system and
-    /// channels.
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for B32MulTable {
+    type Event = B32MulEvent;
+
+    fn name(&self) -> &'static str {
+        "B32MulTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b32_mul");
 
         let cpu_cols = CpuColumns::new(
@@ -94,6 +101,10 @@ impl B32MulTable {
             dst_abs_addr,
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl TableFiller<ProverPackedField> for B32MulTable {
@@ -140,7 +151,7 @@ impl TableFiller<ProverPackedField> for B32MulTable {
 /// B128_ADD (Binary Field Addition) table.
 ///
 /// This table handles the B128_ADD instruction, which performs addition
-/// in the binary field GF(2^32).
+/// in the binary field GF(2^128).
 pub struct B128AddTable {
     /// Table ID
     pub id: TableId,
@@ -169,10 +180,16 @@ pub struct B128AddTable {
     pub dst_abs_addr: Col<B32>,
 }
 
-impl B128AddTable {
+impl Table for B128AddTable {
+    type Event = B128AddEvent;
+
+    fn name(&self) -> &'static str {
+        "B128AddTable"
+    }
+
     /// Create a new B32_MUL table with the given constraint system and
     /// channels.
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b128_add");
 
         let cpu_cols = CpuColumns::new(
@@ -245,6 +262,10 @@ impl B128AddTable {
             src2_abs_addr,
             dst_abs_addr,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

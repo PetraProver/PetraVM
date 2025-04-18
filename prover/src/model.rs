@@ -3,22 +3,85 @@
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
 
+use std::collections::HashMap;
+
 use anyhow::Result;
 use binius_m3::builder::B32;
-use zcrayvm_assembly::{
-    B128AddEvent, B32MulEvent, BnzEvent, BzEvent, InterpreterInstruction, LDIEvent, Opcode,
-    RetEvent, ZCrayTrace,
-};
+use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
 
-/// Macro to generate event accessors
-macro_rules! impl_event_accessor {
-    ($name:ident, $event_type:ty, $field:ident) => {
-        impl Trace {
-            /// Returns a reference to the $name events from the trace.
-            ///
-            /// These events represent each $name instruction executed during the trace.
-            pub fn $name(&self) -> &Vec<$event_type> {
-                &self.trace.$field
+use crate::table::*;
+
+/// Implements the [`TableInfo`](crate::table::TableInfo) trait that lifts
+/// [`InstructionInfo`](zcrayvm_assembly::InstructionInfo) and maps events to
+/// their corresponding field in the [`ZCrayTrace`], as well as corresponding
+/// event accessors for the main [`Trace`].
+///
+/// # Example
+///
+/// ```ignore
+/// impl_table_info_and_accessor!(
+///     (LDIEvent, LdiTable, ldi_events, ldi),
+///     (RetEvent, RetTable, ret_events, ret),
+/// );
+/// ```
+macro_rules! impl_table_info_and_accessor {
+    (
+        $(
+            ($event_type:ty, $table_type:ty, $accessor:ident,  $func_name:ident)
+        ),* $(,)?
+    ) => {
+        $(
+            impl Trace {
+                #[doc = concat!("Returns a reference to the logged `", stringify!($event_type), "`s from the trace.")]
+                pub fn $accessor(&self) -> &[$event_type] {
+                    &self.trace.$func_name
+                }
+            }
+
+            impl $crate::table::TableInfo for $event_type {
+                type Table = $table_type;
+
+                fn accessor() -> fn(&Trace) -> &[<$table_type as $crate::table::Table>::Event] {
+                    Trace::$accessor
+                }
+            }
+        )*
+    };
+}
+
+/// Implements the mapping between an [`Opcode`] and its associated
+/// [`Table`](crate::table::Table).
+///
+/// # Example
+///
+/// ```ignore
+/// define_table_registry!(
+///     (LDIEvent, LdiTable, Ldi),
+///     (RetEvent, RetTable, Ret),
+/// );
+/// ```
+macro_rules! define_table_registry {
+    (
+        $(
+            ($event_type:ty, $table_type:ty, $opcode_variant:ident)
+        ),* $(,)?
+    ) => {
+        pub fn build_table_for_opcode(
+            opcode: Opcode,
+            cs: &mut binius_m3::builder::ConstraintSystem,
+            channels: &$crate::channels::Channels,
+        ) -> Option<Box<dyn $crate::table::FillableTable>> {
+            use $crate::table::Table;
+            match opcode {
+                $(
+                    Opcode::$opcode_variant => {
+                        Some(Box::new($crate::table::TableEntry {
+                            table: Box::new(<$table_type>::new(cs, channels)),
+                            get_events: <$event_type as $crate::table::TableInfo>::accessor(),
+                        }))
+                    }
+                )*
+                _ => None,
             }
         }
     };
@@ -65,9 +128,11 @@ pub struct Trace {
     /// The underlying ZCrayTrace containing all execution events
     pub trace: ZCrayTrace,
     /// Program instructions in a more convenient format for the proving system
-    pub program: Vec<Instruction>,
+    pub program: Vec<(Instruction, u32)>,
     /// List of VROM writes (address, value, multiplicity) pairs
     pub vrom_writes: Vec<(u32, u32, u32)>,
+    /// Maximum VROM address in the trace
+    pub max_vrom_addr: usize,
 }
 
 impl Default for Trace {
@@ -83,6 +148,7 @@ impl Trace {
             trace: ZCrayTrace::default(),
             program: Vec::new(),
             vrom_writes: Vec::new(),
+            max_vrom_addr: 0,
         }
     }
 
@@ -97,32 +163,38 @@ impl Trace {
     /// TODO: Refactor this approach to directly obtain the zkVMTrace from
     /// program emulation rather than requiring separate population of
     /// program instructions.
-    pub fn from_zcray_trace(trace: ZCrayTrace) -> Self {
-        Self {
-            trace,
-            program: Vec::new(),
-            vrom_writes: Vec::new(),
-        }
-    }
-
-    /// Add an interpreter instruction to the program.
-    ///
-    /// This converts the interpreter instruction to our simplified format.
-    pub fn add_instruction(&mut self, instr: InterpreterInstruction) {
-        self.program.push(instr.into());
+    pub fn from_zcray_trace(program: Vec<InterpreterInstruction>, trace: ZCrayTrace) -> Self {
+        // Add the program instructions to the trace
+        let mut zkvm_trace = Self::new();
+        zkvm_trace.add_instructions(program, &trace.instruction_counter);
+        zkvm_trace.trace = trace;
+        zkvm_trace
     }
 
     /// Add multiple interpreter instructions to the program.
     ///
+    /// Instructions are added in descending order of their execution count.
+    ///
     /// # Arguments
     /// * `instructions` - An iterator of InterpreterInstructions to add
-    pub fn add_instructions<I>(&mut self, instructions: I)
+    pub fn add_instructions<I>(&mut self, instructions: I, instruction_counter: &HashMap<B32, u32>)
     where
         I: IntoIterator<Item = InterpreterInstruction>,
     {
-        for instr in instructions {
-            self.add_instruction(instr);
-        }
+        // Collect all instructions with their counts
+        let mut instructions_with_counts: Vec<_> = instructions
+            .into_iter()
+            .map(|instr| {
+                let count = instruction_counter.get(&instr.field_pc).unwrap_or(&0);
+                (instr.into(), *count)
+            })
+            .collect();
+
+        // Sort by count in descending order
+        instructions_with_counts.sort_by(|(_, count_a), (_, count_b)| count_b.cmp(count_a));
+
+        // Add instructions in sorted order
+        self.program = instructions_with_counts;
     }
 
     /// Add a VROM write event.
@@ -139,8 +211,8 @@ impl Trace {
     ///
     /// This will verify that:
     /// 1. The program has at least one instruction
-    /// 2. The trace has at least one LDI event
-    /// 3. The trace has at least one RET event
+    /// 2. The trace has at least one RET event
+    /// 3. The trace has at least one VROM write
     ///
     /// # Returns
     /// * Ok(()) if the trace is valid, or an error with a description of what's
@@ -166,10 +238,29 @@ impl Trace {
     }
 }
 
-// Generate event accessors
-impl_event_accessor!(ldi_events, LDIEvent, ldi);
-impl_event_accessor!(ret_events, RetEvent, ret);
-impl_event_accessor!(b32_mul_events, B32MulEvent, b32_mul);
-impl_event_accessor!(b128_add_events, B128AddEvent, b128_add);
-impl_event_accessor!(bnz_events, BnzEvent, bnz);
-impl_event_accessor!(bz_events, BzEvent, bz);
+// Generate event accessors and table info.
+impl_table_info_and_accessor!(
+    (LdiEvent, LdiTable, ldi_events, ldi),
+    (RetEvent, RetTable, ret_events, ret),
+    (BzEvent, BzTable, bz_events, bz),
+    (BnzEvent, BnzTable, bnz_events, bnz),
+    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
+    (B128AddEvent, B128AddTable, b128_add_events, b128_add),
+    (AddEvent, AddTable, add_events, add),
+    (TailiEvent, TailiTable, taili_events, taili),
+    (MvvwEvent, MvvwTable, mvvw_events, mvvw)
+);
+
+// Map all opcodes to their related event and table.
+define_table_registry!(
+    (LdiEvent, LdiTable, Ldi),
+    (RetEvent, RetTable, Ret),
+    // `BzEvent` is actually triggered through the `Bnz` instruction
+    (BzEvent, BzTable, Bz),
+    (BnzEvent, BnzTable, Bnz),
+    (B32MulEvent, B32MulTable, B32Mul),
+    (B128AddEvent, B128AddTable, B128Add),
+    (AddEvent, AddTable, Add),
+    (TailiEvent, TailiTable, Taili),
+    (MvvwEvent, MvvwTable, Mvvw)
+);

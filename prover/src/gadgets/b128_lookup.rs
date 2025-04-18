@@ -74,13 +74,13 @@ impl B128LookupColumns {
         ];
 
         for (row, B128LookupGadget { addr, val }) in rows.enumerate() {
-            for i in 0..3 {
-                addr_tail[i][row] = B32::new(addr + 1 + i as u32);
+            for (i, col) in addr_tail.iter_mut().enumerate() {
+                col[row] = B32::new(addr + 1 + i as u32);
             }
 
             let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(val);
-            for i in 0..4 {
-                val_cols[i][row] = B32::new(vals[i]);
+            for (i, col) in val_cols.iter_mut().enumerate() {
+                col[row] = B32::new(vals[i]);
             }
         }
 

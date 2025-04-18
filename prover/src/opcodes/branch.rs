@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -5,7 +7,7 @@ use binius_m3::builder::{
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
-use crate::{channels::Channels, types::ProverPackedField};
+use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
 ///
@@ -18,8 +20,14 @@ pub struct BnzTable {
     cond_val: Col<B32>,
 }
 
-impl BnzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for BnzTable {
+    type Event = BnzEvent;
+
+    fn name(&self) -> &'static str {
+        "BnzTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
         table.assert_nonzero(cond_val);
@@ -34,7 +42,7 @@ impl BnzTable {
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
 
         // Read cond_val
         table.pull(channels.vrom_channel, [upcast_col(cond_abs), cond_val]);
@@ -46,6 +54,10 @@ impl BnzTable {
             cond_val,
         }
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl TableFiller<ProverPackedField> for BnzTable {
@@ -56,26 +68,25 @@ impl TableFiller<ProverPackedField> for BnzTable {
     }
 
     fn fill<'a>(
-        &self,
+        &'a self,
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> anyhow::Result<()> {
         {
             let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
             let mut cond_val = witness.get_mut_as(self.cond_val)?;
             for (i, event) in rows.clone().enumerate() {
                 cond_abs[i] = event.fp.addr(event.cond);
                 cond_val[i] = event.cond_val;
-                dbg!("Bnz fill", cond_val[i]);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target.val()),
             fp: *event.fp,
-            arg0: event.cond,
-            arg1: event.target.val() as u16,
-            arg2: (event.target.val() >> 16) as u16,
+            arg0: event.target.val() as u16,
+            arg1: (event.target.val() >> 16) as u16,
+            arg2: event.cond,
         });
         self.cpu_cols.populate(witness, cpu_rows)?;
         Ok(())
@@ -88,8 +99,14 @@ pub struct BzTable {
     cond_abs: Col<B32>, // Virtual
 }
 
-impl BzTable {
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+impl Table for BzTable {
+    type Event = BzEvent;
+
+    fn name(&self) -> &'static str {
+        "BzTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bz");
 
         let cpu_cols = CpuColumns::new(
@@ -102,7 +119,7 @@ impl BzTable {
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
         let zero = table.add_constant("zero", [B32::ZERO]);
 
         table.pull(channels.vrom_channel, [cond_abs, zero]);
@@ -112,6 +129,10 @@ impl BzTable {
             cpu_cols,
             cond_abs,
         }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -137,9 +158,9 @@ impl TableFiller<ProverPackedField> for BzTable {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
-            arg0: event.cond,
-            arg1: event.target.val() as u16,
-            arg2: (event.target.val() >> 16) as u16,
+            arg0: event.target.val() as u16,
+            arg1: (event.target.val() >> 16) as u16,
+            arg2: event.cond,
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }

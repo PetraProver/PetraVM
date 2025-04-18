@@ -8,9 +8,10 @@
 pub mod channels;
 pub mod circuit;
 pub mod gadgets;
+pub mod memory;
 pub mod model;
 pub mod opcodes;
 pub mod prover;
-pub mod tables;
+pub mod table;
 pub mod types;
 pub mod utils;
