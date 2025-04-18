@@ -10,7 +10,7 @@ pub mod ldi;
 pub mod mv;
 pub mod ret;
 
-pub use binary::{B128AddTable, B32MulTable};
+pub use binary::{B128AddTable, B128MulTable, B32MulTable};
 pub use branch::{BnzTable, BzTable};
 pub use call::TailiTable;
 pub use integer_ops::AddTable;

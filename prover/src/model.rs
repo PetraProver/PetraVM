@@ -246,6 +246,7 @@ impl_table_info_and_accessor!(
     (BnzEvent, BnzTable, bnz_events, bnz),
     (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
     (B128AddEvent, B128AddTable, b128_add_events, b128_add),
+    (B128MulEvent, B128MulTable, b128_mul_events, b128_mul),
     (AddEvent, AddTable, add_events, add),
     (TailiEvent, TailiTable, taili_events, taili),
     (MvvwEvent, MvvwTable, mvvw_events, mvvw)
@@ -260,6 +261,7 @@ define_table_registry!(
     (BnzEvent, BnzTable, Bnz),
     (B32MulEvent, B32MulTable, B32Mul),
     (B128AddEvent, B128AddTable, B128Add),
+    (B128MulEvent, B128MulTable, B128Mul),
     (AddEvent, AddTable, Add),
     (TailiEvent, TailiTable, Taili),
     (MvvwEvent, MvvwTable, Mvvw)
