@@ -287,12 +287,12 @@ fn generate_andi_ret_trace() -> Result<Trace> {
     let init_values = [0, 0, 1];
 
     let vrom_writes = vec![
-        // ANDI event
-        (3, 1 & 2, 1),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
         (2, 1, 1),
+        // ANDI event
+        (3, 1 & 2, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -317,12 +317,12 @@ fn generate_xori_ret_trace() -> Result<Trace> {
     let init_values = [0, 0, 1];
 
     let vrom_writes = vec![
-        // XORI event
-        (3, 1 ^ 2, 1),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
         (2, 1, 1),
+        // XORI event
+        (3, 1 ^ 2, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
