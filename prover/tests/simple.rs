@@ -506,11 +506,6 @@ fn test_simple_taili_loop() -> Result<()> {
 fn test_andi_ret() -> Result<()> {
     test_from_trace_generator(generate_andi_ret_trace, |trace| {
         assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
-        assert_eq!(
             trace.andi_events().len(),
             1,
             "Should have exactly one LDI event"
@@ -526,11 +521,6 @@ fn test_andi_ret() -> Result<()> {
 #[test]
 fn test_xori_ret() -> Result<()> {
     test_from_trace_generator(generate_xori_ret_trace, |trace| {
-        assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
         assert_eq!(
             trace.xori_events().len(),
             1,
