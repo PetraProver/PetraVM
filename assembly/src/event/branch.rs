@@ -27,9 +27,9 @@ pub struct BnzEvent {
 impl Event for BnzEvent {
     fn generate(
         ctx: &mut EventContext,
-        cond: B16,
         target_low: B16,
         target_high: B16,
+        cond: B16,
     ) -> Result<(), InterpreterError> {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -95,9 +95,9 @@ pub struct BzEvent {
 impl Event for BzEvent {
     fn generate(
         ctx: &mut EventContext,
-        cond: B16,
         target_low: B16,
         target_high: B16,
+        cond: B16,
     ) -> Result<(), InterpreterError> {
         unimplemented!("BzEvent generation is defined in BnzEvent::generate method");
     }

@@ -32,8 +32,8 @@ impl Channels {
     /// Create all channels needed for the proving system.
     pub fn new(cs: &mut ConstraintSystem) -> Self {
         Self {
-            state_channel: cs.add_channel("state_channel"),
             prom_channel: cs.add_channel("prom_channel"),
+            state_channel: cs.add_channel("state_channel"),
             vrom_channel: cs.add_channel("vrom_channel"),
             vrom_addr_space_channel: cs.add_channel("vrom_addr_space_channel"),
         }
