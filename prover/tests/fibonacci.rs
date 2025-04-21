@@ -12,6 +12,7 @@ use zcrayvm_prover::prover::{verify_proof, Prover};
 ///
 /// # Arguments
 /// * `n` - The Fibonacci number to calculate.
+/// * `res` - The result of the Fibonacci number.
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
@@ -68,8 +69,6 @@ fn generate_test_trace<const N: usize>(asm_code: String, init_values: [u32; N]) 
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
-    dbg!(&zcray_trace);
-
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
@@ -107,7 +106,7 @@ fn fibonacci(n: u32) -> u32 {
 #[test]
 fn test_fibonacci() -> Result<()> {
     // Step 1: Generate trace
-    let n = 5;
+    let n = 10;
     let res = fibonacci(n);
     let trace = generate_fibonacci_trace(n, res)?;
 
