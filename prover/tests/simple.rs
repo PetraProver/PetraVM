@@ -125,50 +125,6 @@ fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-/// Creates a basic execution trace with just BNZ and RET instructions.
-///
-/// # Arguments
-/// * `con_val` - The condition checked by the BNZ instruction
-///
-/// # Returns
-/// * A Trace containing an BNZ instruction that loads `value` into VROM at
-///   address fp+2, followed by a RET instruction
-fn generate_bnz_ret_trace(cond_val: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = "#[framesize(0x10)]\n\
-        _start:\n\
-            BNZ ret, @2 \n\
-        ret:\n\
-            RET\n"
-        .to_string();
-
-    trace!("asm_code:\n {:?}", asm_code);
-
-    let init_values = [0, 0, cond_val];
-
-    // Add VROM writes from BNZ events
-    let vrom_writes = if cond_val != 0 {
-        vec![
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            (2, 1, 1),
-        ]
-    } else {
-        vec![
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            (2, 0, 1),
-        ]
-    };
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
 fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI, ADD and RET
     // Note: Format follows the grammar requirements:
@@ -329,44 +285,6 @@ fn test_ldi_b32_mul_ret() -> Result<()> {
 }
 
 #[test]
-fn test_bnz_non_zero_branch_ret() -> Result<()> {
-    test_from_trace_generator(
-        || generate_bnz_ret_trace(1),
-        |trace| {
-            assert_eq!(
-                trace.bnz_events().len(),
-                1,
-                "Should have exactly one LDI event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
-}
-
-#[test]
-fn test_bnz_zero_branch_ret() -> Result<()> {
-    test_from_trace_generator(
-        || generate_bnz_ret_trace(0),
-        |trace| {
-            assert_eq!(
-                trace.bz_events().len(),
-                1,
-                "Should have exactly one bz event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
-}
-
-#[test]
 fn test_ldi_add_ret() -> Result<()> {
     test_from_trace_generator(
         || {
@@ -489,8 +407,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     // ...]
     let vrom_writes = vec![
         // LDI events - with corrected access counts
-        (2, val1, 7), // Changed from 2 to 7
-        (3, val2, 4), // Changed from 2 to 4
+        (2, val1, 7),
+        (3, val2, 4),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),

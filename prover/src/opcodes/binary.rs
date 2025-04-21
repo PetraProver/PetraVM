@@ -72,7 +72,6 @@ impl Table for B32MulTable {
 
         let src1_val = table.add_committed("b32_mul_src1_val");
         let src2_val = table.add_committed("b32_mul_src2_val");
-        let dst_val = table.add_committed("b32_mul_dst_val");
 
         // Pull source values from VROM channel
         let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
@@ -80,7 +79,8 @@ impl Table for B32MulTable {
         table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
         table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
 
-        table.assert_zero("check_b32_mul_result", src1_val * src2_val - dst_val);
+        // Compute the result
+        let dst_val = table.add_computed("b32_mul_dst_val", src1_val * src2_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
