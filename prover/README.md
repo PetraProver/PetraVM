@@ -44,8 +44,8 @@ The proving system is built using an M3 arithmetic circuit with the following co
 3. **VROM Channel**
    - Format: [Address, Value, Multiplicity]
    - Used for memory operations with access counting
-   - Pulled by VromWriteTable for address+value pairs
-   - Pushed by instruction tables when writing values
+   - Pushed by VromWriteTable for address+value+multiplicity tuples
+   - Pulled by instruction tables when reading/writing values
    - Multiplicity field tracks how many times a memory location is accessed
 
 4. **VROM Address Space Channel**
