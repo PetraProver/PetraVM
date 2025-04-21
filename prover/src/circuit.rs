@@ -55,8 +55,10 @@ impl Circuit {
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
 
         // Generate all tables required to prove the instructions supported by this ISA.
-        let tables = isa
-            .supported_opcodes()
+        // Sort the opcodes to ensure deterministic table creation
+        let mut sorted_opcodes = isa.supported_opcodes().iter().copied().collect::<Vec<_>>();
+        sorted_opcodes.sort_by_key(|op| *op as u16);
+        let tables = sorted_opcodes
             .iter()
             .filter_map(|op| build_table_for_opcode(*op, &mut cs, &channels))
             .collect::<Vec<_>>();
@@ -111,8 +113,8 @@ impl Circuit {
 
         // Define the table sizes in order of table creation
         let mut table_sizes = vec![
-            vrom_write_size,      // VROM write table size
             prom_size,            // PROM table size
+            vrom_write_size,      // VROM write table size
             vrom_addr_space_size, // VROM address space table size
             vrom_skip_size,       // VROM skip table size
         ];
