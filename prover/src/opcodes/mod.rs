@@ -3,6 +3,7 @@
 //! This module contains the tables for each opcode instruction.
 
 pub mod binary;
+pub mod binary_ops;
 pub mod branch;
 pub mod call;
 pub mod integer_ops;
@@ -11,9 +12,10 @@ pub mod mv;
 pub mod ret;
 
 pub use binary::*;
-pub use branch::*;
-pub use call::*;
-pub use integer_ops::*;
+pub use binary_ops::b32::{AndiTable, XoriTable};
+pub use branch::{BnzTable, BzTable};
+pub use call::TailiTable;
+pub use integer_ops::AddTable;
 pub use ldi::LdiTable;
 pub use mv::MvvwTable;
 pub use ret::RetTable;
