@@ -85,46 +85,6 @@ fn generate_test_trace<const N: usize>(
     Ok(zkvm_trace)
 }
 
-/// Creates a basic execution trace with just LDI, B32_MUL and RET instructions.
-///
-/// # Arguments
-/// * `value` - The value to load into VROM.
-///
-/// # Returns
-/// * A trace containing an LDI, B32_MUL and RET instruction
-fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start:
-           LDI.W @2, #{}\n\
-           LDI.W @3, #2\n\
-           B32_MUL @4, @2, @3\n\
-           RET\n",
-        value
-    );
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
-
-    let mul_result = (B32::new(value) * B32::new(2)).val();
-    let vrom_writes = vec![
-        // LDI events
-        (2, value, 2),
-        (3, 2, 2),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // B32_MUL event
-        (4, mul_result, 1),
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
 fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
     // Create a simple assembly program with LDI, ADD and RET
     // Note: Format follows the grammar requirements:
@@ -253,34 +213,6 @@ where
 }
 
 #[test]
-fn test_ldi_b32_mul_ret() -> Result<()> {
-    test_from_trace_generator(
-        || {
-            // Test value to load
-            let value = 0x12345678;
-            generate_ldi_ret_mul32_trace(value)
-        },
-        |trace| {
-            assert_eq!(
-                trace.ldi_events().len(),
-                2,
-                "Should have exactly two LDI events"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-            assert_eq!(
-                trace.b32_mul_events().len(),
-                1,
-                "Should have exactly one B32_MUL event"
-            );
-        },
-    )
-}
-
-#[test]
 fn test_ldi_add_ret() -> Result<()> {
     test_from_trace_generator(
         || {
@@ -366,7 +298,7 @@ fn test_simple_taili_loop() -> Result<()> {
 }
 
 /// Creates an execution trace with all binary operations (AND, OR, XOR, ANDI,
-/// ORI, XORI) using random input values.
+/// ORI, XORI, B32_MUL, B32_MULI) using random input values.
 ///
 /// # Returns
 /// * A Trace containing all binary operations followed by a RET instruction
@@ -376,7 +308,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     // Generate random values for testing
     let val1 = rng.random::<u32>();
     let val2 = rng.random::<u32>();
-    let imm = rng.random::<u16>() as u32; // Smaller immediate value
+    let imm = rng.random::<u16>() as u32; // Smaller immediate for 16-bit operations
+    let imm32 = rng.random::<u32>(); // Full 32-bit immediate for B32_MULI
 
     // Create assembly program with all binary operations
     let asm_code = format!(
@@ -390,8 +323,10 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
             ANDI @7, @2, #{}\n\
             ORI @8, @2, #{}\n\
             XORI @9, @2, #{}\n\
+            B32_MUL @10, @2, @3\n\
+            B32_MULI @11, @2, #{}\n\
             RET\n",
-        val1, val2, imm, imm, imm
+        val1, val2, imm, imm, imm, imm32
     );
 
     // Initialize memory with return PC = 0, return FP = 0
@@ -404,14 +339,14 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     let andi_result = val1 & imm;
     let ori_result = val1 | imm;
     let xori_result = val1 ^ imm;
+    let b32_mul_result = (B32::new(val1) * B32::new(val2)).val();
+    let b32_muli_result = (B32::new(val1) * B32::new(imm32)).val();
 
-    // Add VROM writes - checking the error, it seems we need different access
-    // counts The test shows expected: [(2, 2287849814, 7), (3, 1313969190, 4),
-    // ...]
+    // Add VROM writes with appropriate access counts
     let vrom_writes = vec![
-        // LDI events - with corrected access counts
-        (2, val1, 7),
-        (3, val2, 4),
+        // LDI events - with corrected access counts for more operations
+        (2, val1, 9), // Used in all operations
+        (3, val2, 5), // Used in AND, OR, XOR, B32_MUL
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
@@ -422,6 +357,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
         (7, andi_result, 1),
         (8, ori_result, 1),
         (9, xori_result, 1),
+        (10, b32_mul_result, 1),
+        (11, b32_muli_result, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -460,6 +397,16 @@ fn test_all_binary_ops() -> Result<()> {
             trace.xori_events().len(),
             1,
             "Should have exactly one XORI event"
+        );
+        assert_eq!(
+            trace.b32_mul_events().len(),
+            1,
+            "Should have exactly one B32_MUL event"
+        );
+        assert_eq!(
+            trace.b32_muli_events().len(),
+            1,
+            "Should have exactly one B32_MULI event"
         );
         assert_eq!(
             trace.ret_events().len(),

@@ -262,6 +262,10 @@ impl Interpreter {
         } = trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction;
         trace.record_instruction(field_pc);
+        // Special handling for B32Muli
+        if opcode == Opcode::B32Muli.get_field_elt() {
+            trace.record_instruction(field_pc * G);
+        }
 
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 

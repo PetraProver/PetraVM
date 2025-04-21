@@ -4,12 +4,14 @@
 
 use std::any::Any;
 
+use binius_field::BinaryField;
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B16, B32,
 };
 use zcrayvm_assembly::{
-    opcodes::Opcode, AndEvent, AndiEvent, B32MulEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
+    opcodes::Opcode, AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent,
+    XoriEvent,
 };
 
 use crate::{
@@ -17,6 +19,7 @@ use crate::{
     gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
     table::Table,
     types::ProverPackedField,
+    utils::pack_b16_into_b32,
 };
 
 /// B32_MUL (Binary Field Multiplication) table.
@@ -827,5 +830,167 @@ impl TableFiller<ProverPackedField> for AndiTable {
             arg2: event.imm,
         });
         self.cpu_cols.populate(witness, cpu_rows)
+    }
+}
+
+/// B32_MULI (Binary Field Multiplication with Immediate) table.
+///
+/// This table handles the B32_MULI instruction, which performs multiplication
+/// in the binary field GF(2^32) with a 32-bit immediate value.
+/// This operation is special as it spans two instructions, with the immediate
+/// split across them.
+pub struct B32MuliTable {
+    /// Table ID
+    pub id: TableId,
+    /// CPU columns for first instruction
+    cpu_cols_first: CpuColumns<{ Opcode::B32Muli as u16 }>,
+    /// CPU columns for second instruction
+    cpu_cols_second: CpuColumns<{ Opcode::B32Muli as u16 }>,
+    /// Source value
+    pub src_val: Col<B32>,
+    /// Immediate value (32-bit constructed from two 16-bit values)
+    pub imm_val: Col<B32>,
+    /// Result value
+    pub dst_val: Col<B32>,
+    /// Source absolute address
+    pub src_abs_addr: Col<B32>,
+    /// Destination absolute address
+    pub dst_abs_addr: Col<B32>,
+}
+
+impl Table for B32MuliTable {
+    type Event = B32MuliEvent;
+
+    fn name(&self) -> &'static str {
+        "B32MuliTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("b32_muli");
+
+        // First instruction - captures the initial opcode, dst, src, and imm_low
+        let cpu_cols_first = CpuColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            CpuColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        // Second instruction - captures the opcode continuation with imm_high
+        let cpu_cols_second = CpuColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            CpuColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        let CpuColumns {
+            fp,
+            arg0: dst,
+            arg1: src,
+            arg2: imm_low_col,
+            ..
+        } = cpu_cols_first;
+
+        let CpuColumns {
+            arg0: imm_high_col, ..
+        } = cpu_cols_second;
+
+        // Create columns for values
+        let src_val = table.add_committed("b32_muli_src_val");
+
+        // Construct the 32-bit immediate from the two 16-bit parts
+        let imm_val = table.add_computed(
+            "b32_muli_imm_val",
+            pack_b16_into_b32([imm_low_col.into(), imm_high_col.into()]),
+        );
+
+        // Pull source value from VROM channel
+        let src_abs_addr = table.add_computed("src_addr", fp + upcast_expr(src.into()));
+        table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
+
+        // Compute the result
+        let dst_val = table.add_computed("b32_muli_dst_val", src_val * imm_val);
+
+        // Pull result from VROM channel
+        let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
+        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+
+        Self {
+            id: table.id(),
+            cpu_cols_first,
+            cpu_cols_second,
+            src_val,
+            imm_val,
+            dst_val,
+            src_abs_addr,
+            dst_abs_addr,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for B32MuliTable {
+    type Event = B32MuliEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        {
+            let mut src_val_col = witness.get_scalars_mut(self.src_val)?;
+            let mut imm_val_col = witness.get_scalars_mut(self.imm_val)?;
+            let mut dst_val_col = witness.get_scalars_mut(self.dst_val)?;
+            let mut src_abs_addr_col = witness.get_scalars_mut(self.src_abs_addr)?;
+            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                src_val_col[i] = B32::new(event.src_val);
+                imm_val_col[i] = B32::new(event.imm);
+                dst_val_col[i] = B32::new(event.dst_val);
+                src_abs_addr_col[i] = B32::new(event.fp.addr(event.src));
+                dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
+            }
+        }
+
+        // Populate the first instruction CPU rows
+        let cpu_rows_first = rows.clone().map(|event| CpuGadget {
+            pc: event.pc.val(),
+            next_pc: None, // NextPc::Increment handles this
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm as u16, // imm_low
+        });
+
+        // Populate the second instruction CPU rows
+        let cpu_rows_second = rows.map(|event| CpuGadget {
+            pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).val(), // PC for the second instruction
+            next_pc: None,                                        // NextPc::Increment handles this
+            fp: *event.fp,
+            arg0: (event.imm >> 16) as u16, // imm_high
+            arg1: 0,                        /* These args should be 0 according to
+                                             * B32MuliEvent::generate */
+            arg2: 0, // These args should be 0 according to B32MuliEvent::generate
+        });
+
+        self.cpu_cols_first.populate(witness, cpu_rows_first)?;
+        self.cpu_cols_second.populate(witness, cpu_rows_second)?;
+
+        Ok(())
     }
 }
