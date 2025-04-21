@@ -15,16 +15,18 @@ use zcrayvm_prover::prover::{verify_proof, Prover};
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
-fn generate_fibonacci_trace(n: u32) -> Result<Trace> {
+fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Read the Fibonacci assembly code from examples directory
     let asm_code = std::fs::read_to_string("../examples/fib.asm")
         .map_err(|e| anyhow::anyhow!("Failed to read fib.asm: {}", e))?;
 
+    let n = B32::MULTIPLICATIVE_GENERATOR.pow([n as u64]).val();
     // Initialize memory with:
     // Slot 0: Return PC = 0
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
-    let init_values = [0, 0, n];
+    // Slot 3: Arg: Result
+    let init_values = [0, 0, n, res];
 
     generate_test_trace(asm_code, init_values)
 }
@@ -66,6 +68,8 @@ fn generate_test_trace<const N: usize>(asm_code: String, init_values: [u32; N]) 
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
+    dbg!(&zcray_trace);
+
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
 
@@ -92,11 +96,20 @@ fn generate_test_trace<const N: usize>(asm_code: String, init_values: [u32; N]) 
     Ok(zkvm_trace)
 }
 
+fn fibonacci(n: u32) -> u32 {
+    if n <= 1 {
+        n
+    } else {
+        fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
 #[test]
 fn test_fibonacci() -> Result<()> {
     // Step 1: Generate trace
-    let n = B32::MULTIPLICATIVE_GENERATOR.pow([5]).val();
-    let trace = generate_fibonacci_trace(n)?;
+    let n = 5;
+    let res = fibonacci(n);
+    let trace = generate_fibonacci_trace(n, res)?;
 
     // Step 2: Validate trace
     trace.validate()?;
