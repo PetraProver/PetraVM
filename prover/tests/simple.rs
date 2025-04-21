@@ -159,7 +159,7 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 }
 
 /// Creates an execution trace for a simple program that uses only MVV.W,
-/// BNZ, TAILI, and RET.
+/// BNZ, BZ, TAILI, and RET.
 ///
 /// # Returns
 /// * A Trace containing a simple program with a loop using TAILI, the BNZ
