@@ -7,17 +7,18 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use binius_m3::builder::B32;
+use paste::paste;
 use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
 
 use crate::table::*;
 
-/// Implements the [`TableInfo`](crate::table::TableInfo) trait that lifts
+/// Implements the [`TableInfo`] trait that lifts
 /// [`InstructionInfo`](zcrayvm_assembly::InstructionInfo) and maps events to
 /// their corresponding field in the [`ZCrayTrace`], as well as corresponding
 /// event accessors for the main [`Trace`].
 ///
 /// It will also implement the mapping between an [`Opcode`] and its associated
-/// [`Table`](crate::table::Table).
+/// [`Table`].
 ///
 /// # Example
 ///
@@ -29,43 +30,45 @@ use crate::table::*;
 /// ```
 macro_rules! define_tables_and_accessors {
     (
-        $(
-            ($event_type:ty, $table_type:ty, $accessor:ident,  $func_name:ident, $opcode_variant:ident)
-        ),* $(,)?
+        $(($func_name:ident, $opcode_variant:ident)),* $(,)?
     ) => {
         $(
-            impl Trace {
-                #[doc = concat!("Returns a reference to the logged `", stringify!($event_type), "`s from the trace.")]
-                pub fn $accessor(&self) -> &[$event_type] {
-                    &self.trace.$func_name
+            paste! {
+                impl Trace {
+                    #[doc = concat!("Returns a reference to the logged `", stringify!([<$opcode_variant Event>]), "`s from the trace.")]
+                    pub fn [<$func_name _events>](&self) -> &[ [<$opcode_variant Event>] ] {
+                        &self.trace.$func_name
+                    }
                 }
-            }
 
-            impl $crate::table::TableInfo for $event_type {
-                type Table = $table_type;
+                impl TableInfo for [<$opcode_variant Event>] {
+                    type Table = [<$opcode_variant Table>];
 
-                fn accessor() -> fn(&Trace) -> &[<$table_type as $crate::table::Table>::Event] {
-                    Trace::$accessor
+                    fn accessor() -> fn(&Trace) -> &[< [<$opcode_variant Table>] as Table>::Event] {
+                        Trace::[<$func_name _events>]
+                    }
                 }
             }
         )*
 
-        pub fn build_table_for_opcode(
-            opcode: Opcode,
-            cs: &mut binius_m3::builder::ConstraintSystem,
-            channels: &$crate::channels::Channels,
-        ) -> Option<Box<dyn $crate::table::FillableTable>> {
-            use $crate::table::Table;
-            match opcode {
-                $(
-                    Opcode::$opcode_variant => {
-                        Some(Box::new($crate::table::TableEntry {
-                            table: Box::new(<$table_type>::new(cs, channels)),
-                            get_events: <$event_type as $crate::table::TableInfo>::accessor(),
-                        }))
-                    }
-                )*
-                _ => None,
+        paste! {
+            pub fn build_table_for_opcode(
+                opcode: Opcode,
+                cs: &mut binius_m3::builder::ConstraintSystem,
+                channels: &$crate::channels::Channels,
+            ) -> Option<Box<dyn $crate::table::FillableTable>> {
+                use $crate::table::Table;
+                match opcode {
+                    $(
+                        Opcode::$opcode_variant => {
+                            Some(Box::new($crate::table::TableEntry {
+                                table: Box::new(<[<$opcode_variant Table>]>::new(cs, channels)),
+                                get_events: <[<$opcode_variant Event>] as $crate::table::TableInfo>::accessor(),
+                            }))
+                        }
+                    )*
+                    _ => None,
+                }
             }
         }
     };
@@ -224,18 +227,18 @@ impl Trace {
 
 // Generate event accessors and table info.
 define_tables_and_accessors!(
-    (LdiEvent, LdiTable, ldi_events, ldi, Ldi),
-    (RetEvent, RetTable, ret_events, ret, Ret),
-    (BzEvent, BzTable, bz_events, bz, Bz),
-    (BnzEvent, BnzTable, bnz_events, bnz, Bnz),
-    (B32MulEvent, B32MulTable, b32_mul_events, b32_mul, B32Mul),
-    (AndiEvent, AndiTable, andi_events, andi, Andi),
-    (XoriEvent, XoriTable, xori_events, xori, Xori),
-    (AddEvent, AddTable, add_events, add, Add),
-    (TailiEvent, TailiTable, taili_events, taili, Taili),
-    (MvvwEvent, MvvwTable, mvvw_events, mvvw, Mvvw),
-    (AndEvent, AndTable, and_events, and, And),
-    (XorEvent, XorTable, xor_events, xor, Xor),
-    (OrEvent, OrTable, or_events, or, Or),
-    (OriEvent, OriTable, ori_events, ori, Ori),
+    (ldi, Ldi),
+    (ret, Ret),
+    (bz, Bz),
+    (bnz, Bnz),
+    (b32_mul, B32Mul),
+    (andi, Andi),
+    (xori, Xori),
+    (add, Add),
+    (taili, Taili),
+    (mvvw, Mvvw),
+    (and, And),
+    (xor, Xor),
+    (or, Or),
+    (ori, Ori),
 );
