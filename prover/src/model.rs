@@ -23,12 +23,12 @@ use crate::table::*;
 /// # Example
 ///
 /// ```ignore
-/// define_tables_and_accessors!(
+/// define_table_registry_and_accessors!(
 ///     (LDIEvent, LdiTable, ldi_events, ldi, Ldi),
 ///     (RetEvent, RetTable, ret_events, ret, Ret),
 /// );
 /// ```
-macro_rules! define_tables_and_accessors {
+macro_rules! define_table_registry_and_accessors {
     (
         $(($func_name:ident, $opcode_variant:ident)),* $(,)?
     ) => {
@@ -226,7 +226,7 @@ impl Trace {
 }
 
 // Generate event accessors and table info.
-define_tables_and_accessors!(
+define_table_registry_and_accessors!(
     (ldi, Ldi),
     (ret, Ret),
     (bz, Bz),
