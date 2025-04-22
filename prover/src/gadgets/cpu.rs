@@ -1,7 +1,7 @@
 use binius_core::constraint_system::channel::ChannelId;
-use binius_field::BinaryField;
 use binius_m3::builder::{Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32};
 
+use crate::opcodes::G;
 use crate::{
     types::ProverPackedField,
     utils::{pack_b16_into_b32, pack_instruction_u128, pack_instruction_with_fixed_opcode},
@@ -87,7 +87,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
         // Pull/Push the current/next pc and fp from from/to the state channel
         let next_pc = match options.next_pc {
-            NextPc::Increment => table.add_computed("next_pc", pc * B32::MULTIPLICATIVE_GENERATOR),
+            NextPc::Increment => table.add_computed("next_pc", pc * G),
             NextPc::Target(target) => target,
             NextPc::Immediate => {
                 table.add_computed("next_pc", pack_b16_into_b32([arg0.into(), arg1.into()]))
@@ -148,7 +148,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             arg2_col[i] = arg2;
 
             next_pc_col[i] = match self.options.next_pc {
-                NextPc::Increment => (B32::new(pc) * B32::MULTIPLICATIVE_GENERATOR).val(),
+                NextPc::Increment => (B32::new(pc) * G).val(),
                 NextPc::Target(_) => next_pc.expect("next_pc must be Some when NextPc::Target"),
                 NextPc::Immediate => arg0 as u32 | (arg1 as u32) << 16,
             };

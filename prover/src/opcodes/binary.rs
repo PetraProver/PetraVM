@@ -4,7 +4,7 @@
 
 use std::any::Any;
 
-use binius_field::BinaryField;
+use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B128, B16, B32,
@@ -22,8 +22,9 @@ use crate::{
     },
     table::Table,
     types::ProverPackedField,
-    utils::pack_b16_into_b32,
+    utils::{pack_b16_into_b32, pack_instruction_one_arg},
 };
+use crate::{opcodes::G, utils::pack_instruction_with_32bits_imm_b128};
 
 // Constants for opcodes
 const B32_MUL_OPCODE: u16 = Opcode::B32Mul as u16;
@@ -1215,9 +1216,7 @@ pub struct B32MuliTable {
     /// Table ID
     pub id: TableId,
     /// CPU columns for first instruction
-    cpu_cols_first: CpuColumns<{ Opcode::B32Muli as u16 }>,
-    /// CPU columns for second instruction
-    cpu_cols_second: CpuColumns<{ Opcode::B32Muli as u16 }>,
+    cpu_cols: CpuColumns<{ Opcode::B32Muli as u16 }>,
     /// Source value
     pub src_val: Col<B32>,
     /// Immediate value (32-bit constructed from two 16-bit values)
@@ -1228,6 +1227,12 @@ pub struct B32MuliTable {
     pub src_abs_addr: Col<B32>,
     /// Destination absolute address
     pub dst_abs_addr: Col<B32>,
+    /// Second instruction packed
+    pub second_instruction_packed: Col<B128>,
+    /// Second instruction PC
+    pub second_instruction_pc: Col<B32>,
+    /// Second instruction arg0
+    pub imm_high: Col<B16>,
 }
 
 impl Table for B32MuliTable {
@@ -1239,48 +1244,40 @@ impl Table for B32MuliTable {
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b32_muli");
+        let next_pc = table.add_committed("next_pc");
 
         // First instruction - captures the initial opcode, dst, src, and imm_low
-        let cpu_cols_first = CpuColumns::new(
+        let cpu_cols = CpuColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
             CpuColumnsOptions {
-                next_pc: NextPc::Increment,
-                next_fp: None,
-            },
-        );
-
-        // Second instruction - captures the opcode continuation with imm_high
-        let cpu_cols_second = CpuColumns::new(
-            &mut table,
-            channels.state_channel,
-            channels.prom_channel,
-            CpuColumnsOptions {
-                next_pc: NextPc::Increment,
+                next_pc: NextPc::Target(next_pc),
                 next_fp: None,
             },
         );
 
         let CpuColumns {
+            pc,
             fp,
             arg0: dst,
             arg1: src,
-            arg2: imm_low_col,
+            arg2: imm_low,
             ..
-        } = cpu_cols_first;
+        } = cpu_cols;
 
-        let CpuColumns {
-            arg0: imm_high_col, ..
-        } = cpu_cols_second;
+        // Checks that the next PC is PC * G * G
+        let second_instruction_pc = table.add_computed("second_instruction_pc", pc * G);
+        table.assert_zero("next_pc_check", next_pc - second_instruction_pc * G);
 
         // Create columns for values
         let src_val = table.add_committed("b32_muli_src_val");
 
         // Construct the 32-bit immediate from the two 16-bit parts
+        let imm_high = table.add_committed("imm_high_col");
         let imm_val = table.add_computed(
             "b32_muli_imm_val",
-            pack_b16_into_b32([imm_low_col.into(), imm_high_col.into()]),
+            pack_b16_into_b32([imm_low.into(), imm_high.into()]),
         );
 
         // Pull source value from VROM channel
@@ -1294,15 +1291,27 @@ impl Table for B32MuliTable {
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
         table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
 
+        // Pack the second instruction
+        let second_instruction_packed = pack_instruction_one_arg(
+            &mut table,
+            "second_instruction_packed",
+            second_instruction_pc,
+            Opcode::B32Muli as u16,
+            imm_high,
+        );
+        table.pull(channels.prom_channel, [second_instruction_packed]);
+
         Self {
             id: table.id(),
-            cpu_cols_first,
-            cpu_cols_second,
+            cpu_cols,
             src_val,
             imm_val,
             dst_val,
             src_abs_addr,
             dst_abs_addr,
+            second_instruction_packed,
+            second_instruction_pc,
+            imm_high,
         }
     }
 
@@ -1329,6 +1338,11 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
             let mut dst_val_col = witness.get_scalars_mut(self.dst_val)?;
             let mut src_abs_addr_col = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
+            let mut second_instruction_pc_col =
+                witness.get_scalars_mut(self.second_instruction_pc)?;
+            let mut imm_high_col = witness.get_scalars_mut(self.imm_high)?;
+            let mut second_instruction_packed_col =
+                witness.get_scalars_mut(self.second_instruction_packed)?;
 
             for (i, event) in rows.clone().enumerate() {
                 src_val_col[i] = B32::new(event.src_val);
@@ -1336,32 +1350,28 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
                 dst_val_col[i] = B32::new(event.dst_val);
                 src_abs_addr_col[i] = B32::new(event.fp.addr(event.src));
                 dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
+                second_instruction_pc_col[i] = event.pc * G;
+                imm_high_col[i] = B16::new((event.imm >> 16) as u16);
+                second_instruction_packed_col[i] = pack_instruction_with_32bits_imm_b128(
+                    second_instruction_pc_col[i],
+                    B16::new(Opcode::B32Muli as u16),
+                    imm_high_col[i],
+                    B32::ZERO,
+                );
             }
         }
 
         // Populate the first instruction CPU rows
-        let cpu_rows_first = rows.clone().map(|event| CpuGadget {
+        let cpu_rows = rows.clone().map(|event| CpuGadget {
             pc: event.pc.val(),
-            next_pc: None, // NextPc::Increment handles this
+            next_pc: Some((event.pc * G * G).val()),
             fp: *event.fp,
             arg0: event.dst,
             arg1: event.src,
             arg2: event.imm as u16, // imm_low
         });
 
-        // Populate the second instruction CPU rows
-        let cpu_rows_second = rows.map(|event| CpuGadget {
-            pc: (event.pc * B32::MULTIPLICATIVE_GENERATOR).val(), // PC for the second instruction
-            next_pc: None,                                        // NextPc::Increment handles this
-            fp: *event.fp,
-            arg0: (event.imm >> 16) as u16, // imm_high
-            arg1: 0,                        /* This arg should be 0 according to
-                                             * B32MuliEvent::generate */
-            arg2: 0, // This arg should be 0 according to B32MuliEvent::generate
-        });
-
-        self.cpu_cols_first.populate(witness, cpu_rows_first)?;
-        self.cpu_cols_second.populate(witness, cpu_rows_second)?;
+        self.cpu_cols.populate(witness, cpu_rows)?;
 
         Ok(())
     }

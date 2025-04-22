@@ -103,6 +103,24 @@ pub fn pack_instruction_no_args(
     )
 }
 
+/// Packs an instruction with a single argument.
+///
+/// Format: [PC (32 bits) | 0 | 0 | arg (16 bits) | opcode (16 bits)]
+pub fn pack_instruction_one_arg(
+    table: &mut TableBuilder,
+    name: &str,
+    pc: Col<B32>,
+    opcode: u16,
+    arg: Col<B16>,
+) -> Col<B128> {
+    table.add_computed(
+        name,
+        upcast_expr(arg.into()) * b128_basis(1)
+            + upcast_expr(pc.into()) * b128_basis(4)
+            + B128::new(opcode as u128),
+    )
+}
+
 /// Creates a B128 value by packing instruction components with constant values.
 ///
 /// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
