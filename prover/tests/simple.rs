@@ -278,6 +278,7 @@ where
     trace!("All steps completed successfully!");
     Ok(())
 }
+
 #[test]
 fn test_ldi_b128_add_ret() -> Result<()> {
     test_from_trace_generator(
