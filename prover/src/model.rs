@@ -246,9 +246,15 @@ impl_table_info_and_accessor!(
     (BnzEvent, BnzTable, bnz_events, bnz),
     (B32MulEvent, B32MulTable, b32_mul_events, b32_mul),
     (B128AddEvent, B128AddTable, b128_add_events, b128_add),
+    (AndiEvent, AndiTable, andi_events, andi),
+    (XoriEvent, XoriTable, xori_events, xori),
     (AddEvent, AddTable, add_events, add),
     (TailiEvent, TailiTable, taili_events, taili),
-    (MvvwEvent, MvvwTable, mvvw_events, mvvw)
+    (MvvwEvent, MvvwTable, mvvw_events, mvvw),
+    (AndEvent, AndTable, and_events, and),
+    (XorEvent, XorTable, xor_events, xor),
+    (OrEvent, OrTable, or_events, or),
+    (OriEvent, OriTable, ori_events, ori),
 );
 
 // Map all opcodes to their related event and table.
@@ -262,5 +268,11 @@ define_table_registry!(
     (B128AddEvent, B128AddTable, B128Add),
     (AddEvent, AddTable, Add),
     (TailiEvent, TailiTable, Taili),
-    (MvvwEvent, MvvwTable, Mvvw)
+    (MvvwEvent, MvvwTable, Mvvw),
+    (AndiEvent, AndiTable, Andi),
+    (XoriEvent, XoriTable, Xori),
+    (AndEvent, AndTable, And),
+    (XorEvent, XorTable, Xor),
+    (OrEvent, OrTable, Or),
+    (OriEvent, OriTable, Ori),
 );
