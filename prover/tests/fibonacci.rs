@@ -99,10 +99,15 @@ fn generate_test_trace<const N: usize>(asm_code: String, init_values: [u32; N]) 
 
 fn fibonacci(n: u32) -> u32 {
     if n <= 1 {
-        n
-    } else {
-        fibonacci(n - 1).wrapping_add(fibonacci(n - 2))
+        return n;
     }
+    let (mut a, mut b) = (0u32, 1u32);
+    for _ in 0..n {
+        let temp = b;
+        b = a.wrapping_add(b);
+        a = temp;
+    }
+    a
 }
 
 #[test]
