@@ -983,9 +983,9 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
             next_pc: None,                                        // NextPc::Increment handles this
             fp: *event.fp,
             arg0: (event.imm >> 16) as u16, // imm_high
-            arg1: 0,                        /* These args should be 0 according to
+            arg1: 0,                        /* This arg should be 0 according to
                                              * B32MuliEvent::generate */
-            arg2: 0, // These args should be 0 according to B32MuliEvent::generate
+            arg2: 0, // This arg should be 0 according to B32MuliEvent::generate
         });
 
         self.cpu_cols_first.populate(witness, cpu_rows_first)?;
