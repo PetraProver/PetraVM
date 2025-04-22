@@ -45,7 +45,7 @@ impl EventContext<'_> {
         self.trace.vrom()
     }
 
-    pub fn vrom_vmut(&mut self) -> &mut ValueRom {
+    pub fn vrom_mut(&mut self) -> &mut ValueRom {
         self.trace.vrom_mut()
     }
 
@@ -56,11 +56,11 @@ impl EventContext<'_> {
         self.vrom().read(addr)
     }
 
-    pub fn vrom_read_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
+    pub fn vrom_check_value_set<T>(&self, addr: u32) -> Result<bool, MemoryError>
     where
         T: VromValueT,
     {
-        self.vrom().read_opt(addr)
+        self.vrom().check_value_set::<T>(addr)
     }
 
     pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>

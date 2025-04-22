@@ -22,3 +22,4 @@ binius_hal.workspace = true
 
 [dev-dependencies]
 zcrayvm-assembly = { path = "../assembly" }
+rand = { version = "0.9.1", features = ["std"] }

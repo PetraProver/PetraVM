@@ -27,3 +27,4 @@ pub use execution::trace::BoundaryValues;
 pub use execution::trace::ZCrayTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
 pub use opcodes::{InstructionInfo, Opcode};
+pub use util::init_logger;

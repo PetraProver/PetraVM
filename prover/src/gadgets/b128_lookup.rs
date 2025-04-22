@@ -37,12 +37,9 @@ impl B128LookupColumns {
         });
         let val_cols =
             from_fn(|i| table.add_selected(format!("{label}_b128_lookup_val_{}", i), val, i));
-        for i in 0..4 {
-            if i == 0 {
-                table.pull(vrom_channel, [addr_base, val_cols[0]]);
-            } else {
-                table.pull(vrom_channel, [addr_tail[i - 1], val_cols[i]]);
-            }
+        table.pull(vrom_channel, [addr_base, val_cols[0]]);
+        for i in 0..3 {
+            table.pull(vrom_channel, [addr_tail[i], val_cols[i + 1]]);
         }
 
         Self {
