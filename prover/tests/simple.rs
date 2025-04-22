@@ -90,7 +90,8 @@ fn generate_test_trace<const N: usize>(
 /// instructions.
 ///
 /// # Arguments
-/// * `value` - The value to load into VROM.
+/// * `x` - The first value to load into VROM.
+/// * `y` - The second value to load into VROM.
 ///
 /// # Returns
 /// * A trace containing an LDI, B128_ADD and RET instruction
@@ -125,20 +126,14 @@ fn generate_ldi_ret_add128_trace(x: u128, y: u128) -> Result<Trace> {
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
+    let init_values = [
+        0, 0, 0, 0, x_array[0], x_array[1], x_array[2], x_array[3], y_array[0], y_array[1],
+        y_array[2], y_array[3],
+    ];
 
-    let result = (B128::new(x) + B128::new(y)).val();
+    let result = (B128::new(x) * B128::new(y)).val();
     let result_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(result);
     let vrom_writes = vec![
-        // LDI events
-        (4, x_array[0], 2),
-        (5, x_array[1], 2),
-        (6, x_array[2], 2),
-        (7, x_array[3], 2),
-        (8, y_array[0], 2),
-        (9, y_array[1], 2),
-        (10, y_array[2], 2),
-        (11, y_array[3], 2),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
@@ -290,19 +285,14 @@ fn test_ldi_b128_add_ret() -> Result<()> {
         },
         |trace| {
             assert_eq!(
-                trace.ldi_events().len(),
-                8,
-                "Should have exactly 8 LDI events"
-            );
-            assert_eq!(
                 trace.ret_events().len(),
                 1,
                 "Should have exactly one RET event"
             );
             assert_eq!(
-                trace.b128_add_events().len(),
+                trace.b128_mul_events().len(),
                 1,
-                "Should have exactly one B128_ADD event"
+                "Should have exactly one B128_MUL event"
             );
         },
     )
