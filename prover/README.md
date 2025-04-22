@@ -51,7 +51,7 @@ The proving system is built using an M3 arithmetic circuit with the following co
 4. **VROM Address Space Channel**
    - Format: [Address]
    - Used to push the full address space
-   - Pulled by VromWriteTable
+   - Pulled by VromWriteTable or VromSkipTable
    - Pushed by VromAddrSpaceTable
 
 ### Design Considerations
