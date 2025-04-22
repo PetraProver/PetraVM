@@ -191,7 +191,7 @@ impl Table for B128AddTable {
         "B128AddTable"
     }
 
-    /// Create a new B32_MUL table with the given constraint system and
+    /// Create a new B128_ADD table with the given constraint system and
     /// channels.
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b128_add");
@@ -285,11 +285,6 @@ impl TableFiller<ProverPackedField> for B128AddTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        let mut cpu_rows = Vec::new();
-        let mut src1_rows = Vec::new();
-        let mut src2_rows = Vec::new();
-        let mut result_rows = Vec::new();
-
         {
             let mut src1_val_col_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
             let mut src2_val_col_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
@@ -305,40 +300,36 @@ impl TableFiller<ProverPackedField> for B128AddTable {
                 src1_abs_addr_col[i] = B32::new(event.fp.addr(event.src1));
                 src2_abs_addr_col[i] = B32::new(event.fp.addr(event.src2));
                 dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
-
-                let src1_row = B128LookupGadget {
-                    addr: event.fp.addr(event.src1),
-                    val: event.src1_val,
-                };
-                src1_rows.push(src1_row);
-                let src2_row = B128LookupGadget {
-                    addr: event.fp.addr(event.src2),
-                    val: event.src2_val,
-                };
-                src2_rows.push(src2_row);
-                let result_row = B128LookupGadget {
-                    addr: event.fp.addr(event.dst),
-                    val: event.dst_val,
-                };
-                result_rows.push(result_row);
-
-                let cpu_row = CpuGadget {
-                    pc: event.pc.val(),
-                    next_pc: None,
-                    fp: *event.fp,
-                    arg0: event.dst,
-                    arg1: event.src1,
-                    arg2: event.src2,
-                };
-                cpu_rows.push(cpu_row);
             }
         }
 
-        self.cpu_cols.populate(witness, cpu_rows.into_iter())?;
-        self.src1_lookup.populate(witness, src1_rows.into_iter())?;
-        self.src2_lookup.populate(witness, src2_rows.into_iter())?;
-        self.result_lookup
-            .populate(witness, result_rows.into_iter())
+        let cpu_iter = rows.clone().map(|ev| CpuGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src1,
+            arg2: ev.src2,
+        });
+        self.cpu_cols.populate(witness, cpu_iter)?;
+
+        let src1_iter = rows.clone().map(|ev| B128LookupGadget {
+            addr: ev.fp.addr(ev.src1),
+            val: ev.src1_val,
+        });
+        self.src1_lookup.populate(witness, src1_iter)?;
+
+        let src2_iter = rows.clone().map(|ev| B128LookupGadget {
+            addr: ev.fp.addr(ev.src2),
+            val: ev.src2_val,
+        });
+        self.src2_lookup.populate(witness, src2_iter)?;
+
+        let result_iter = rows.map(|ev| B128LookupGadget {
+            addr: ev.fp.addr(ev.dst),
+            val: ev.dst_val,
+        });
+        self.result_lookup.populate(witness, result_iter)
     }
 }
 
