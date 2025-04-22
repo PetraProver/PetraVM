@@ -4,8 +4,9 @@
 //! proving system pipeline from assembly to proof verification.
 
 use anyhow::Result;
+use binius_field::underlier::Divisible;
 use binius_field::{BinaryField, Field};
-use binius_m3::builder::B32;
+use binius_m3::builder::{B128, B32};
 use log::trace;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -120,6 +121,72 @@ fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
         (1, 0, 1),
         // B32_MUL event
         (4, mul_result, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+/// Creates a basic execution trace with just LDI, B128_ADD and RET
+/// instructions.
+///
+/// # Arguments
+/// * `value` - The value to load into VROM.
+///
+/// # Returns
+/// * A trace containing an LDI, B128_ADD and RET instruction
+fn generate_ldi_ret_add128_trace(x: u128, y: u128) -> Result<Trace> {
+    // Create a simple assembly program with LDI and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let x_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(x);
+    let y_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(y);
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+         _start:
+           LDI.W @4, #{}\n\
+           LDI.W @5, #{}\n\
+           LDI.W @6, #{}\n\
+           LDI.W @7, #{}\n\
+           LDI.W @8, #{}\n\
+           LDI.W @9, #{}\n\
+           LDI.W @10, #{}\n\
+           LDI.W @11, #{}\n\
+           B128_ADD @12, @4, @8\n\
+           RET\n",
+        x_array[0],
+        x_array[1],
+        x_array[2],
+        x_array[3],
+        y_array[0],
+        y_array[1],
+        y_array[2],
+        y_array[3]
+    );
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = [0, 0];
+
+    let result = (B128::new(x) + B128::new(y)).val();
+    let result_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(result);
+    let vrom_writes = vec![
+        // LDI events
+        (4, x_array[0], 2),
+        (5, x_array[1], 2),
+        (6, x_array[2], 2),
+        (7, x_array[3], 2),
+        (8, y_array[0], 2),
+        (9, y_array[1], 2),
+        (10, y_array[2], 2),
+        (11, y_array[3], 2),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        // B128_ADD event
+        (12, result_array[0], 1),
+        (13, result_array[1], 1),
+        (14, result_array[2], 1),
+        (15, result_array[3], 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -279,6 +346,35 @@ fn test_ldi_b32_mul_ret() -> Result<()> {
                 trace.b32_mul_events().len(),
                 1,
                 "Should have exactly one B32_MUL event"
+            );
+        },
+    )
+}
+
+#[test]
+fn test_ldi_b128_add_ret() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let x = 0x123456789abcdef123456789abcdef;
+            let y = 0x44000000330000002200000011;
+            generate_ldi_ret_add128_trace(x, y)
+        },
+        |trace| {
+            assert_eq!(
+                trace.ldi_events().len(),
+                8,
+                "Should have exactly 8 LDI events"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+            assert_eq!(
+                trace.b128_add_events().len(),
+                1,
+                "Should have exactly one B128_ADD event"
             );
         },
     )
