@@ -233,6 +233,7 @@ define_tables_and_accessors!(
     (bnz, Bnz),
     (b32_mul, B32Mul),
     (b128_add, B128Add),
+    (b128_mul, B128Mul),
     (andi, Andi),
     (xori, Xori),
     (add, Add),

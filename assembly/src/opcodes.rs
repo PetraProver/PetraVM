@@ -135,7 +135,7 @@ impl Opcode {
             Opcode::B32Mul => 3,  // dst, src1, src2
             Opcode::B32Muli => 3, // dst, src, imm
             Opcode::B128Add => 3, // dst, src1, src2
-            Opcode::B128Mul => 3, // dst, src, imm
+            Opcode::B128Mul => 3, // dst, src1, src2
             Opcode::Add => 3,     // dst, src1, src2
             Opcode::Addi => 3,    // dst, src, imm
             Opcode::Mvvw => 3,    // dst, offset, src
