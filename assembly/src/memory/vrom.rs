@@ -16,7 +16,7 @@ pub(crate) type VromUpdate = (
     u32,    // fp
     u32,    // timestamp
     B16,    // dst
-    u32,    // dst addr (next fp addr)
+    u32,    // dst addr
     B16,    // src
     B16,    // offset
 );
@@ -140,7 +140,9 @@ impl ValueRom {
 
     /// Allocates a new frame with the specified size.
     pub(crate) fn allocate_new_frame(&mut self, requested_size: u32) -> u32 {
-        self.vrom_allocator.alloc(requested_size)
+        let res = self.vrom_allocator.alloc(requested_size);
+        self.ensure_capacity::<u32>(self.vrom_allocator.size() as u32);
+        res
     }
 
     /// Ensures the VROM has enough capacity for an access, resizing if
