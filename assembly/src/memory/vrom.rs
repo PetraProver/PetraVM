@@ -199,7 +199,7 @@ impl ValueRom {
     }
 
     /// Record accesses for addresses [addr, addr+size).
-    fn record_access(&self, addr: u32, size: usize) {
+    pub(crate) fn record_access(&self, addr: u32, size: usize) {
         for i in 0..size {
             let idx = addr as usize + i;
             let count = self.access_counts[idx].get();

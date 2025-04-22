@@ -200,6 +200,7 @@ impl MvvwEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr)?;
 
@@ -208,7 +209,7 @@ impl MvvwEvent {
         // have access to the value.
         if src_val_set {
             let src_val = ctx.vrom_read::<u32>(src_addr)?;
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -225,8 +226,9 @@ impl MvvwEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
+                dst_addr_offset,
                 (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
             )?;
             Ok(None)
@@ -348,6 +350,7 @@ impl MvvlEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr)?;
 
@@ -356,7 +359,7 @@ impl MvvlEvent {
         // have access to the value.
         if src_val_set {
             let src_val = ctx.vrom_read::<u128>(src_addr)?;
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -373,8 +376,9 @@ impl MvvlEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
+                dst_addr_offset,
                 (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
             )?;
             Ok(None)
