@@ -10,8 +10,8 @@ use binius_m3::builder::{
     B128, B16, B32,
 };
 use zcrayvm_assembly::{
-    opcodes::Opcode, AndEvent, AndiEvent, B128AddEvent, B32MulEvent, B32MuliEvent, OrEvent,
-    OriEvent, XorEvent, XoriEvent,
+    opcodes::Opcode, AndEvent, AndiEvent, B128AddEvent, B128MulEvent, B32MulEvent, B32MuliEvent,
+    OrEvent, OriEvent, XorEvent, XoriEvent,
 };
 
 use crate::{
