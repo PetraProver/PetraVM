@@ -62,12 +62,12 @@ macro_rules! impl_mv_event {
 }
 
 pub(crate) struct MVEventOutput {
-    pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: B32,    // field PC
     pub(crate) fp: FramePointer, // fp
     pub(crate) timestamp: u32,   // timestamp
     pub(crate) dst: B16,         // dst
+    pub(crate) dst_addr: u32,    // dst addr (next fp addr)
     pub(crate) src: B16,         // src
     pub(crate) offset: B16,      // offset
     pub(crate) src_val: u128,
@@ -76,37 +76,37 @@ pub(crate) struct MVEventOutput {
 impl MVEventOutput {
     #[allow(clippy::too_many_arguments)]
     pub(crate) const fn new(
-        parent: u32, // parent addr
         opcode: Opcode,
         field_pc: B32,    // field PC
         fp: FramePointer, // fp
         timestamp: u32,   // timestamp
         dst: B16,         // dst
+        dst_addr: u32,    // dst addr (next fp addr)
         src: B16,         // src
         offset: B16,      // offset
         src_val: u128,
     ) -> Self {
         Self {
-            parent, // parent addr
             opcode,
-            field_pc,  // field PC
-            fp,        // fp
-            timestamp, // timestamp
-            dst,       // dst
-            src,       // src
-            offset,    // offset
+            field_pc,
+            fp,
+            timestamp,
+            dst,
+            dst_addr,
+            src,
+            offset,
             src_val,
         }
     }
 
     pub(crate) fn push_mv_event(&self, trace: &mut ZCrayTrace) {
         let &MVEventOutput {
-            parent,
             opcode,
             field_pc,
             fp,
             timestamp,
             dst,
+            dst_addr,
             src,
             offset,
             src_val,
@@ -119,7 +119,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val,
                     offset.val(),
@@ -132,7 +132,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val as u32,
                     offset.val(),
@@ -229,7 +229,7 @@ impl MvvwEvent {
             ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
                 dst_addr_offset,
-                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, dst_addr, src, offset),
             )?;
             Ok(None)
         }
@@ -379,7 +379,7 @@ impl MvvlEvent {
             ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
                 dst_addr_offset,
-                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
+                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, dst_addr, src, offset),
             )?;
             Ok(None)
         }

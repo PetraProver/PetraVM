@@ -344,7 +344,7 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
     // Test cases with different initial values
-    let test_cases = vec![&[0, 0][..]];
+    let test_cases = vec![&[0, 0][..], &[0, 0, 100][..]];
 
     for init_values in test_cases {
         test_from_trace_generator(

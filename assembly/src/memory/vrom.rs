@@ -16,6 +16,7 @@ pub(crate) type VromUpdate = (
     u32,    // fp
     u32,    // timestamp
     B16,    // dst
+    u32,    // dst addr (next fp addr)
     B16,    // src
     B16,    // offset
 );
@@ -126,7 +127,7 @@ impl ValueRom {
                 // The VROM is write-once. If a value already exists at `index`,
                 // check that it matches the value we wanted to write.
                 if *prev_val != cur_word {
-                    return Err(MemoryError::VromRewrite(index));
+                    return Err(MemoryError::VromRewrite(index, *prev_val, cur_word));
                 }
             } else {
                 // The VROM hasn't been updated yet at the provided `index`.
@@ -306,8 +307,10 @@ mod tests {
         let result = vrom.write(0, 43u32);
         assert!(result.is_err());
 
-        if let Err(MemoryError::VromRewrite(index)) = result {
+        if let Err(MemoryError::VromRewrite(index, old, new)) = result {
             assert_eq!(index, 0);
+            assert_eq!(old, 42);
+            assert_eq!(new, 43);
         } else {
             panic!("Expected VromRewrite error");
         }
@@ -329,8 +332,10 @@ mod tests {
         let result = vrom.write(0, u128_val_2);
         assert!(result.is_err());
 
-        if let Err(MemoryError::VromRewrite(index)) = result {
+        if let Err(MemoryError::VromRewrite(index, old, new)) = result {
             assert_eq!(index, 0); // The least significant 32-bit chunk differs
+            assert_eq!(old, u128_val_1 as u32);
+            assert_eq!(new, u128_val_2 as u32);
         } else {
             panic!("Expected VromRewrite error");
         }
