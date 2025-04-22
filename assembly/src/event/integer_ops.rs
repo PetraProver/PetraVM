@@ -318,29 +318,41 @@ pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnySignedMulEvent;
 }
 
-/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for
+/// signed mul events, and a getter to the underlying targeted variant
+/// from an [`AnySignedMulEvent`] instance.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnySignedMulEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the getter name, the variant name of the instruction
+/// within the [`AnySignedMulEvent`] object, and the corresponding instruction's
+/// [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+/// impl_generic_signed_mul_event!(to_mulsu, Mulsu, MulsuEvent);
 /// ```
 macro_rules! impl_generic_signed_mul_event {
-    ($variant:ident, $ty:ty) => {
+    ($helper:ident, $variant:ident, $ty:ty) => {
         impl GenericSignedMulEvent for $ty {
             fn as_any(&self) -> AnySignedMulEvent {
                 AnySignedMulEvent::$variant(self.clone())
             }
         }
+
+        impl AnySignedMulEvent {
+            #[doc = concat!("Returns the target underlying ", stringify!($variant), " variant of this [`GenericSignedMulEvent`] if it is, and `None` otherwise.")]
+            pub fn $helper(event: &dyn GenericSignedMulEvent) -> Option<$ty> {
+                match event.as_any() {
+                    AnySignedMulEvent::$variant(e) => Some(e),
+                    _ => None,
+                }
+            }
+        }
     };
 }
 
-impl_generic_signed_mul_event!(Mul, MulEvent);
-impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+impl_generic_signed_mul_event!(to_mul, Mul, MulEvent);
+impl_generic_signed_mul_event!(to_mulsu, Mulsu, MulsuEvent);
 
 /// Event for MUL or MULSU.
 ///
@@ -725,10 +737,8 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mul(ev) => ev,
-                _ => panic!("Expected MulEvent"),
-            };
+            let event = AnySignedMulEvent::to_mul(get_last_event!(ctx, signed_mul).as_ref())
+                .expect("Expected MulEvent");
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -768,10 +778,8 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mulsu(ev) => ev,
-                _ => panic!("Expected MulsuEvent"),
-            };
+            let event = AnySignedMulEvent::to_mulsu(get_last_event!(ctx, signed_mul).as_ref())
+                .expect("Expected MulsuEvent");
 
             assert_eq!(
                 event.dst_val, mulsu_expected,

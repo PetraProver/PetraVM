@@ -245,22 +245,34 @@ pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
     fn as_any(&self) -> AnyShiftEvent;
 }
 
-/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`GenericShiftEvent`] trait for shift
+/// events, and a getter to the underlying targeted variant
+/// from an [`AnyShiftEvent`] instance.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the getter name, the variant name of the instruction
+/// within the [`AnyShiftEvent`] object, and the corresponding instruction's
+/// [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_shift_event!(Sll, SllEvent);
+/// impl_generic_shift_event!(to_sll, Sll, SllEvent);
 /// ```
 macro_rules! impl_generic_shift_event {
-    ($variant:ident, $ty:ty) => {
+    ($helper:ident, $variant:ident, $ty:ty) => {
         impl GenericShiftEvent for $ty {
             fn as_any(&self) -> AnyShiftEvent {
                 AnyShiftEvent::$variant(self.clone())
+            }
+        }
+
+        impl AnyShiftEvent {
+            #[doc = concat!("Returns the target underlying ", stringify!($variant), " variant of this [`GenericShiftEvent`] if it is, and `None` otherwise.")]
+            pub fn $helper(event: &dyn GenericShiftEvent) -> Option<$ty> {
+                match event.as_any() {
+                    AnyShiftEvent::$variant(e) => Some(e),
+                    _ => None,
+                }
             }
         }
     };
@@ -273,12 +285,12 @@ pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
 pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
 pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
 
-impl_generic_shift_event!(Slli, SlliEvent);
-impl_generic_shift_event!(Srli, SrliEvent);
-impl_generic_shift_event!(Srai, SraiEvent);
-impl_generic_shift_event!(Sll, SllEvent);
-impl_generic_shift_event!(Srl, SrlEvent);
-impl_generic_shift_event!(Sra, SraEvent);
+impl_generic_shift_event!(to_slli, Slli, SlliEvent);
+impl_generic_shift_event!(to_srli, Srli, SrliEvent);
+impl_generic_shift_event!(to_srai, Srai, SraiEvent);
+impl_generic_shift_event!(to_sll, Sll, SllEvent);
+impl_generic_shift_event!(to_srl, Srl, SrlEvent);
+impl_generic_shift_event!(to_sra, Sra, SraEvent);
 
 #[cfg(test)]
 mod test {

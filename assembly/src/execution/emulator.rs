@@ -501,10 +501,7 @@ mod tests {
             "Generated an incorrect number of even cases."
         );
         for (i, &even) in expected_evens.iter().enumerate() {
-            let event = match traces.shifts[i].as_any() {
-                AnyShiftEvent::Srli(ev) => ev,
-                _ => panic!("Expected SrliEvent"),
-            };
+            let event = AnyShiftEvent::to_srli(&*traces.shifts[i]).expect("Expected SrliEvent");
 
             assert!(event.src_val == even, "Incorrect input to an even case.");
         }
