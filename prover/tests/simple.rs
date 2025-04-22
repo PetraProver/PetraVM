@@ -320,22 +320,20 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
+        // MVV.W events
         (18, 100, 2),
-        // Initial MVV.W event
-        (19, 2, 2), // MVV.W @3[2], @2
-        // LDI in case_recurse
-        (20, 0, 2), // LDI.W @3, #0
+        (19, 2, 2),
+        (20, 0, 2),
         (32, 0, 2),
         (33, 0, 2),
+        // LDI in case_recurse
         (34, 100, 2),
         // Additional MVV.W in case_recurse
         (35, 0, 2), // MVV.W @4[2], @3
         // Initial values
-        (0, 0, 1), // Return PC
-        (1, 0, 1), // Return FP
-        (2, 100, 1),
-        //(18, 100, 1),
-        //(34, 100, 1), // Return value: LDI.W @2, #100
+        (0, 0, 1),   // Return PC
+        (1, 0, 1),   // Return FP
+        (2, 100, 1), // Return value
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
