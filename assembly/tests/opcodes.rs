@@ -3,7 +3,7 @@ pub mod common;
 use std::collections::HashSet;
 
 use common::test_utils::execute_test_asm;
-use strum::{VariantArray, VariantNames};
+use strum::VariantArray;
 use zcrayvm_assembly::Opcode;
 
 #[test]
