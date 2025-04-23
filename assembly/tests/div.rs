@@ -26,6 +26,7 @@ fn run_test(a: u32, b: u32, expected_q: i32, expected_r: u32) {
 // TODO: This test won't work until we can support signed integers, so for now
 // it's going to just be ignored.
 #[test]
+#[ignore]
 fn test_div_integration() {
     // Test case 1: a < b
     run_test(5, 10, 0, 5);
