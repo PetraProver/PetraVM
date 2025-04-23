@@ -5,86 +5,14 @@
 
 use anyhow::Result;
 use binius_field::underlier::Divisible;
-use binius_field::{BinaryField, Field};
 use binius_m3::builder::{B128, B32};
 use log::trace;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_assembly::{
-    Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
-};
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
-
-/// Creates an execution trace for the instructions in `asm_code`.
-///
-/// # Arguments
-/// * `asm_code` - The assembly code.
-/// * `init_values` - The initial values for the VROM.
-/// * `vrom_writes` - The VROM writes to be added to the trace.
-///
-/// # Returns
-/// * A Trace containing executed instructions
-fn generate_test_trace<const N: usize>(
-    asm_code: String,
-    init_values: [u32; N],
-    vrom_writes: Vec<(u32, u32, u32)>,
-) -> Result<Trace> {
-    // Compile the assembly code
-    let compiled_program = Assembler::from_code(&asm_code)?;
-    trace!("compiled program = {:?}", compiled_program);
-
-    // Keep a copy of the program for later
-    let mut program = compiled_program.prom.clone();
-
-    // TODO: pad program to 128 instructions required by lookup gadget
-    let prom_size = program.len().next_power_of_two().max(128);
-    let mut max_pc = program.last().map_or(B32::ZERO, |instr| instr.field_pc);
-
-    for _ in program.len()..prom_size {
-        max_pc *= B32::MULTIPLICATIVE_GENERATOR;
-        program.push(InterpreterInstruction::new(Instruction::default(), max_pc));
-    }
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let vrom = ValueRom::new_with_init_vals(&init_values);
-    let memory = Memory::new(compiled_program.prom, vrom);
-
-    // Generate the trace from the compiled program
-    let (zcray_trace, _) = ZCrayTrace::generate(
-        Box::new(GenericISA),
-        memory,
-        compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
-
-    // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
-
-    // Validate that manually specified multiplicities match the actual ones
-    assert_eq!(zkvm_trace.trace.vrom().sorted_access_counts(), vrom_writes);
-
-    // Add other VROM writes
-    let mut max_dst = 0;
-    // TODO: the lookup gadget requires a minimum of 128 entries
-    let vrom_write_size = vrom_writes.len().next_power_of_two().max(128);
-    for (dst, val, multiplicity) in vrom_writes {
-        zkvm_trace.add_vrom_write(dst, val, multiplicity);
-        max_dst = max_dst.max(dst);
-    }
-
-    // TODO: we have to add a zero multiplicity entry at the end and pad to 128 due
-    // to the bug in the lookup gadget
-    for _ in zkvm_trace.vrom_writes.len()..vrom_write_size {
-        max_dst += 1;
-        zkvm_trace.add_vrom_write(max_dst, 0, 0);
-    }
-
-    zkvm_trace.max_vrom_addr = max_dst as usize;
-    Ok(zkvm_trace)
-}
+use zcrayvm_prover::test_utils::generate_test_trace;
 
 /// Creates a test trace with B128 field operations (addition and
 /// multiplication).
