@@ -22,6 +22,7 @@ fn test_bezout_integration() {
         let mut info = execute_test_asm(include_str!("../../examples/bezout.asm"), &[a, b]);
         let bezout_frame = info.frames.add_frame("bezout");
 
+        // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
         // Verify the gcd result
         assert_eq!(
             bezout_frame.get_vrom_expected::<u32>(3),
@@ -32,6 +33,7 @@ fn test_bezout_integration() {
             expected_gcd
         );
 
+        // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
         // Verify Bezout coefficients satisfy the equation: a*x + b*y = gcd(a, b)
         let x = bezout_frame.get_vrom_expected::<u32>(4);
         let y = bezout_frame.get_vrom_expected::<u32>(5);
