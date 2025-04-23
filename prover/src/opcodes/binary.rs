@@ -45,7 +45,7 @@ pub struct B32MulTable {
     /// Second source value
     pub src2_val: Col<B32>,
     /// Result value
-    pub dst_val: Col<B32>,
+    pub dst_val: Col<B32>, // Virtual
     /// PROM channel pull value
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -166,18 +166,15 @@ pub struct B128AddTable {
     /// CPU columns
     cpu_cols: CpuColumns<{ B128_ADD_OPCODE }>,
     /// First source value
-    pub src1_val: Col<B128>,
     pub src1_val_unpacked: Col<B32, 4>,
     /// Lookup for first source
     src1_lookup: B128LookupColumns,
     /// Second source value
-    pub src2_val: Col<B128>,
     pub src2_val_unpacked: Col<B32, 4>,
     /// Lookup for second source
     src2_lookup: B128LookupColumns,
     /// Result value
-    pub result_val: Col<B128>,
-    pub result_val_unpacked: Col<B32, 4>,
+    pub result_val_unpacked: Col<B32, 4>, // Virtual
     /// Lookup for result
     result_lookup: B128LookupColumns,
     /// First source absolute address
@@ -219,11 +216,11 @@ impl Table for B128AddTable {
         } = cpu_cols;
 
         let src1_val_unpacked = table.add_committed("b128_add_src1_val_unpacked");
-        let src1_val = table.add_packed("b128_add_src1_val", src1_val_unpacked);
         let src2_val_unpacked = table.add_committed("b128_add_src2_val_unpacked");
-        let src2_val = table.add_packed("b128_add_src2_val", src2_val_unpacked);
-        let result_val_unpacked = table.add_committed("b128_add_result_val_unpacked");
-        let result_val = table.add_packed("b128_add_result_val", result_val_unpacked);
+        let result_val_unpacked = table.add_computed(
+            "b128_add_result_val_unpacked",
+            src1_val_unpacked + src2_val_unpacked,
+        );
 
         // Pull source values from VROM channel
         let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
@@ -242,7 +239,6 @@ impl Table for B128AddTable {
             src2_val_unpacked,
             "b128_add_src2",
         );
-        table.assert_zero("check_b128_add_result", src1_val + src2_val - result_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
@@ -257,13 +253,10 @@ impl Table for B128AddTable {
         Self {
             id: table.id(),
             cpu_cols,
-            src1_val,
             src1_val_unpacked,
             src1_lookup,
-            src2_val,
             src2_val_unpacked,
             src2_lookup,
-            result_val,
             result_val_unpacked,
             result_lookup,
             src1_abs_addr,
