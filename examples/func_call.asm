@@ -10,17 +10,16 @@ func_call:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
     ;; Slot 2: Return value
-    ;; Slot 3: Local: 4
-    ;; Slot 4: ND Local: Next FP
-    ;; Slot 5: Local: 4
-    ;; Slot 6: Local: 8
-    ;; Slot 7: Local: add_two_numbers(4, 8)
+    ;; Slot 3: ND Local: Next FP
+    ;; Slot 4: Local: add_two_numbers(4, 8)
+    ;; Slot 5: Local: 
 
-    MVI.H @4[3] #4 
-    MVI.H @4[4] #8
-    MVV.W @4[2] @7  // add_two_numbers(4, 8)
-    CALLI add_two_numbers, @4
-    ADDI @2, @7, #10 // return add_two_numbers(4, 8) + 10
+    MVI.H @3[2], #4  ;; a = 4
+    MVI.H @3[3], #8  ;; b = 8
+    MVV.W @3[4], @4  ;; x = add_two_numbers(4, 8)
+    CALLI add_two_numbers, @3
+
+    ADDI @2, @4, #10 ;; return x + 10
     RET
 
 #[framesize(0x5)]

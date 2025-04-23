@@ -1,4 +1,5 @@
 use std::{
+    any::type_name,
     collections::HashMap,
     ops::{Deref, Index},
     rc::Rc,
@@ -6,8 +7,9 @@ use std::{
 
 use binius_field::{BinaryField, BinaryField32b, Field};
 use zcrayvm_assembly::{
-    isa::GenericISA, memory::vrom_allocator::VromAllocator, AssembledProgram, Assembler, Memory,
-    ValueRom, ZCrayTrace,
+    isa::GenericISA,
+    memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
+    AssembledProgram, Assembler, Memory, ValueRom, ZCrayTrace,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.
@@ -30,7 +32,7 @@ impl Deref for TestFrameHandle {
 /// `AllocatedFrame`s (which have their own frame VROM slice). The idea is at
 /// the start, the test writer defines the frames in the order that they are
 /// expected to be constructed through a run of the program.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Frames {
     /// Map of frame templates names to instantiated frames of that template (in
     /// order of allocation).
@@ -50,7 +52,7 @@ pub struct Frames {
 }
 
 impl Frames {
-    pub fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
+    fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
         Self {
             frames: HashMap::new(),
             trace,
@@ -124,17 +126,32 @@ pub struct AllocatedFrame {
 }
 
 impl AllocatedFrame {
-    pub fn get_vrom_u32_expected(&self, frame_slot: u32) -> u32 {
+    pub fn get_vrom_expected<T: VromValueT>(&self, frame_slot: u32) -> T {
+        // If `T` is multiple words long, then we actually read more than the slot at
+        // `frame_slot`.
+        let highest_slot_accessed = (T::word_size() as u32 - 1) + frame_slot;
+
         assert!(
-            frame_slot <= self.frame_size,
-            "Attempted to access a frame slot outside of the frame (Frame: {}[{}] (size: {}))",
+            highest_slot_accessed <= self.frame_size,
+            "Attempted to access a frame slot outside of the frame (Frame: {}[{}] (frame_size: {}, read_size: {}))",
             self.label,
             self.frame_start_addr,
-            self.frame_size
+            self.frame_size,
+            T::word_size(),
         );
 
-        let slot_addr = self.frame_start_addr + frame_slot;
-        self.trace.vrom().read::<u32>(slot_addr).expect("")
+        let vrom_addr = self.frame_start_addr + frame_slot;
+        self.trace
+            .vrom()
+            .read(vrom_addr)
+            .unwrap_or_else(|_| Self::vrom_read_err_panic(type_name::<T>()))
+    }
+
+    fn vrom_read_err_panic(read_size_str: &str) -> ! {
+        panic!(
+            "Reading a {} from VROM memory that is expected to be filled",
+            read_size_str
+        )
     }
 }
 
@@ -159,10 +176,19 @@ fn extract_frame_templates_from_assembled_program(
     frame_templates
 }
 
+#[derive(Clone, Debug)]
+pub struct ExecutedTestProgInfo {
+    pub frames: Frames,
+    pub compiled_program: AssembledProgram,
+}
+
 /// Common logic that all ASM tests need to run.
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
-pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
+pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> ExecutedTestProgInfo {
+    // Init the tracing subscriber if not already initialized.
+    let _ = tracing_subscriber::fmt::try_init();
+
     // Use the multiplicative generator G for calculations
     const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
@@ -177,19 +203,22 @@ pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> Frames {
     processed_init_vals.extend(init_vals.iter().map(|x| G.pow([*x as u64]).val()));
 
     let vrom = ValueRom::new_with_init_vals(&processed_init_vals);
-    let memory = Memory::new(compiled_program.prom, vrom);
+    let memory = Memory::new(compiled_program.prom.clone(), vrom);
 
     // Execute the program and generate the trace
     let (trace, boundary_values) = ZCrayTrace::generate(
         Box::new(GenericISA),
         memory,
-        compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.frame_sizes.clone(),
+        compiled_program.pc_field_to_int.clone(),
     )
     .expect("Trace generation should not fail");
 
     // Validate the trace
     trace.validate(boundary_values);
 
-    Frames::new(Rc::new(trace), frame_templates)
+    ExecutedTestProgInfo {
+        frames: Frames::new(Rc::new(trace), frame_templates),
+        compiled_program,
+    }
 }

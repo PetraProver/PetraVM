@@ -54,7 +54,7 @@ pub type LabelsFrameSizes = HashMap<B32, u16>;
 // can be called by the PROM.
 pub(crate) type PCFieldToInt = HashMap<B32, u32>;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AssembledProgram {
     pub prom: ProgramRom,
     pub labels: Labels,

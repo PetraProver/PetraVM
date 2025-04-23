@@ -1,5 +1,5 @@
 mod ram;
-mod vrom;
+pub mod vrom;
 pub mod vrom_allocator;
 
 pub(crate) use ram::{Ram, RamValueT};

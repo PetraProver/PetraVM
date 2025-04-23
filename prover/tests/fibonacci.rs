@@ -8,7 +8,7 @@ use zcrayvm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
 #[test]
 fn test_fibonacci() -> Result<()> {
     // Step 1: Generate trace
-    let n = 10;
+    let n = 11;
     let res = fibonacci(n);
 
     let start = Instant::now();
