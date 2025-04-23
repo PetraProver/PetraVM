@@ -62,12 +62,12 @@ macro_rules! impl_mv_event {
 }
 
 pub(crate) struct MVEventOutput {
-    pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: B32,    // field PC
     pub(crate) fp: FramePointer, // fp
     pub(crate) timestamp: u32,   // timestamp
     pub(crate) dst: B16,         // dst
+    pub(crate) dst_addr: u32,    // dst addr
     pub(crate) src: B16,         // src
     pub(crate) offset: B16,      // offset
     pub(crate) src_val: u128,
@@ -76,37 +76,37 @@ pub(crate) struct MVEventOutput {
 impl MVEventOutput {
     #[allow(clippy::too_many_arguments)]
     pub(crate) const fn new(
-        parent: u32, // parent addr
         opcode: Opcode,
         field_pc: B32,    // field PC
         fp: FramePointer, // fp
         timestamp: u32,   // timestamp
         dst: B16,         // dst
+        dst_addr: u32,    // dst addr
         src: B16,         // src
         offset: B16,      // offset
         src_val: u128,
     ) -> Self {
         Self {
-            parent, // parent addr
             opcode,
-            field_pc,  // field PC
-            fp,        // fp
-            timestamp, // timestamp
-            dst,       // dst
-            src,       // src
-            offset,    // offset
+            field_pc,
+            fp,
+            timestamp,
+            dst,
+            dst_addr,
+            src,
+            offset,
             src_val,
         }
     }
 
     pub(crate) fn push_mv_event(&self, trace: &mut ZCrayTrace) {
         let &MVEventOutput {
-            parent,
             opcode,
             field_pc,
             fp,
             timestamp,
             dst,
+            dst_addr,
             src,
             offset,
             src_val,
@@ -119,7 +119,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val,
                     offset.val(),
@@ -132,7 +132,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val as u32,
                     offset.val(),
@@ -200,6 +200,7 @@ impl MvvwEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr)?;
 
@@ -208,7 +209,7 @@ impl MvvwEvent {
         // have access to the value.
         if src_val_set {
             let src_val = ctx.vrom_read::<u32>(src_addr)?;
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -225,9 +226,20 @@ impl MvvwEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
+                dst_addr_offset,
+                (
+                    src_addr,
+                    Opcode::Mvvw,
+                    pc,
+                    *fp,
+                    timestamp,
+                    dst,
+                    dst_addr,
+                    src,
+                    offset,
+                ),
             )?;
             Ok(None)
         }
@@ -348,6 +360,7 @@ impl MvvlEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr)?;
 
@@ -356,7 +369,7 @@ impl MvvlEvent {
         // have access to the value.
         if src_val_set {
             let src_val = ctx.vrom_read::<u128>(src_addr)?;
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -373,9 +386,20 @@ impl MvvlEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
+                dst_addr_offset,
+                (
+                    src_addr,
+                    Opcode::Mvvl,
+                    pc,
+                    *fp,
+                    timestamp,
+                    dst,
+                    dst_addr,
+                    src,
+                    offset,
+                ),
             )?;
             Ok(None)
         }
@@ -873,6 +897,7 @@ mod tests {
             .run(memory)
             .expect("The interpreter should run smoothly.");
 
+        let next_fp = 16;
         let mut pending_updates = HashMap::new();
         let first_move = (
             src_addr.val() as u32, // Address to set
@@ -881,6 +906,7 @@ mod tests {
             0u32,                  // FP
             0u32,                  // Timestamp
             next_fp_offset,        // Dst
+            next_fp,               // Dst addr
             src_addr,              // Src
             offset1,               // Offset
         );
@@ -891,11 +917,11 @@ mod tests {
             0u32,                  // FP
             0u32,                  // Timestamp (Only RAM operations increase it)
             next_fp_offset,        // Dst
+            next_fp,               // Dst addr
             src_addr,              // Src
             offset2,               // Offset
         );
 
-        let next_fp = 16;
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
         pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
 

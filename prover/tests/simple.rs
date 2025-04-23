@@ -14,6 +14,36 @@ use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 use zcrayvm_prover::test_utils::generate_test_trace;
 
+fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
+where
+    F: FnOnce() -> Result<Trace>,
+    G: FnOnce(&Trace),
+{
+    // Step 1: Generate trace
+    let trace = trace_generator()?;
+    // Verify trace has correct structure
+    check_events(&trace);
+
+    // Step 2: Validate trace
+    trace!("Validating trace internal structure...");
+    trace.validate()?;
+
+    // Step 3: Create prover
+    trace!("Creating prover...");
+    let prover = Prover::new(Box::new(GenericISA));
+
+    // Step 4: Generate proof
+    trace!("Generating proof...");
+    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
+
+    // Step 5: Verify proof
+    trace!("Verifying proof...");
+    verify_proof(&statement, &compiled_cs, proof)?;
+
+    trace!("All steps completed successfully!");
+    Ok(())
+}
+
 /// Creates a test trace with B128 field operations (addition and
 /// multiplication).
 ///
@@ -41,7 +71,7 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
     // First two elements are return PC and return FP (both zero)
     // Next two zeros are for padding
     // Then we store x_array and y_array in VROM
-    let init_values = [
+    let init_values = vec![
         0, 0, 0, 0, x_array[0], x_array[1], x_array[2], x_array[3], y_array[0], y_array[1],
         y_array[2], y_array[3],
     ];
@@ -84,133 +114,6 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
     generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
-fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI, ADD and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start: 
-            LDI.W @2, #{}\n\
-            LDI.W @3, #{}\n\
-            ADD @4, @2, @3\n\
-            RET\n",
-        src1_value, src2_value
-    );
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
-
-    // Add VROM writes from LDI and ADD events
-    let vrom_writes = vec![
-        // LDI events
-        (2, src1_value, 2),
-        (3, src2_value, 2),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // ADD event
-        (4, src1_value + src2_value, 1),
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-/// Creates an execution trace for a simple program that uses only MVV.W,
-/// BNZ, BZ, TAILI, and RET.
-///
-/// # Returns
-/// * A Trace containing a simple program with a loop using TAILI, the BNZ
-///   instruction is executed twice.
-fn generate_simple_taili_trace() -> Result<Trace> {
-    // Create a very simple assembly program that:
-    // 1. _start sets up initial values and tail calls to loop
-    // 2. loop checks if @2 is non-zero and either returns or continues
-    // 3. case_recurse tail calls back to loop
-    let asm_code = "#[framesize(0x10)]\n\
-         _start:\n\
-           MVI.H @2[2], #2\n\
-           TAILI loop, @2\n\
-         #[framesize(0x10)]\n\
-         loop:\n\
-           BNZ case_recurse, @2\n\
-           RET\n\
-         case_recurse:\n\
-           LDI.W @3, #0\n\
-           MVV.W @4[2], @3\n\
-           TAILI loop, @4\n"
-        .to_string();
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
-
-    // VROM state after the trace is executed
-    // 0: 0 (1)
-    // 1: 0 (1)
-    // 2: 16 (2)
-    // 16: 0 (2)
-    // 17: 0 (2)
-    // 18: 2 (2)
-    // 19: 0 (2)
-    // 20: 32 (2)
-    // 32: 0 (2)
-    // 33: 0 (2)
-    // 34: 0 (2)
-    // Sorted by number of accesses
-    let vrom_writes = vec![
-        // New FP values
-        (2, 16, 2),
-        // TAILI events
-        (16, 0, 2),
-        (17, 0, 2),
-        // Initial MVV.W event
-        (18, 2, 2), // MVV.W @3[2], @2
-        // LDI in case_recurse
-        (19, 0, 2), // LDI.W @3, #0
-        (20, 32, 2),
-        (32, 0, 2),
-        (33, 0, 2),
-        // Additional MVV.W in case_recurse
-        (34, 0, 2), // MVV.W @4[2], @3
-        // Initial values
-        (0, 0, 1), // Return PC
-        (1, 0, 1), // Return FP
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
-where
-    F: FnOnce() -> Result<Trace>,
-    G: FnOnce(&Trace),
-{
-    // Step 1: Generate trace
-    let trace = trace_generator()?;
-    // Verify trace has correct structure
-    check_events(&trace);
-
-    // Step 2: Validate trace
-    trace!("Validating trace internal structure...");
-    trace.validate()?;
-
-    // Step 3: Create prover
-    trace!("Creating prover...");
-    let prover = Prover::new(Box::new(GenericISA));
-
-    // Step 4: Generate proof
-    trace!("Generating proof...");
-    let (proof, statement, compiled_cs) = prover.prove(&trace)?;
-
-    // Step 5: Verify proof
-    trace!("Verifying proof...");
-    verify_proof(&statement, &compiled_cs, proof)?;
-
-    trace!("All steps completed successfully!");
-    Ok(())
-}
-
 #[test]
 fn test_b128_add_b128_mul() -> Result<()> {
     let mut rng = StdRng::seed_from_u64(54321);
@@ -239,6 +142,39 @@ fn test_b128_add_b128_mul() -> Result<()> {
             );
         },
     )
+}
+
+fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI, ADD and RET
+    // Note: Format follows the grammar requirements:
+    // - Program must start with a label followed by an instruction
+    // - Used framesize for stack allocation
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+         _start: 
+            LDI.W @2, #{}\n\
+            LDI.W @3, #{}\n\
+            ADD @4, @2, @3\n\
+            RET\n",
+        src1_value, src2_value
+    );
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = vec![0, 0];
+
+    // Add VROM writes from LDI and ADD events
+    let vrom_writes = vec![
+        // LDI events
+        (2, src1_value, 2),
+        (3, src2_value, 2),
+        // Initial values
+        (0, 0, 1),
+        (1, 0, 1),
+        // ADD event
+        (4, src1_value + src2_value, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
 }
 
 #[test]
@@ -275,55 +211,121 @@ fn test_ldi_add_ret() -> Result<()> {
     )
 }
 
+/// Creates an execution trace for a simple program that uses only MVV.W,
+/// BNZ, BZ, TAILI, and RET.
+///
+/// # Returns
+/// * A Trace containing a simple program with a loop using TAILI, the BNZ
+///   instruction is executed twice.
+fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
+    // Create a very simple assembly program that:
+    // 1. _start sets up initial values and tail calls to loop
+    // 2. loop checks if @3 is non-zero and either returns or continues
+    // 3. case_recurse tail calls back to loop
+    let asm_code = "#[framesize(0x10)]\n\
+         _start:\n\
+           MVV.W @3[2], @2\n\
+           MVI.H @3[3], #2\n\
+           TAILI loop, @3\n\
+         #[framesize(0x10)]\n\
+         loop:\n\
+           BNZ case_recurse, @3\n\
+           LDI.W @2, #100\n\
+           RET\n\
+         case_recurse:\n\
+           LDI.W @4, #0\n\
+           MVV.W @5[2], @2\n\
+           MVV.W @5[3], @4\n\
+           TAILI loop, @5\n"
+        .to_string();
+
+    // VROM state after the trace is executed
+    // Sorted by number of accesses
+    let vrom_writes = vec![
+        // New FP values
+        (3, 16, 3),
+        (21, 32, 3),
+        // TAILI events
+        (16, 0, 2),
+        (17, 0, 2),
+        // MVV.W events
+        (18, 100, 2),
+        (19, 2, 2),
+        (20, 0, 2),
+        (32, 0, 2),
+        (33, 0, 2),
+        // LDI in case_recurse
+        (34, 100, 2),
+        // Additional MVV.W in case_recurse
+        (35, 0, 2), // MVV.W @4[2], @3
+        // Initial values
+        (0, 0, 1),   // Return PC
+        (1, 0, 1),   // Return FP
+        (2, 100, 1), // Return value
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
-    test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify we have one MVI.H
-        assert_eq!(
-            trace.mvih_events().len(),
-            1,
-            "Should have exactly one MVI.H event"
-        );
+    // Test cases with different initial values
+    let test_cases = vec![&[0, 0][..], &[0, 0, 100][..]];
 
-        // Verify we have one LDI (in case_recurse)
-        assert_eq!(
-            trace.ldi_events().len(),
-            1,
-            "Should have exactly one LDI event (in case_recurse)"
-        );
+    for init_values in test_cases {
+        test_from_trace_generator(
+            || generate_simple_taili_trace(init_values.to_vec()),
+            |trace| {
+                // Verify we have one MVI.H
+                assert_eq!(
+                    trace.mvih_events().len(),
+                    1,
+                    "Should have exactly one MVI.H event"
+                );
 
-        // Verify we have one BNZ event (first is taken, continues to case_recurse)
-        let bnz_events = trace.bnz_events();
-        assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
+                // Verify we have one LDI (in case_recurse)
+                assert_eq!(
+                    trace.ldi_events().len(),
+                    2,
+                    "Should have exactly one LDI event (in case_recurse)"
+                );
 
-        // Verify we have one RET event (after condition becomes 0)
-        assert_eq!(
-            trace.ret_events().len(),
-            1,
-            "Should have exactly one RET event"
-        );
+                // Verify we have one BNZ event (first is taken, continues to case_recurse)
+                let bnz_events = trace.bnz_events();
+                assert_eq!(bnz_events.len(), 1, "Should have exactly one BNZ event");
 
-        // Verify we have two TAILI events (initial call to loop and recursive call)
-        assert_eq!(
-            trace.taili_events().len(),
-            2,
-            "Should have exactly two TAILI events"
-        );
+                // Verify we have one RET event (after condition becomes 0)
+                assert_eq!(
+                    trace.ret_events().len(),
+                    1,
+                    "Should have exactly one RET event"
+                );
 
-        // Verify we have one MVVW event (in case_recurse)
-        assert_eq!(
-            trace.mvvw_events().len(),
-            1,
-            "Should have exactly one MVVW events"
-        );
+                // Verify we have two TAILI events (initial call to loop and recursive call)
+                assert_eq!(
+                    trace.taili_events().len(),
+                    2,
+                    "Should have exactly two TAILI events"
+                );
 
-        // Verify we have one BZ event (when condition becomes 0)
-        assert_eq!(
-            trace.bz_events().len(),
-            1,
-            "Should have exactly one BZ event"
-        );
-    })
+                // Verify we have one MVVW event (in case_recurse)
+                assert_eq!(
+                    trace.mvvw_events().len(),
+                    3,
+                    "Should have exactly three MVVW events"
+                );
+
+                // Verify we have one BZ event (when condition becomes 0)
+                assert_eq!(
+                    trace.bz_events().len(),
+                    1,
+                    "Should have exactly one BZ event"
+                );
+            },
+        )?;
+    }
+
+    Ok(())
 }
 
 /// Creates an execution trace with all binary operations (AND, OR, XOR, ANDI,
@@ -359,7 +361,7 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
+    let init_values = vec![0, 0];
 
     // Calculate expected results
     let and_result = val1 & val2;

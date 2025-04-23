@@ -41,7 +41,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
     // Slot 3: Arg: Result
-    let init_values = [0, 0, n, res];
+    let init_values = vec![0, 0, n, res];
 
     generate_test_trace(asm_code, init_values, vec![])
 }
@@ -78,7 +78,7 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Slot 0: Return PC = 0
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
-    let init_values = [0, 0, n];
+    let init_values = vec![0, 0, n];
 
     generate_test_trace(asm_code, init_values, vec![])
 }
@@ -92,9 +92,9 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
 ///
 /// # Returns
 /// * A Trace containing executed instructions
-pub fn generate_test_trace<const N: usize>(
+pub fn generate_test_trace(
     asm_code: String,
-    init_values: [u32; N],
+    init_values: Vec<u32>,
     vrom_writes: Vec<(u32, u32, u32)>,
 ) -> Result<Trace> {
     // Compile the assembly code

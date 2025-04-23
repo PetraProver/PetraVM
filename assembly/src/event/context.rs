@@ -63,6 +63,10 @@ impl EventContext<'_> {
         self.vrom().check_value_set::<T>(addr)
     }
 
+    pub(crate) fn vrom_record_access(&self, addr: u32) {
+        self.vrom().record_access(addr, 1);
+    }
+
     pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
     where
         T: VromValueT,

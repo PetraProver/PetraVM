@@ -208,15 +208,16 @@ impl ZCrayTrace {
         self.vrom_mut().write(index, value)?;
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
+                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset) =
+                    pending_update;
                 self.vrom_write(parent, value)?;
                 let event_out = MVEventOutput::new(
-                    parent,
                     opcode,
                     field_pc,
                     fp.into(),
                     timestamp,
                     dst,
+                    dst_addr,
                     src,
                     offset,
                     value.to_u128(),
