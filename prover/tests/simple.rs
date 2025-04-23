@@ -86,143 +86,71 @@ fn generate_test_trace<const N: usize>(
     Ok(zkvm_trace)
 }
 
-/// Creates a basic execution trace with just LDI, B32_MUL and RET instructions.
+/// Creates a test trace with B128 field operations (addition and
+/// multiplication).
 ///
 /// # Arguments
-/// * `value` - The value to load into VROM.
+/// * `x` - The first B128 value for the operations.
+/// * `y` - The second B128 value for the operations.
 ///
 /// # Returns
-/// * A trace containing an LDI, B32_MUL and RET instruction
-fn generate_ldi_ret_mul32_trace(value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start:
-           LDI.W @2, #{}\n\
-           LDI.W @3, #2\n\
-           B32_MUL @4, @2, @3\n\
-           RET\n",
-        value
-    );
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
-
-    let mul_result = (B32::new(value) * B32::new(2)).val();
-    let vrom_writes = vec![
-        // LDI events
-        (2, value, 2),
-        (3, 2, 2),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // B32_MUL event
-        (4, mul_result, 1),
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-/// Creates a basic execution trace with just B128_ADD and RET
-/// instructions.
-///
-/// # Arguments
-/// * `value` - The value to load into VROM.
-///
-/// # Returns
-/// * A trace containing a B128_ADD and a RET instruction
-fn generate_ret_add128_trace(x: u128, y: u128) -> Result<Trace> {
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = "#[framesize(0x10)]\n\
-         _start:
-           B128_ADD @12, @4, @8\n\
-           RET\n"
-        .to_string();
-
+/// * A `Trace` containing B128_ADD, B128_MUL and RET instructions with
+///   appropriate values.
+fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
+    // Split B128 values into 32-bit chunks for VROM
     let x_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(x);
     let y_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(y);
-    // Initialize memory with return PC = 0, return FP = 0
+
+    // Create assembly code with B128 operations
+    let asm_code = "#[framesize(0x20)]\n\
+        _start:\n\
+            B128_ADD @12, @4, @8\n\
+            B128_MUL @16, @4, @8\n\
+            RET\n"
+        .to_string();
+
+    // Initialize memory with values
+    // First two elements are return PC and return FP (both zero)
+    // Next two zeros are for padding
+    // Then we store x_array and y_array in VROM
     let init_values = [
         0, 0, 0, 0, x_array[0], x_array[1], x_array[2], x_array[3], y_array[0], y_array[1],
         y_array[2], y_array[3],
     ];
 
-    let result = (B128::new(x) + B128::new(y)).val();
-    let result_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(result);
+    // Calculate expected operation results
+    let add_result = (B128::new(x) + B128::new(y)).val();
+    let mul_result = (B128::new(x) * B128::new(y)).val();
 
+    // Split results into 32-bit chunks
+    let add_result_array = <u128 as Divisible<u32>>::split_val(add_result);
+    let mul_result_array = <u128 as Divisible<u32>>::split_val(mul_result);
+
+    // Create VROM writes with their access counts
+    // Format: (address, value, access_count)
     let vrom_writes = vec![
-        // Initial values
+        // Input values (each accessed twice - once for ADD, once for MUL)
+        (4, x_array[0], 2),
+        (5, x_array[1], 2),
+        (6, x_array[2], 2),
+        (7, x_array[3], 2),
+        (8, y_array[0], 2),
+        (9, y_array[1], 2),
+        (10, y_array[2], 2),
+        (11, y_array[3], 2),
+        // Initial values (accessed once during setup)
         (0, 0, 1),
         (1, 0, 1),
-        // B128_ADD event
-        (4, x_array[0], 1),
-        (5, x_array[1], 1),
-        (6, x_array[2], 1),
-        (7, x_array[3], 1),
-        (8, y_array[0], 1),
-        (9, y_array[1], 1),
-        (10, y_array[2], 1),
-        (11, y_array[3], 1),
-        (12, result_array[0], 1),
-        (13, result_array[1], 1),
-        (14, result_array[2], 1),
-        (15, result_array[3], 1),
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-///Creates a basic execution trace with just B128_MUL and RET
-/// instructions.
-///
-/// # Arguments
-/// * `x` - The first value to load into VROM.
-/// * `y` - The second value to load into VROM.
-///
-/// # Returns
-/// * A trace containing a B128_MUL and a RET instruction
-fn generate_ret_mul128_trace(x: u128, y: u128) -> Result<Trace> {
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let x_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(x);
-    let y_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(y);
-    let asm_code = "#[framesize(0x10)]\n\
-         _start:
-           B128_MUL @12, @4, @8\n\
-           RET\n"
-        .to_string();
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [
-        0, 0, 0, 0, x_array[0], x_array[1], x_array[2], x_array[3], y_array[0], y_array[1],
-        y_array[2], y_array[3],
-    ];
-
-    let result = (B128::new(x) * B128::new(y)).val();
-    let result_array: [u32; 4] = <u128 as Divisible<u32>>::split_val(result);
-    let vrom_writes = vec![
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // B128_MUL event
-        (4, x_array[0], 1),
-        (5, x_array[1], 1),
-        (6, x_array[2], 1),
-        (7, x_array[3], 1),
-        (8, y_array[0], 1),
-        (9, y_array[1], 1),
-        (10, y_array[2], 1),
-        (11, y_array[3], 1),
-        (12, result_array[0], 1),
-        (13, result_array[1], 1),
-        (14, result_array[2], 1),
-        (15, result_array[3], 1),
+        // B128_ADD results (each accessed once)
+        (12, add_result_array[0], 1),
+        (13, add_result_array[1], 1),
+        (14, add_result_array[2], 1),
+        (15, add_result_array[3], 1),
+        // B128_MUL results (each accessed once)
+        (16, mul_result_array[0], 1),
+        (17, mul_result_array[1], 1),
+        (18, mul_result_array[2], 1),
+        (19, mul_result_array[3], 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -274,9 +202,8 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // 3. case_recurse tail calls back to loop
     let asm_code = "#[framesize(0x10)]\n\
          _start:\n\
-           LDI.W @2, #2\n\
-           MVV.W @3[2], @2\n\
-           TAILI loop, @3\n\
+           MVI.H @2[2], #2\n\
+           TAILI loop, @2\n\
          #[framesize(0x10)]\n\
          loop:\n\
            BNZ case_recurse, @2\n\
@@ -293,8 +220,7 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // VROM state after the trace is executed
     // 0: 0 (1)
     // 1: 0 (1)
-    // 2: 2 (2)
-    // 3: 16 (2)
+    // 2: 16 (2)
     // 16: 0 (2)
     // 17: 0 (2)
     // 18: 2 (2)
@@ -305,10 +231,8 @@ fn generate_simple_taili_trace() -> Result<Trace> {
     // 34: 0 (2)
     // Sorted by number of accesses
     let vrom_writes = vec![
-        // Initial LDI event
-        (2, 2, 2), // LDI.W @2, #2
         // New FP values
-        (3, 16, 2),
+        (2, 16, 2),
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
@@ -360,65 +284,14 @@ where
 }
 
 #[test]
-fn test_ldi_b32_mul_ret() -> Result<()> {
+fn test_b128_add_b128_mul() -> Result<()> {
+    let mut rng = StdRng::seed_from_u64(54321);
     test_from_trace_generator(
         || {
             // Test value to load
-            let value = 0x12345678;
-            generate_ldi_ret_mul32_trace(value)
-        },
-        |trace| {
-            assert_eq!(
-                trace.ldi_events().len(),
-                2,
-                "Should have exactly two LDI events"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-            assert_eq!(
-                trace.b32_mul_events().len(),
-                1,
-                "Should have exactly one B32_MUL event"
-            );
-        },
-    )
-}
-
-#[test]
-fn test_b128_add_ret() -> Result<()> {
-    test_from_trace_generator(
-        || {
-            // Test value to load
-            let x = 0x123456789abcdef123456789abcdef;
-            let y = 0x44000000330000002200000011;
-            generate_ret_add128_trace(x, y)
-        },
-        |trace| {
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-            assert_eq!(
-                trace.b128_add_events().len(),
-                1,
-                "Should have exactly one B128_ADD event"
-            );
-        },
-    )
-}
-
-#[test]
-fn test_b128_mul_ret() -> Result<()> {
-    test_from_trace_generator(
-        || {
-            // Test value to load
-            let x = 0x123456789abcdef123456789abcdef;
-            let y = 0x44000000330000002200000011;
-            generate_ret_mul128_trace(x, y)
+            let x = rng.random::<u128>();
+            let y = rng.random::<u128>();
+            generate_b128add_b128mul_trace(x, y)
         },
         |trace| {
             assert_eq!(
@@ -430,6 +303,11 @@ fn test_b128_mul_ret() -> Result<()> {
                 trace.b128_mul_events().len(),
                 1,
                 "Should have exactly one B128_MUL event"
+            );
+            assert_eq!(
+                trace.b128_add_events().len(),
+                1,
+                "Should have exactly one B128_ADD event"
             );
         },
     )
@@ -472,11 +350,18 @@ fn test_ldi_add_ret() -> Result<()> {
 #[test]
 fn test_simple_taili_loop() -> Result<()> {
     test_from_trace_generator(generate_simple_taili_trace, |trace| {
-        // Verify we have two LDI events (one in _start and one in case_recurse)
+        // Verify we have one MVI.H
+        assert_eq!(
+            trace.mvih_events().len(),
+            1,
+            "Should have exactly one MVI.H event"
+        );
+
+        // Verify we have one LDI (in case_recurse)
         assert_eq!(
             trace.ldi_events().len(),
-            2,
-            "Should have exactly two LDI events"
+            1,
+            "Should have exactly one LDI event (in case_recurse)"
         );
 
         // Verify we have one BNZ event (first is taken, continues to case_recurse)
@@ -497,11 +382,11 @@ fn test_simple_taili_loop() -> Result<()> {
             "Should have exactly two TAILI events"
         );
 
-        // Verify we have two MVVW events (one in _start and one in case_recurse)
+        // Verify we have one MVVW event (in case_recurse)
         assert_eq!(
             trace.mvvw_events().len(),
-            2,
-            "Should have exactly two MVVW events"
+            1,
+            "Should have exactly one MVVW events"
         );
 
         // Verify we have one BZ event (when condition becomes 0)
@@ -514,7 +399,7 @@ fn test_simple_taili_loop() -> Result<()> {
 }
 
 /// Creates an execution trace with all binary operations (AND, OR, XOR, ANDI,
-/// ORI, XORI) using random input values.
+/// ORI, XORI, B32_MUL, B32_MULI) using random input values.
 ///
 /// # Returns
 /// * A Trace containing all binary operations followed by a RET instruction
@@ -524,7 +409,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     // Generate random values for testing
     let val1 = rng.random::<u32>();
     let val2 = rng.random::<u32>();
-    let imm = rng.random::<u16>() as u32; // Smaller immediate value
+    let imm = rng.random::<u16>() as u32; // Smaller immediate for 16-bit operations
+    let imm32 = rng.random::<u32>(); // Full 32-bit immediate for B32_MULI
 
     // Create assembly program with all binary operations
     let asm_code = format!(
@@ -538,8 +424,10 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
             ANDI @7, @2, #{}\n\
             ORI @8, @2, #{}\n\
             XORI @9, @2, #{}\n\
+            B32_MUL @10, @2, @3\n\
+            B32_MULI @11, @2, #{}\n\
             RET\n",
-        val1, val2, imm, imm, imm
+        val1, val2, imm, imm, imm, imm32
     );
 
     // Initialize memory with return PC = 0, return FP = 0
@@ -552,14 +440,14 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     let andi_result = val1 & imm;
     let ori_result = val1 | imm;
     let xori_result = val1 ^ imm;
+    let b32_mul_result = (B32::new(val1) * B32::new(val2)).val();
+    let b32_muli_result = (B32::new(val1) * B32::new(imm32)).val();
 
-    // Add VROM writes - checking the error, it seems we need different access
-    // counts The test shows expected: [(2, 2287849814, 7), (3, 1313969190, 4),
-    // ...]
+    // Add VROM writes with appropriate access counts
     let vrom_writes = vec![
-        // LDI events - with corrected access counts
-        (2, val1, 7),
-        (3, val2, 4),
+        // LDI events - with corrected access counts for more operations
+        (2, val1, 9), // Used in all operations
+        (3, val2, 5), // Used in AND, OR, XOR, B32_MUL
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
@@ -570,6 +458,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
         (7, andi_result, 1),
         (8, ori_result, 1),
         (9, xori_result, 1),
+        (10, b32_mul_result, 1),
+        (11, b32_muli_result, 1),
     ];
 
     generate_test_trace(asm_code, init_values, vrom_writes)
@@ -608,6 +498,16 @@ fn test_all_binary_ops() -> Result<()> {
             trace.xori_events().len(),
             1,
             "Should have exactly one XORI event"
+        );
+        assert_eq!(
+            trace.b32_mul_events().len(),
+            1,
+            "Should have exactly one B32_MUL event"
+        );
+        assert_eq!(
+            trace.b32_muli_events().len(),
+            1,
+            "Should have exactly one B32_MULI event"
         );
         assert_eq!(
             trace.ret_events().len(),

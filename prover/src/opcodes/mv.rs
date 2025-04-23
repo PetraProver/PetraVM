@@ -5,6 +5,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
+use zcrayvm_assembly::MvihEvent;
 use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
@@ -146,6 +147,120 @@ impl TableFiller<ProverPackedField> for MvvwTable {
         });
 
         // Populate CPU columns with the gadget rows
+        self.cpu_cols.populate(witness, cpu_rows)
+    }
+}
+
+/// MVI.H (Move Immediate Half‐word) table implementation.
+///
+/// VROM[ fp[dst] + offset ] = zero_extend(imm)
+pub struct MvihTable {
+    pub id: TableId,
+    cpu_cols: CpuColumns<{ Opcode::Mvih as u16 }>,
+    dst_abs_addr: Col<B32>,
+    dst_addr: Col<B32>,
+    final_dst_addr: Col<B32>,
+    imm_val: Col<B32>,
+}
+
+impl Table for MvihTable {
+    type Event = MvihEvent;
+
+    fn name(&self) -> &'static str {
+        "MvihTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("mvih");
+
+        // CPU columns (pc, fp, args)
+        let cpu_cols = CpuColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            CpuColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        let CpuColumns {
+            fp,
+            arg0: dst,
+            arg1: offset,
+            arg2: imm,
+            ..
+        } = cpu_cols;
+
+        // Compute base address
+        let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
+
+        // Pull the base pointer from VROM
+        let dst_addr = table.add_committed("dst_addr");
+        table.pull(channels.vrom_channel, [dst_abs_addr, dst_addr]);
+
+        // Compute actual destination slot
+        let final_dst_addr =
+            table.add_computed("final_dst_addr", dst_addr + upcast_expr(offset.into()));
+
+        // Lift the 16‑bit immediate to 32 bits
+        let imm_val = table.add_computed("imm_val", upcast_expr(imm.into()));
+
+        // Verify the immediate write into VROM
+        table.pull(channels.vrom_channel, [final_dst_addr, imm_val]);
+
+        Self {
+            id: table.id(),
+            cpu_cols,
+            dst_abs_addr,
+            dst_addr,
+            final_dst_addr,
+            imm_val,
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for MvihTable {
+    type Event = MvihEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        {
+            // Fill VROM reads/writes
+            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
+            let mut dst_addr_col = witness.get_scalars_mut(self.dst_addr)?;
+            let mut final_dst_addr_col = witness.get_scalars_mut(self.final_dst_addr)?;
+            let mut imm_col = witness.get_scalars_mut(self.imm_val)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                dst_abs_addr_col[i] = B32::new(ev.fp.addr(ev.dst));
+                dst_addr_col[i] = B32::new(ev.dst_addr);
+                final_dst_addr_col[i] = B32::new(ev.dst_addr ^ ev.offset as u32);
+                imm_col[i] = B32::new(ev.imm as u32);
+            }
+        }
+
+        // Fill CPU‐side columns (pc, fp, dst, offset, imm)
+        let cpu_rows = rows.map(|ev| CpuGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.offset,
+            arg2: ev.imm,
+        });
+
         self.cpu_cols.populate(witness, cpu_rows)
     }
 }

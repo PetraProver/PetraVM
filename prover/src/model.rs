@@ -24,8 +24,8 @@ use crate::table::*;
 ///
 /// ```ignore
 /// define_table_registry_and_accessors!(
-///     (LDIEvent, LdiTable, ldi_events, ldi, Ldi),
-///     (RetEvent, RetTable, ret_events, ret, Ret),
+///     (ldi, Ldi),
+///     (ret, Ret),
 /// );
 /// ```
 macro_rules! define_table_registry_and_accessors {
@@ -232,6 +232,7 @@ define_table_registry_and_accessors!(
     (bz, Bz),
     (bnz, Bnz),
     (b32_mul, B32Mul),
+    (b32_muli, B32Muli),
     (b128_add, B128Add),
     (b128_mul, B128Mul),
     (andi, Andi),
@@ -239,6 +240,7 @@ define_table_registry_and_accessors!(
     (add, Add),
     (taili, Taili),
     (mvvw, Mvvw),
+    (mvih, Mvih),
     (and, And),
     (xor, Xor),
     (or, Or),

@@ -11,9 +11,12 @@ pub mod mv;
 pub mod ret;
 
 pub use binary::*;
+use binius_field::BinaryField;
+use binius_m3::builder::B32;
 pub use branch::{BnzTable, BzTable};
 pub use call::TailiTable;
 pub use integer_ops::AddTable;
 pub use ldi::LdiTable;
-pub use mv::MvvwTable;
+pub use mv::{MvihTable, MvvwTable};
 pub use ret::RetTable;
+pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
