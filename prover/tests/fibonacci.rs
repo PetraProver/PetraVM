@@ -113,7 +113,7 @@ fn fibonacci(n: u32) -> u32 {
 #[test]
 fn test_fibonacci() -> Result<()> {
     // Step 1: Generate trace
-    let n = 10;
+    let n = 11;
     let res = fibonacci(n);
 
     let start = Instant::now();

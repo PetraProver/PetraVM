@@ -5,7 +5,7 @@
 
 use anyhow::{anyhow, Result};
 use binius_core::{
-    constraint_system::{prove, validate, verify, ConstraintSystem, Proof},
+    constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
     tower::CanonicalTowerFamily,
 };
@@ -46,7 +46,7 @@ impl Prover {
     /// 1. Creates a statement from the trace
     /// 2. Compiles the constraint system
     /// 3. Builds and fills the witness
-    /// 4. Validates the witness against the constraints
+    /// 4. Validates the witness against the constraints (in debug mode only)
     /// 5. Generates a proof
     ///
     /// # Arguments
@@ -103,11 +103,16 @@ impl Prover {
             table.fill(&mut witness, trace)?;
         }
 
-        // Convert witness to multilinear extension format for validation
+        // Convert witness to multilinear extension format
         let witness = witness.into_multilinear_extension_index();
 
-        // Validate the witness against the constraint system
-        validate::validate_witness(&compiled_cs, &statement.boundaries, &witness)?;
+        // Validate the witness against the constraint system in debug mode only
+        #[cfg(debug_assertions)]
+        binius_core::constraint_system::validate::validate_witness(
+            &compiled_cs,
+            &statement.boundaries,
+            &witness,
+        )?;
 
         // Generate the proof
         let proof = prove::<
@@ -148,7 +153,6 @@ pub fn verify_proof(
     compiled_cs: &ConstraintSystem<B128>,
     proof: Proof,
 ) -> Result<()> {
-    // Verify the proof
     verify::<
         OptimalUnderlier128b,
         CanonicalTowerFamily,
