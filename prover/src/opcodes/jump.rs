@@ -209,6 +209,8 @@ mod tests {
     fn test_jump_tables() -> Result<()> {
         let trace = generate_j_instruction_trace()?;
         trace.validate()?;
+        assert_eq!(trace.jumpi_events().len(), 1);
+        assert_eq!(trace.jumpv_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }
