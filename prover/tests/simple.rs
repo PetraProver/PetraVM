@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use binius_field::underlier::Divisible;
+use binius_field::BinaryField;
 use binius_m3::builder::{B128, B32};
 use log::trace;
 use rand::rngs::StdRng;
@@ -13,6 +14,8 @@ use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 use zcrayvm_prover::test_utils::generate_test_trace;
+
+pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
@@ -439,6 +442,82 @@ fn test_all_binary_ops() -> Result<()> {
             1,
             "Should have exactly one B32_MULI event"
         );
+        assert_eq!(
+            trace.ret_events().len(),
+            1,
+            "Should have exactly one RET event"
+        );
+    })
+}
+
+/// Creates an execution trace for a simple program that uses the J (Jump)
+/// instruction in both its variants: jump to label and jump to address in VROM.
+///
+/// # Returns
+/// * A Trace containing a program that tests both J instruction variants
+fn generate_j_instruction_trace() -> Result<Trace> {
+    let pc_val = (G * G * G).val();
+    // Create an assembly program that tests both J instruction variants
+    let asm_code = format!(
+        "#[framesize(0x10)]\n\
+        _start:\n\
+            LDI.W @3, #{}\n\
+            J @3\n\
+            ;; Code that should be skipped\n\
+            LDI.W @2, #998\n\
+            LDI.W @4, #999\n\
+            J jump_target\n\
+            ;; Code that should be skipped\n\
+            LDI.W @2, #1000\n\
+        jump_target:\n\
+            LDI.W @2, #0  ;; Success\n\
+            RET\n",
+        pc_val,
+    );
+
+    // Initialize memory with return PC = 0, return FP = 0
+    let init_values = vec![0, 0];
+
+    // Add VROM writes with appropriate access counts
+    let vrom_writes = vec![
+        (3, pc_val, 2),
+        (0, 0, 1), // Return PC
+        (1, 0, 1), // Return FP
+        (2, 0, 1),
+        (4, 999, 1),
+    ];
+
+    generate_test_trace(asm_code, init_values, vrom_writes)
+}
+
+#[test]
+fn test_j_instruction() -> Result<()> {
+    test_from_trace_generator(generate_j_instruction_trace, |trace| {
+        // Verify the J instructions were executed (as Jumpi and Jumpv in the VM)
+        // Access events directly from the underlying ZCrayTrace
+        let jumpi_events = &trace.trace.jumpi;
+        let jumpv_events = &trace.trace.jumpv;
+
+        assert_eq!(
+            jumpi_events.len(),
+            1,
+            "Should have exactly one Jumpi event (from J with label)"
+        );
+
+        assert_eq!(
+            jumpv_events.len(),
+            1,
+            "Should have exactly one Jumpv event (from J with VROM address)"
+        );
+
+        // Verify we executed the LDI.W instructions
+        assert_eq!(
+            trace.ldi_events().len(),
+            3,
+            "Should have exactly three LDI.W events"
+        );
+
+        // Verify exactly one RET event
         assert_eq!(
             trace.ret_events().len(),
             1,
