@@ -494,18 +494,14 @@ fn generate_j_instruction_trace() -> Result<Trace> {
 fn test_j_instruction() -> Result<()> {
     test_from_trace_generator(generate_j_instruction_trace, |trace| {
         // Verify the J instructions were executed (as Jumpi and Jumpv in the VM)
-        // Access events directly from the underlying ZCrayTrace
-        let jumpi_events = &trace.trace.jumpi;
-        let jumpv_events = &trace.trace.jumpv;
-
         assert_eq!(
-            jumpi_events.len(),
+            trace.jumpi_events().len(),
             1,
             "Should have exactly one Jumpi event (from J with label)"
         );
 
         assert_eq!(
-            jumpv_events.len(),
+            trace.jumpv_events().len(),
             1,
             "Should have exactly one Jumpv event (from J with VROM address)"
         );

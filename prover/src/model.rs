@@ -245,4 +245,6 @@ define_table_registry_and_accessors!(
     (xor, Xor),
     (or, Or),
     (ori, Ori),
+    (jumpi, Jumpi),
+    (jumpv, Jumpv),
 );
