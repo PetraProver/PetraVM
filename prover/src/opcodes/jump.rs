@@ -197,10 +197,10 @@ mod tests {
         // Add VROM writes with appropriate access counts
         let vrom_writes = vec![
             (3, pc_val, 2), // Jump target
-            (0, 0, 1), // Return PC
-            (1, 0, 1), // Return FP
-            (2, 0, 1), // Success Result
-            (4, 999, 1), // LDI.W @4, #999
+            (0, 0, 1),      // Return PC
+            (1, 0, 1),      // Return FP
+            (2, 0, 1),      // Success Result
+            (4, 999, 1),    // LDI.W @4, #999
         ];
         generate_trace(asm_code, None, Some(vrom_writes))
     }
