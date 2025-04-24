@@ -133,6 +133,69 @@ impl Prover {
 
         Ok((proof, statement, compiled_cs))
     }
+
+    /// Validate a zCrayVM execution trace.
+    #[cfg(test)]
+    pub fn validate_trace(&self, trace: &Trace) -> Result<()> {
+        // Create a statement from the trace
+        let statement = self.circuit.create_statement(trace)?;
+
+        // Compile the constraint system
+        let compiled_cs = self
+            .circuit
+            .cs
+            .compile(&statement)
+            .map_err(|e| anyhow!(e))?;
+
+        // Create a memory allocator for the witness
+        let allocator = Bump::new();
+
+        // Build the witness structure
+        let mut witness = self
+            .circuit
+            .cs
+            .build_witness::<ProverPackedField>(&allocator);
+
+        // Fill all table witnesses in sequence
+
+        // 1. Fill PROM table with program instructions
+        witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
+
+        // 2. Fill VROM address space table with the full address space
+        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
+        let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
+        witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
+
+        // 3. Fill VROM write table with writes
+        witness.fill_table_sequential(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
+
+        // 4. Fill VROM skip table with skipped addresses
+        // Generate the list of skipped addresses (addresses not in vrom_writes)
+        let write_addrs: std::collections::HashSet<u32> =
+            trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
+
+        let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)
+            .filter(|addr| !write_addrs.contains(addr))
+            .collect();
+
+        witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
+
+        // 5. Fill all event tables
+        for table in &self.circuit.tables {
+            table.fill(&mut witness, trace)?;
+        }
+
+        // Convert witness to multilinear extension format
+        let witness = witness.into_multilinear_extension_index();
+
+        // Validate the witness against the constraint system in debug mode only
+        binius_core::constraint_system::validate::validate_witness(
+            &compiled_cs,
+            &statement.boundaries,
+            &witness,
+        )
+        .map_err(|e| anyhow!(e))
+    }
 }
 
 /// Verify a zCrayVM execution proof.

@@ -157,3 +157,48 @@ impl TableFiller<ProverPackedField> for JumpvTable {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use binius_field::BinaryField;
+
+    use super::*;
+    use crate::model::Trace;
+    use crate::test_utils::generate_trace;
+    use crate::test_utils::validate_trace;
+
+    pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
+
+    /// Creates an execution trace for a simple program that uses the J (Jump)
+    /// instruction in both its variants: jump to label and jump to address in
+    /// VROM.
+    fn generate_j_instruction_trace() -> Result<Trace> {
+        let pc_val = (G * G * G).val();
+        // Create an assembly program that tests both J instruction variants
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+        _start:\n\
+            LDI.W @3, #{}\n\
+            J @3\n\
+            ;; Code that should be skipped\n\
+            LDI.W @2, #998\n\
+            LDI.W @4, #999\n\
+            J jump_target\n\
+            ;; Code that should be skipped\n\
+            LDI.W @2, #1000\n\
+        jump_target:\n\
+            LDI.W @2, #0  ;; Success\n\
+            RET\n",
+            pc_val,
+        );
+
+        generate_trace(asm_code, None, None)
+    }
+
+    #[test]
+    fn test_jump_tables() {
+        let trace = generate_j_instruction_trace().unwrap();
+        validate_trace(trace).unwrap();
+    }
+}

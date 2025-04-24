@@ -43,7 +43,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 3: Arg: Result
     let init_values = vec![0, 0, n, res];
 
-    generate_test_trace(asm_code, init_values, vec![])
+    generate_trace(asm_code, Some(init_values), None)
 }
 
 pub fn collatz(mut n: u32) -> usize {
@@ -80,7 +80,7 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Slot 2: Arg: n
     let init_values = vec![0, 0, n];
 
-    generate_test_trace(asm_code, init_values, vec![])
+    generate_trace(asm_code, Some(init_values), None)
 }
 
 /// Creates an execution trace for the instructions in `asm_code`.
@@ -92,10 +92,10 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
 ///
 /// # Returns
 /// * A Trace containing executed instructions
-pub fn generate_test_trace(
+pub fn generate_trace(
     asm_code: String,
-    init_values: Vec<u32>,
-    vrom_writes: Vec<(u32, u32, u32)>,
+    init_values: Option<Vec<u32>>,
+    vrom_writes: Option<Vec<(u32, u32, u32)>>,
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
@@ -113,8 +113,8 @@ pub fn generate_test_trace(
         program.push(InterpreterInstruction::new(Instruction::default(), max_pc));
     }
 
-    // Initialize memory with return PC = 0, return FP = 0
-    let vrom = ValueRom::new_with_init_vals(&init_values);
+    // Initialize memory with return PC = 0, return FP = 0 if not provided
+    let vrom = ValueRom::new_with_init_vals(&init_values.unwrap_or_else(|| vec![0, 0]));
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
@@ -132,7 +132,7 @@ pub fn generate_test_trace(
 
     // Validate that manually specified multiplicities match the actual ones if
     // provided.
-    if !vrom_writes.is_empty() {
+    if let Some(vrom_writes) = vrom_writes {
         assert_eq!(actual_vrom_writes, vrom_writes);
     }
 
@@ -154,4 +154,16 @@ pub fn generate_test_trace(
 
     zkvm_trace.max_vrom_addr = max_dst as usize;
     Ok(zkvm_trace)
+}
+
+/// Validate a zCrayVM execution trace.
+///
+/// # Arguments
+/// * `trace` - The trace to validate.
+///
+/// # Returns
+#[cfg(test)]
+pub fn validate_trace(trace: Trace) -> Result<()> {
+    trace.validate()?;
+    crate::prover::Prover::new(Box::new(GenericISA)).validate_trace(&trace)
 }

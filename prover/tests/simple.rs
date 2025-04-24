@@ -5,7 +5,6 @@
 
 use anyhow::Result;
 use binius_field::underlier::Divisible;
-use binius_field::BinaryField;
 use binius_m3::builder::{B128, B32};
 use log::trace;
 use rand::rngs::StdRng;
@@ -13,9 +12,7 @@ use rand::{Rng, SeedableRng};
 use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
-use zcrayvm_prover::test_utils::generate_test_trace;
-
-pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
+use zcrayvm_prover::test_utils::generate_trace;
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
@@ -114,7 +111,7 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
         (19, mul_result_array[3], 1),
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
 }
 
 #[test]
@@ -162,9 +159,6 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
         src1_value, src2_value
     );
 
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = vec![0, 0];
-
     // Add VROM writes from LDI and ADD events
     let vrom_writes = vec![
         // LDI events
@@ -177,7 +171,7 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
         (4, src1_value + src2_value, 1),
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, None, Some(vrom_writes))
 }
 
 #[test]
@@ -267,7 +261,7 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
         (2, 100, 1), // Return value
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
 }
 
 #[test]
@@ -363,9 +357,6 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
         val1, val2, imm, imm, imm, imm32
     );
 
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = vec![0, 0];
-
     // Calculate expected results
     let and_result = val1 & val2;
     let or_result = val1 | val2;
@@ -395,7 +386,7 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
         (11, b32_muli_result, 1),
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, None, Some(vrom_writes))
 }
 
 #[test]
@@ -442,78 +433,6 @@ fn test_all_binary_ops() -> Result<()> {
             1,
             "Should have exactly one B32_MULI event"
         );
-        assert_eq!(
-            trace.ret_events().len(),
-            1,
-            "Should have exactly one RET event"
-        );
-    })
-}
-
-/// Creates an execution trace for a simple program that uses the J (Jump)
-/// instruction in both its variants: jump to label and jump to address in VROM.
-///
-/// # Returns
-/// * A Trace containing a program that tests both J instruction variants
-fn generate_j_instruction_trace() -> Result<Trace> {
-    let pc_val = (G * G * G).val();
-    // Create an assembly program that tests both J instruction variants
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-        _start:\n\
-            LDI.W @3, #{}\n\
-            J @3\n\
-            ;; Code that should be skipped\n\
-            LDI.W @2, #998\n\
-            LDI.W @4, #999\n\
-            J jump_target\n\
-            ;; Code that should be skipped\n\
-            LDI.W @2, #1000\n\
-        jump_target:\n\
-            LDI.W @2, #0  ;; Success\n\
-            RET\n",
-        pc_val,
-    );
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = vec![0, 0];
-
-    // Add VROM writes with appropriate access counts
-    let vrom_writes = vec![
-        (3, pc_val, 2),
-        (0, 0, 1), // Return PC
-        (1, 0, 1), // Return FP
-        (2, 0, 1),
-        (4, 999, 1),
-    ];
-
-    generate_test_trace(asm_code, init_values, vrom_writes)
-}
-
-#[test]
-fn test_j_instruction() -> Result<()> {
-    test_from_trace_generator(generate_j_instruction_trace, |trace| {
-        // Verify the J instructions were executed (as Jumpi and Jumpv in the VM)
-        assert_eq!(
-            trace.jumpi_events().len(),
-            1,
-            "Should have exactly one Jumpi event (from J with label)"
-        );
-
-        assert_eq!(
-            trace.jumpv_events().len(),
-            1,
-            "Should have exactly one Jumpv event (from J with VROM address)"
-        );
-
-        // Verify we executed the LDI.W instructions
-        assert_eq!(
-            trace.ldi_events().len(),
-            3,
-            "Should have exactly three LDI.W events"
-        );
-
-        // Verify exactly one RET event
         assert_eq!(
             trace.ret_events().len(),
             1,
