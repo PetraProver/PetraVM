@@ -162,11 +162,12 @@ impl TableFiller<ProverPackedField> for JumpvTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
+    use zcrayvm_assembly::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;
+    use crate::prover::Prover;
     use crate::test_utils::generate_trace;
-    use crate::test_utils::validate_trace;
 
     pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
 
@@ -197,8 +198,9 @@ mod tests {
     }
 
     #[test]
-    fn test_jump_tables() {
-        let trace = generate_j_instruction_trace().unwrap();
-        validate_trace(trace).unwrap();
+    fn test_jump_tables() -> Result<()> {
+        let trace = generate_j_instruction_trace()?;
+        trace.validate()?;
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }

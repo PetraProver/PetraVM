@@ -136,7 +136,7 @@ impl Prover {
 
     /// Validate a zCrayVM execution trace.
     #[cfg(test)]
-    pub fn validate_trace(&self, trace: &Trace) -> Result<()> {
+    pub fn validate_witness(&self, trace: &Trace) -> Result<()> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 

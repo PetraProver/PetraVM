@@ -155,15 +155,3 @@ pub fn generate_trace(
     zkvm_trace.max_vrom_addr = max_dst as usize;
     Ok(zkvm_trace)
 }
-
-/// Validate a zCrayVM execution trace.
-///
-/// # Arguments
-/// * `trace` - The trace to validate.
-///
-/// # Returns
-#[cfg(test)]
-pub fn validate_trace(trace: Trace) -> Result<()> {
-    trace.validate()?;
-    crate::prover::Prover::new(Box::new(GenericISA)).validate_trace(&trace)
-}
