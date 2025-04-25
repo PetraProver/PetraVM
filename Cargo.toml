@@ -8,9 +8,9 @@ edition = "2021"
 
 [workspace.dependencies]
 anyhow = "1.0"
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4b1ecace8d555112b32b239f986a32f634c6947e" }
+binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }

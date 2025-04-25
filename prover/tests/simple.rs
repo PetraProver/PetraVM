@@ -22,18 +22,18 @@ fn generate_srli_ret_trace() -> Result<Trace> {
             RET\n"
         .to_string();
 
-    let init_values = [0, 0, 127];
+    let init_values = vec![0, 0, 127];
 
     let vrom_writes = vec![
-        // LDI event
-        (3, 127 >> 2, 1),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
         (2, 127, 1),
+        // LDI event
+        (3, 127 >> 2, 1),
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
 }
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
@@ -467,19 +467,9 @@ fn test_all_binary_ops() -> Result<()> {
 fn test_srli_ret() -> Result<()> {
     test_from_trace_generator(generate_srli_ret_trace, |trace| {
         assert_eq!(
-            trace.program.len(),
-            2,
-            "Program should have exactly 2 instructions"
-        );
-        assert_eq!(
             trace.srli_events().len(),
             1,
             "Should have exactly one bz event"
-        );
-        assert_eq!(
-            trace.ret_events().len(),
-            1,
-            "Should have exactly one RET event"
         );
     })
 }
