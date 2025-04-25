@@ -312,10 +312,8 @@ pub struct CalliTable {
     next_fp_val: Col<B32>,
     /// Absolute address of the next frame pointer slot (FP + next_fp)
     next_fp_abs_addr: Col<B32>,
-    /// Next PC value to be saved as return address (PC + 1)
+    /// Next PC value to be saved as return address (PC * G)
     next_pc_val: Col<B32>,
-    /// Address of new frame slot 0 (return address location)
-    next_fp_slot_0: Col<B32>,
     /// Address of new frame slot 1 (old FP location)
     next_fp_slot_1: Col<B32>,
 }
@@ -352,7 +350,7 @@ impl Table for CalliTable {
             ..
         } = cpu_cols;
 
-        // Next PC value (PC + 1) to be saved as return address
+        // Next PC value (PC * G) to be saved as return address
         // We use the G constant (multiplicative generator) to get PC+1
         let next_pc_val = table.add_computed("next_pc_val", pc * G);
 
@@ -364,11 +362,10 @@ impl Table for CalliTable {
         table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
 
         // Calculate addresses for the new frame's slots
-        let next_fp_slot_0 = table.add_computed("next_fp_slot_0", next_fp_val.into());
         let next_fp_slot_1 = table.add_computed("next_fp_slot_1", next_fp_val + B32::new(1));
 
         // Verify return address (next_pc_val) is stored at slot 0 of new frame
-        table.pull(channels.vrom_channel, [next_fp_slot_0, next_pc_val]);
+        table.pull(channels.vrom_channel, [next_fp_val, next_pc_val]);
 
         // Verify current frame pointer is stored at slot 1 of new frame
         table.pull(channels.vrom_channel, [next_fp_slot_1, cur_fp]);
@@ -379,7 +376,6 @@ impl Table for CalliTable {
             next_fp_val,
             next_fp_abs_addr,
             next_pc_val,
-            next_fp_slot_0,
             next_fp_slot_1,
         }
     }
@@ -407,16 +403,14 @@ impl TableFiller<ProverPackedField> for CalliTable {
             let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
             let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
             let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_0 = witness.get_mut_as(self.next_fp_slot_0)?;
             let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
                 next_fp_val[i] = event.next_fp_val;
                 next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                // Calculate PC+1 as return address
+                // Calculate next PC as return address
                 next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_0[i] = event.next_fp_val;
                 next_fp_slot_1[i] = event.next_fp_val + 1;
             }
         }
@@ -450,10 +444,8 @@ pub struct CallvTable {
     offset_addr: Col<B32>,
     /// Target address value (read from VROM)
     target_val: Col<B32>,
-    /// Next PC value to be saved as return address (PC + 1)
+    /// Next PC value to be saved as return address (PC * G)
     next_pc_val: Col<B32>,
-    /// Address of new frame slot 0 (return address location)
-    next_fp_slot_0: Col<B32>,
     /// Address of new frame slot 1 (old FP location)
     next_fp_slot_1: Col<B32>,
 }
@@ -492,8 +484,7 @@ impl Table for CallvTable {
             ..
         } = cpu_cols;
 
-        // Next PC value (PC + 1) to be saved as return address
-        // We use the G constant (multiplicative generator) to get PC+1
+        // Next PC value (PC * G) to be saved as return address
         let next_pc_val = table.add_computed("next_pc_val", pc * G);
 
         // Compute the absolute addresses
@@ -506,11 +497,10 @@ impl Table for CallvTable {
         table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
 
         // Calculate addresses for the new frame's slots
-        let next_fp_slot_0 = table.add_computed("next_fp_slot_0", next_fp_val.into());
         let next_fp_slot_1 = table.add_computed("next_fp_slot_1", next_fp_val + B32::new(1));
 
         // Verify return address (next_pc_val) is stored at slot 0 of new frame
-        table.pull(channels.vrom_channel, [next_fp_slot_0, next_pc_val]);
+        table.pull(channels.vrom_channel, [next_fp_val, next_pc_val]);
 
         // Verify current frame pointer is stored at slot 1 of new frame
         table.pull(channels.vrom_channel, [next_fp_slot_1, cur_fp]);
@@ -523,7 +513,6 @@ impl Table for CallvTable {
             offset_addr,
             target_val,
             next_pc_val,
-            next_fp_slot_0,
             next_fp_slot_1,
         }
     }
@@ -553,7 +542,6 @@ impl TableFiller<ProverPackedField> for CallvTable {
             let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
             let mut target_val = witness.get_mut_as(self.target_val)?;
             let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_0 = witness.get_mut_as(self.next_fp_slot_0)?;
             let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
@@ -563,7 +551,6 @@ impl TableFiller<ProverPackedField> for CallvTable {
                 offset_addr[i] = event.fp.addr(event.offset);
                 target_val[i] = event.target;
                 next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_0[i] = event.next_fp_val;
                 next_fp_slot_1[i] = event.next_fp_val + 1;
             }
         }
