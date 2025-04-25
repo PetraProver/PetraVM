@@ -351,7 +351,7 @@ impl Table for CalliTable {
         } = cpu_cols;
 
         // Next PC value (PC * G) to be saved as return address
-        // We use the G constant (multiplicative generator) to get PC+1
+        // We use the G constant (multiplicative generator) to get next PC
         let next_pc_val = table.add_computed("next_pc_val", pc * G);
 
         // Compute the absolute address for the next frame pointer
@@ -441,7 +441,7 @@ pub struct CallvTable {
     /// Absolute address of the next frame pointer slot (FP + next_fp)
     next_fp_abs_addr: Col<B32>,
     /// Address of the offset slot (FP + offset)
-    offset_addr: Col<B32>,
+    offset_abs_addr: Col<B32>,
     /// Target address value (read from VROM)
     target_val: Col<B32>,
     /// Next PC value to be saved as return address (PC * G)
@@ -488,12 +488,12 @@ impl Table for CallvTable {
         let next_pc_val = table.add_computed("next_pc_val", pc * G);
 
         // Compute the absolute addresses
-        let offset_addr = table.add_computed("offset_addr", cur_fp + upcast_col(offset));
+        let offset_abs_addr = table.add_computed("offset_abs_addr", cur_fp + upcast_col(offset));
         let next_fp_abs_addr =
             table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
 
         // Read values from VROM
-        table.pull(channels.vrom_channel, [offset_addr, target_val]);
+        table.pull(channels.vrom_channel, [offset_abs_addr, target_val]);
         table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
 
         // Calculate addresses for the new frame's slots
@@ -510,7 +510,7 @@ impl Table for CallvTable {
             cpu_cols,
             next_fp_val,
             next_fp_abs_addr,
-            offset_addr,
+            offset_abs_addr,
             target_val,
             next_pc_val,
             next_fp_slot_1,
@@ -539,7 +539,7 @@ impl TableFiller<ProverPackedField> for CallvTable {
             // Get mutable references to witness columns
             let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
             let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
+            let mut offset_abs_addr = witness.get_mut_as(self.offset_abs_addr)?;
             let mut target_val = witness.get_mut_as(self.target_val)?;
             let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
             let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
@@ -548,7 +548,7 @@ impl TableFiller<ProverPackedField> for CallvTable {
             for (i, event) in rows.clone().enumerate() {
                 next_fp_val[i] = event.next_fp_val;
                 next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                offset_addr[i] = event.fp.addr(event.offset);
+                offset_abs_addr[i] = event.fp.addr(event.offset);
                 target_val[i] = event.target;
                 next_pc_val[i] = (event.pc * G).val();
                 next_fp_slot_1[i] = event.next_fp_val + 1;
