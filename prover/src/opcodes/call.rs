@@ -188,7 +188,7 @@ impl Table for TailvTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("tailv");
 
-        // Columns for computed and committed values
+        // Columns for committed values
         let target_val = table.add_committed("target_val");
         let next_fp_val = table.add_committed("next_fp_val");
         let return_addr = table.add_committed("return_addr");
@@ -209,8 +209,7 @@ impl Table for TailvTable {
         let CpuColumns {
             fp: cur_fp,
             arg0: offset,
-            arg1: _,
-            arg2: next_fp,
+            arg1: next_fp,
             ..
         } = cpu_cols;
 
@@ -219,7 +218,7 @@ impl Table for TailvTable {
         let next_fp_abs_addr =
             table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
         let fp_plus_1 = table.add_computed("fp_plus_1", cur_fp + B32::new(1));
-        let next_fp_plus_1 = table.add_computed("next_fp_plus_1", cur_fp + B32::new(1));
+        let next_fp_plus_1 = table.add_computed("next_fp_plus_1", next_fp_val + B32::new(1));
 
         // Read values from VROM
         table.pull(channels.vrom_channel, [offset_addr, target_val]);
@@ -294,8 +293,8 @@ impl TableFiller<ProverPackedField> for TailvTable {
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
             arg0: event.offset,  // offset for reading target
-            arg1: 0,             // unused
-            arg2: event.next_fp, // next_fp address
+            arg1: event.next_fp, // next_fp address
+            arg2: 0,             // unused
         });
 
         // Populate CPU columns with the gadget rows
@@ -323,21 +322,21 @@ mod tests {
         // Create an assembly program that tests function call variants
         let asm_code = format!(
             "#[framesize(0x10)]\n\
-        _start:\n\
-          LDI.W @3, #{}\n\
-          MVV.W @4[2], @2\n\
-          MVI.H @4[3], #2\n\
-          TAILV @3, @4\n\
-        #[framesize(0x10)]\n\
-        loop:\n\
-          BNZ case_recurse, @3\n\
-          LDI.W @2, #100\n\
-          RET\n\
-        case_recurse:\n\
-          LDI.W @4, #0\n\
-          MVV.W @5[2], @2\n\
-          MVV.W @5[3], @4\n\
-          TAILI loop, @5\n",
+            _start:\n\
+                LDI.W @3, #{}\n\
+                MVV.W @4[2], @2\n\
+                MVI.H @4[3], #2\n\
+                TAILV @3, @4\n\
+            #[framesize(0x10)]\n\
+            loop:\n\
+                BNZ case_recurse, @3\n\
+                LDI.W @2, #100\n\
+                RET\n\
+            case_recurse:\n\
+                LDI.W @4, #0\n\
+                MVV.W @5[2], @2\n\
+                MVV.W @5[3], @4\n\
+                TAILI loop, @5\n",
             pc_val
         );
 
