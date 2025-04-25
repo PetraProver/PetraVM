@@ -14,28 +14,6 @@ use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 use zcrayvm_prover::test_utils::generate_trace;
 
-fn generate_srli_ret_trace() -> Result<Trace> {
-    let asm_code = "#[framesize(0x10)]\n\
-        _start:\n\
-        SRLI @3, @2, #2 \n\
-        ret:\n\
-            RET\n"
-        .to_string();
-
-    let init_values = vec![0, 0, 127];
-
-    let vrom_writes = vec![
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        (2, 127, 1),
-        // LDI event
-        (3, 127 >> 2, 1),
-    ];
-
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
-}
-
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
@@ -459,17 +437,6 @@ fn test_all_binary_ops() -> Result<()> {
             trace.ret_events().len(),
             1,
             "Should have exactly one RET event"
-        );
-    })
-}
-
-#[test]
-fn test_srli_ret() -> Result<()> {
-    test_from_trace_generator(generate_srli_ret_trace, |trace| {
-        assert_eq!(
-            trace.srli_events().len(),
-            1,
-            "Should have exactly one bz event"
         );
     })
 }

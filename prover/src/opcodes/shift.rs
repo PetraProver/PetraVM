@@ -114,3 +114,45 @@ impl TableFiller<ProverPackedField> for SrliTable {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use zcrayvm_assembly::isa::GenericISA;
+
+    use crate::model::Trace;
+    use crate::prover::Prover;
+    use crate::test_utils::generate_trace;
+
+    /// Creates an execution trace for a simple program that uses the SRLI
+    /// instruction to test shift operations.
+    fn generate_srli_trace() -> Result<Trace> {
+        let asm_code = "#[framesize(0x10)]\n\
+            _start:\n\
+            SRLI @3, @2, #2 \n\
+            ret:\n\
+                RET\n"
+            .to_string();
+
+        let init_values = vec![0, 0, 127];
+
+        let vrom_writes = vec![
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            (2, 127, 1),
+            // LDI event
+            (3, 127 >> 2, 1),
+        ];
+
+        generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+    }
+
+    #[test]
+    fn test_srli() -> Result<()> {
+        let trace = generate_srli_trace()?;
+        trace.validate()?;
+        assert_eq!(trace.srli_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+}
