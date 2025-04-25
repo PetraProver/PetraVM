@@ -343,6 +343,20 @@ fn parse_line(
                             Rule::MULSU_instr => {
                                 instrs.push(InstructionsWithLabels::Mulsu { dst, src1, src2 });
                             }
+                            Rule::GROESTL256_COMPRESS_instr => {
+                                instrs.push(InstructionsWithLabels::Groestl256Compress {
+                                    dst,
+                                    src1,
+                                    src2,
+                                });
+                            }
+                            Rule::GROESTL256_OUTPUT_instr => {
+                                instrs.push(InstructionsWithLabels::Groestl256Output {
+                                    dst,
+                                    src1,
+                                    src2,
+                                });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {:?} not implemented", rule);
                             }

@@ -23,6 +23,7 @@ use crate::{
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
         context::EventContext,
+        groestl::{GroestlCompressEvent, GroestlOutputEvent},
         integer_ops::{
             AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,

@@ -31,6 +31,16 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Groestl256Compress {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Groestl256Output {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
     Mvih {
         dst: SlotWithOffset,
         imm: Immediate,
@@ -212,6 +222,12 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             InstructionsWithLabels::B128Mul { dst, src1, src2 } => {
                 write!(f, "B128_MUL {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Groestl256Compress { dst, src1, src2 } => {
+                write!(f, "GROESTL256_COMPRESS {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Groestl256Output { dst, src1, src2 } => {
+                write!(f, "GROESTL256_OUTPUT {dst} {src1} {src2}")
             }
             InstructionsWithLabels::Mvih { dst, imm } => write!(f, "MVI.H {dst} {imm}"),
             InstructionsWithLabels::Mvvw { dst, src } => write!(f, "MVV.W {dst} {src}"),

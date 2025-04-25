@@ -196,6 +196,30 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Groestl256Compress { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Groestl256Compress.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Groestl256Output { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Groestl256Output.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::Mvih { dst, imm } => {
             let instruction = [
                 Opcode::Mvih.get_field_elt(),

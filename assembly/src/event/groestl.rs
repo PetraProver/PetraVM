@@ -116,6 +116,7 @@ impl Event for GroestlOutputEvent {
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
 
+        // This actually gives the Groestl output transformation.
         let compression = Groestl256ByteCompression::default();
         let src1_array = GenericArray::from_slice(src1_val);
         let src2_array = GenericArray::from_slice(src2_val);

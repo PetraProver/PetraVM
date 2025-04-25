@@ -78,6 +78,12 @@ impl Opcode {
         arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
+            Opcode::Groestl256Compress => {
+                groestl::GroestlCompressEvent::generate(ctx, arg0, arg1, arg2)
+            }
+            Opcode::Groestl256Output => {
+                groestl::GroestlOutputEvent::generate(ctx, arg0, arg1, arg2)
+            }
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")
