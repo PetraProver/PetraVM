@@ -240,6 +240,8 @@ define_table_registry_and_accessors!(
     (add, Add),
     (taili, Taili),
     (tailv, Tailv),
+    (calli, Calli),
+    (callv, Callv),
     (mvvw, Mvvw),
     (mvih, Mvih),
     (and, And),

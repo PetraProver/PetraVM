@@ -16,7 +16,7 @@ pub use binary::*;
 use binius_field::BinaryField;
 use binius_m3::builder::B32;
 pub use branch::{BnzTable, BzTable};
-pub use call::{TailiTable, TailvTable};
+pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
 pub use integer_ops::AddTable;
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
