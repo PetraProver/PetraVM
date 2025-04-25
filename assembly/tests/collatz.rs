@@ -1,32 +1,21 @@
-use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, ValueRom, ZCrayTrace};
+pub mod common;
+
+use common::test_utils::execute_test_asm;
 
 #[test]
 fn test_collatz_integration() {
-    // Parse the Collatz program
-    let compiled_program =
-        Assembler::from_code(include_str!("../../examples/collatz.asm")).unwrap();
+    let init_vals = [5, 27, 3999];
 
-    // Test with multiple initial values
-    for &initial_value in &[5, 27, 3999] {
-        // Initialize the VROM with the initial value
-        let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_value]);
-        let memory = Memory::new(compiled_program.prom.clone(), vrom);
-
-        // Execute the program and generate the trace
-        let (trace, boundary_values) = ZCrayTrace::generate(
-            Box::new(GenericISA),
-            memory,
-            compiled_program.frame_sizes.clone(),
-            compiled_program.pc_field_to_int.clone(),
-        )
-        .expect("Trace generation should not fail");
-
-        // Validate the trace - this is the key functionality we're testing
-        trace.validate(boundary_values);
+    // Execute the program multiple times with different initial values
+    for initial_value in init_vals {
+        // Load in Collatz binary.
+        let mut info =
+            execute_test_asm(include_str!("../../examples/collatz.asm"), &[initial_value]);
+        let collatz_frame = info.frames.add_frame("collatz");
 
         // Verify the final result is 1, as expected for the Collatz conjecture
         assert_eq!(
-            trace.vrom().read::<u32>(3).unwrap(),
+            collatz_frame.get_vrom_expected::<u32>(3),
             1,
             "Final result should be 1 for initial value {}",
             initial_value

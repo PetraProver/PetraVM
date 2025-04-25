@@ -42,9 +42,9 @@ impl Event for RetEvent {
     ) -> Result<(), InterpreterError> {
         let ret_event = RetEvent::new(ctx)?;
 
-        let target = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        let target = ret_event.pc_next;
         ctx.jump_to(B32::new(target));
-        ctx.set_fp(ctx.vrom_read::<u32>(ctx.addr(1u32))?);
+        ctx.set_fp(ret_event.fp_next);
 
         ctx.trace.ret.push(ret_event);
         Ok(())

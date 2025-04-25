@@ -1,5 +1,5 @@
 mod ram;
-mod vrom;
+pub mod vrom;
 pub mod vrom_allocator;
 
 pub(crate) use ram::{Ram, RamValueT};
@@ -12,7 +12,7 @@ use crate::execution::InterpreterInstruction;
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Display)]
 pub enum MemoryError {
-    VromRewrite(u32),
+    VromRewrite(u32, u32, u32),
     VromMisaligned(u8, u32),
     VromMissingValue(u32),
     VromAddressOutOfBounds(u32, usize),

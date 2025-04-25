@@ -256,9 +256,16 @@ impl Interpreter {
         if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
-        let instruction = &trace.prom()[self.pc as usize - 1];
-        let [opcode, arg0, arg1, arg2] = instruction.instruction;
-        let field_pc = instruction.field_pc;
+        let InterpreterInstruction {
+            instruction,
+            field_pc,
+        } = trace.prom()[self.pc as usize - 1];
+        let [opcode, arg0, arg1, arg2] = instruction;
+        trace.record_instruction(field_pc);
+        // Special handling for B32Muli
+        if opcode == Opcode::B32Muli.get_field_elt() {
+            trace.record_instruction(field_pc * G);
+        }
 
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
@@ -271,7 +278,7 @@ impl Interpreter {
             "Executing {:?} with args {:?}",
             opcode,
             (1..1 + opcode.num_args())
-                .map(|i| instruction.instruction[i].val())
+                .map(|i| instruction[i].val())
                 .collect::<Vec<_>>()
         );
 

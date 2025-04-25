@@ -62,12 +62,12 @@ macro_rules! impl_mv_event {
 }
 
 pub(crate) struct MVEventOutput {
-    pub(crate) parent: u32, // parent addr
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: B32,    // field PC
     pub(crate) fp: FramePointer, // fp
     pub(crate) timestamp: u32,   // timestamp
     pub(crate) dst: B16,         // dst
+    pub(crate) dst_addr: u32,    // dst addr
     pub(crate) src: B16,         // src
     pub(crate) offset: B16,      // offset
     pub(crate) src_val: u128,
@@ -76,37 +76,37 @@ pub(crate) struct MVEventOutput {
 impl MVEventOutput {
     #[allow(clippy::too_many_arguments)]
     pub(crate) const fn new(
-        parent: u32, // parent addr
         opcode: Opcode,
         field_pc: B32,    // field PC
         fp: FramePointer, // fp
         timestamp: u32,   // timestamp
         dst: B16,         // dst
+        dst_addr: u32,    // dst addr
         src: B16,         // src
         offset: B16,      // offset
         src_val: u128,
     ) -> Self {
         Self {
-            parent, // parent addr
             opcode,
-            field_pc,  // field PC
-            fp,        // fp
-            timestamp, // timestamp
-            dst,       // dst
-            src,       // src
-            offset,    // offset
+            field_pc,
+            fp,
+            timestamp,
+            dst,
+            dst_addr,
+            src,
+            offset,
             src_val,
         }
     }
 
     pub(crate) fn push_mv_event(&self, trace: &mut ZCrayTrace) {
         let &MVEventOutput {
-            parent,
             opcode,
             field_pc,
             fp,
             timestamp,
             dst,
+            dst_addr,
             src,
             offset,
             src_val,
@@ -119,7 +119,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val,
                     offset.val(),
@@ -132,7 +132,7 @@ impl MVEventOutput {
                     fp,
                     timestamp,
                     dst.val(),
-                    parent,
+                    dst_addr,
                     src.val(),
                     src_val as u32,
                     offset.val(),
@@ -200,14 +200,16 @@ impl MvvwEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
-        if let Some(src_val) = opt_src_val {
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+        if src_val_set {
+            let src_val = ctx.vrom_read::<u32>(src_addr)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -224,9 +226,20 @@ impl MvvwEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvw, pc, *fp, timestamp, dst, src, offset),
+                dst_addr_offset,
+                (
+                    src_addr,
+                    Opcode::Mvvw,
+                    pc,
+                    *fp,
+                    timestamp,
+                    dst,
+                    dst_addr,
+                    src,
+                    offset,
+                ),
             )?;
             Ok(None)
         }
@@ -240,15 +253,17 @@ impl MvvwEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.vrom_read_opt::<u32>(ctx.addr(src.val()))?;
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u32>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
-        if let Some(dst_addr) = opt_dst_addr {
-            let opt_dst_val = ctx.vrom_read_opt::<u32>(dst_addr ^ offset.val() as u32)?;
+        if dst_addr_set {
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+            let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
-            if let Some(dst_val) = opt_dst_val {
+            if dst_val_set {
+                let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
                 execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
@@ -266,13 +281,13 @@ impl MvvwEvent {
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
-        if opt_dst_addr.is_none() || opt_src_val.is_none() {
+        if !dst_addr_set || !src_val_set {
             delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
-        let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
-        let src_val = opt_src_val.expect("We checked previously that src_val is some");
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
 
         execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
@@ -345,14 +360,16 @@ impl MvvlEvent {
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
-        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr)?;
 
         // If we already know the value to set, then we can already push an event.
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
-        if let Some(src_val) = opt_src_val {
-            ctx.vrom_write(dst_addr ^ offset.val() as u32, src_val)?;
+        if src_val_set {
+            let src_val = ctx.vrom_read::<u128>(src_addr)?;
+            ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
                 pc,
@@ -369,9 +386,20 @@ impl MvvlEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
+            ctx.vrom_record_access(dst_addr_offset);
             ctx.trace.insert_pending(
-                dst_addr ^ offset.val() as u32,
-                (src_addr, Opcode::Mvvl, pc, *fp, timestamp, dst, src, offset),
+                dst_addr_offset,
+                (
+                    src_addr,
+                    Opcode::Mvvl,
+                    pc,
+                    *fp,
+                    timestamp,
+                    dst,
+                    dst_addr,
+                    src,
+                    offset,
+                ),
             )?;
             Ok(None)
         }
@@ -385,17 +413,17 @@ impl MvvlEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
-        let opt_src_val = ctx.vrom_read_opt::<u128>(ctx.addr(src.val()))?;
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+        let src_val_set = ctx.vrom_check_value_set::<u128>(ctx.addr(src.val()))?;
 
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
-        if let Some(dst_addr) = opt_dst_addr {
-            let opt_dst_val = ctx
-                .vrom()
-                .read_opt::<u128>(dst_addr ^ offset.val() as u32)?;
+        if dst_addr_set {
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+            let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
-            if let Some(dst_val) = opt_dst_val {
+            if dst_val_set {
+                let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
                 execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
                 return Ok(Some(Self {
@@ -413,13 +441,13 @@ impl MvvlEvent {
         // If the source value is missing or the destination address is still unknown,
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
-        if opt_dst_addr.is_none() || opt_src_val.is_none() {
+        if !dst_addr_set || !src_val_set {
             delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
-        let dst_addr = opt_dst_addr.expect("We checked previously that dst_addr is some");
-        let src_val = opt_src_val.expect("We checked previously that src_val is some");
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
 
         execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
@@ -496,11 +524,12 @@ impl MvihEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let opt_dst_addr = ctx.vrom_read_opt::<u32>(ctx.addr(dst.val()))?;
+        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
-        if let Some(dst_addr) = opt_dst_addr {
+        if dst_addr_set {
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
             execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
             Ok(Some(Self {
@@ -868,6 +897,7 @@ mod tests {
             .run(memory)
             .expect("The interpreter should run smoothly.");
 
+        let next_fp = 16;
         let mut pending_updates = HashMap::new();
         let first_move = (
             src_addr.val() as u32, // Address to set
@@ -876,6 +906,7 @@ mod tests {
             0u32,                  // FP
             0u32,                  // Timestamp
             next_fp_offset,        // Dst
+            next_fp,               // Dst addr
             src_addr,              // Src
             offset1,               // Offset
         );
@@ -886,11 +917,11 @@ mod tests {
             0u32,                  // FP
             0u32,                  // Timestamp (Only RAM operations increase it)
             next_fp_offset,        // Dst
+            next_fp,               // Dst addr
             src_addr,              // Src
             offset2,               // Offset
         );
 
-        let next_fp = 16;
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
         pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
 

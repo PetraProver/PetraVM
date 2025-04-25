@@ -1,3 +1,5 @@
+;; NOTE: `div` needs to be defined and this currently can not run.
+
 #[framesize(0xd)]
 bezout:
     ;; Frame:

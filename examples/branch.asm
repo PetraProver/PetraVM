@@ -18,11 +18,11 @@ branches:
     ;; Slot @4: Local: n < 3
 
     SLTI @4, @2, #3 ;; n < 3
-    BNZ @4, less_than_3 ;; if n >= 3
+    BNZ less_than_3, @4 ;; if n >= 3
 
-    MVI.H @3, #2 ;; return 2
+    LDI.W @3, #2 ;; return 2
     RET
 
 less_than_3:
-    MVI.H @3, #4 ;; return 4
+    LDI.W @3, #4 ;; return 4
     RET

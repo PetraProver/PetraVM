@@ -6,8 +6,10 @@ authors = ["zCray Team"]
 
 [dependencies]
 anyhow.workspace = true
+clap = { version = "4.5.20", features = ["derive"] }
 log = "0.4"
 env_logger = "0.11.7"
+paste = "1.0.15"
 zcrayvm-assembly = { path = "../assembly" }
 bumpalo = { version = "3.16.0", features = ["collections"] }
 bytemuck = { version = "1.18.0", features = ["derive", "min_const_generics"] }
@@ -22,3 +24,4 @@ binius_hal.workspace = true
 
 [dev-dependencies]
 zcrayvm-assembly = { path = "../assembly" }
+rand = { version = "0.9.1", features = ["std"] }

@@ -15,3 +15,6 @@ pub mod prover;
 pub mod table;
 pub mod types;
 pub mod utils;
+
+/// Publicly exported module for testing purposes only
+pub mod test_utils;

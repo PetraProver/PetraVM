@@ -34,6 +34,7 @@ use crate::{
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
     AnyShiftEvent, SrliEvent,
 };
+
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
     pub bnz: Vec<BnzEvent>,
@@ -77,6 +78,9 @@ pub struct ZCrayTrace {
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
+    /// A map of an instruction's field PC to the number of times that
+    /// instruction has been executed.
+    pub instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -215,18 +219,18 @@ impl ZCrayTrace {
         value: T,
     ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
-
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
+                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset) =
+                    pending_update;
                 self.vrom_write(parent, value)?;
                 let event_out = MVEventOutput::new(
-                    parent,
                     opcode,
                     field_pc,
                     fp.into(),
                     timestamp,
                     dst,
+                    dst_addr,
                     src,
                     offset,
                     value.to_u128(),
@@ -275,5 +279,9 @@ impl ZCrayTrace {
     #[cfg(test)]
     pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
+    }
+
+    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
+        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
     }
 }

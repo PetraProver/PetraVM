@@ -4,12 +4,23 @@
 
 pub mod binary;
 pub mod branch;
+pub mod call;
+pub mod integer_ops;
+pub mod jump;
 pub mod ldi;
+pub mod mv;
 pub mod ret;
 pub mod shift;
 
-pub use binary::B32MulTable;
+pub use binary::*;
+use binius_field::BinaryField;
+use binius_m3::builder::B32;
 pub use branch::{BnzTable, BzTable};
+pub use call::{TailiTable, TailvTable};
+pub use integer_ops::AddTable;
+pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
+pub use mv::{MvihTable, MvvwTable};
 pub use ret::RetTable;
 pub use shift::SrliTable;
+pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;

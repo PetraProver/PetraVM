@@ -1,3 +1,15 @@
+;; Rust equivalent:
+;; ------------
+;; fn div(a: u32, b: u32) -> (q, r) {
+;;      if a < b {
+;;          let (q, r) = div(a - b, b);
+;;          (q + 1, r)
+;;      } else {
+;;          (0, a)
+;;      }
+;; }
+;; ------------
+
 #[framesize(0xa)]
 div:
     ;; Frame:
@@ -13,7 +25,7 @@ div:
     ;; Slot 9: Local: q1
 
     SLTU @7, @2, @3
-    BNZ div_consequent, @7
+    BNZ div_consequent, @7 ;; TODO: This logic is inverted but we're going to wait until SLE is implemented...
     SUB @8, @2, @3
     MVV.W @6[2], @8
     MVV.W @6[3], @3
