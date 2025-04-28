@@ -2,6 +2,7 @@
 
 use std::any::Any;
 
+use binius_m3::builder::B128;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
@@ -289,6 +290,8 @@ pub struct MvvlTable {
     src_lookup: B128LookupColumns,
     /// Destination lookup columns for writing 128-bit value
     dst_lookup: B128LookupColumns,
+    /// Source value
+    src_val: Col<B32, 4>,
 }
 
 impl Table for MvvlTable {
@@ -361,6 +364,7 @@ impl Table for MvvlTable {
             dst_addr,
             src_lookup,
             dst_lookup,
+            src_val,
         }
     }
 
@@ -391,6 +395,7 @@ impl TableFiller<ProverPackedField> for MvvlTable {
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut final_dst_addr = witness.get_scalars_mut(self.final_dst_addr)?;
             let mut dst_addr = witness.get_scalars_mut(self.dst_addr)?;
+            let mut src_val = witness.get_mut_as(self.src_val)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
@@ -398,6 +403,7 @@ impl TableFiller<ProverPackedField> for MvvlTable {
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
                 dst_addr[i] = B32::new(event.dst_addr);
                 final_dst_addr[i] = B32::new(event.dst_addr ^ event.offset as u32);
+                src_val[i] = B128::new(event.src_val);
             }
         }
 

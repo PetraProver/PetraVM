@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, fmt::Debug, ops::Shl};
+use std::{cell::Cell, collections::HashMap, ops::Shl};
 
 use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
@@ -254,7 +254,7 @@ impl ValueRom {
 
 /// Trait for types that can be read from or written to the VROM.
 pub trait VromValueT:
-    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + Debug
+    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize
 {
     fn to_u128(self) -> u128;
 }

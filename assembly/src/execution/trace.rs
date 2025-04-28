@@ -224,9 +224,6 @@ impl ZCrayTrace {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, pos) =
                     pending_update;
-                dbg!(opcode);
-                dbg!(&parent);
-                dbg!(&value);
                 self.vrom_write(parent, value)?;
                 if opcode == Opcode::Mvvw {
                     let event_out = MVEventOutput::new(
@@ -242,8 +239,8 @@ impl ZCrayTrace {
                     );
                     event_out.push_mv_event(self);
                 } else if pos == 3 {
-                    // TODO: There is a limitation here that pos = 3 is the last position set for
-                    // Mvvl
+                    // There is a limitation here that pos = 3 must be the last position set for
+                    // Mvvl, otherwise an vrom read error will occur.
                     let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
                     let event_out = MVEventOutput::new(
                         opcode,

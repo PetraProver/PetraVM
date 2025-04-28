@@ -61,7 +61,6 @@ macro_rules! impl_mv_event {
     };
 }
 
-#[derive(Debug)]
 pub(crate) struct MVEventOutput {
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: B32,    // field PC
