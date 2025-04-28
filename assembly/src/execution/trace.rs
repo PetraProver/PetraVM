@@ -253,7 +253,6 @@ impl ZCrayTrace {
                         offset,
                         value,
                     );
-                    dbg!(&event_out);
                     event_out.push_mv_event(self);
                 }
             }
