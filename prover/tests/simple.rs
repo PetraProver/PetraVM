@@ -154,7 +154,8 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
          _start: 
             LDI.W @2, #{}\n\
             LDI.W @3, #{}\n\
-            ADD @4, @2, @3\n\
+            ;; Skip @4 to test a gap in vrom writes
+            ADD @5, @2, @3\n\
             RET\n",
         src1_value, src2_value
     );
@@ -168,7 +169,7 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
         (0, 0, 1),
         (1, 0, 1),
         // ADD event
-        (4, src1_value + src2_value, 1),
+        (5, src1_value + src2_value, 1),
     ];
 
     generate_trace(asm_code, None, Some(vrom_writes))
