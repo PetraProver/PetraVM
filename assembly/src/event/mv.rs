@@ -928,19 +928,24 @@ mod tests {
             0,
         );
 
+        // Insert the first move
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
-        pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
 
-        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.vrom_pending_updates().len(), pending_updates.len());
+        // Insert the second move for each of the 4 bytes (for u128)
+        for i in 0..4 {
+            let mut current_move = second_move;
+            current_move.0 += i; // Increment address to set
+            current_move.9 += i; // Increment pending update position
+            pending_updates.insert(next_fp + offset2.val() as u32 + i, vec![current_move]);
+        }
+
+        // Assert that pending updates are correctly tracked
+        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(),);
         for (k, pending_update) in traces.vrom_pending_updates() {
             let expected_update = pending_updates.get(k).unwrap_or_else(|| {
                 panic!("Missing expected update {:?} at addr {}", pending_update, k)
             });
-            assert_eq!(
-                *expected_update, *pending_update,
-                "expected update {:?}, but got {:?}",
-                *expected_update, *pending_update
-            );
+            assert_eq!(*expected_update, *pending_update,);
         }
         // Check that `next_fp` has been set and the third MOVE operation was carried
         // out correctly,

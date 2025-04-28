@@ -79,27 +79,17 @@ impl ValueRom {
         self.check_alignment::<T>(index)?;
         self.check_bounds::<T>(index)?;
         self.record_access::<T>(index);
-
-        let mut value = T::zero();
-
-        // Read the entire chunk at once.
-        let read_data = &self.data[index as usize..index as usize + T::word_size()];
-
-        for (i, opt_word) in read_data.iter().enumerate() {
-            let word = opt_word.ok_or(MemoryError::VromMissingValue(index))?;
-
-            // Shift the word to its appropriate position and add to the value
-            value = value + (T::from(word) << (i * 32));
-        }
-
-        Ok(value)
+        self.read_internal::<T>(index)
     }
 
     /// Peeks at the value at the given index without recording an access.
     pub fn peek<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
         self.check_bounds::<T>(index)?;
+        self.read_internal::<T>(index)
+    }
 
+    fn read_internal<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         let mut value = T::zero();
 
         // Read the entire chunk at once.
