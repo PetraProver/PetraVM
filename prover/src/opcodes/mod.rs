@@ -20,7 +20,7 @@ pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
 pub use integer_ops::AddTable;
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
-pub use mv::{MvihTable, MvvwTable};
+pub use mv::{MvihTable, MvvlTable, MvvwTable};
 pub use ret::RetTable;
 pub use shift::SrliTable;
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;

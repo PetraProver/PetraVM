@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, ops::Shl};
+use std::{cell::Cell, collections::HashMap, fmt::Debug, ops::Shl};
 
 use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
@@ -19,6 +19,7 @@ pub(crate) type VromUpdate = (
     u32,    // dst addr
     B16,    // src
     B16,    // offset
+    u32,    // pending update position only used for Mvvl
 );
 
 /// `ValueRom` represents a memory structure for storing different sized values.
@@ -77,7 +78,27 @@ impl ValueRom {
     pub fn read<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
         self.check_bounds::<T>(index)?;
-        self.record_access(index, T::word_size());
+        self.record_access::<T>(index);
+
+        let mut value = T::zero();
+
+        // Read the entire chunk at once.
+        let read_data = &self.data[index as usize..index as usize + T::word_size()];
+
+        for (i, opt_word) in read_data.iter().enumerate() {
+            let word = opt_word.ok_or(MemoryError::VromMissingValue(index))?;
+
+            // Shift the word to its appropriate position and add to the value
+            value = value + (T::from(word) << (i * 32));
+        }
+
+        Ok(value)
+    }
+
+    /// Peeks at the value at the given index without recording an access.
+    pub fn peek<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
+        self.check_alignment::<T>(index)?;
+        self.check_bounds::<T>(index)?;
 
         let mut value = T::zero();
 
@@ -119,7 +140,7 @@ impl ValueRom {
     pub fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
         self.ensure_capacity::<T>(index);
-        self.record_access(index, T::word_size());
+        self.record_access::<T>(index);
         for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
             let prev_value = &mut self.data[index as usize + i];
@@ -202,8 +223,8 @@ impl ValueRom {
     }
 
     /// Record accesses for addresses [addr, addr+size).
-    pub(crate) fn record_access(&self, addr: u32, size: usize) {
-        for i in 0..size {
+    pub(crate) fn record_access<T: VromValueT>(&self, addr: u32) {
+        for i in 0..T::word_size() {
             let idx = addr as usize + i;
             let count = self.access_counts[idx].get();
             self.access_counts[idx].set(count + 1);
@@ -233,7 +254,7 @@ impl ValueRom {
 
 /// Trait for types that can be read from or written to the VROM.
 pub trait VromValueT:
-    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize
+    Copy + Default + Zero + Shl<usize, Output = Self> + Sized + From<u32> + AccessSize + Debug
 {
     fn to_u128(self) -> u128;
 }

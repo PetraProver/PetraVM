@@ -244,6 +244,7 @@ define_table_registry_and_accessors!(
     (callv, Callv),
     (mvvw, Mvvw),
     (mvih, Mvih),
+    (mvvl, Mvvl),
     (and, And),
     (xor, Xor),
     (or, Or),

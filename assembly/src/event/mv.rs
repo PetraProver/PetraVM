@@ -61,6 +61,7 @@ macro_rules! impl_mv_event {
     };
 }
 
+#[derive(Debug)]
 pub(crate) struct MVEventOutput {
     pub(crate) opcode: Opcode,
     pub(crate) field_pc: B32,    // field PC
@@ -226,7 +227,7 @@ impl MvvwEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
-            ctx.vrom_record_access(dst_addr_offset);
+            ctx.vrom_record_access::<u32>(dst_addr_offset);
             ctx.trace.insert_pending(
                 dst_addr_offset,
                 (
@@ -239,6 +240,7 @@ impl MvvwEvent {
                     dst_addr,
                     src,
                     offset,
+                    0,
                 ),
             )?;
             Ok(None)
@@ -386,21 +388,24 @@ impl MvvlEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
-            ctx.vrom_record_access(dst_addr_offset);
-            ctx.trace.insert_pending(
-                dst_addr_offset,
-                (
-                    src_addr,
-                    Opcode::Mvvl,
-                    pc,
-                    *fp,
-                    timestamp,
-                    dst,
-                    dst_addr,
-                    src,
-                    offset,
-                ),
-            )?;
+            ctx.vrom_record_access::<u128>(dst_addr_offset);
+            for i in 0..4 {
+                ctx.trace.insert_pending(
+                    dst_addr_offset + i,
+                    (
+                        src_addr + i,
+                        Opcode::Mvvl,
+                        pc,
+                        *fp,
+                        timestamp,
+                        dst,
+                        dst_addr,
+                        src,
+                        offset,
+                        i,
+                    ),
+                )?;
+            }
             Ok(None)
         }
     }
@@ -909,6 +914,7 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset1,               // Offset
+            0,
         );
         let second_move = (
             src_addr.val() as u32, // Address to set
@@ -920,6 +926,7 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset2,               // Offset
+            0,
         );
 
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
