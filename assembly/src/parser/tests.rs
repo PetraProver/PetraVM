@@ -15,6 +15,7 @@ mod test_parser {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
+        println!("{:?}", parser);
         assert!(parser.is_ok(), "assembly failed to parse: {}", asm);
     }
 
@@ -117,6 +118,10 @@ mod test_parser {
             "B128_MUL @4, @3, @2",
             "ADD @3, @2, @1",
             "SUB @3, @2, @1",
+            "SLE @3, @2, @1",
+            "SLEI @3, @2, #1",
+            "SLEU @3, @2, @1",
+            "SLEIU @3, @2, #1",
             "SLT @3, @2, @1",
             "SLTU @3, @2, @1",
             "AND @3, @2, @1",

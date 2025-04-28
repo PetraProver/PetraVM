@@ -20,6 +20,7 @@ use crate::{
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
 pub(crate) mod call;
+pub(crate) mod comparison;
 pub(crate) mod context;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
@@ -36,10 +37,10 @@ pub use self::{
     b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
     branch::{BnzEvent, BzEvent},
     call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
-    integer_ops::{
-        AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
-        SltiuEvent, SltuEvent, SubEvent,
+    comparison::{
+        SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
     jump::{JumpiEvent, JumpvEvent},
     mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},
     ret::RetEvent,
@@ -93,15 +94,19 @@ impl Opcode {
             Opcode::Sra => shift::SraEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Addi => event_helper::generate_addi(ctx, arg0, arg1, arg2),
             Opcode::Add => event_helper::generate_add(ctx, arg0, arg1, arg2),
-            Opcode::Sub => integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Slt => integer_ops::SltEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Slti => integer_ops::SltiEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Sltu => integer_ops::SltuEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Sltiu => integer_ops::SltiuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sle => comparison::SleEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slei => comparison::SleiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sleu => comparison::SleuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sleiu => comparison::SleiuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slt => comparison::SltEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Slti => comparison::SltiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sltu => comparison::SltuEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sltiu => comparison::SltiuEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Muli => integer_ops::MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Mulu => integer_ops::MuluEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Mulsu => integer_ops::MulsuEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Mul => integer_ops::MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Sub => integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Ret => ret::RetEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Taili => call::TailiEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Tailv => call::TailvEvent::generate(ctx, arg0, arg1, arg2),

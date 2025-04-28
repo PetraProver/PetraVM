@@ -419,6 +419,50 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Sle { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sle.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Slei { dst, src, imm } => {
+            let instruction = [
+                Opcode::Slei.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sleu { dst, src1, src2 } => {
+            let instruction = [
+                Opcode::Sleu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                src2.get_16bfield_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
+        InstructionsWithLabels::Sleiu { dst, src, imm } => {
+            let instruction = [
+                Opcode::Sleiu.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::Slt { dst, src1, src2 } => {
             let instruction = [
                 Opcode::Slt.get_field_elt(),

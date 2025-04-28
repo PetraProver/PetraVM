@@ -18,21 +18,20 @@ use crate::{
         },
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
-        integer_ops::{
-            AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
-            SltiuEvent, SltuEvent, SubEvent,
+        comparison::{
+            SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        integer_ops::{AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
-        shift::GenericShiftEvent,
+        shift::{AnyShiftEvent, GenericShiftEvent, SrliEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    AnyShiftEvent, SrliEvent,
 };
 
 #[derive(Debug, Default)]
@@ -50,6 +49,10 @@ pub struct ZCrayTrace {
     pub sub: Vec<SubEvent>,
     pub slt: Vec<SltEvent>,
     pub slti: Vec<SltiEvent>,
+    pub sle: Vec<SleEvent>,
+    pub slei: Vec<SleiEvent>,
+    pub sleu: Vec<SleuEvent>,
+    pub sleiu: Vec<SleiuEvent>,
     pub sltu: Vec<SltuEvent>,
     pub sltiu: Vec<SltiuEvent>,
     pub shifts: Vec<Box<dyn GenericShiftEvent>>,
@@ -176,6 +179,10 @@ impl ZCrayTrace {
         fire_events!(self.and, &mut channels);
         fire_events!(self.andi, &mut channels);
         fire_events!(self.sub, &mut channels);
+        fire_events!(self.sle, &mut channels);
+        fire_events!(self.slei, &mut channels);
+        fire_events!(self.sleu, &mut channels);
+        fire_events!(self.sleiu, &mut channels);
         fire_events!(self.slt, &mut channels);
         fire_events!(self.slti, &mut channels);
         fire_events!(self.sltu, &mut channels);
