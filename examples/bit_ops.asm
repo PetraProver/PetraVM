@@ -23,13 +23,13 @@ bit_ops:
     ;; Slot @7: Local: e
     ;; Slot @8: Local: f
 
-    MVI.H @2, #3 ;; x = 0b0011
+    LDI.W @2, #3 ;; x = 0b0011
     
-    XORI @3, @2, #0 ;; a = x | 0
+    ORI @3, @2, #0  ;; a = x | 0
     ANDI @4, @2, #0 ;; b = x & 0
-    ORI @5, @2, #0 ;; c = x ^ 0
+    XORI @5, @2, #0 ;; c = x ^ 0
 
-    ORI @6, @2, #5 ;; d = x | 0b0101
+    ORI @6, @2, #5  ;; d = x | 0b0101
     ANDI @7, @2, #5 ;; e = x & 0b0101
     XORI @8, @2, #5 ;; f = x ^ 0b0101
 

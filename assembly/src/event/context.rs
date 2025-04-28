@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use binius_m3::builder::{B16, B32};
 
-use super::mv::{MVIHEvent, MVKind, MVVLEvent, MVVWEvent};
+use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{AccessSize, MemoryError, Ram, RamValueT, VromValueT},
@@ -45,7 +45,7 @@ impl EventContext<'_> {
         self.trace.vrom()
     }
 
-    pub fn vrom_vmut(&mut self) -> &mut ValueRom {
+    pub fn vrom_mut(&mut self) -> &mut ValueRom {
         self.trace.vrom_mut()
     }
 
@@ -56,11 +56,15 @@ impl EventContext<'_> {
         self.vrom().read(addr)
     }
 
-    pub fn vrom_read_opt<T>(&self, addr: u32) -> Result<Option<T>, MemoryError>
+    pub fn vrom_check_value_set<T>(&self, addr: u32) -> Result<bool, MemoryError>
     where
         T: VromValueT,
     {
-        self.vrom().read_opt(addr)
+        self.vrom().check_value_set::<T>(addr)
+    }
+
+    pub(crate) fn vrom_record_access(&self, addr: u32) {
+        self.vrom().record_access(addr, 1);
     }
 
     pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
@@ -153,7 +157,7 @@ impl EventContext<'_> {
         while let Some(mv_info) = self.moves_to_apply.pop() {
             match mv_info.mv_kind {
                 MVKind::Mvvw => {
-                    let opt_event = MVVWEvent::generate_event_from_info(
+                    let opt_event = MvvwEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -167,7 +171,7 @@ impl EventContext<'_> {
                     }
                 }
                 MVKind::Mvvl => {
-                    let opt_event = MVVLEvent::generate_event_from_info(
+                    let opt_event = MvvlEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,
@@ -181,7 +185,7 @@ impl EventContext<'_> {
                     }
                 }
                 MVKind::Mvih => {
-                    let event = MVIHEvent::generate_event_from_info(
+                    let event = MvihEvent::generate_event_from_info(
                         self,
                         mv_info.pc,
                         mv_info.timestamp,

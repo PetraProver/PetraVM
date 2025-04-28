@@ -1,41 +1,33 @@
-use std::{collections::HashSet, mem};
+pub mod common;
 
-use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, Opcode, ValueRom, ZCrayTrace};
+use std::collections::HashSet;
+
+use common::test_utils::execute_test_asm;
+use strum::VariantArray;
+use zcrayvm_assembly::Opcode;
 
 #[test]
 fn test_opcodes() {
-    let compiled_program =
-        Assembler::from_code(include_str!("../../examples/opcodes.asm")).unwrap();
+    let mut info = execute_test_asm(include_str!("../../examples/opcodes.asm"), &[]);
 
     // Ensure all opcodes are present in the program
-    let mut seen = HashSet::new();
-    for instr in &compiled_program.prom {
-        seen.insert(mem::discriminant(&instr.opcode()));
+    let mut unseen_types_remaining: HashSet<_> = HashSet::from_iter(Opcode::VARIANTS);
+    unseen_types_remaining.remove(&Opcode::Bz); // Bz isn't an actual opcode
+    unseen_types_remaining.remove(&Opcode::Invalid); // Invalid is not an opcode.
+
+    for instr in &info.compiled_program.prom {
+        unseen_types_remaining.remove(&instr.opcode());
     }
-    assert_eq!(
-        seen.len(),
-        Opcode::OP_COUNT - 1 /* Bz isn't an actual opcode */
+
+    assert!(
+        unseen_types_remaining.is_empty(),
+        "Some existing opcodes were not present in the opcode test program: {:#?}",
+        unseen_types_remaining
     );
-
-    // Generate the program ROM and associated data
-    let vrom = ValueRom::new_with_init_vals(&[0, 0]);
-    let memory = Memory::new(compiled_program.prom, vrom);
-
-    // Execute the program and generate the trace
-    let (trace, boundary_values) = ZCrayTrace::generate(
-        Box::new(GenericISA),
-        memory,
-        compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
-    )
-    .expect("Trace generation should not fail");
-
-    // Validate the trace - this is the key functionality we're testing
-    trace.validate(boundary_values);
 
     // Verify the final result is 0
     assert_eq!(
-        trace.vrom().read::<u32>(2).unwrap(),
+        info.frames.add_frame("_start").get_vrom_expected::<u32>(2),
         0,
         "Final result should be 0"
     );

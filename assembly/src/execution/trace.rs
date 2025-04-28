@@ -17,13 +17,13 @@ use crate::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
         },
         branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, CallvEvent, TailVEvent, TailiEvent},
+        call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
         integer_ops::{
             AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
             SltiuEvent, SltuEvent, SubEvent,
         },
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LDIEvent, MVEventOutput, MVIHEvent, MVVLEvent, MVVWEvent},
+        mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
         shift::GenericShiftEvent,
         Event,
@@ -32,7 +32,9 @@ use crate::{
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
+    AnyShiftEvent, SrliEvent,
 };
+
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
     pub bnz: Vec<BnzEvent>,
@@ -51,6 +53,9 @@ pub struct ZCrayTrace {
     pub sltu: Vec<SltuEvent>,
     pub sltiu: Vec<SltiuEvent>,
     pub shifts: Vec<Box<dyn GenericShiftEvent>>,
+    // TODO: In the meanwhile I'm adding this, because the srli_events() method must
+    // return a reference to a slice.
+    pub srli: Vec<SrliEvent>,
     pub add: Vec<AddEvent>,
     pub addi: Vec<AddiEvent>,
     pub add32: Vec<Add32Gadget>,
@@ -59,20 +64,23 @@ pub struct ZCrayTrace {
     pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
     pub mulu: Vec<MuluEvent>,
     pub taili: Vec<TailiEvent>,
-    pub tailv: Vec<TailVEvent>,
+    pub tailv: Vec<TailvEvent>,
     pub calli: Vec<CalliEvent>,
     pub callv: Vec<CallvEvent>,
     pub ret: Vec<RetEvent>,
-    pub mvih: Vec<MVIHEvent>,
-    pub mvvw: Vec<MVVWEvent>,
-    pub mvvl: Vec<MVVLEvent>,
-    pub ldi: Vec<LDIEvent>,
+    pub mvih: Vec<MvihEvent>,
+    pub mvvw: Vec<MvvwEvent>,
+    pub mvvl: Vec<MvvlEvent>,
+    pub ldi: Vec<LdiEvent>,
     pub b32_mul: Vec<B32MulEvent>,
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
+    /// A map of an instruction's field PC to the number of times that
+    /// instruction has been executed.
+    pub instruction_counter: HashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -120,7 +128,16 @@ impl ZCrayTrace {
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
-        let trace = interpreter.run(memory)?;
+        let mut trace = interpreter.run(memory)?;
+        // FIXME: I'm doing this for now, but we should probably find a better way.
+        trace.srli = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Srli(event) => Some(event),
+                _ => None,
+            })
+            .collect();
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()
@@ -202,18 +219,18 @@ impl ZCrayTrace {
         value: T,
     ) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
-
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, src, offset) = pending_update;
+                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset) =
+                    pending_update;
                 self.vrom_write(parent, value)?;
                 let event_out = MVEventOutput::new(
-                    parent,
                     opcode,
                     field_pc,
                     fp.into(),
                     timestamp,
                     dst,
+                    dst_addr,
                     src,
                     offset,
                     value.to_u128(),
@@ -262,5 +279,9 @@ impl ZCrayTrace {
     #[cfg(test)]
     pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
+    }
+
+    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
+        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
     }
 }

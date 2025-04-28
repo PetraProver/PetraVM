@@ -9,9 +9,8 @@ use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
-use crate::{channels::Channels, table::Table, types::ProverPackedField};
-
+use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, NextPc};
+use crate::{channels::Channels, gadgets::cpu::CpuGadget, table::Table, types::ProverPackedField};
 /// RET (Return) table.
 ///
 /// This table handles the Return instruction, which returns from a function

@@ -13,3 +13,8 @@ The zCrayVM features a comprehensive instruction set including:
 - Function call mechanics
 
 Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+
+## Example Programs
+The project includes several example programs that demonstrate the capabilities of zCrayVM:
+
+- [Fibonacci](prover/tests/fibonacci.rs): Prove a Fibonacci number

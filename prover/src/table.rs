@@ -2,8 +2,9 @@
 //!
 //! This module contains the definitions and abstractions of all the arithmetic
 //! tables, to be leveraged by any zCrayVM instruction set. Each of these
-//! instruction tables are registered through the [`ISA`](crate::isa::ISA)
-//! interface, and are dynamically managed when building the proving circuit.
+//! instruction tables are registered through the
+//! [`ISA`](zcrayvm_assembly::isa::ISA) interface, and are dynamically managed
+//! when building the proving circuit.
 
 use std::any::Any;
 
@@ -58,7 +59,7 @@ pub trait Table: Any {
 ///
 /// NOTE: This is necessary to "hide" the associated [`Event`](Table::Event)
 /// type of the [`Table`] trait, so that it can be used within the definition of
-/// [`ISA`](crate::isa::ISA).
+/// [`ISA`](zcrayvm_assembly::isa::ISA).
 pub trait FillableTable {
     /// Fills the table's witness rows with data from the corresponding events
     /// prevent in the provided [`Trace`].
@@ -74,8 +75,8 @@ pub trait FillableTable {
 }
 
 /// A dynamic table entry that binds a [`Table`] instance with an event
-/// accessor, to be used when defining an [`ISA`](crate::isa::ISA) and to
-/// register tables inside a [`Circuit`](crate::circuit::Circuit).
+/// accessor, to be used when defining an [`ISA`](zcrayvm_assembly::isa::ISA)
+/// and to register tables inside a [`Circuit`](crate::circuit::Circuit).
 ///
 /// The underlying table type is a pointer to an instance implementing both
 /// [`Table`] and [`TableFiller`] traits.

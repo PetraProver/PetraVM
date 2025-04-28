@@ -1,7 +1,7 @@
 use binius_m3::builder::B16;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum::EnumCount;
-use strum_macros::{Display, EnumCount};
+use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
 use crate::{event::context::EventContext, execution::InterpreterError};
@@ -19,6 +19,8 @@ use crate::{event::context::EventContext, execution::InterpreterError};
     IntoPrimitive,
     PartialEq,
     Eq,
+    VariantArray,
+    IntoStaticStr,
 )]
 #[repr(u16)]
 #[allow(clippy::upper_case_acronyms)]
@@ -102,7 +104,7 @@ impl Opcode {
     /// Returns the number of arguments expected by the given opcode.
     pub fn num_args(&self) -> usize {
         match self {
-            Opcode::Bnz => 3,     // cond, target_low, target_high
+            Opcode::Bnz => 3,     // target_low, target_high, cond
             Opcode::Bz => 0,      // non-existing instruction
             Opcode::Jumpi => 2,   // target_low, target_high
             Opcode::Jumpv => 1,   // offset
@@ -135,7 +137,7 @@ impl Opcode {
             Opcode::B32Mul => 3,  // dst, src1, src2
             Opcode::B32Muli => 3, // dst, src, imm
             Opcode::B128Add => 3, // dst, src1, src2
-            Opcode::B128Mul => 3, // dst, src, imm
+            Opcode::B128Mul => 3, // dst, src1, src2
             Opcode::Add => 3,     // dst, src1, src2
             Opcode::Addi => 3,    // dst, src, imm
             Opcode::Mvvw => 3,    // dst, offset, src
@@ -182,14 +184,14 @@ impl_instruction_info!(
     (CallvEvent, Opcode::Callv),
     (JumpiEvent, Opcode::Jumpi),
     (JumpvEvent, Opcode::Jumpv),
-    (LDIEvent, Opcode::Ldi),
+    (LdiEvent, Opcode::Ldi),
     (MulEvent, Opcode::Mul),
     (MuliEvent, Opcode::Muli),
     (MuluEvent, Opcode::Mulu),
     (MulsuEvent, Opcode::Mulsu),
-    (MVIHEvent, Opcode::Mvih),
-    (MVVLEvent, Opcode::Mvvl),
-    (MVVWEvent, Opcode::Mvvw),
+    (MvihEvent, Opcode::Mvih),
+    (MvvlEvent, Opcode::Mvvl),
+    (MvvwEvent, Opcode::Mvvw),
     (OrEvent, Opcode::Or),
     (OriEvent, Opcode::Ori),
     (RetEvent, Opcode::Ret),
@@ -205,7 +207,7 @@ impl_instruction_info!(
     (SrliEvent, Opcode::Srli),
     (SubEvent, Opcode::Sub),
     (TailiEvent, Opcode::Taili),
-    (TailVEvent, Opcode::Tailv),
+    (TailvEvent, Opcode::Tailv),
     (XorEvent, Opcode::Xor),
     (XoriEvent, Opcode::Xori),
 );

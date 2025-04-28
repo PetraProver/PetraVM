@@ -42,7 +42,7 @@ impl Table for BnzTable {
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
 
         // Read cond_val
         table.pull(channels.vrom_channel, [upcast_col(cond_abs), cond_val]);
@@ -84,9 +84,9 @@ impl TableFiller<ProverPackedField> for BnzTable {
             pc: event.pc.val(),
             next_pc: Some(event.target.val()),
             fp: *event.fp,
-            arg0: event.cond,
-            arg1: event.target.val() as u16,
-            arg2: (event.target.val() >> 16) as u16,
+            arg0: event.target.val() as u16,
+            arg1: (event.target.val() >> 16) as u16,
+            arg2: event.cond,
         });
         self.cpu_cols.populate(witness, cpu_rows)?;
         Ok(())
@@ -119,7 +119,7 @@ impl Table for BzTable {
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
         let zero = table.add_constant("zero", [B32::ZERO]);
 
         table.pull(channels.vrom_channel, [cond_abs, zero]);
@@ -158,9 +158,9 @@ impl TableFiller<ProverPackedField> for BzTable {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
-            arg0: event.cond,
-            arg1: event.target.val() as u16,
-            arg2: (event.target.val() >> 16) as u16,
+            arg0: event.target.val() as u16,
+            arg1: (event.target.val() >> 16) as u16,
+            arg2: event.cond,
         });
         self.cpu_cols.populate(witness, cpu_rows)
     }
