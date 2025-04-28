@@ -140,13 +140,6 @@ impl Prover {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
-        // Compile the constraint system
-        let compiled_cs = self
-            .circuit
-            .cs
-            .compile(&statement)
-            .map_err(|e| anyhow!(e))?;
-
         // Create a memory allocator for the witness
         let allocator = Bump::new();
 
@@ -157,7 +150,6 @@ impl Prover {
             .build_witness::<ProverPackedField>(&allocator);
 
         // Fill all table witnesses in sequence
-
         // 1. Fill PROM table with program instructions
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
@@ -185,16 +177,13 @@ impl Prover {
             table.fill(&mut witness, trace)?;
         }
 
-        // Convert witness to multilinear extension format
-        let witness = witness.into_multilinear_extension_index();
+        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier128b>(
+            &self.circuit.cs,
+            witness,
+            statement.boundaries,
+        );
 
-        // Validate the witness against the constraint system in debug mode only
-        binius_core::constraint_system::validate::validate_witness(
-            &compiled_cs,
-            &statement.boundaries,
-            &witness,
-        )
-        .map_err(|e| anyhow!(e))
+        Ok(())
     }
 }
 
