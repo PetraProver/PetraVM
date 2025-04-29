@@ -9,8 +9,6 @@ use binius_m3::builder::B32;
 use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
-use crate::Opcode;
-use crate::Opcode;
 use crate::{
     assembler::LabelsFrameSizes,
     event::{
@@ -34,6 +32,7 @@ use crate::{
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
+    Opcode,
 };
 
 #[derive(Debug, Default)]
