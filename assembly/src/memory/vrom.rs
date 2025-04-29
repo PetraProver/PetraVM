@@ -196,6 +196,7 @@ impl ValueRom {
         parent: u32,
         pending_value: VromUpdate,
     ) -> Result<(), MemoryError> {
+        dbg!(&pending_value);
         self.pending_updates
             .entry(parent)
             .or_default()

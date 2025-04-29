@@ -71,7 +71,11 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        self.trace.vrom_write(addr, value)
+        for i in 0..T::word_size() {
+            let cur_word = (value.to_u128() >> (32 * i)) as u32;
+            self.trace.vrom_write(addr + i as u32, cur_word)?;
+        }
+        Ok(())
     }
 
     // /// Inserts a pending value in VROM to be set later.

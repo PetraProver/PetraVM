@@ -846,6 +846,12 @@ mod tests {
         let target = G.pow(target_pc as u64 - 1);
 
         // Do MVVW and MVVL with an unaccessible source value.
+        // _start:
+        //     MVV.W @9[2], @4
+        //     MVV.L @9[4], @4
+        //     MVI.H @9[8], #12
+        //     TAILV @8, @9
+        //     RET
         let instructions = vec![
             [
                 Opcode::Mvvw.get_field_elt(),
@@ -939,6 +945,8 @@ mod tests {
             pending_updates.insert(next_fp + offset2.val() as u32 + i, vec![current_move]);
         }
 
+        dbg!(traces.vrom_pending_updates());
+        dbg!(&pending_updates);
         // Assert that pending updates are correctly tracked
         assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(),);
         for (k, pending_update) in traces.vrom_pending_updates() {

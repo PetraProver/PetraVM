@@ -221,60 +221,42 @@ impl ZCrayTrace {
     /// VROM.
     ///
     /// This will also execute pending VROM updates if necessary.
-    pub(crate) fn vrom_write<T: VromValueT>(
-        &mut self,
-        index: u32,
-        value: T,
-    ) -> Result<(), MemoryError> {
+    pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
-        for i in 0..T::byte_size() {
-            let addr = index + i as u32;
-            if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&addr) {
-                let word_value = (value.to_u128() >> (i * 32)) as u32;
-                for pending_update in pending_updates {
-                    let (
-                        parent,
+        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
+            for pending_update in pending_updates {
+                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, mvvl_pos) =
+                    pending_update;
+                self.vrom_write(parent, value)?;
+                if opcode == Opcode::Mvvw {
+                    let event_out = MVEventOutput::new(
                         opcode,
                         field_pc,
-                        fp,
+                        fp.into(),
                         timestamp,
                         dst,
                         dst_addr,
                         src,
                         offset,
-                        mvvl_pos,
-                    ) = pending_update;
-                    self.vrom_write(parent, word_value)?;
-                    if opcode == Opcode::Mvvw {
-                        let event_out = MVEventOutput::new(
-                            opcode,
-                            field_pc,
-                            fp.into(),
-                            timestamp,
-                            dst,
-                            dst_addr,
-                            src,
-                            offset,
-                            value.to_u128(),
-                        );
-                        event_out.push_mv_event(self);
-                    } else if mvvl_pos == 3 {
-                        // There is a limitation here that pos = 3 must be the last position set for
-                        // Mvvl, otherwise a vrom read error will occur.
-                        let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
-                        let event_out = MVEventOutput::new(
-                            opcode,
-                            field_pc,
-                            fp.into(),
-                            timestamp,
-                            dst,
-                            dst_addr,
-                            src,
-                            offset,
-                            value,
-                        );
-                        event_out.push_mv_event(self);
-                    }
+                        value.to_u128(),
+                    );
+                    event_out.push_mv_event(self);
+                } else if mvvl_pos == 3 {
+                    // There is a limitation here that pos = 3 must be the last position set for
+                    // Mvvl, otherwise a vrom read error will occur.
+                    let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
+                    let event_out = MVEventOutput::new(
+                        opcode,
+                        field_pc,
+                        fp.into(),
+                        timestamp,
+                        dst,
+                        dst_addr,
+                        src,
+                        offset,
+                        value,
+                    );
+                    event_out.push_mv_event(self);
                 }
             }
         }
