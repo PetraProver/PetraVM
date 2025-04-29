@@ -7,9 +7,8 @@ use anyhow::{anyhow, Result};
 use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
-    tower::CanonicalTowerFamily,
 };
-use binius_field::arch::OptimalUnderlier128b;
+use binius_field::{arch::OptimalUnderlier128b, tower::CanonicalTowerFamily};
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::TableFiller;

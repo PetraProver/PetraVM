@@ -17,7 +17,7 @@ use crate::{
 ///
 /// Performs a Groestl compression between two 512-bit inputs.
 #[derive(Debug, Clone)]
-pub struct GroestlCompressEvent {
+pub struct Groestl256CompressEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
@@ -29,7 +29,7 @@ pub struct GroestlCompressEvent {
     pub src2_val: [u8; 64],
 }
 
-impl Event for GroestlCompressEvent {
+impl Event for Groestl256CompressEvent {
     fn generate(
         ctx: &mut EventContext,
         dst: B16,
@@ -85,19 +85,19 @@ impl Event for GroestlCompressEvent {
 ///
 /// Performs a Groestl compression between two 512-bit inputs.
 #[derive(Debug, Clone)]
-pub struct GroestlOutputEvent {
+pub struct Groestl256OutputEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
-    pub dst_val: [u32; 8],
+    pub dst_val: [u64; 4],
     pub src1: u16,
     pub src1_val: [u8; 32],
     pub src2: u16,
     pub src2_val: [u8; 32],
 }
 
-impl Event for GroestlOutputEvent {
+impl Event for Groestl256OutputEvent {
     #[allow(clippy::default_constructed_unit_structs)]
     fn generate(
         ctx: &mut EventContext,
@@ -121,8 +121,8 @@ impl Event for GroestlOutputEvent {
         let src1_array = GenericArray::from_slice(src1_val);
         let src2_array = GenericArray::from_slice(src2_val);
         let dst_val = compression.compress([*src1_array, *src2_array]);
-        let dst_val = cast_slice::<u8, u32>(&dst_val);
-        for i in 0..8 {
+        let dst_val = cast_slice::<u8, u64>(&dst_val);
+        for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + i), dst_val[i as usize])?;
         }
 

@@ -37,6 +37,7 @@ pub use self::{
     b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
     branch::{BnzEvent, BzEvent},
     call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
+    groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
     integer_ops::{
         AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
         SltiuEvent, SltuEvent, SubEvent,
@@ -79,10 +80,10 @@ impl Opcode {
     ) -> Result<(), InterpreterError> {
         match self {
             Opcode::Groestl256Compress => {
-                groestl::GroestlCompressEvent::generate(ctx, arg0, arg1, arg2)
+                groestl::Groestl256CompressEvent::generate(ctx, arg0, arg1, arg2)
             }
             Opcode::Groestl256Output => {
-                groestl::GroestlOutputEvent::generate(ctx, arg0, arg1, arg2)
+                groestl::Groestl256OutputEvent::generate(ctx, arg0, arg1, arg2)
             }
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {

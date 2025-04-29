@@ -188,6 +188,8 @@ impl_instruction_info!(
     (B128MulEvent, Opcode::B128Mul),
     (CalliEvent, Opcode::Calli),
     (CallvEvent, Opcode::Callv),
+    (Groestl256CompressEvent, Opcode::Groestl256Compress),
+    (Groestl256OutputEvent, Opcode::Groestl256Output),
     (JumpiEvent, Opcode::Jumpi),
     (JumpvEvent, Opcode::Jumpv),
     (LdiEvent, Opcode::Ldi),

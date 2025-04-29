@@ -251,4 +251,6 @@ define_table_registry_and_accessors!(
     (jumpi, Jumpi),
     (jumpv, Jumpv),
     (srli, Srli),
+    (groestl_compress, Groestl256Compress),
+    (groestl_output, Groestl256Output),
 );

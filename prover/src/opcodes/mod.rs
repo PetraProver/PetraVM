@@ -5,6 +5,7 @@
 pub mod binary;
 pub mod branch;
 pub mod call;
+pub mod groestl;
 pub mod integer_ops;
 pub mod jump;
 pub mod ldi;
@@ -17,6 +18,7 @@ use binius_field::BinaryField;
 use binius_m3::builder::B32;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
+pub use groestl::{Groestl256CompressTable, Groestl256OutputTable};
 pub use integer_ops::AddTable;
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
