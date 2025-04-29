@@ -22,11 +22,11 @@ use crate::{
         },
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
-        context::EventContext,
-        integer_ops::{
-            AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SltEvent, SltiEvent,
-            SltiuEvent, SltuEvent, SubEvent,
+        comparison::{
+            SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        context::EventContext,
+        integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVInfo, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,

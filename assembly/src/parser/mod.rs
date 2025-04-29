@@ -119,6 +119,20 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SLEI_instr => {
+                                instrs.push(InstructionsWithLabels::Slei {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
+                            Rule::SLEIU_instr => {
+                                instrs.push(InstructionsWithLabels::Sleiu {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::SLTI_instr => {
                                 instrs.push(InstructionsWithLabels::Slti {
                                     dst: Slot::from_str(dst.as_str())?,
@@ -315,6 +329,12 @@ fn parse_line(
                             }
                             Rule::SRA_instr => {
                                 instrs.push(InstructionsWithLabels::Sra { dst, src1, src2 });
+                            }
+                            Rule::SLE_instr => {
+                                instrs.push(InstructionsWithLabels::Sle { dst, src1, src2 });
+                            }
+                            Rule::SLEU_instr => {
+                                instrs.push(InstructionsWithLabels::Sleu { dst, src1, src2 });
                             }
                             Rule::SLT_instr => {
                                 instrs.push(InstructionsWithLabels::Slt { dst, src1, src2 });

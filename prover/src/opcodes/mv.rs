@@ -3,13 +3,16 @@
 use std::any::Any;
 
 use binius_m3::builder::B128;
+use binius_m3::builder::B128;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
 use zcrayvm_assembly::MvihEvent;
 use zcrayvm_assembly::MvvlEvent;
+use zcrayvm_assembly::MvvlEvent;
 use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
+use crate::gadgets::b128_lookup::{B128LookupColumns, B128LookupGadget};
 use crate::gadgets::b128_lookup::{B128LookupColumns, B128LookupGadget};
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
 use crate::table::Table;
