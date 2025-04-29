@@ -252,4 +252,7 @@ define_table_registry_and_accessors!(
     (jumpi, Jumpi),
     (jumpv, Jumpv),
     (srli, Srli),
+    (slli, Slli),
+    (srl, Srl),
+    (sll, Sll),
 );
