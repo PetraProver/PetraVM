@@ -26,7 +26,10 @@ use crate::{
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
-        shift::{AnyShiftEvent, GenericShiftEvent, SrliEvent, SlliEvent, SraiEvent, SllEvent, SrlEvent, SraEvent},
+        shift::{
+            AnyShiftEvent, GenericShiftEvent, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent,
+            SrliEvent,
+        },
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
