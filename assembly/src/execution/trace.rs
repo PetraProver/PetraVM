@@ -53,9 +53,6 @@ pub struct ZCrayTrace {
     pub sltu: Vec<SltuEvent>,
     pub sltiu: Vec<SltiuEvent>,
     pub shifts: Vec<Box<dyn GenericShiftEvent>>,
-    // TODO: In the meanwhile I'm adding this, because the srli_events() method must
-    // return a reference to a slice.
-    pub srli: Vec<SrliEvent>,
     pub add: Vec<AddEvent>,
     pub addi: Vec<AddiEvent>,
     pub add32: Vec<Add32Gadget>,
@@ -129,15 +126,6 @@ impl ZCrayTrace {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
         let mut trace = interpreter.run(memory)?;
-        // FIXME: I'm doing this for now, but we should probably find a better way.
-        trace.srli = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srli(event) => Some(event),
-                _ => None,
-            })
-            .collect();
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()
