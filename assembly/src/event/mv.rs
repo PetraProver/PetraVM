@@ -945,8 +945,6 @@ mod tests {
             pending_updates.insert(next_fp + offset2.val() as u32 + i, vec![current_move]);
         }
 
-        dbg!(traces.vrom_pending_updates());
-        dbg!(&pending_updates);
         // Assert that pending updates are correctly tracked
         assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(),);
         for (k, pending_update) in traces.vrom_pending_updates() {

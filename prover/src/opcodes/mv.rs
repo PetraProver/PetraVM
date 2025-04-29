@@ -516,6 +516,8 @@ mod tests {
         let trace = generate_mvvl_trace()?;
         trace.validate()?;
         assert_eq!(trace.trace.mvvl.len(), 2);
+        assert_eq!(trace.trace.ret.len(), 2);
+        assert_eq!(trace.trace.calli.len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
@@ -532,8 +534,8 @@ mod tests {
             RET
         #[framesize(0x10)]
         compute_value:
-            LDI.W @2, #1
-            LDI.W @3, #16
+            LDI.W @2, #1234
+            LDI.W @3, #5678
             B128_MUL @4, @0, @0    ;; Multiply
             B128_ADD @8, @0, @4    ;; Add
             RET
@@ -546,12 +548,13 @@ mod tests {
     #[test]
     fn test_b128_mvvl_add_mul() -> Result<()> {
         let trace = generate_b128_mvvl_add_mul_trace()?;
-        dbg!(&trace.mvvl_events());
-        dbg!(&trace.ldi_events());
-        dbg!(&trace.b128_mul_events());
-        dbg!(&trace.b128_add_events());
         trace.validate()?;
         assert_eq!(trace.trace.mvvl.len(), 2);
+        assert_eq!(trace.trace.ldi.len(), 2);
+        assert_eq!(trace.trace.b128_mul.len(), 1);
+        assert_eq!(trace.trace.b128_add.len(), 1);
+        assert_eq!(trace.trace.ret.len(), 2);
+        assert_eq!(trace.trace.calli.len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }
