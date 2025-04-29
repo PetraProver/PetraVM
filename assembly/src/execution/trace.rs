@@ -240,7 +240,7 @@ impl ZCrayTrace {
                     event_out.push_mv_event(self);
                 } else if mvvl_pos == 3 {
                     // There is a limitation here that pos = 3 must be the last position set for
-                    // Mvvl, otherwise an vrom read error will occur.
+                    // Mvvl, otherwise a vrom read error will occur.
                     let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
                     let event_out = MVEventOutput::new(
                         opcode,

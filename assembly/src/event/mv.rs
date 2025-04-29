@@ -913,7 +913,7 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset1,               // Offset
-            0,
+            0,                     // Pending update position for MVVL
         );
         let second_move = (
             src_addr.val() as u32, // Address to set
@@ -925,7 +925,7 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset2,               // Offset
-            0,
+            0,                     // Pending update position for MVVL
         );
 
         // Insert the first move
