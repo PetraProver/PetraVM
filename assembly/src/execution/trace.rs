@@ -26,7 +26,7 @@ use crate::{
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
-        shift::{AnyShiftEvent, GenericShiftEvent, SrliEvent},
+        shift::{AnyShiftEvent, GenericShiftEvent, SrliEvent, SlliEvent, SraiEvent, SllEvent, SrlEvent, SraEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
@@ -60,6 +60,11 @@ pub struct ZCrayTrace {
     // TODO: In the meanwhile I'm adding this, because the srli_events() method must
     // return a reference to a slice.
     pub srli: Vec<SrliEvent>,
+    pub slli: Vec<SlliEvent>,
+    pub srai: Vec<SraiEvent>,
+    pub sll: Vec<SllEvent>,
+    pub srl: Vec<SrlEvent>,
+    pub sra: Vec<SraEvent>,
     pub add: Vec<AddEvent>,
     pub addi: Vec<AddiEvent>,
     pub add32: Vec<Add32Gadget>,
@@ -139,6 +144,46 @@ impl ZCrayTrace {
             .iter()
             .filter_map(|event| match event.as_any() {
                 AnyShiftEvent::Srli(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+        trace.slli = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Slli(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+        trace.srai = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Srai(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+        trace.sll = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Sll(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+        trace.srl = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Srl(event) => Some(event),
+                _ => None,
+            })
+            .collect();
+        trace.sra = trace
+            .shifts
+            .iter()
+            .filter_map(|event| match event.as_any() {
+                AnyShiftEvent::Sra(event) => Some(event),
                 _ => None,
             })
             .collect();
