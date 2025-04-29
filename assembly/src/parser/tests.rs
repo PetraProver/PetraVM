@@ -15,7 +15,6 @@ mod test_parser {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        println!("{:?}", parser);
         assert!(parser.is_ok(), "assembly failed to parse: {}", asm);
     }
 
