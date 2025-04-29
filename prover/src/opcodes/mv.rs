@@ -518,4 +518,40 @@ mod tests {
         assert_eq!(trace.trace.mvvl.len(), 2);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
+
+    /// Creates an execution trace for a simple program that uses the MVV.L
+    /// instruction to test 128-bit value movement and operations.
+    fn generate_b128_mvvl_add_mul_trace() -> Result<Trace> {
+        let asm_code = r#"
+        #[framesize(0x10)]
+        _start:
+            ;; Test case: unknown source value
+            MVV.L @12[8], @4      ;; Move 128-bit value from final destination to source
+            MVV.L @12[4], @8      ;; Move 128-bit value from final destination to source
+            CALLI compute_value, @12
+            RET
+        #[framesize(0x10)]
+        compute_value:
+            LDI.W @2, #1
+            LDI.W @3, #16
+            B128_MUL @4, @0, @0    ;; Multiply
+            B128_ADD @8, @0, @4    ;; Add
+            RET
+        "#
+        .to_string();
+
+        generate_trace(asm_code, None, None)
+    }
+
+    #[test]
+    fn test_b128_mvvl_add_mul() -> Result<()> {
+        let trace = generate_b128_mvvl_add_mul_trace()?;
+        dbg!(&trace.mvvl_events());
+        dbg!(&trace.ldi_events());
+        dbg!(&trace.b128_mul_events());
+        dbg!(&trace.b128_add_events());
+        trace.validate()?;
+        assert_eq!(trace.trace.mvvl.len(), 2);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
 }
