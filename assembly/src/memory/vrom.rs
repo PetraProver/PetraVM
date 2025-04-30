@@ -168,7 +168,7 @@ impl ValueRom {
     }
 
     /// Checks if the index has proper alignment.
-    fn check_alignment<T: AccessSize>(&self, index: u32) -> Result<(), MemoryError> {
+    pub(crate) fn check_alignment<T: AccessSize>(&self, index: u32) -> Result<(), MemoryError> {
         if index as usize % T::word_size() != 0 {
             Err(MemoryError::VromMisaligned(T::word_size() as u8, index))
         } else {

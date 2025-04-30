@@ -56,7 +56,7 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `SUB` - Integer subtraction
 - [ ] `MUL` - Signed multiplication
 - [ ] `MULI` - Signed multiplication with immediate
-- [ ] `MULU` - Unsigned multiplication
+- [x] `MULU` - Unsigned multiplication
 - [ ] `MULSU` - Signed × unsigned multiplication
 
 #### Logic Operations

@@ -144,8 +144,8 @@ fn test_b128_add_b128_mul() -> Result<()> {
     )
 }
 
-fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI, ADD and RET
+fn generate_add_mulu_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    // Create a simple assembly program with LDI, ADD, MULU and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
     // - Used framesize for stack allocation
@@ -156,32 +156,41 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
             LDI.W @3, #{}\n\
             ;; Skip @4 to test a gap in vrom writes
             ADD @5, @2, @3\n\
+            MULU @6, @2, @3\n\
             RET\n",
         src1_value, src2_value
     );
 
-    // Add VROM writes from LDI and ADD events
+    // Compute and split MULU result
+    let mulu_result_array =
+        <u64 as Divisible<u32>>::split_val(src1_value as u64 * src2_value as u64);
+
+    // Add VROM writes from LDI, ADD and MULU events
     let vrom_writes = vec![
         // LDI events
-        (2, src1_value, 2),
-        (3, src2_value, 2),
+        (2, src1_value, 3),
+        (3, src2_value, 3),
         // Initial values
         (0, 0, 1),
         (1, 0, 1),
         // ADD event
         (5, src1_value + src2_value, 1),
+        // MULU event
+        (6, mulu_result_array[0], 1),
+        (7, mulu_result_array[1], 1),
     ];
 
     generate_trace(asm_code, None, Some(vrom_writes))
 }
 #[test]
-fn test_ldi_add_ret() -> Result<()> {
+fn test_ldi_add_mulu_ret() -> Result<()> {
+    let mut rng = StdRng::seed_from_u64(54321);
     test_from_trace_generator(
         || {
             // Test value to load
-            let src1_value = 0x12345678;
-            let src2_value = 0x4567;
-            generate_add_ret_trace(src1_value, src2_value)
+            let x = rng.random::<u32>();
+            let y = rng.random::<u32>();
+            generate_add_mulu_ret_trace(x, y)
         },
         |trace| {
             assert_eq!(
@@ -200,9 +209,9 @@ fn test_ldi_add_ret() -> Result<()> {
                 "Should have exactly one RET event"
             );
             assert_eq!(
-                trace.b32_mul_events().len(),
-                0,
-                "Shouldn't have any B32_MUL event"
+                trace.mulu_events().len(),
+                1,
+                "Should have exacly one MULU event"
             );
         },
     )
