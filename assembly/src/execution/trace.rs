@@ -135,7 +135,7 @@ impl ZCrayTrace {
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
-        let mut trace = interpreter.run(memory)?;
+        let trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()

@@ -8,36 +8,17 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use anyhow::ensure;
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
 use tracing::trace;
 
 use crate::{
     assembler::LabelsFrameSizes,
-    event::{
-        b128::{B128AddEvent, B128MulEvent},
-        b32::{
-            AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
-        },
-        branch::{BnzEvent, BzEvent},
-        call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
-        comparison::{
-            SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
-        },
-        context::EventContext,
-        integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
-        jump::{JumpiEvent, JumpvEvent},
-        mv::{LdiEvent, MVInfo, MvihEvent, MvvlEvent, MvvwEvent},
-        ret::RetEvent,
-        shift::*,
-        Event,
-    },
+    context::EventContext,
     execution::{StateChannel, ZCrayTrace},
-    gadgets::Add32Gadget,
-    get_last_event,
     isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
+    mv::MVInfo,
     opcodes::Opcode,
 };
 

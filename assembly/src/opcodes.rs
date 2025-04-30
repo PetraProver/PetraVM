@@ -4,7 +4,6 @@ use strum::EnumCount;
 use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
-use crate::{event::context::EventContext, execution::InterpreterError};
 
 /// Represents the set of instructions supported by the zCrayVM.
 #[derive(

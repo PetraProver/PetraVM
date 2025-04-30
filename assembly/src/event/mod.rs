@@ -133,7 +133,6 @@ mod event_helper {
     use binius_m3::builder::B16;
 
     use super::{
-        branch::{BnzEvent, BzEvent},
         context::EventContext,
         integer_ops::{AddEvent, AddiEvent},
         Event,

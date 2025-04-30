@@ -10,7 +10,6 @@ use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    Opcode,
 };
 
 define_bin32_imm_op_event!(
@@ -258,7 +257,6 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
 pub trait SignedMulOperation: Debug + Clone {
     fn mul_op(input1: u32, input2: u32) -> u64;
-    fn instruction() -> Opcode;
 }
 
 #[derive(Debug, Clone)]
@@ -270,10 +268,6 @@ impl SignedMulOperation for MulsuOp {
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Mulsu
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -284,10 +278,6 @@ impl SignedMulOperation for MulOp {
         // i64 to get the 64-bit value. Otherwise, directly cast as an i64 for
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64
-    }
-
-    fn instruction() -> Opcode {
-        Opcode::Mul
     }
 }
 

@@ -12,7 +12,11 @@ pub struct Channel<T> {
 
 // TODO: Think on unifying types used for recurring variables (fp, pc, ...)
 
+// TODO: Implement flushing rules for emulation debugging for PROM and VROM
+// channels too
+#[allow(unused)]
 pub(crate) type PromChannel = Channel<(u32, u128)>; // PC, opcode, args (so 64 bits overall).
+#[allow(unused)]
 pub(crate) type VromChannel = Channel<u32>;
 pub(crate) type StateChannel = Channel<(B32, u32, u32)>; // pc, *fp, timestamp
 

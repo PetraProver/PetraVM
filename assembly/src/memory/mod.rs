@@ -120,7 +120,7 @@ impl Memory {
     pub fn ram_mut(&mut self) -> &mut Ram {
         todo!()
     }
-
+    #[cfg(test)]
     /// Returns a reference to the pending VROM updates map.
     pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         &self.vrom.pending_updates
