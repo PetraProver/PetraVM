@@ -1,7 +1,7 @@
 use binius_core::oracle::ShiftVariant;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -225,12 +225,14 @@ pub struct SrlTable {
     id: TableId,
     cpu_cols: CpuColumns<{ Opcode::Srl as u16 }>,
     shifter: BarrelShifter,
-    dst_abs: Col<B32>,          // Virtual
-    dst_val: Col<B32>,          // Virtual
-    src_abs: Col<B32>,          // Virtual
-    src_val: Col<B32>,          // Virtual
-    shift_amount_abs: Col<B32>, // Virtual
-    shift_amount: Col<B32>,     // Virtual
+    dst_abs: Col<B32>,                  // Virtual
+    dst_val: Col<B32>,                  // Virtual
+    src_abs: Col<B32>,                  // Virtual
+    src_val: Col<B32>,                  // Virtual
+    src_val_unpacked: Col<B1, 32>,      // Committed
+    shift_abs: Col<B32>,                // Virtual
+    shift_val: Col<B32>,                // Virtual
+    shift_amount_unpacked: Col<B1, 16>, // Committed
 }
 
 impl Table for SrlTable {
@@ -242,6 +244,8 @@ impl Table for SrlTable {
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("srl");
+
+        // Set up CPU columns
         let cpu_cols = CpuColumns::new(
             &mut table,
             channels.state_channel,
@@ -249,39 +253,34 @@ impl Table for SrlTable {
             CpuColumnsOptions::default(),
         );
 
-        // Extract relevant instruction arguments
-        let CpuColumns {
-            arg0: dst_offset,
-            arg1: src_offset,
-            arg2: shift_amount_offset,
-            ..
-        } = cpu_cols;
-
+        // Create columns for source, destination, and shift
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
         let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
-        let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(src_offset));
-        let dst_abs = table.add_computed("dst_abs", cpu_cols.fp + upcast_col(dst_offset));
+        let dst_abs = table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let shift_abs = table.add_computed("shift_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
 
-        let shift_amount_unpacked: Col<B1, 32> = table.add_committed("shift_amount_unpacked");
-        let shift_amount: Col<B32> = table.add_packed("shift_amount", shift_amount_unpacked);
-        let shift_amount_abs = table.add_computed(
-            "shift_amount_abs",
-            cpu_cols.fp + upcast_col(shift_amount_offset),
-        );
-        let shift_amount_unpacked_imm: Col<B1, 16> =
-            table.add_selected_block("imm", shift_amount_unpacked, 0);
+        // Create shift amount columns
+        let shift_amount_unpacked: Col<B1, 16> = table.add_committed("shift_amount_unpacked");
+        let shift_amount_packed: Col<B16, 1> =
+            table.add_packed("shift_amount", shift_amount_unpacked);
+        let shift_val = upcast_col(shift_amount_packed);
 
+        // Create the barrel shifter
         let shifter = BarrelShifter::new(
             &mut table,
             src_val_unpacked,
-            shift_amount_unpacked_imm,
+            shift_amount_unpacked,
             ShiftVariant::LogicalRight,
         );
+
+        // Create result column
         let dst_val = table.add_packed("dst_val", shifter.output);
 
+        // Set up channel pulls
         table.pull(channels.vrom_channel, [dst_abs, dst_val]);
         table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_amount_abs, shift_amount]);
+        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
 
         Self {
             id: table.id(),
@@ -291,8 +290,10 @@ impl Table for SrlTable {
             dst_val,
             src_abs,
             src_val,
-            shift_amount_abs,
-            shift_amount,
+            src_val_unpacked,
+            shift_abs,
+            shift_val,
+            shift_amount_unpacked,
         }
     }
 
@@ -313,31 +314,39 @@ impl TableFiller<ProverPackedField> for SrlTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
+        // Fill in basic data and shifter data separately to avoid borrowing conflicts
         {
-            let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
-            let mut shift_amount_abs = witness.get_mut_as(self.shift_amount_abs)?;
-            let mut shift_amount = witness.get_mut_as(self.shift_amount)?;
+            let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut shift_abs = witness.get_mut_as(self.shift_abs)?;
+            let mut shift_amount_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
 
             for (i, event) in rows.clone().enumerate() {
-                src_val[i] = event.src_val;
+                src_val_unpacked[i] = event.src_val;
                 dst_abs[i] = event.fp.addr(event.dst);
                 src_abs[i] = event.fp.addr(event.src);
-                shift_amount_abs[i] = event.fp.addr(event.shift);
-                shift_amount[i] = event.shift_amount;
+                shift_abs[i] = event.fp.addr(event.shift);
+                shift_amount_unpacked[i] = event.shift_amount as u16;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
-            pc: event.pc.val(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.shift,
-        });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+
+        // Fill CPU data
+        {
+            let cpu_rows = rows.clone().map(|event| CpuGadget {
+                pc: event.pc.val(),
+                next_pc: None,
+                fp: *event.fp,
+                arg0: event.dst,
+                arg1: event.src,
+                arg2: event.shift,
+            });
+            self.cpu_cols.populate(witness, cpu_rows)?;
+        }
+
+        // Let the barrel shifter populate its own data
         self.shifter.populate(witness)?;
+
         Ok(())
     }
 }
