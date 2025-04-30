@@ -254,5 +254,5 @@ define_table_registry_and_accessors!(
     (srli, Srli),
     (slli, Slli),
     (srl, Srl),
-    // (sll, Sll),
+    (sll, Sll),
 );
