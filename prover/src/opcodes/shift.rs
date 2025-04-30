@@ -5,7 +5,7 @@ use binius_m3::{
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
-use zcrayvm_assembly::{Opcode, SrliEvent, SlliEvent};
+use zcrayvm_assembly::{Opcode, SlliEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
@@ -122,7 +122,7 @@ impl TableFiller<ProverPackedField> for SrliTable {
 /// Barrel shifter circuit.
 pub struct SlliTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Srli as u16 }>,
+    cpu_cols: CpuColumns<{ Opcode::Slli as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B32>, // Virtual
