@@ -92,6 +92,7 @@ where
     pub dst: u16,          // 16-bit destination VROM offset
     pub src: u16,          // 16-bit source VROM offset
     pub src_val: u32,      // 32-bit source value
+    pub shift: u16,        // 16-bit shift amount offset
     pub shift_amount: u32, // 32-bit amount to shift source value
 
     _phantom: PhantomData<(S, O)>,
@@ -109,6 +110,7 @@ where
         dst: u16,
         src: u16,
         src_val: u32,
+        shift: u16,
         shift_amount: u32,
     ) -> Self {
         Self {
@@ -118,6 +120,7 @@ where
             dst,
             src,
             src_val,
+            shift,
             shift_amount,
             _phantom: PhantomData,
         }
@@ -169,6 +172,7 @@ where
             dst.val(),
             src.val(),
             src_val,
+            0, // No shift amount offset for immediate shifts
             shift_amount,
         ))
     }
@@ -199,6 +203,7 @@ where
             dst.val(),
             src1.val(),
             src_val,
+            src2.val(),
             shift_amount,
         ))
     }
