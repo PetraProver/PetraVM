@@ -1,9 +1,11 @@
-use common::test_utils::execute_test_asm;
+use common::test_utils::{execute_test_asm, AsmToExecute};
 
 pub mod common;
 
 fn run_test(a: u32, b: u32, expected_q: u32, expected_r: u32) {
-    let mut info = execute_test_asm(include_str!("../../examples/div.asm"), &[a, b]);
+    let mut info = execute_test_asm(
+        AsmToExecute::new(include_str!("../../examples/div.asm")).init_vals(vec![a, b]),
+    );
     let div_frame = info.frames.add_frame("div");
 
     // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...

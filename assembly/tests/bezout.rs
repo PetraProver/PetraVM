@@ -2,7 +2,7 @@
 
 pub mod common;
 
-use common::test_utils::execute_test_asm;
+use common::test_utils::{execute_test_asm, AsmToExecute};
 
 // TODO: Once we can support non-unsized arithmetic update and enable this
 // test...
@@ -19,7 +19,11 @@ fn test_bezout_integration() {
 
     for &(a, b, expected_gcd) in &test_cases {
         // Execute the `bezout.asm` program with the given arguments
-        let mut info = execute_test_asm(include_str!("../../examples/bezout.asm"), &[a, b]);
+        let mut info = execute_test_asm(
+            AsmToExecute::new(include_str!("../../examples/bezout.asm"))
+                .add_binary(include_str!("../../examples/div.asm"))
+                .init_vals(vec![a, b]),
+        );
         let bezout_frame = info.frames.add_frame("bezout");
 
         // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...

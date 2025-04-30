@@ -1,7 +1,7 @@
 pub mod common;
 
 use binius_field::{BinaryField, BinaryField32b, Field};
-use common::test_utils::execute_test_asm;
+use common::test_utils::{execute_test_asm, AsmToExecute};
 use num_traits::WrappingAdd;
 
 #[test]
@@ -15,8 +15,8 @@ fn test_fibonacci_integration() {
     let init_val = 4;
 
     let mut info = execute_test_asm(
-        include_str!("../../examples/fib.asm"),
-        &[G.pow([4_u64]).val()],
+        AsmToExecute::new(include_str!("../../examples/fib.asm"))
+            .init_vals(vec![G.pow([4_u64]).val()]),
     );
 
     // Push a frame for `fib_frame_temp`.
