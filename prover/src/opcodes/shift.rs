@@ -14,8 +14,23 @@ use crate::{
     types::ProverPackedField,
 };
 
+/// This macro generates table structures for shift operations.
+/// Two variants are supported:
+///   - `imm`: For immediate shift operations
+///   - `reg`: For vrom-based shift operations (shift amount from a vrom value)
+///
+/// The macro generates:
+/// 1. A table structure with columns for the operation
+/// 2. Table implementation for accessing the table
+/// 3. TableFiller implementation for populating the table with shift events
 macro_rules! define_logic_shift_table {
-    // Immediate form
+    // Immediate variant: For shift operations with immediate shift amounts
+    // Parameters:
+    //   - $Name: The name of the generated table structure
+    //   - $table_str: String identifier for the table
+    //   - Event: The event type that this table handles
+    //   - OPCODE: The opcode enum value for this operation
+    //   - VARIANT: The shift variant (logical left/right)
     (imm: $Name:ident, $table_str:expr,
          Event=$Event:ty,
          OPCODE=$OpCode:expr,
@@ -24,10 +39,10 @@ macro_rules! define_logic_shift_table {
             id: TableId,
             cpu_cols: CpuColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
-            dst_abs: Col<B32>,
-            dst_val: Col<B32>,
-            src_abs: Col<B32>,
-            src_val: Col<B32>,
+            dst_abs: Col<B32>, // Destination absolute address
+            dst_val: Col<B32>, // Destination value (shift result)
+            src_abs: Col<B32>, // Source absolute address
+            src_val: Col<B32>, // Source value (value to be shifted)
         }
 
         impl Table for $Name {
@@ -44,17 +59,17 @@ macro_rules! define_logic_shift_table {
                     CpuColumnsOptions::default(),
                 );
 
-                // common unpack→packed for src
+                // Common unpack→packed columns for source value
                 let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
                 let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
 
-                // same for dst/src addrs
+                // Absolute addresses for destination and source
                 let dst_abs =
                     table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
                 let src_abs =
                     table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
 
-                // barrel shifter wired to cpu_cols.arg2_unpacked
+                // Barrel shifter wired to cpu_cols.arg2_unpacked (immediate shift amount)
                 let shifter = BarrelShifter::new(
                     &mut table,
                     src_val_unpacked,
@@ -63,7 +78,7 @@ macro_rules! define_logic_shift_table {
                 );
                 let dst_val = table.add_packed("dst_val", shifter.output);
 
-                // pulls for plain imm form
+                // Pull columns from VROM channel
                 table.pull(channels.vrom_channel, [dst_abs, dst_val]);
                 table.pull(channels.vrom_channel, [src_abs, src_val]);
 
@@ -94,7 +109,7 @@ macro_rules! define_logic_shift_table {
                 rows: impl Iterator<Item = &'a $Event> + Clone,
                 witness: &'a mut TableWitnessSegment<ProverPackedField>,
             ) -> anyhow::Result<()> {
-                // fill src_val, dst_abs, src_abs
+                // Fill source value, destination address, and source address
                 {
                     let mut src_val = witness.get_mut_as(self.src_val)?;
                     let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
@@ -107,7 +122,7 @@ macro_rules! define_logic_shift_table {
                     }
                 }
 
-                // CPU gadget + shifter
+                // Populate CPU gadget and shifter
                 let cpu_rows = rows.map(|ev| CpuGadget {
                     pc: ev.pc.val(),
                     next_pc: None,
@@ -123,7 +138,13 @@ macro_rules! define_logic_shift_table {
         }
     };
 
-    // vrom‐based form
+    // Register variant: For shift operations where shift amount comes from a vrom value
+    // Parameters:
+    //   - $Name: The name of the generated table structure
+    //   - $table_str: String identifier for the table
+    //   - Event: The event type that this table handles
+    //   - OPCODE: The opcode enum value for this operation
+    //   - VARIANT: The shift variant (logical left/right)
     (reg: $Name:ident, $table_str:expr,
          Event=$Event:ty,
          OPCODE=$OpCode:expr,
@@ -132,14 +153,13 @@ macro_rules! define_logic_shift_table {
             id: TableId,
             cpu_cols: CpuColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
-            dst_abs: Col<B32>,
-            dst_val: Col<B32>,
-            src_abs: Col<B32>,
-            // unpacked val + shift
-            src_val_unpacked: Col<B1, 32>,
-            shift_abs: Col<B32>,
-            shift_amount_unpacked: Col<B1, 16>,
-            shift_val: Col<B32>,
+            dst_abs: Col<B32>,                  // Destination absolute address
+            dst_val: Col<B32>,                  // Destination value (shift result)
+            src_abs: Col<B32>,                  // Source absolute address
+            src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
+            shift_abs: Col<B32>,                // Shift vrom absolute address
+            shift_amount_unpacked: Col<B1, 16>, // Shift amount in bit-unpacked form
+            shift_val: Col<B32>,                // Shift value (full vrom value)
         }
 
         impl Table for $Name {
@@ -156,8 +176,11 @@ macro_rules! define_logic_shift_table {
                     CpuColumnsOptions::default(),
                 );
 
+                // Source value columns
                 let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
                 let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+
+                // Address calculations
                 let dst_abs =
                     table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
                 let src_abs =
@@ -165,12 +188,14 @@ macro_rules! define_logic_shift_table {
                 let shift_abs =
                     table.add_computed("shift_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
 
+                // Shift amount columns
                 let shift_amount_unpacked: Col<B1, 16> =
                     table.add_committed("shift_amount_unpacked");
                 let shift_amount_packed: Col<B16, 1> =
                     table.add_packed("shift_amount", shift_amount_unpacked);
                 let shift_val = upcast_col(shift_amount_packed);
 
+                // Barrel shifter for the actual shift operation
                 let shifter = BarrelShifter::new(
                     &mut table,
                     src_val_unpacked,
@@ -179,6 +204,7 @@ macro_rules! define_logic_shift_table {
                 );
                 let dst_val = table.add_packed("dst_val", shifter.output);
 
+                // Pull memory access data from VROM channel
                 table.pull(channels.vrom_channel, [dst_abs, dst_val]);
                 table.pull(channels.vrom_channel, [src_abs, src_val]);
                 table.pull(channels.vrom_channel, [shift_abs, shift_val]);
@@ -214,24 +240,24 @@ macro_rules! define_logic_shift_table {
                 rows: impl Iterator<Item = &'a $Event> + Clone,
                 witness: &'a mut TableWitnessSegment<ProverPackedField>,
             ) -> anyhow::Result<()> {
-                // basic & shift columns
+                // Fill basic columns and shift amount data
                 {
                     let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
                     let mut src_abs = witness.get_mut_as(self.src_abs)?;
-                    let mut src_un = witness.get_mut_as(self.src_val_unpacked)?;
+                    let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
                     let mut shift_abs = witness.get_mut_as(self.shift_abs)?;
-                    let mut shift_un = witness.get_mut_as(self.shift_amount_unpacked)?;
+                    let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
 
                     for (i, ev) in rows.clone().enumerate() {
-                        src_un[i] = ev.src_val;
+                        src_unpacked[i] = ev.src_val;
                         dst_abs[i] = ev.fp.addr(ev.dst);
                         src_abs[i] = ev.fp.addr(ev.src);
                         shift_abs[i] = ev.fp.addr(ev.shift);
-                        shift_un[i] = ev.shift_amount as u16;
+                        shift_unpacked[i] = ev.shift_amount as u16;
                     }
                 }
 
-                // CPU gadget
+                // Populate CPU gadget columns
                 let cpu_rows = rows.clone().map(|ev| CpuGadget {
                     pc: ev.pc.val(),
                     next_pc: None,
@@ -242,7 +268,7 @@ macro_rules! define_logic_shift_table {
                 });
                 self.cpu_cols.populate(witness, cpu_rows)?;
 
-                // last, shifter
+                // Populate barrel shifter columns
                 self.shifter.populate(witness)?;
                 Ok(())
             }
@@ -250,12 +276,14 @@ macro_rules! define_logic_shift_table {
     };
 }
 
+// Define immediate shift amount tables
 define_logic_shift_table!(imm: SrliTable, "srli",
      Event=SrliEvent, OPCODE=Opcode::Srli, VARIANT=ShiftVariant::LogicalRight);
 
 define_logic_shift_table!(imm: SlliTable, "slli",
      Event=SlliEvent, OPCODE=Opcode::Slli, VARIANT=ShiftVariant::LogicalLeft);
 
+// Define vrom-based shift amount tables
 define_logic_shift_table!(reg:  SrlTable,  "srl",
      Event=SrlEvent,  OPCODE=Opcode::Srl,  VARIANT=ShiftVariant::LogicalRight);
 
@@ -271,8 +299,14 @@ mod tests {
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses the SRLI
-    /// instruction to test shift operations.
+    /// Creates an execution trace for a simple program that uses various shift
+    /// instructions to test shift operations.
+    ///
+    /// The test program performs:
+    /// - SRLI: Logical right shift with immediate value
+    /// - SRL: Logical right shift with vrom value
+    /// - SLLI: Logical left shift with immediate value
+    /// - SLL: Logical left shift with vrom value
     fn generate_logic_shift_immediate_trace() -> Result<Trace> {
         let asm_code = "#[framesize(0x10)]\n\
             _start:\n\
@@ -287,11 +321,14 @@ mod tests {
         let init_values = vec![0, 0, 127];
 
         let vrom_writes = vec![
+            // Used for all shift operations
             (2, 127, 4),
+            // LDI + SRL + SLL
             (3, 2, 3),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
+            // Shift operations
             (4, 127 >> 2, 1),
             (5, 127 >> 2, 1),
             (6, 127 << 2, 1),
