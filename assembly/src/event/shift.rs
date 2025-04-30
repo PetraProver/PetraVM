@@ -103,6 +103,7 @@ where
     S: ShiftSource + Send + Sync + 'static,
     O: ShiftOperation<S> + Send + Sync + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: B32,
         fp: FramePointer,
