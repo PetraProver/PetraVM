@@ -89,9 +89,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         let next_pc = match options.next_pc {
             NextPc::Increment => table.add_computed("next_pc", pc * G),
             NextPc::Target(target) => target,
-            NextPc::Immediate => {
-                table.add_computed("next_pc", pack_b16_into_b32([arg0.into(), arg1.into()]))
-            }
+            NextPc::Immediate => table.add_computed("next_pc", pack_b16_into_b32(arg0, arg1)),
         };
         let next_fp = options.next_fp.unwrap_or(fp);
         table.pull(state_channel, [pc, fp]);

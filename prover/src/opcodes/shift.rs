@@ -198,7 +198,7 @@ macro_rules! define_logic_shift_table {
                 let shift_vrom_val_high = table.add_committed("shift_vrom_val_high");
                 let shift_vrom_val = table.add_computed(
                     "shift_vrom_val",
-                    pack_b16_into_b32([shift_amount_packed.into(), shift_vrom_val_high.into()]),
+                    pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
                 );
 
                 // Barrel shifter for the actual shift operation
