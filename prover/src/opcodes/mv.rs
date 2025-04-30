@@ -12,7 +12,7 @@ use zcrayvm_assembly::MvvlEvent;
 use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
 use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
-use crate::gadgets::multiple_lookup::{MultipleVromLookupColumns, MultipleVromLookupGadget};
+use crate::gadgets::multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget};
 use crate::table::Table;
 use crate::{channels::Channels, types::ProverPackedField};
 
@@ -288,9 +288,9 @@ pub struct MvvlTable {
     /// Destination address value from VROM
     dst_addr: Col<B32>,
     /// Source lookup columns for reading 128-bit value
-    src_lookup: MultipleVromLookupColumns<4>,
+    src_lookup: MultipleLookupColumns<4>,
     /// Destination lookup columns for writing 128-bit value
-    dst_lookup: MultipleVromLookupColumns<4>,
+    dst_lookup: MultipleLookupColumns<4>,
     /// Source value
     src_val: Col<B32, 4>,
 }
@@ -339,7 +339,7 @@ impl Table for MvvlTable {
 
         // Set up 128-bit source and destination value lookups
         let src_val = table.add_committed("src_val_unpacked");
-        let src_lookup = MultipleVromLookupColumns::new(
+        let src_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             src_abs_addr,
@@ -348,7 +348,7 @@ impl Table for MvvlTable {
         );
 
         // Use the same src_val for the destination lookup to enforce equality
-        let dst_lookup = MultipleVromLookupColumns::new(
+        let dst_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             final_dst_addr,
@@ -411,7 +411,7 @@ impl TableFiller<ProverPackedField> for MvvlTable {
         // Generate MultipleVromLookupGadget rows for source and destination
         let src_rows = rows.clone().map(|event| {
             let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(event.src_val);
-            MultipleVromLookupGadget {
+            MultipleLookupGadget {
                 addr: event.fp.addr(event.src),
                 vals,
             }
@@ -421,7 +421,7 @@ impl TableFiller<ProverPackedField> for MvvlTable {
         // Generate MultipleVromLookupGadget rows for destination
         let dst_rows = rows.clone().map(|event| {
             let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(event.src_val);
-            MultipleVromLookupGadget {
+            MultipleLookupGadget {
                 addr: event.dst_addr ^ event.offset as u32,
                 vals,
             }
