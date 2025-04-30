@@ -1268,10 +1268,7 @@ impl Table for B32MuliTable {
 
         // Construct the 32-bit immediate from the two 16-bit parts
         let imm_high = table.add_committed("imm_high_col");
-        let imm_val = table.add_computed(
-            "b32_muli_imm_val",
-            pack_b16_into_b32([imm_low.into(), imm_high.into()]),
-        );
+        let imm_val = table.add_computed("b32_muli_imm_val", pack_b16_into_b32(imm_low, imm_high));
 
         // Pull source value from VROM channel
         let src_abs_addr = table.add_computed("src_addr", fp + upcast_expr(src.into()));

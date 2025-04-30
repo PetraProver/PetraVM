@@ -21,7 +21,7 @@ use crate::{
         comparison::{
             SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
-        integer_ops::{AddEvent, AddiEvent, MuliEvent, MuluEvent, SubEvent},
+        integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
@@ -32,8 +32,8 @@ use crate::{
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
+    Opcode,
 };
-use crate::{MulEvent, MulsuEvent, Opcode};
 
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
@@ -221,11 +221,7 @@ impl ZCrayTrace {
     /// VROM.
     ///
     /// This will also execute pending VROM updates if necessary.
-    pub(crate) fn vrom_write<T: VromValueT>(
-        &mut self,
-        index: u32,
-        value: T,
-    ) -> Result<(), MemoryError> {
+    pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {

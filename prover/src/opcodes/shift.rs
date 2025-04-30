@@ -12,6 +12,7 @@ use crate::{
     gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
     table::Table,
     types::ProverPackedField,
+    utils::pack_b16_into_b32,
 };
 
 /// This macro generates table structures for shift operations.
@@ -159,7 +160,8 @@ macro_rules! define_logic_shift_table {
             src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
             shift_abs: Col<B32>,                // Shift vrom absolute address
             shift_amount_unpacked: Col<B1, 16>, // Shift amount in bit-unpacked form
-            shift_val: Col<B32>,                // Shift value (full vrom value)
+            shift_vrom_val: Col<B32>,           // Shift value (full vrom value)
+            shift_vrom_val_high: Col<B16>,      // High part of shift value
         }
 
         impl Table for $Name {
@@ -193,7 +195,11 @@ macro_rules! define_logic_shift_table {
                     table.add_committed("shift_amount_unpacked");
                 let shift_amount_packed: Col<B16, 1> =
                     table.add_packed("shift_amount", shift_amount_unpacked);
-                let shift_val = upcast_col(shift_amount_packed);
+                let shift_vrom_val_high = table.add_committed("shift_vrom_val_high");
+                let shift_vrom_val = table.add_computed(
+                    "shift_vrom_val",
+                    pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
+                );
 
                 // Barrel shifter for the actual shift operation
                 let shifter = BarrelShifter::new(
@@ -207,7 +213,7 @@ macro_rules! define_logic_shift_table {
                 // Pull memory access data from VROM channel
                 table.pull(channels.vrom_channel, [dst_abs, dst_val]);
                 table.pull(channels.vrom_channel, [src_abs, src_val]);
-                table.pull(channels.vrom_channel, [shift_abs, shift_val]);
+                table.pull(channels.vrom_channel, [shift_abs, shift_vrom_val]);
 
                 Self {
                     id: table.id(),
@@ -219,7 +225,8 @@ macro_rules! define_logic_shift_table {
                     src_val_unpacked,
                     shift_abs,
                     shift_amount_unpacked,
-                    shift_val,
+                    shift_vrom_val,
+                    shift_vrom_val_high,
                 }
             }
 
@@ -247,6 +254,8 @@ macro_rules! define_logic_shift_table {
                     let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
                     let mut shift_abs = witness.get_mut_as(self.shift_abs)?;
                     let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
+                    let mut shift_vrom_val = witness.get_mut_as(self.shift_vrom_val)?;
+                    let mut shift_vrom_val_high = witness.get_mut_as(self.shift_vrom_val_high)?;
 
                     for (i, ev) in rows.clone().enumerate() {
                         src_unpacked[i] = ev.src_val;
@@ -254,6 +263,8 @@ macro_rules! define_logic_shift_table {
                         src_abs[i] = ev.fp.addr(ev.src);
                         shift_abs[i] = ev.fp.addr(ev.shift);
                         shift_unpacked[i] = ev.shift_amount as u16;
+                        shift_vrom_val[i] = ev.shift_amount as u32;
+                        shift_vrom_val_high[i] = (ev.shift_amount >> 16) as u16;
                     }
                 }
 
@@ -293,6 +304,8 @@ define_logic_shift_table!(vrom:  SllTable,  "sll",
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use proptest::prelude::*;
+    use proptest::prop_oneof;
     use zcrayvm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
@@ -307,45 +320,55 @@ mod tests {
     /// - SRL: Logical right shift with vrom value
     /// - SLLI: Logical left shift with immediate value
     /// - SLL: Logical left shift with vrom value
-    fn generate_logic_shift_immediate_trace() -> Result<Trace> {
-        let asm_code = "#[framesize(0x10)]\n\
+    fn generate_logic_shift_trace(val: u32, shift_amount: u32) -> Result<Trace> {
+        let imm = shift_amount as u16;
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
             _start:\n\
-            LDI.W @3, #2\n\
-            SRLI @4, @2, #2 \n\
+            LDI.W @3, #{}\n\
+            SRLI @4, @2, #{}\n\
             SRL  @5, @2, @3 \n\
-            SLLI @6, @2, #2 \n\
+            SLLI @6, @2, #{}\n\
             SLL  @7, @2, @3 \n\
-            RET\n"
-            .to_string();
+            RET\n",
+            shift_amount, imm, imm
+        );
 
-        let init_values = vec![0, 0, 127];
-
-        let vrom_writes = vec![
-            // Used for all shift operations
-            (2, 127, 4),
-            // LDI + SRL + SLL
-            (3, 2, 3),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // Shift operations
-            (4, 127 >> 2, 1),
-            (5, 127 >> 2, 1),
-            (6, 127 << 2, 1),
-            (7, 127 << 2, 1),
-        ];
-
-        generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+        let init_values = vec![0, 0, val];
+        generate_trace(asm_code, Some(init_values), None)
     }
 
-    #[test]
-    fn test_logic_shift_immediate() -> Result<()> {
-        let trace = generate_logic_shift_immediate_trace()?;
+    fn test_shift_with_values(val: u32, shift_amount: u32) -> Result<()> {
+        let trace = generate_logic_shift_trace(val, shift_amount)?;
         trace.validate()?;
+
+        // Verify we have the correct number of events
         assert_eq!(trace.srli_events().len(), 1);
         assert_eq!(trace.slli_events().len(), 1);
         assert_eq!(trace.srl_events().len(), 1);
         assert_eq!(trace.sll_events().len(), 1);
+
+        // Validate the witness
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_logic_shift_operations(
+            val in prop_oneof![
+                any::<u32>()                    // Random values
+            ],
+            // Minimal shift amount test cases
+            shift_amount in prop_oneof![
+                Just(0u32),                     // Zero shift
+                Just(1),                        // Minimal shift
+                Just(31),                       // Maximum shift for u32
+                any::<u32>()                    // Random values
+            ]
+        ) {
+            prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
+        }
     }
 }

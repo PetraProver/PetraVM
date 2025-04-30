@@ -162,11 +162,7 @@ pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm
     b1 + b2 + b3 + b4
 }
 
-pub(crate) fn pack_b16_into_b32(limbs: [Expr<B16, 1>; 2]) -> Expr<B32, 1> {
-    limbs
-        .into_iter()
-        .enumerate()
-        .map(|(i, limb)| upcast_expr(limb) * <B32 as ExtensionField<B16>>::basis(i))
-        .reduce(|a, b| a + b)
-        .expect("limbs has length 2")
+/// Packs two 16-bit limbs into a single 32-bit value.
+pub(crate) fn pack_b16_into_b32(low: Col<B16, 1>, high: Col<B16, 1>) -> Expr<B32, 1> {
+    upcast_expr(high.into()) * <B32 as ExtensionField<B16>>::basis(1) + upcast_expr(low.into())
 }
