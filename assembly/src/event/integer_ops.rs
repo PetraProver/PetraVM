@@ -259,9 +259,6 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 pub trait SignedMulOperation: Debug + Clone {
     fn mul_op(input1: u32, input2: u32) -> u64;
     fn instruction() -> Opcode;
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized;
 }
 
 #[derive(Debug, Clone)]
@@ -276,13 +273,6 @@ impl SignedMulOperation for MulsuOp {
 
     fn instruction() -> Opcode {
         Opcode::Mulsu
-    }
-
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.signed_mul.push(Box::new(event));
     }
 }
 
@@ -299,48 +289,63 @@ impl SignedMulOperation for MulOp {
     fn instruction() -> Opcode {
         Opcode::Mul
     }
-
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.signed_mul.push(Box::new(event));
-    }
 }
 
-/// Group of all signed mul events for convenient downcasting.
-pub enum AnySignedMulEvent {
-    Mul(MulEvent),
-    Mulsu(MulsuEvent),
-}
-
-pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> AnySignedMulEvent;
-}
-
-/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`Event`] trait for signed mul events.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnySignedMulEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the field name of the instruction within the
+/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// instruction's [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
-/// ```
-macro_rules! impl_generic_signed_mul_event {
-    ($variant:ident, $ty:ty) => {
-        impl GenericSignedMulEvent for $ty {
-            fn as_any(&self) -> AnySignedMulEvent {
-                AnySignedMulEvent::$variant(self.clone())
+/// impl_signed_mul_event!(mul, MulEvent);
+macro_rules! impl_signed_mul_event {
+    ($variant:ident, $ty:ty, $op:ty) => {
+        impl Event for $ty {
+            fn generate(
+                ctx: &mut EventContext,
+                dst: B16,
+                src1: B16,
+                src2: B16,
+            ) -> Result<(), InterpreterError> {
+                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+
+                let dst_val = <$op>::mul_op(src1_val, src2_val);
+                ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+
+                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+                ctx.incr_pc();
+
+                let event = Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_val,
+                    src1: src1.val(),
+                    src1_val,
+                    src2: src2.val(),
+                    src2_val,
+                    _phantom: PhantomData,
+                };
+
+                ctx.trace.$variant.push(event);
+                Ok(())
+            }
+
+            fn fire(&self, channels: &mut InterpreterChannels) {
+                assert_eq!(self.dst_val, <$op>::mul_op(self.src1_val, self.src2_val));
+                fire_non_jump_event!(self, channels);
             }
         }
     };
 }
 
-impl_generic_signed_mul_event!(Mul, MulEvent);
-impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+impl_signed_mul_event!(mul, MulEvent, MulOp);
+impl_signed_mul_event!(mulsu, MulsuEvent, MulsuOp);
 
 /// Event for MUL or MULSU.
 ///
@@ -358,45 +363,6 @@ pub struct SignedMulEvent<SignedMulOperation> {
     pub src2_val: u32,
 
     _phantom: PhantomData<SignedMulOperation>,
-}
-
-impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
-    fn generate(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
-
-        let dst_val = T::mul_op(src1_val, src2_val);
-        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-
-        let event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-            _phantom: PhantomData,
-        };
-
-        T::push_event(ctx, event);
-        Ok(())
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels) {
-        assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
-        fire_non_jump_event!(self, channels);
-    }
 }
 
 pub type MulEvent = SignedMulEvent<MulOp>;
@@ -671,10 +637,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mul(ev) => ev,
-                _ => panic!("Expected MulEvent"),
-            };
+            let event = get_last_event!(ctx, mul);
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -714,10 +677,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mulsu(ev) => ev,
-                _ => panic!("Expected MulsuEvent"),
-            };
+            let event = get_last_event!(ctx, mulsu);
 
             assert_eq!(
                 event.dst_val, mulsu_expected,

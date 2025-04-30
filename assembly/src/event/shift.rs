@@ -83,8 +83,8 @@ impl ShiftSource for VromOffsetShift {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShiftEvent<S, O>
 where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
+    S: ShiftSource,
+    O: ShiftOperation<S>,
 {
     pub pc: B32,
     pub fp: FramePointer,
@@ -100,8 +100,8 @@ where
 
 impl<S, O> ShiftEvent<S, O>
 where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
+    S: ShiftSource,
+    O: ShiftOperation<S>,
 {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
@@ -210,63 +210,38 @@ where
     }
 }
 
-impl<S, O> Event for ShiftEvent<S, O>
-where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
-    ShiftEvent<S, O>: GenericShiftEvent,
-{
-    fn generate(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        let event = if S::is_immediate() {
-            Self::generate_immediate_event(ctx, dst, src1, src2)?
-        } else {
-            Self::generate_vrom_event(ctx, dst, src1, src2)?
-        };
-
-        ctx.trace.shifts.push(Box::new(event));
-        Ok(())
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels) {
-        fire_non_jump_event!(self, channels);
-    }
-}
-
-/// Group of all shift events for convenient downcasting.
-pub enum AnyShiftEvent {
-    Slli(SlliEvent),
-    Srli(SrliEvent),
-    Srai(SraiEvent),
-    Sll(SllEvent),
-    Srl(SrlEvent),
-    Sra(SraEvent),
-}
-
-pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> AnyShiftEvent;
-}
-
-/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`Event`] trait for shift events.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the field name of the instruction within the
+/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// instruction's [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_shift_event!(Sll, SllEvent);
+/// impl_shift_event!(sll, SllEvent);
 /// ```
-macro_rules! impl_generic_shift_event {
-    ($variant:ident, $ty:ty) => {
-        impl GenericShiftEvent for $ty {
-            fn as_any(&self) -> AnyShiftEvent {
-                AnyShiftEvent::$variant(self.clone())
+macro_rules! impl_shift_event {
+    ($variant:ident, $ty:ty, $source:ty) => {
+        impl Event for $ty {
+            fn generate(
+                ctx: &mut EventContext,
+                dst: B16,
+                src1: B16,
+                src2: B16,
+            ) -> Result<(), InterpreterError> {
+                let event = if <$source>::is_immediate() {
+                    Self::generate_immediate_event(ctx, dst, src1, src2)?
+                } else {
+                    Self::generate_vrom_event(ctx, dst, src1, src2)?
+                };
+
+                ctx.trace.$variant.push(event);
+                Ok(())
+            }
+
+            fn fire(&self, channels: &mut InterpreterChannels) {
+                fire_non_jump_event!(self, channels);
             }
         }
     };
@@ -279,12 +254,12 @@ pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
 pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
 pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
 
-impl_generic_shift_event!(Slli, SlliEvent);
-impl_generic_shift_event!(Srli, SrliEvent);
-impl_generic_shift_event!(Srai, SraiEvent);
-impl_generic_shift_event!(Sll, SllEvent);
-impl_generic_shift_event!(Srl, SrlEvent);
-impl_generic_shift_event!(Sra, SraEvent);
+impl_shift_event!(slli, SlliEvent, ImmediateShift);
+impl_shift_event!(srli, SrliEvent, ImmediateShift);
+impl_shift_event!(srai, SraiEvent, ImmediateShift);
+impl_shift_event!(sll, SllEvent, VromOffsetShift);
+impl_shift_event!(srl, SrlEvent, VromOffsetShift);
+impl_shift_event!(sra, SraEvent, VromOffsetShift);
 
 #[cfg(test)]
 mod test {

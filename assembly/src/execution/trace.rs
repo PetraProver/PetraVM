@@ -9,7 +9,6 @@ use binius_m3::builder::B32;
 use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
-use crate::Opcode;
 use crate::{
     assembler::LabelsFrameSizes,
     event::{
@@ -22,14 +21,11 @@ use crate::{
         comparison::{
             SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
-        integer_ops::{AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SubEvent},
+        integer_ops::{AddEvent, AddiEvent, MuliEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
-        shift::{
-            AnyShiftEvent, GenericShiftEvent, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent,
-            SrliEvent,
-        },
+        shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
@@ -37,6 +33,7 @@ use crate::{
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
 };
+use crate::{MulEvent, MulsuEvent, Opcode};
 
 #[derive(Debug, Default)]
 pub struct ZCrayTrace {
@@ -59,9 +56,6 @@ pub struct ZCrayTrace {
     pub sleiu: Vec<SleiuEvent>,
     pub sltu: Vec<SltuEvent>,
     pub sltiu: Vec<SltiuEvent>,
-    pub shifts: Vec<Box<dyn GenericShiftEvent>>,
-    // TODO: In the meanwhile I'm adding this, because the srli_events() method must
-    // return a reference to a slice.
     pub srli: Vec<SrliEvent>,
     pub slli: Vec<SlliEvent>,
     pub srai: Vec<SraiEvent>,
@@ -73,7 +67,8 @@ pub struct ZCrayTrace {
     pub add32: Vec<Add32Gadget>,
     pub add64: Vec<Add64Gadget>,
     pub muli: Vec<MuliEvent>,
-    pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
+    pub mul: Vec<MulEvent>,
+    pub mulsu: Vec<MulsuEvent>,
     pub mulu: Vec<MuluEvent>,
     pub taili: Vec<TailiEvent>,
     pub tailv: Vec<TailvEvent>,
@@ -141,55 +136,6 @@ impl ZCrayTrace {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
         let mut trace = interpreter.run(memory)?;
-        // FIXME: I'm doing this for now, but we should probably find a better way.
-        trace.srli = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srli(event) => Some(event),
-                _ => None,
-            })
-            .collect();
-        trace.slli = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Slli(event) => Some(event),
-                _ => None,
-            })
-            .collect();
-        trace.srai = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srai(event) => Some(event),
-                _ => None,
-            })
-            .collect();
-        trace.sll = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Sll(event) => Some(event),
-                _ => None,
-            })
-            .collect();
-        trace.srl = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srl(event) => Some(event),
-                _ => None,
-            })
-            .collect();
-        trace.sra = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Sra(event) => Some(event),
-                _ => None,
-            })
-            .collect();
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()
@@ -236,13 +182,19 @@ impl ZCrayTrace {
         fire_events!(self.slti, &mut channels);
         fire_events!(self.sltu, &mut channels);
         fire_events!(self.sltiu, &mut channels);
-        fire_events!(self.shifts, &mut channels);
+        fire_events!(self.slli, &mut channels);
+        fire_events!(self.srli, &mut channels);
+        fire_events!(self.srai, &mut channels);
+        fire_events!(self.sll, &mut channels);
+        fire_events!(self.srl, &mut channels);
+        fire_events!(self.sra, &mut channels);
         fire_events!(self.add, &mut channels);
         fire_events!(self.addi, &mut channels);
         // add32 gadgets do not incur any flushes
         // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels);
-        fire_events!(self.signed_mul, &mut channels);
+        fire_events!(self.mul, &mut channels);
+        fire_events!(self.mulsu, &mut channels);
         fire_events!(self.mulu, &mut channels);
         fire_events!(self.taili, &mut channels);
         fire_events!(self.tailv, &mut channels);
