@@ -138,11 +138,11 @@ impl TableFiller<ProverPackedField> for JumpvTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
+            let mut offset_addr = witness.get_scalars_mut(self.offset_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
             for (i, event) in rows.clone().enumerate() {
-                offset_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
+                offset_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

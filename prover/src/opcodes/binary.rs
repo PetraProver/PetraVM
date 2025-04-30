@@ -596,19 +596,19 @@ impl TableFiller<ProverPackedField> for XorTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs_addr = witness.get_mut_as(self.dst_abs_addr)?;
-            let mut dst_val = witness.get_mut_as(self.dst_val)?;
-            let mut src1_abs_addr = witness.get_mut_as(self.src1_abs_addr)?;
-            let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_abs_addr = witness.get_mut_as(self.src2_abs_addr)?;
-            let mut src2_val = witness.get_mut_as(self.src2_val)?;
+            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
+            let mut src1_val = witness.get_scalars_mut(self.src1_val)?;
+            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
+            let mut src2_val = witness.get_scalars_mut(self.src2_val)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = event.fp.addr(event.dst);
-                dst_val[i] = event.dst_val;
-                src1_abs_addr[i] = event.fp.addr(event.src1);
-                src1_val[i] = event.src1_val;
-                src2_abs_addr[i] = event.fp.addr(event.src2);
-                src2_val[i] = event.src2_val;
+                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
+                dst_val[i] = B32::new(event.dst_val);
+                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
+                src1_val[i] = B32::new(event.src1_val);
+                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
+                src2_val[i] = B32::new(event.src2_val);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
@@ -720,18 +720,18 @@ impl TableFiller<ProverPackedField> for AndTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs_addr = witness.get_mut_as(self.dst_abs_addr)?;
+            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src1_abs_addr = witness.get_mut_as(self.src1_abs_addr)?;
+            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
             let mut src1_val_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_abs_addr = witness.get_mut_as(self.src2_abs_addr)?;
+            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
             let mut src2_val_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = event.fp.addr(event.dst);
+                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val;
-                src1_abs_addr[i] = event.fp.addr(event.src1);
+                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
                 src1_val_unpacked[i] = event.src1_val;
-                src2_abs_addr[i] = event.fp.addr(event.src2);
+                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
                 src2_val_unpacked[i] = event.src2_val;
             }
         }
@@ -847,19 +847,19 @@ impl TableFiller<ProverPackedField> for OrTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs_addr = witness.get_mut_as(self.dst_abs_addr)?;
+            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src1_abs_addr = witness.get_mut_as(self.src1_abs_addr)?;
+            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
             let mut src1_val_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_abs_addr = witness.get_mut_as(self.src2_abs_addr)?;
+            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
             let mut src2_val_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
 
             for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = event.fp.addr(event.dst);
+                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val;
-                src1_abs_addr[i] = event.fp.addr(event.src1);
+                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
                 src1_val_unpacked[i] = event.src1_val;
-                src2_abs_addr[i] = event.fp.addr(event.src2);
+                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
                 src2_val_unpacked[i] = event.src2_val;
             }
         }
@@ -977,17 +977,17 @@ impl TableFiller<ProverPackedField> for OriTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs_addr = witness.get_mut_as(self.dst_abs_addr)?;
+            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src_abs_addr = witness.get_mut_as(self.src_abs_addr)?;
+            let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             let mut imm_32b_unpacked = witness.get_mut_as(self.imm_32b_unpacked)?;
             let mut imm = witness.get_mut_as(self.imm)?;
 
             for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = event.fp.addr(event.dst);
+                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val;
-                src_abs_addr[i] = event.fp.addr(event.src);
+                src_abs_addr[i] = B32::new(event.fp.addr(event.src));
                 src_val_unpacked[i] = event.src_val;
                 imm[i] = event.imm;
                 imm_32b_unpacked[i] = event.imm as u32;
@@ -1073,15 +1073,15 @@ impl TableFiller<ProverPackedField> for XoriTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-            let mut dst_val = witness.get_mut_as(self.dst_val)?;
-            let mut src_abs = witness.get_mut_as(self.src_abs)?;
-            let mut src_val = witness.get_mut_as(self.src_val)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_val = witness.get_scalars_mut(self.src_val)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst);
-                dst_val[i] = event.dst_val;
-                src_abs[i] = event.fp.addr(event.src);
-                src_val[i] = event.src_val;
+                dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                dst_val[i] = B32::new(event.dst_val);
+                src_abs[i] = B32::new(event.fp.addr(event.src));
+                src_val[i] = B32::new(event.src_val);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
@@ -1174,17 +1174,17 @@ impl TableFiller<ProverPackedField> for AndiTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src_abs = witness.get_mut_as(self.src_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             let mut src_val_low = witness.get_mut_as(self.src_val_low)?;
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst);
+                dst_abs[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val as u16;
-                src_abs[i] = event.fp.addr(event.src);
+                src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val_unpacked[i] = event.src_val;
-                src_val_low[i] = event.src_val as u16;
+                src_val_low[i] = B16::new(event.src_val as u16);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

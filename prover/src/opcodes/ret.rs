@@ -90,13 +90,13 @@ impl TableFiller<ProverPackedField> for RetTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;
-            let mut next_pc = witness.get_mut_as(self.next_pc)?;
-            let mut next_fp = witness.get_mut_as(self.next_fp)?;
+            let mut fp_xor_1 = witness.get_scalars_mut(self.fp_xor_1)?;
+            let mut next_pc = witness.get_scalars_mut(self.next_pc)?;
+            let mut next_fp = witness.get_scalars_mut(self.next_fp)?;
             for (i, event) in rows.clone().enumerate() {
-                fp_xor_1[i] = event.fp.addr(1u32);
-                next_pc[i] = event.pc_next;
-                next_fp[i] = event.fp_next;
+                fp_xor_1[i] = B32::new(event.fp.addr(1u32));
+                next_pc[i] = B32::new(event.pc_next);
+                next_fp[i] = B32::new(event.fp_next);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

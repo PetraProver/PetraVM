@@ -73,11 +73,11 @@ impl TableFiller<ProverPackedField> for BnzTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
-            let mut cond_val = witness.get_mut_as(self.cond_val)?;
+            let mut cond_abs = witness.get_scalars_mut(self.cond_abs)?;
+            let mut cond_val = witness.get_scalars_mut(self.cond_val)?;
             for (i, event) in rows.clone().enumerate() {
-                cond_abs[i] = event.fp.addr(event.cond);
-                cond_val[i] = event.cond_val;
+                cond_abs[i] = B32::new(event.fp.addr(event.cond));
+                cond_val[i] = B32::new(event.cond_val);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {
@@ -149,9 +149,9 @@ impl TableFiller<ProverPackedField> for BzTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut cond_abs = witness.get_mut_as(self.cond_abs)?;
+            let mut cond_abs = witness.get_scalars_mut(self.cond_abs)?;
             for (i, event) in rows.clone().enumerate() {
-                cond_abs[i] = event.fp.addr(event.cond);
+                cond_abs[i] = B32::new(event.fp.addr(event.cond));
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

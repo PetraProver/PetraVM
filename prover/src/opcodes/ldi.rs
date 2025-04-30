@@ -94,11 +94,11 @@ impl TableFiller<ProverPackedField> for LdiTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut vrom_abs_addr = witness.get_mut_as(self.vrom_abs_addr)?;
-            let mut imm = witness.get_mut_as(self.imm)?;
+            let mut vrom_abs_addr = witness.get_scalars_mut(self.vrom_abs_addr)?;
+            let mut imm = witness.get_scalars_mut(self.imm)?;
             for (i, event) in rows.clone().enumerate() {
-                vrom_abs_addr[i] = event.fp.addr(event.dst);
-                imm[i] = event.imm;
+                vrom_abs_addr[i] = B32::new(event.fp.addr(event.dst));
+                imm[i] = B32::new(event.imm);
             }
         }
         let cpu_rows = rows.map(|event| CpuGadget {

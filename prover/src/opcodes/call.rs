@@ -121,21 +121,21 @@ impl TableFiller<ProverPackedField> for TailiTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut return_addr = witness.get_mut_as(self.return_addr)?;
-            let mut old_fp_val = witness.get_mut_as(self.old_fp_val)?;
-            let mut fp_plus_1 = witness.get_mut_as(self.fp_plus_1)?;
-            let mut next_fp_plus_1 = witness.get_mut_as(self.next_fp_plus_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut return_addr = witness.get_scalars_mut(self.return_addr)?;
+            let mut old_fp_val = witness.get_scalars_mut(self.old_fp_val)?;
+            let mut fp_plus_1 = witness.get_scalars_mut(self.fp_plus_1)?;
+            let mut next_fp_plus_1 = witness.get_scalars_mut(self.next_fp_plus_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                return_addr[i] = event.return_addr;
-                fp_plus_1[i] = event.fp.addr(1u32);
-                old_fp_val[i] = event.old_fp_val;
-                next_fp_plus_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                return_addr[i] = B32::new(event.return_addr);
+                fp_plus_1[i] = B32::new(event.fp.addr(1u32));
+                old_fp_val[i] = B32::new(event.old_fp_val as u32);
+                next_fp_plus_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
@@ -265,25 +265,25 @@ impl TableFiller<ProverPackedField> for TailvTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
-            let mut return_addr = witness.get_mut_as(self.return_addr)?;
-            let mut old_fp_val = witness.get_mut_as(self.old_fp_val)?;
-            let mut fp_plus_1 = witness.get_mut_as(self.fp_plus_1)?;
-            let mut next_fp_plus_1 = witness.get_mut_as(self.next_fp_plus_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut offset_addr = witness.get_scalars_mut(self.offset_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
+            let mut return_addr = witness.get_scalars_mut(self.return_addr)?;
+            let mut old_fp_val = witness.get_scalars_mut(self.old_fp_val)?;
+            let mut fp_plus_1 = witness.get_scalars_mut(self.fp_plus_1)?;
+            let mut next_fp_plus_1 = witness.get_scalars_mut(self.next_fp_plus_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                offset_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
-                return_addr[i] = event.return_addr;
-                old_fp_val[i] = event.old_fp_val;
-                fp_plus_1[i] = event.fp.addr(1u32);
-                next_fp_plus_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                offset_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
+                return_addr[i] = B32::new(event.return_addr);
+                old_fp_val[i] = B32::new(event.old_fp_val as u32);
+                fp_plus_1[i] = B32::new(event.fp.addr(1u32));
+                next_fp_plus_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
@@ -400,18 +400,18 @@ impl TableFiller<ProverPackedField> for CalliTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut next_pc_val = witness.get_scalars_mut(self.next_pc_val)?;
+            let mut next_fp_slot_1 = witness.get_scalars_mut(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
                 // Calculate next PC as return address
-                next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_1[i] = event.next_fp_val + 1;
+                next_pc_val[i] = event.pc * G;
+                next_fp_slot_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
@@ -537,21 +537,21 @@ impl TableFiller<ProverPackedField> for CallvTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut offset_abs_addr = witness.get_mut_as(self.offset_abs_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
-            let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut offset_abs_addr = witness.get_scalars_mut(self.offset_abs_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
+            let mut next_pc_val = witness.get_scalars_mut(self.next_pc_val)?;
+            let mut next_fp_slot_1 = witness.get_scalars_mut(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                offset_abs_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
-                next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                offset_abs_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
+                next_pc_val[i] = event.pc * G;
+                next_fp_slot_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 

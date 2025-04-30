@@ -114,17 +114,17 @@ impl TableFiller<ProverPackedField> for AddTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
+            let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
 
             for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst as u32);
-                src1_abs[i] = event.fp.addr(event.src1 as u32);
+                dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                src1_abs[i] = B32::new(event.fp.addr(event.src1));
                 src1_val[i] = event.src1_val;
-                src2_abs[i] = event.fp.addr(event.src2 as u32);
+                src2_abs[i] = B32::new(event.fp.addr(event.src2));
                 src2_val[i] = event.src2_val;
             }
         }
