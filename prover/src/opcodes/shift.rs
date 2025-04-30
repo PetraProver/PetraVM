@@ -320,7 +320,7 @@ mod tests {
     /// - SRL: Logical right shift with vrom value
     /// - SLLI: Logical left shift with immediate value
     /// - SLL: Logical left shift with vrom value
-    fn generate_logic_shift_immediate_trace(val: u32, shift_amount: u32) -> Result<Trace> {
+    fn generate_logic_shift_trace(val: u32, shift_amount: u32) -> Result<Trace> {
         let imm = shift_amount as u16;
         let asm_code = format!(
             "#[framesize(0x10)]\n\
@@ -339,7 +339,7 @@ mod tests {
     }
 
     fn test_shift_with_values(val: u32, shift_amount: u32) -> Result<()> {
-        let trace = generate_logic_shift_immediate_trace(val, shift_amount)?;
+        let trace = generate_logic_shift_trace(val, shift_amount)?;
         trace.validate()?;
 
         // Verify we have the correct number of events
@@ -365,7 +365,7 @@ mod tests {
                 Just(0u32),                     // Zero shift
                 Just(1),                        // Minimal shift
                 Just(31),                       // Maximum shift for u32
-                any::<u32>()                    // Random valid shift amounts (0-65535)
+                any::<u32>()                    // Random values
             ]
         ) {
             prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
