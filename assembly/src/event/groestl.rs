@@ -149,3 +149,82 @@ impl Event for Groestl256OutputEvent {
         fire_non_jump_event!(self, channels);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use binius_field::Field;
+
+    use super::*;
+    use crate::{
+        execution::Interpreter, isa::RecursionISA, util::code_to_prom, Memory, Opcode, ValueRom,
+        ZCrayTrace,
+    };
+
+    #[test]
+    fn test_groestl_compress() {
+        // Frame:
+        // Slot 0: PC
+        // Slot 1: FP
+        // Slots 2-15: Padding
+        // Slots 16-31: src1_val
+        // Slots 32-47: src2_val
+        // Slots 48-64: dst_val
+
+        let mut src1_val = [0u8; 64];
+        src1_val[0] = 1;
+        let mut src2_val = [0u8; 64];
+        src2_val[0] = 2;
+
+        let dst_offset = 48;
+        let src1_offset = 16;
+        let src2_offset = 32;
+        let mut init_values = vec![0; 48];
+        init_values[src1_offset as usize] = src1_val[0] as u32;
+        init_values[src2_offset as usize] = src2_val[0] as u32;
+        let vrom = ValueRom::new_with_init_vals(&init_values);
+
+        // Construct a simple program with B128_ADD and B128_MUL instructions
+        // 1. B128_ADD @add_result, @a, @b
+        // 2. B128_MUL @mul_result, @add_result, @c
+        // 3. RET
+        let zero = B16::ZERO;
+        let dst = B16::from(dst_offset as u16);
+        let src1 = B16::from(src1_offset as u16);
+        let src2 = B16::from(src2_offset as u16);
+        let instructions = vec![
+            [Opcode::Groestl256Compress.get_field_elt(), dst, src1, src2],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+        // Set up frame sizes
+        let mut frames = HashMap::new();
+        frames.insert(B32::ONE, 64);
+
+        // Create the PROM
+        let prom = code_to_prom(&instructions);
+        let memory = Memory::new(prom, vrom);
+
+        // Create an interpreter and run the program
+        let (trace, boundary_values) =
+            ZCrayTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
+                .expect("Trace generation should not fail.");
+
+        // Capture the final PC before boundary_values is moved
+        let final_pc = boundary_values.final_pc;
+
+        // Validate the trace (this consumes boundary_values)
+        trace.validate(boundary_values);
+
+        // Calculate the output.
+        let mut dst_val = GroestlShortImpl::state_from_bytes(&src1_val);
+        <GroestlShortImpl as GroestlShortInternal>::compress(&mut dst_val, &src2_val);
+
+        let actual_dst_vals = (0..8)
+            .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())
+            .collect::<Vec<_>>();
+        for i in 0..8 {
+            assert_eq!(dst_val[i], actual_dst_vals[i]);
+        }
+    }
+}

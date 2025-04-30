@@ -1,0 +1,10 @@
+use anyhow::Result;
+use binius_field::underlier::Divisible;
+use binius_m3::builder::{B128, B32};
+use log::trace;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
+use zcrayvm_assembly::isa::RecursionISA;
+use zcrayvm_prover::model::Trace;
+use zcrayvm_prover::prover::{verify_proof, Prover};
+use zcrayvm_prover::test_utils::generate_trace;

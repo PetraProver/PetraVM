@@ -204,6 +204,8 @@ impl ZCrayTrace {
         fire_events!(self.b32_muli, &mut channels);
         fire_events!(self.b128_add, &mut channels);
         fire_events!(self.b128_mul, &mut channels);
+        fire_events!(self.groestl_compress, &mut channels);
+        fire_events!(self.groestl_output, &mut channels);
 
         assert!(channels.state_channel.is_balanced());
     }

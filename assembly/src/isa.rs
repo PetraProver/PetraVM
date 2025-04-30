@@ -79,8 +79,9 @@ define_isa!(
         B32MuliEvent,
         B128AddEvent,
         B128MulEvent,
-        Groestl256CompressEvent, // TODO: name TBD
-        Groestl256OutputEvent, // TODO: name TBD
+        Groestl256CompressEvent,
+        Groestl256OutputEvent,
+        RetEvent,
     ]
 );
 
