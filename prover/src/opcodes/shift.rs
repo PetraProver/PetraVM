@@ -17,7 +17,7 @@ use crate::{
 /// This macro generates table structures for shift operations.
 /// Two variants are supported:
 ///   - `imm`: For immediate shift operations
-///   - `reg`: For vrom-based shift operations (shift amount from a vrom value)
+///   - `vrom`: For vrom-based shift operations (shift amount from a vrom value)
 ///
 /// The macro generates:
 /// 1. A table structure with columns for the operation
@@ -138,14 +138,14 @@ macro_rules! define_logic_shift_table {
         }
     };
 
-    // Register variant: For shift operations where shift amount comes from a vrom value
+    // Vrom variant: For shift operations where shift amount comes from a vrom value
     // Parameters:
     //   - $Name: The name of the generated table structure
     //   - $table_str: String identifier for the table
     //   - Event: The event type that this table handles
     //   - OPCODE: The opcode enum value for this operation
     //   - VARIANT: The shift variant (logical left/right)
-    (reg: $Name:ident, $table_str:expr,
+    (vrom: $Name:ident, $table_str:expr,
          Event=$Event:ty,
          OPCODE=$OpCode:expr,
          VARIANT=$ShiftVar:expr) => {
@@ -284,10 +284,10 @@ define_logic_shift_table!(imm: SlliTable, "slli",
      Event=SlliEvent, OPCODE=Opcode::Slli, VARIANT=ShiftVariant::LogicalLeft);
 
 // Define vrom-based shift amount tables
-define_logic_shift_table!(reg:  SrlTable,  "srl",
+define_logic_shift_table!(vrom:  SrlTable,  "srl",
      Event=SrlEvent,  OPCODE=Opcode::Srl,  VARIANT=ShiftVariant::LogicalRight);
 
-define_logic_shift_table!(reg:  SllTable,  "sll",
+define_logic_shift_table!(vrom:  SllTable,  "sll",
      Event=SllEvent,  OPCODE=Opcode::Sll,  VARIANT=ShiftVariant::LogicalLeft);
 
 #[cfg(test)]
