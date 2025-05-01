@@ -2,6 +2,9 @@
 //!
 //! This module contains the tables for each opcode instruction.
 
+use binius_field::BinaryField;
+use binius_m3::builder::B32;
+
 pub mod binary;
 pub mod branch;
 pub mod call;
@@ -13,11 +16,9 @@ pub mod ret;
 pub mod shift;
 
 pub use binary::*;
-use binius_field::BinaryField;
-use binius_m3::builder::B32;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
-pub use integer_ops::AddTable;
+pub use integer_ops::{AddTable, SubTable};
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};
