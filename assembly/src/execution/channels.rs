@@ -3,7 +3,7 @@
 use std::{collections::HashMap, fmt::Debug, hash::Hash};
 
 use binius_m3::builder::B32;
-use tracing::{debug, trace};
+use tracing::trace;
 
 #[derive(Debug, Default)]
 pub struct Channel<T> {
@@ -67,7 +67,7 @@ impl StateChannel {
             sorted_multiplicities.sort_by_key(|((_pc, _fp, timestamp), _)| *timestamp);
 
             // TODO: better debugging?
-            debug!("Unbalanced State Channel:");
+            tracing::debug!("Unbalanced State Channel:");
             let _ = sorted_multiplicities
                 .iter()
                 .map(|x| trace!("{:?}", x))

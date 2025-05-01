@@ -9,7 +9,7 @@ use zcrayvm_assembly::{Opcode, SllEvent, SlliEvent, SrlEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
-    gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget},
+    gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
     utils::pack_b16_into_b32,
@@ -38,7 +38,7 @@ macro_rules! define_logic_shift_table {
          VARIANT=$ShiftVar:expr) => {
         pub struct $Name {
             id: TableId,
-            cpu_cols: CpuColumns<{ $OpCode as u16 }>,
+            state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>, // Destination absolute address
             dst_val: Col<B32>, // Destination value (shift result)
@@ -53,11 +53,11 @@ macro_rules! define_logic_shift_table {
             }
             fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
                 let mut table = cs.add_table($table_str);
-                let cpu_cols = CpuColumns::new(
+                let state_cols = StateColumns::new(
                     &mut table,
                     channels.state_channel,
                     channels.prom_channel,
-                    CpuColumnsOptions::default(),
+                    StateColumnsOptions::default(),
                 );
 
                 // Common unpack→packed columns for source value
@@ -66,15 +66,15 @@ macro_rules! define_logic_shift_table {
 
                 // Absolute addresses for destination and source
                 let dst_abs =
-                    table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+                    table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
                 let src_abs =
-                    table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+                    table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
-                // Barrel shifter wired to cpu_cols.arg2_unpacked (immediate shift amount)
+                // Barrel shifter wired to state_cols.arg2_unpacked (immediate shift amount)
                 let shifter = BarrelShifter::new(
                     &mut table,
                     src_val_unpacked,
-                    cpu_cols.arg2_unpacked,
+                    state_cols.arg2_unpacked,
                     $ShiftVar,
                 );
                 let dst_val = table.add_packed("dst_val", shifter.output);
@@ -85,7 +85,7 @@ macro_rules! define_logic_shift_table {
 
                 Self {
                     id: table.id(),
-                    cpu_cols,
+                    state_cols,
                     shifter,
                     dst_abs,
                     dst_val,
@@ -112,19 +112,19 @@ macro_rules! define_logic_shift_table {
             ) -> anyhow::Result<()> {
                 // Fill source value, destination address, and source address
                 {
-                    let mut src_val = witness.get_mut_as(self.src_val)?;
-                    let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-                    let mut src_abs = witness.get_mut_as(self.src_abs)?;
+                    let mut src_val = witness.get_scalars_mut(self.src_val)?;
+                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
 
                     for (i, ev) in rows.clone().enumerate() {
-                        src_val[i] = ev.src_val;
-                        dst_abs[i] = ev.fp.addr(ev.dst);
-                        src_abs[i] = ev.fp.addr(ev.src);
+                        src_val[i] = B32::new(ev.src_val);
+                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
                     }
                 }
 
-                // Populate CPU gadget and shifter
-                let cpu_rows = rows.map(|ev| CpuGadget {
+                // Populate StateGadget and shifter
+                let state_rows = rows.map(|ev| StateGadget {
                     pc: ev.pc.val(),
                     next_pc: None,
                     fp: *ev.fp,
@@ -132,7 +132,7 @@ macro_rules! define_logic_shift_table {
                     arg1: ev.src,
                     arg2: ev.shift_amount as u16,
                 });
-                self.cpu_cols.populate(witness, cpu_rows)?;
+                self.state_cols.populate(witness, state_rows)?;
                 self.shifter.populate(witness)?;
                 Ok(())
             }
@@ -152,7 +152,7 @@ macro_rules! define_logic_shift_table {
          VARIANT=$ShiftVar:expr) => {
         pub struct $Name {
             id: TableId,
-            cpu_cols: CpuColumns<{ $OpCode as u16 }>,
+            state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>,                  // Destination absolute address
             dst_val: Col<B32>,                  // Destination value (shift result)
@@ -171,11 +171,11 @@ macro_rules! define_logic_shift_table {
             }
             fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
                 let mut table = cs.add_table($table_str);
-                let cpu_cols = CpuColumns::new(
+                let state_cols = StateColumns::new(
                     &mut table,
                     channels.state_channel,
                     channels.prom_channel,
-                    CpuColumnsOptions::default(),
+                    StateColumnsOptions::default(),
                 );
 
                 // Source value columns
@@ -184,11 +184,11 @@ macro_rules! define_logic_shift_table {
 
                 // Address calculations
                 let dst_abs =
-                    table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+                    table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
                 let src_abs =
-                    table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+                    table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
                 let shift_abs =
-                    table.add_computed("shift_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+                    table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
                 // Shift amount columns
                 let shift_amount_unpacked: Col<B1, 16> =
@@ -217,7 +217,7 @@ macro_rules! define_logic_shift_table {
 
                 Self {
                     id: table.id(),
-                    cpu_cols,
+                    state_cols,
                     shifter,
                     dst_abs,
                     dst_val,
@@ -249,27 +249,28 @@ macro_rules! define_logic_shift_table {
             ) -> anyhow::Result<()> {
                 // Fill basic columns and shift amount data
                 {
-                    let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-                    let mut src_abs = witness.get_mut_as(self.src_abs)?;
+                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
                     let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-                    let mut shift_abs = witness.get_mut_as(self.shift_abs)?;
+                    let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
                     let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-                    let mut shift_vrom_val = witness.get_mut_as(self.shift_vrom_val)?;
-                    let mut shift_vrom_val_high = witness.get_mut_as(self.shift_vrom_val_high)?;
+                    let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
+                    let mut shift_vrom_val_high =
+                        witness.get_scalars_mut(self.shift_vrom_val_high)?;
 
                     for (i, ev) in rows.clone().enumerate() {
                         src_unpacked[i] = ev.src_val;
-                        dst_abs[i] = ev.fp.addr(ev.dst);
-                        src_abs[i] = ev.fp.addr(ev.src);
-                        shift_abs[i] = ev.fp.addr(ev.shift);
+                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                        shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
                         shift_unpacked[i] = ev.shift_amount as u16;
-                        shift_vrom_val[i] = ev.shift_amount as u32;
-                        shift_vrom_val_high[i] = (ev.shift_amount >> 16) as u16;
+                        shift_vrom_val[i] = B32::new(ev.shift_amount as u32);
+                        shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
                     }
                 }
 
-                // Populate CPU gadget columns
-                let cpu_rows = rows.clone().map(|ev| CpuGadget {
+                // Populate StateGadget columns
+                let state_rows = rows.clone().map(|ev| StateGadget {
                     pc: ev.pc.val(),
                     next_pc: None,
                     fp: *ev.fp,
@@ -277,7 +278,7 @@ macro_rules! define_logic_shift_table {
                     arg1: ev.src,
                     arg2: ev.shift,
                 });
-                self.cpu_cols.populate(witness, cpu_rows)?;
+                self.state_cols.populate(witness, state_rows)?;
 
                 // Populate barrel shifter columns
                 self.shifter.populate(witness)?;

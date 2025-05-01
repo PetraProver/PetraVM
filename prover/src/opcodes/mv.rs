@@ -11,7 +11,7 @@ use zcrayvm_assembly::MvvlEvent;
 use zcrayvm_assembly::{opcodes::Opcode, MvvwEvent};
 
 use crate::gadgets::b128_lookup::{B128LookupColumns, B128LookupGadget};
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
 use crate::{channels::Channels, types::ProverPackedField};
 
@@ -23,8 +23,8 @@ use crate::{channels::Channels, types::ProverPackedField};
 pub struct MvvwTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Mvvw as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Mvvw as u16 }>,
     /// Base destination address (FP + dst)
     dst_abs_addr: Col<B32>,
     /// Base source address (FP + src)
@@ -47,25 +47,25 @@ impl Table for MvvwTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("mvvw");
 
-        // Set up CPU columns with standard instruction handling
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with standard instruction handling
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        // Extract instruction arguments from CPU columns
-        let CpuColumns {
+        // Extract instruction arguments from State columns
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: offset,
             arg2: src,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Compute absolute addresses for source and destination
         let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
@@ -91,7 +91,7 @@ impl Table for MvvwTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs_addr,
             src_abs_addr,
             final_dst_addr,
@@ -139,18 +139,18 @@ impl TableFiller<ProverPackedField> for MvvwTable {
             }
         }
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
-            next_pc: None, // NextPc::Increment handled by CPU columns
+            next_pc: None, // NextPc::Increment handled by State columns
             fp: *event.fp,
             arg0: event.dst,
             arg1: event.offset,
             arg2: event.src,
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -159,7 +159,7 @@ impl TableFiller<ProverPackedField> for MvvwTable {
 /// VROM[ fp[dst] + offset ] = zero_extend(imm)
 pub struct MvihTable {
     pub id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Mvih as u16 }>,
+    state_cols: StateColumns<{ Opcode::Mvih as u16 }>,
     dst_abs_addr: Col<B32>,
     dst_addr: Col<B32>,
     final_dst_addr: Col<B32>,
@@ -176,24 +176,24 @@ impl Table for MvihTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("mvih");
 
-        // CPU columns (pc, fp, args)
-        let cpu_cols = CpuColumns::new(
+        // State columns (pc, fp, args)
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: offset,
             arg2: imm,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Compute base address
         let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
@@ -214,7 +214,7 @@ impl Table for MvihTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs_addr,
             dst_addr,
             final_dst_addr,
@@ -254,8 +254,8 @@ impl TableFiller<ProverPackedField> for MvihTable {
             }
         }
 
-        // Fill CPU‐side columns (pc, fp, dst, offset, imm)
-        let cpu_rows = rows.map(|ev| CpuGadget {
+        // Fill State‐side columns (pc, fp, dst, offset, imm)
+        let state_rows = rows.map(|ev| StateGadget {
             pc: ev.pc.val(),
             next_pc: None,
             fp: *ev.fp,
@@ -264,7 +264,7 @@ impl TableFiller<ProverPackedField> for MvihTable {
             arg2: ev.imm,
         });
 
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -276,8 +276,8 @@ impl TableFiller<ProverPackedField> for MvihTable {
 pub struct MvvlTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Mvvl as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Mvvl as u16 }>,
     /// Base destination address (FP + dst)
     dst_abs_addr: Col<B32>,
     /// Base source address (FP + src)
@@ -304,25 +304,25 @@ impl Table for MvvlTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("mvvl");
 
-        // Set up CPU columns with standard instruction handling
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with standard instruction handling
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        // Extract instruction arguments from CPU columns
-        let CpuColumns {
+        // Extract instruction arguments from State columns
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: offset,
             arg2: src,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Compute absolute addresses for source and destination
         let dst_abs_addr = table.add_computed("dst_abs_addr", fp + upcast_expr(dst.into()));
@@ -357,7 +357,7 @@ impl Table for MvvlTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs_addr,
             src_abs_addr,
             final_dst_addr,
@@ -421,18 +421,18 @@ impl TableFiller<ProverPackedField> for MvvlTable {
         });
         self.dst_lookup.populate(witness, dst_rows)?;
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
-            next_pc: None, // NextPc::Increment handled by CPU columns
+            next_pc: None, // NextPc::Increment handled by State columns
             fp: *event.fp,
             arg0: event.dst,
             arg1: event.offset,
             arg2: event.src,
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
