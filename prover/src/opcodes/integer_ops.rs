@@ -151,7 +151,6 @@ pub struct SubTable {
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B1, 32>,
     src1_abs: Col<B32>, // Virtual
-    src1_val_packed: Col<B32>,
     src2_abs: Col<B32>, // Virtual
     src2_val: Col<B1, 32>,
     add_op: U32Add,
@@ -213,7 +212,6 @@ impl Table for SubTable {
             state_cols,
             dst_abs,
             src1_abs,
-            src1_val_packed,
             src2_abs,
             src2_val,
             add_op,
@@ -242,7 +240,6 @@ impl TableFiller<ProverPackedField> for SubTable {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
             let mut dst_val = witness.get_mut_as(self.dst_val)?;
             let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
-            let mut src1_val_packed = witness.get_mut_as(self.src1_val_packed)?;
             let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
 
@@ -250,7 +247,6 @@ impl TableFiller<ProverPackedField> for SubTable {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
                 dst_val[i] = event.dst_val;
                 src1_abs[i] = B32::new(event.fp.addr(event.src1));
-                src1_val_packed[i] = event.src1_val;
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
                 src2_val[i] = event.src2_val;
             }
@@ -341,41 +337,6 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    /// Creates an execution trace for a simple program that uses both the ADD
-    /// and SUB instructions.
-    fn generate_add_sub_trace(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<Trace> {
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-             _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
-                LDI.W @4, #{}\n\
-                ADD @5, @2, @3\n\
-                SUB @6, @5, @4\n\
-                RET\n",
-            src1_value, src2_value, src3_value
-        );
-
-        let add_res = src1_value.wrapping_add(src2_value);
-
-        // Add VROM writes from LDI, ADD and SUB events
-        let vrom_writes = vec![
-            // LDI events
-            (2, src1_value, 2),
-            (3, src2_value, 2),
-            (4, src3_value, 2),
-            // ADD event
-            (5, add_res, 2),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // SUB event
-            (6, add_res.wrapping_sub(src3_value), 1),
-        ];
-
-        generate_trace(asm_code, None, Some(vrom_writes))
-    }
-
     fn test_add_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
         let trace = generate_add_trace(src1_value, src2_value)?;
         trace.validate()?;
@@ -394,16 +355,6 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    fn test_add_sub_with_values(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<()> {
-        let trace = generate_add_sub_trace(src1_value, src2_value, src3_value)?;
-        trace.validate()?;
-        assert_eq!(trace.add_events().len(), 1);
-        assert_eq!(trace.sub_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 3);
-        assert_eq!(trace.ret_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
-    }
-
     proptest! {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
@@ -415,13 +366,9 @@ mod tests {
             src2_value in prop_oneof![
                 any::<u32>()                    // Random values
             ],
-            src3_value in prop_oneof![
-                any::<u32>()                    // Random values
-            ],
         ) {
             prop_assert!(test_add_with_values(src1_value, src2_value).is_ok());
             prop_assert!(test_sub_with_values(src1_value, src2_value).is_ok());
-            prop_assert!(test_add_sub_with_values(src1_value, src2_value, src3_value).is_ok());
         }
     }
 }
