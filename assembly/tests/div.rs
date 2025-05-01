@@ -2,13 +2,13 @@ use common::test_utils::execute_test_asm;
 
 pub mod common;
 
-fn run_test(a: u32, b: u32, expected_q: i32, expected_r: u32) {
+fn run_test(a: u32, b: u32, expected_q: u32, expected_r: u32) {
     let mut info = execute_test_asm(include_str!("../../examples/div.asm"), &[a, b]);
     let div_frame = info.frames.add_frame("div");
 
     // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
     assert_eq!(
-        div_frame.get_vrom_expected::<u32>(4) as i32,
+        div_frame.get_vrom_expected::<u32>(4),
         expected_q,
         "Quotient for div({}, {})",
         a,
@@ -26,7 +26,6 @@ fn run_test(a: u32, b: u32, expected_q: i32, expected_r: u32) {
 // TODO: This test won't work until we can support signed integers, so for now
 // it's going to just be ignored.
 #[test]
-#[ignore]
 fn test_div_integration() {
     // Test case 1: a < b
     run_test(5, 10, 0, 5);
