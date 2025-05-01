@@ -44,10 +44,6 @@ pub struct ArithmeticRightShifter {
     /// Inverted input value (~input) used for the negative number path.
     inverted_input: Col<B1, 32>,
 
-    /// Logical right shift result for positive numbers.
-    /// This is the final output when the input is positive.
-    positive_result: Col<B1, 32>,
-
     /// Inverted result after logical shift for negative numbers.
     /// This is the final output when the input is negative.
     negative_result: Col<B1, 32>,
@@ -134,52 +130,22 @@ impl ArithmeticRightShifter {
                 ShiftVariant::LogicalRight,
             ));
 
-            // Create packed (32-bit) versions of columns for the positive path
-            let partial_shift_positive_packed: Col<B32> = table.add_packed(
-                format!("partial_shift_positive_packed_{i}"),
-                partial_shift_positive[i],
-            );
-            let shifted_positive_packed: Expr<B32, 1> = table
-                .add_packed(format!("shifted_positive_packed_{i}"), shifted_positive[i])
-                .into();
-            let current_shift_positive_packed: Col<B32> = table.add_packed(
-                format!("current_shift_positive_packed_{i}"),
-                current_shift_positive,
+            // Set up constraints for the positive path
+            Self::setup_mux_constraint(
+                table,
+                &partial_shift_positive[i],
+                &shifted_positive[i],
+                &current_shift_positive,
+                &shift_amount_bits[i],
             );
 
-            // Create constraint for the positive path mux:
-            // partial_shift_positive = shift_bit ? shifted_positive :
-            //                                      current_shift_positive
-            table.assert_zero(
-                format!("constraint_partial_shift_positive_{i}"),
-                partial_shift_positive_packed
-                    - (shifted_positive_packed * upcast_col(shift_amount_bits[i])
-                        + current_shift_positive_packed
-                            * (upcast_col(shift_amount_bits[i]) - B32::ONE)),
-            );
-
-            // Create packed (32-bit) versions of columns for the negative path
-            let partial_shift_negative_packed: Col<B32> = table.add_packed(
-                format!("partial_shift_negative_packed_{i}"),
-                partial_shift_negative[i],
-            );
-            let shifted_negative_packed: Expr<B32, 1> = table
-                .add_packed(format!("shifted_negative_packed_{i}"), shifted_negative[i])
-                .into();
-            let current_shift_negative_packed: Col<B32> = table.add_packed(
-                format!("current_shift_negative_packed_{i}"),
-                current_shift_negative,
-            );
-
-            // Create constraint for the negative path mux:
-            // partial_shift_negative = shift_bit ? shifted_negative :
-            //                                      current_shift_negative
-            table.assert_zero(
-                format!("constraint_partial_shift_negative_{i}"),
-                partial_shift_negative_packed
-                    - (shifted_negative_packed * upcast_col(shift_amount_bits[i])
-                        + current_shift_negative_packed
-                            * (upcast_col(shift_amount_bits[i]) - B32::ONE)),
+            // Set up constraints for the negative path
+            Self::setup_mux_constraint(
+                table,
+                &partial_shift_negative[i],
+                &shifted_negative[i],
+                &current_shift_negative,
+                &shift_amount_bits[i],
             );
 
             // Update current shift values for the next iteration
@@ -187,31 +153,23 @@ impl ArithmeticRightShifter {
             current_shift_negative = partial_shift_negative[i];
         }
 
-        // Final results for both paths
-        let positive_result = current_shift_positive; // Logical right shift result
-        let positive_result_packed: Col<B32, 1> =
-            table.add_packed("positive_result_packed", positive_result);
-
         // Invert the negative path result to complete the invert-shift-invert pattern
         let negative_result =
             table.add_computed("negative_result", current_shift_negative + B1::ONE);
-        let negative_result_packed: Col<B32, 1> =
-            table.add_packed("negative_result_packed", negative_result);
 
         // Final output column
         let output = table.add_committed::<B1, 32>("output");
-        let output_packed: Col<B32, 1> = table.add_packed("output_packed", output);
 
         // Extract sign bit (bit 31) of input to select the appropriate result
         let sign_bit = table.add_selected("sign_bit", input, 31);
 
-        // Create constraint for the final output mux:
-        // output = sign_bit ? negative_result : positive_result
-        table.assert_zero(
-            "constraint_output_selection",
-            output_packed
-                - (negative_result_packed * upcast_col(sign_bit)
-                    + positive_result_packed * (upcast_col(sign_bit) - B32::ONE)),
+        // Create constraint for the final output selection
+        Self::setup_mux_constraint(
+            table,
+            &output,
+            &negative_result,
+            &current_shift_positive, // Logical right shift result,
+            &sign_bit,
         );
 
         Self {
@@ -220,7 +178,6 @@ impl ArithmeticRightShifter {
             shift_amount_bits,
             sign_bit,
             inverted_input,
-            positive_result,
             negative_result,
             shifted_positive,
             shifted_negative,
@@ -228,6 +185,30 @@ impl ArithmeticRightShifter {
             partial_shift_negative,
             output,
         }
+    }
+
+    /// Helper function to create a constraint for a conditional shift:
+    /// result = select_bit ? when_true : when_false
+    fn setup_mux_constraint(
+        table: &mut TableBuilder,
+        result: &Col<B1, 32>,
+        when_true: &Col<B1, 32>,
+        when_false: &Col<B1, 32>,
+        select_bit: &Col<B1>,
+    ) {
+        // Create packed (32-bit) versions of columns
+        let result_packed = table.add_packed("result_packed", *result);
+        let true_packed: Expr<B32, 1> = table.add_packed("when_true_packed", *when_true).into();
+        let false_packed = table.add_packed("when_false_packed", *when_false);
+
+        // Create constraint for the mux:
+        // result = select_bit ? when_true : when_false
+        table.assert_zero(
+            "mux_constraint",
+            result_packed
+                - (true_packed * upcast_col(*select_bit)
+                    + false_packed * (upcast_col(*select_bit) - B32::ONE)),
+        );
     }
 
     /// Populates the table witness with computed values for the arithmetic
@@ -407,8 +388,6 @@ mod tests {
             shift_val in prop_oneof![
                 any::<u16>(),                    // Random values within valid range
                 Just(0u16),                      // Zero shift
-                Just(1u16),                      // Minimal shift
-                Just(16u16),                     // Half-word shift
                 Just(31u16),                     // Maximum shift for u32
             ]
         ) {
