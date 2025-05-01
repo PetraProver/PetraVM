@@ -147,7 +147,7 @@ impl TableFiller<ProverPackedField> for AddTable {
 /// subtraction between two 32-bit elements.
 pub struct SubTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Sub as u16 }>,
+    state_cols: StateColumns<{ Opcode::Sub as u16 }>,
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B1, 32>,
     src1_abs: Col<B32>, // Virtual
@@ -174,24 +174,24 @@ impl Table for SubTable {
             ..
         } = *channels;
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             state_channel,
             prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
         // Pull the destination and source values from the VROM channel.
-        let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_val = table.add_committed("dst_val");
         let dst_val_packed = table.add_packed("dst_val_packed", dst_val);
 
-        let src1_abs = table.add_computed("src1", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
 
-        let src2_abs = table.add_computed("src2", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+        let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
         let src2_val = table.add_committed("src2_val");
         let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
@@ -210,7 +210,7 @@ impl Table for SubTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs,
             src1_abs,
             src1_val_packed,
@@ -255,7 +255,7 @@ impl TableFiller<ProverPackedField> for SubTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp.deref(),
@@ -263,7 +263,153 @@ impl TableFiller<ProverPackedField> for SubTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         self.add_op.populate(witness)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use binius_field::BinaryField;
+    use zcrayvm_assembly::isa::GenericISA;
+
+    use super::*;
+    use crate::model::Trace;
+    use crate::prover::Prover;
+    use crate::test_utils::generate_trace;
+
+    pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
+
+    /// Creates an execution trace for a simple program that uses the ADD
+    /// instruction.
+    fn generate_add_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                ;; Skip @4 to test a gap in vrom writes
+                ADD @5, @2, @3\n\
+                RET\n",
+            src1_value, src2_value
+        );
+
+        // Add VROM writes from LDI and ADD events
+        let vrom_writes = vec![
+            // LDI events
+            (2, src1_value, 2),
+            (3, src2_value, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // ADD event
+            (5, src1_value + src2_value, 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    /// Creates an execution trace for a simple program that uses the SUB
+    /// instruction.
+    fn generate_sub_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                ;; Skip @4 to test a gap in vrom writes
+                SUB @5, @2, @3\n\
+                RET\n",
+            src1_value, src2_value
+        );
+
+        // Add VROM writes from LDI and SUB events
+        let vrom_writes = vec![
+            // LDI events
+            (2, src1_value, 2),
+            (3, src2_value, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // SUB event
+            (5, src1_value.wrapping_sub(src2_value), 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    /// Creates an execution trace for a simple program that uses both the ADD
+    /// and SUB instructions.
+    fn generate_add_sub_trace(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                LDI.W @4, #{}\n\
+                ADD @5, @2, @3\n\
+                SUB @6, @5, @4\n\
+                RET\n",
+            src1_value, src2_value, src3_value
+        );
+
+        // Add VROM writes from LDI, ADD and SUB events
+        let vrom_writes = vec![
+            // LDI events
+            (2, src1_value, 2),
+            (3, src2_value, 2),
+            (4, src3_value, 2),
+            // ADD event
+            (5, src1_value + src2_value, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // SUB event
+            (6, (src1_value + src2_value).wrapping_sub(src3_value), 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    #[test]
+    fn test_add() -> Result<()> {
+        let src1_value = 0x4567;
+        let src2_value = 0x12345678;
+
+        let trace = generate_add_trace(src1_value, src2_value)?;
+        trace.validate()?;
+        assert_eq!(trace.add_events().len(), 1);
+        assert_eq!(trace.ldi_events().len(), 2);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    #[test]
+    fn test_sub() -> Result<()> {
+        let src1_value = 0x4567;
+        let src2_value = 0x12345678;
+
+        let trace = generate_sub_trace(src1_value, src2_value)?;
+        trace.validate()?;
+        assert_eq!(trace.sub_events().len(), 1);
+        assert_eq!(trace.ldi_events().len(), 2);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    #[test]
+    fn test_add_sub() -> Result<()> {
+        let src1_value = 0x4567;
+        let src2_value = 0x12345678;
+        let src3_value = 0x87654321;
+
+        let trace = generate_add_sub_trace(src1_value, src2_value, src3_value)?;
+        trace.validate()?;
+        assert_eq!(trace.add_events().len(), 1);
+        assert_eq!(trace.sub_events().len(), 1);
+        assert_eq!(trace.ldi_events().len(), 3);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }

@@ -208,66 +208,6 @@ fn test_ldi_add_ret() -> Result<()> {
     )
 }
 
-fn generate_sub_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI, SUB and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start: 
-            LDI.W @2, #{}\n\
-            LDI.W @3, #{}\n\
-            ;; Skip @4 to test a gap in vrom writes
-            SUB @5, @2, @3\n\
-            RET\n",
-        src1_value, src2_value
-    );
-
-    // Add VROM writes from LDI and ADD events
-    let vrom_writes = vec![
-        // LDI events
-        (2, src1_value, 2),
-        (3, src2_value, 2),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // ADD event
-        (5, src1_value.wrapping_sub(src2_value), 1),
-    ];
-
-    generate_trace(asm_code, None, Some(vrom_writes))
-}
-
-#[test]
-fn test_ldi_sub_ret() -> Result<()> {
-    test_from_trace_generator(
-        || {
-            // Test value to load
-            let src1_value = 0x4567;
-            let src2_value = 0x12345678;
-            generate_sub_ret_trace(src1_value, src2_value)
-        },
-        |trace| {
-            assert_eq!(
-                trace.sub_events().len(),
-                1,
-                "Should have exactly one SUB event"
-            );
-            assert_eq!(
-                trace.ldi_events().len(),
-                2,
-                "Should have exactly two LDI event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
-}
-
 /// Creates an execution trace for a simple program that uses only MVV.W,
 /// BNZ, BZ, TAILI, and RET.
 ///
