@@ -112,14 +112,14 @@ macro_rules! define_logic_shift_table {
             ) -> anyhow::Result<()> {
                 // Fill source value, destination address, and source address
                 {
-                    let mut src_val = witness.get_mut_as(self.src_val)?;
-                    let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-                    let mut src_abs = witness.get_mut_as(self.src_abs)?;
+                    let mut src_val = witness.get_scalars_mut(self.src_val)?;
+                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
 
                     for (i, ev) in rows.clone().enumerate() {
-                        src_val[i] = ev.src_val;
-                        dst_abs[i] = ev.fp.addr(ev.dst);
-                        src_abs[i] = ev.fp.addr(ev.src);
+                        src_val[i] = B32::new(ev.src_val);
+                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
                     }
                 }
 
@@ -249,22 +249,23 @@ macro_rules! define_logic_shift_table {
             ) -> anyhow::Result<()> {
                 // Fill basic columns and shift amount data
                 {
-                    let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-                    let mut src_abs = witness.get_mut_as(self.src_abs)?;
+                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
                     let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-                    let mut shift_abs = witness.get_mut_as(self.shift_abs)?;
+                    let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
                     let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-                    let mut shift_vrom_val = witness.get_mut_as(self.shift_vrom_val)?;
-                    let mut shift_vrom_val_high = witness.get_mut_as(self.shift_vrom_val_high)?;
+                    let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
+                    let mut shift_vrom_val_high =
+                        witness.get_scalars_mut(self.shift_vrom_val_high)?;
 
                     for (i, ev) in rows.clone().enumerate() {
                         src_unpacked[i] = ev.src_val;
-                        dst_abs[i] = ev.fp.addr(ev.dst);
-                        src_abs[i] = ev.fp.addr(ev.src);
-                        shift_abs[i] = ev.fp.addr(ev.shift);
+                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                        shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
                         shift_unpacked[i] = ev.shift_amount as u16;
-                        shift_vrom_val[i] = ev.shift_amount as u32;
-                        shift_vrom_val_high[i] = (ev.shift_amount >> 16) as u16;
+                        shift_vrom_val[i] = B32::new(ev.shift_amount as u32);
+                        shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
                     }
                 }
 

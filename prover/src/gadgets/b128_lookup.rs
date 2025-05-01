@@ -58,16 +58,16 @@ impl B128LookupColumns {
         T: Iterator<Item = B128LookupGadget>,
     {
         let mut addr_tail = [
-            index.get_mut_as(self.addr_tail[0])?,
-            index.get_mut_as(self.addr_tail[1])?,
-            index.get_mut_as(self.addr_tail[2])?,
+            index.get_scalars_mut(self.addr_tail[0])?,
+            index.get_scalars_mut(self.addr_tail[1])?,
+            index.get_scalars_mut(self.addr_tail[2])?,
         ];
 
         let mut val_cols = [
-            index.get_mut_as(self.val_cols[0])?,
-            index.get_mut_as(self.val_cols[1])?,
-            index.get_mut_as(self.val_cols[2])?,
-            index.get_mut_as(self.val_cols[3])?,
+            index.get_scalars_mut(self.val_cols[0])?,
+            index.get_scalars_mut(self.val_cols[1])?,
+            index.get_scalars_mut(self.val_cols[2])?,
+            index.get_scalars_mut(self.val_cols[3])?,
         ];
 
         for (row, B128LookupGadget { addr, val }) in rows.enumerate() {
