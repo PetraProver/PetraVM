@@ -306,7 +306,7 @@ mod tests {
             (0, 0, 1),
             (1, 0, 1),
             // ADD event
-            (5, src1_value + src2_value, 1),
+            (5, src1_value.wrapping_add(src2_value), 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
@@ -356,6 +356,8 @@ mod tests {
             src1_value, src2_value, src3_value
         );
 
+        let add_res = src1_value.wrapping_add(src2_value);
+
         // Add VROM writes from LDI, ADD and SUB events
         let vrom_writes = vec![
             // LDI events
@@ -363,12 +365,12 @@ mod tests {
             (3, src2_value, 2),
             (4, src3_value, 2),
             // ADD event
-            (5, src1_value + src2_value, 2),
+            (5, add_res, 2),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
             // SUB event
-            (6, (src1_value + src2_value).wrapping_sub(src3_value), 1),
+            (6, add_res.wrapping_sub(src3_value), 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
