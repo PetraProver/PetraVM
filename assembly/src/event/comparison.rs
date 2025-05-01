@@ -3,11 +3,8 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     define_bin32_imm_op_event, define_bin32_op_event,
-    event::{binary_ops::*, Event},
-    execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
-    gadgets::Add64Gadget,
-    Opcode,
+    event::binary_ops::*,
+    execution::{FramePointer, InterpreterError},
 };
 
 // Note: The addition is checked thanks to the ADD32 table.
@@ -121,7 +118,7 @@ define_bin32_imm_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{execution::Interpreter, get_last_event, ZCrayTrace};
+    use crate::{execution::Interpreter, get_last_event, Event, ZCrayTrace};
 
     /// Tests for Comparison operations (without immediate)
     #[test]

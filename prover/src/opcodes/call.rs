@@ -7,7 +7,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEvent};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
 use crate::{channels::Channels, opcodes::G, types::ProverPackedField};
 
@@ -15,8 +15,8 @@ use crate::{channels::Channels, opcodes::G, types::ProverPackedField};
 pub struct TailiTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Taili as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Taili as u16 }>,
     /// New frame pointer value
     next_fp_val: Col<B32>,
     /// Absolute address of the next frame pointer slot (FP + next_fp)
@@ -44,23 +44,23 @@ impl Table for TailiTable {
         // Column for the new frame pointer value
         let next_fp_val = table.add_committed("next_fp_val");
 
-        // Set up CPU columns with immediate PC update and new frame pointer
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with immediate PC update and new frame pointer
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Immediate, // Jump directly to target address
                 next_fp: Some(next_fp_val), // Update frame pointer
             },
         );
 
         // Extract relevant instruction arguments
-        let CpuColumns {
+        let StateColumns {
             fp: cur_fp,
             arg2: next_fp,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Compute the absolute address for the next frame pointer
         let next_fp_abs_addr =
@@ -88,7 +88,7 @@ impl Table for TailiTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             next_fp_val,
             next_fp_abs_addr,
             return_addr,
@@ -121,26 +121,26 @@ impl TableFiller<ProverPackedField> for TailiTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut return_addr = witness.get_mut_as(self.return_addr)?;
-            let mut old_fp_val = witness.get_mut_as(self.old_fp_val)?;
-            let mut fp_plus_1 = witness.get_mut_as(self.fp_plus_1)?;
-            let mut next_fp_plus_1 = witness.get_mut_as(self.next_fp_plus_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut return_addr = witness.get_scalars_mut(self.return_addr)?;
+            let mut old_fp_val = witness.get_scalars_mut(self.old_fp_val)?;
+            let mut fp_plus_1 = witness.get_scalars_mut(self.fp_plus_1)?;
+            let mut next_fp_plus_1 = witness.get_scalars_mut(self.next_fp_plus_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                return_addr[i] = event.return_addr;
-                fp_plus_1[i] = event.fp.addr(1u32);
-                old_fp_val[i] = event.old_fp_val;
-                next_fp_plus_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                return_addr[i] = B32::new(event.return_addr);
+                fp_plus_1[i] = B32::new(event.fp.addr(1u32));
+                old_fp_val[i] = B32::new(event.old_fp_val as u32);
+                next_fp_plus_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
@@ -149,8 +149,8 @@ impl TableFiller<ProverPackedField> for TailiTable {
             arg2: event.next_fp,               // next_fp address
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -158,8 +158,8 @@ impl TableFiller<ProverPackedField> for TailiTable {
 pub struct TailvTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Tailv as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Tailv as u16 }>,
     /// New frame pointer value
     next_fp_val: Col<B32>,
     /// Absolute address of the next frame pointer slot (FP + next_fp)
@@ -194,24 +194,24 @@ impl Table for TailvTable {
         let return_addr = table.add_committed("return_addr");
         let old_fp_val = table.add_committed("old_fp_val");
 
-        // Set up CPU columns with target-based PC update and new frame pointer
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with target-based PC update and new frame pointer
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Target(target_val), // Jump to target address from VROM
                 next_fp: Some(next_fp_val),          // Update frame pointer
             },
         );
 
         // Extract relevant instruction arguments
-        let CpuColumns {
+        let StateColumns {
             fp: cur_fp,
             arg0: offset,
             arg1: next_fp,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Compute the absolute addresses
         let offset_addr = table.add_computed("offset_addr", cur_fp + upcast_col(offset));
@@ -233,7 +233,7 @@ impl Table for TailvTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             next_fp_val,
             next_fp_abs_addr,
             offset_addr,
@@ -265,30 +265,30 @@ impl TableFiller<ProverPackedField> for TailvTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
-            let mut return_addr = witness.get_mut_as(self.return_addr)?;
-            let mut old_fp_val = witness.get_mut_as(self.old_fp_val)?;
-            let mut fp_plus_1 = witness.get_mut_as(self.fp_plus_1)?;
-            let mut next_fp_plus_1 = witness.get_mut_as(self.next_fp_plus_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut offset_addr = witness.get_scalars_mut(self.offset_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
+            let mut return_addr = witness.get_scalars_mut(self.return_addr)?;
+            let mut old_fp_val = witness.get_scalars_mut(self.old_fp_val)?;
+            let mut fp_plus_1 = witness.get_scalars_mut(self.fp_plus_1)?;
+            let mut next_fp_plus_1 = witness.get_scalars_mut(self.next_fp_plus_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                offset_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
-                return_addr[i] = event.return_addr;
-                old_fp_val[i] = event.old_fp_val;
-                fp_plus_1[i] = event.fp.addr(1u32);
-                next_fp_plus_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                offset_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
+                return_addr[i] = B32::new(event.return_addr);
+                old_fp_val[i] = B32::new(event.old_fp_val as u32);
+                fp_plus_1[i] = B32::new(event.fp.addr(1u32));
+                next_fp_plus_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
@@ -297,8 +297,8 @@ impl TableFiller<ProverPackedField> for TailvTable {
             arg2: 0,             // unused
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -306,8 +306,8 @@ impl TableFiller<ProverPackedField> for TailvTable {
 pub struct CalliTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Calli as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Calli as u16 }>,
     /// New frame pointer value
     next_fp_val: Col<B32>,
     /// Absolute address of the next frame pointer slot (FP + next_fp)
@@ -331,24 +331,24 @@ impl Table for CalliTable {
         // Column for the new frame pointer value
         let next_fp_val = table.add_committed("next_fp_val");
 
-        // Set up CPU columns with immediate PC update and new frame pointer
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with immediate PC update and new frame pointer
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Immediate, // Jump directly to target address
                 next_fp: Some(next_fp_val), // Update frame pointer
             },
         );
 
         // Extract relevant instruction arguments
-        let CpuColumns {
+        let StateColumns {
             pc,
             fp: cur_fp,
             arg2: next_fp,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Next PC value (PC * G) to be saved as return address
         // We use the G constant (multiplicative generator) to get next PC
@@ -372,7 +372,7 @@ impl Table for CalliTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             next_fp_val,
             next_fp_abs_addr,
             next_pc_val,
@@ -400,23 +400,23 @@ impl TableFiller<ProverPackedField> for CalliTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut next_pc_val = witness.get_scalars_mut(self.next_pc_val)?;
+            let mut next_fp_slot_1 = witness.get_scalars_mut(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
                 // Calculate next PC as return address
-                next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_1[i] = event.next_fp_val + 1;
+                next_pc_val[i] = event.pc * G;
+                next_fp_slot_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
@@ -425,8 +425,8 @@ impl TableFiller<ProverPackedField> for CalliTable {
             arg2: event.next_fp,               // next_fp address
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -434,8 +434,8 @@ impl TableFiller<ProverPackedField> for CalliTable {
 pub struct CallvTable {
     /// Table identifier
     pub id: TableId,
-    /// CPU-related columns for instruction handling
-    cpu_cols: CpuColumns<{ Opcode::Callv as u16 }>,
+    /// State-related columns for instruction handling
+    state_cols: StateColumns<{ Opcode::Callv as u16 }>,
     /// New frame pointer value
     next_fp_val: Col<B32>,
     /// Absolute address of the next frame pointer slot (FP + next_fp)
@@ -464,25 +464,25 @@ impl Table for CallvTable {
         let target_val = table.add_committed("target_val");
         let next_fp_val = table.add_committed("next_fp_val");
 
-        // Set up CPU columns with target-based PC update and new frame pointer
-        let cpu_cols = CpuColumns::new(
+        // Set up State columns with target-based PC update and new frame pointer
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Target(target_val), // Jump to target address from VROM
                 next_fp: Some(next_fp_val),          // Update frame pointer
             },
         );
 
         // Extract relevant instruction arguments
-        let CpuColumns {
+        let StateColumns {
             pc,
             fp: cur_fp,
             arg0: offset,
             arg1: next_fp,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Next PC value (PC * G) to be saved as return address
         let next_pc_val = table.add_computed("next_pc_val", pc * G);
@@ -507,7 +507,7 @@ impl Table for CallvTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             next_fp_val,
             next_fp_abs_addr,
             offset_abs_addr,
@@ -537,26 +537,26 @@ impl TableFiller<ProverPackedField> for CallvTable {
     ) -> anyhow::Result<()> {
         {
             // Get mutable references to witness columns
-            let mut next_fp_val = witness.get_mut_as(self.next_fp_val)?;
-            let mut next_fp_abs_addr = witness.get_mut_as(self.next_fp_abs_addr)?;
-            let mut offset_abs_addr = witness.get_mut_as(self.offset_abs_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
-            let mut next_pc_val = witness.get_mut_as(self.next_pc_val)?;
-            let mut next_fp_slot_1 = witness.get_mut_as(self.next_fp_slot_1)?;
+            let mut next_fp_val = witness.get_scalars_mut(self.next_fp_val)?;
+            let mut next_fp_abs_addr = witness.get_scalars_mut(self.next_fp_abs_addr)?;
+            let mut offset_abs_addr = witness.get_scalars_mut(self.offset_abs_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
+            let mut next_pc_val = witness.get_scalars_mut(self.next_pc_val)?;
+            let mut next_fp_slot_1 = witness.get_scalars_mut(self.next_fp_slot_1)?;
 
             // Fill the witness columns with values from each event
             for (i, event) in rows.clone().enumerate() {
-                next_fp_val[i] = event.next_fp_val;
-                next_fp_abs_addr[i] = event.fp.addr(event.next_fp);
-                offset_abs_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
-                next_pc_val[i] = (event.pc * G).val();
-                next_fp_slot_1[i] = event.next_fp_val + 1;
+                next_fp_val[i] = B32::new(event.next_fp_val);
+                next_fp_abs_addr[i] = B32::new(event.fp.addr(event.next_fp));
+                offset_abs_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
+                next_pc_val[i] = event.pc * G;
+                next_fp_slot_1[i] = B32::new(event.next_fp_val + 1);
             }
         }
 
-        // Create CPU gadget rows from events
-        let cpu_rows = rows.map(|event| CpuGadget {
+        // Create StateGadget rows from events
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target), // Jump to target address
             fp: *event.fp,
@@ -565,8 +565,8 @@ impl TableFiller<ProverPackedField> for CallvTable {
             arg2: 0,             // unused
         });
 
-        // Populate CPU columns with the gadget rows
-        self.cpu_cols.populate(witness, cpu_rows)
+        // Populate State columns with the gadget rows
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
