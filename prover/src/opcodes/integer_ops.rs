@@ -10,7 +10,7 @@ use zcrayvm_assembly::{opcodes::Opcode, AddEvent};
 
 use crate::{
     channels::Channels,
-    gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
 };
@@ -23,7 +23,7 @@ const ADD_OPCODE: u16 = Opcode::Add as u16;
 /// addition between two 32-bit elements.
 pub struct AddTable {
     id: TableId,
-    cpu_cols: CpuColumns<ADD_OPCODE>,
+    state_cols: StateColumns<ADD_OPCODE>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
     src1_abs: Col<B32>, // Virtual
@@ -50,23 +50,23 @@ impl Table for AddTable {
             ..
         } = *channels;
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             state_channel,
             prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
         // Pull the destination and source values from the VROM channel.
-        let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
-        let src1_abs = table.add_computed("src1", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
         let src1_val = table.add_committed("src1_val");
         let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
 
-        let src2_abs = table.add_computed("src2", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+        let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
         let src2_val = table.add_committed("src2_val");
         let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
@@ -85,7 +85,7 @@ impl Table for AddTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs,
             src1_abs,
             src1_val,
@@ -128,7 +128,7 @@ impl TableFiller<ProverPackedField> for AddTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp.deref(),
@@ -136,7 +136,7 @@ impl TableFiller<ProverPackedField> for AddTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         self.add_op.populate(witness)
     }
 }

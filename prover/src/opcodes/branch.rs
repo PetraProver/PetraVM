@@ -6,7 +6,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
@@ -15,7 +15,7 @@ use crate::{channels::Channels, table::Table, types::ProverPackedField};
 /// target address.
 pub struct BnzTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
+    state_cols: StateColumns<{ Opcode::Bnz as u16 }>,
     cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
 }
@@ -32,24 +32,24 @@ impl Table for BnzTable {
         let cond_val = table.add_committed("cond_val");
         table.assert_nonzero(cond_val);
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Immediate,
                 next_fp: None,
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+        let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
         // Read cond_val
         table.pull(channels.vrom_channel, [upcast_col(cond_abs), cond_val]);
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             cond_abs,
             cond_val,
         }
@@ -80,7 +80,7 @@ impl TableFiller<ProverPackedField> for BnzTable {
                 cond_val[i] = event.cond_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target.val()),
             fp: *event.fp,
@@ -88,14 +88,14 @@ impl TableFiller<ProverPackedField> for BnzTable {
             arg1: (event.target.val() >> 16) as u16,
             arg2: event.cond,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         Ok(())
     }
 }
 
 pub struct BzTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Bnz as u16 }>,
+    state_cols: StateColumns<{ Opcode::Bnz as u16 }>,
     cond_abs: Col<B32>, // Virtual
 }
 
@@ -109,24 +109,24 @@ impl Table for BzTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bz");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let cond_abs = table.add_computed("cond_abs", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+        let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
         let zero = table.add_constant("zero", [B32::ZERO]);
 
         table.pull(channels.vrom_channel, [cond_abs, zero]);
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             cond_abs,
         }
     }
@@ -154,7 +154,7 @@ impl TableFiller<ProverPackedField> for BzTable {
                 cond_abs[i] = event.fp.addr(event.cond);
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
@@ -162,6 +162,6 @@ impl TableFiller<ProverPackedField> for BzTable {
             arg1: (event.target.val() >> 16) as u16,
             arg2: event.cond,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }

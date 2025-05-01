@@ -10,7 +10,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{opcodes::Opcode, LdiEvent};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
@@ -28,8 +28,8 @@ use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::p
 pub struct LdiTable {
     /// Table ID
     pub id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::Ldi as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::Ldi as u16 }>,
     vrom_abs_addr: Col<B32>, // Virtual
     imm: Col<B32>,           // Virtual
 }
@@ -44,23 +44,23 @@ impl Table for LdiTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ldi");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: imm_low,
             arg2: imm_high,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         let vrom_abs_addr = table.add_computed("abs_addr", fp + upcast_col(dst));
 
@@ -70,7 +70,7 @@ impl Table for LdiTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             vrom_abs_addr,
             imm,
         }
@@ -101,7 +101,7 @@ impl TableFiller<ProverPackedField> for LdiTable {
                 imm[i] = event.imm;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
@@ -109,6 +109,6 @@ impl TableFiller<ProverPackedField> for LdiTable {
             arg1: event.imm as u16,
             arg2: (event.imm >> 16) as u16,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }

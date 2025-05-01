@@ -18,7 +18,7 @@ use crate::{
     channels::Channels,
     gadgets::{
         b128_lookup::{B128LookupColumns, B128LookupGadget},
-        cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
+        state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     },
     table::Table,
     types::ProverPackedField,
@@ -38,8 +38,8 @@ const B128_MUL_OPCODE: u16 = Opcode::B128Mul as u16;
 pub struct B32MulTable {
     /// Table ID
     pub id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ B32_MUL_OPCODE }>,
+    /// State columns
+    state_cols: StateColumns<{ B32_MUL_OPCODE }>,
     /// First source value
     pub src1_val: Col<B32>,
     /// Second source value
@@ -64,23 +64,23 @@ impl Table for B32MulTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b32_mul");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: src1,
             arg2: src2,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         let src1_val = table.add_committed("b32_mul_src1_val");
         let src2_val = table.add_committed("b32_mul_src2_val");
@@ -100,7 +100,7 @@ impl Table for B32MulTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_val,
             src2_val,
             dst_val,
@@ -144,7 +144,7 @@ impl TableFiller<ProverPackedField> for B32MulTable {
                 dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: None,
             fp: *event.fp,
@@ -152,7 +152,7 @@ impl TableFiller<ProverPackedField> for B32MulTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -163,8 +163,8 @@ impl TableFiller<ProverPackedField> for B32MulTable {
 pub struct B128AddTable {
     /// Table ID
     pub id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ B128_ADD_OPCODE }>,
+    /// State columns
+    state_cols: StateColumns<{ B128_ADD_OPCODE }>,
     /// First source value
     pub src1_val_unpacked: Col<B32, 4>,
     /// Lookup for first source
@@ -197,23 +197,23 @@ impl Table for B128AddTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b128_add");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: src1,
             arg2: src2,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         let src1_val_unpacked = table.add_committed("b128_add_src1_val_unpacked");
         let src2_val_unpacked = table.add_committed("b128_add_src2_val_unpacked");
@@ -252,7 +252,7 @@ impl Table for B128AddTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_val_unpacked,
             src1_lookup,
             src2_val_unpacked,
@@ -300,7 +300,7 @@ impl TableFiller<ProverPackedField> for B128AddTable {
             }
         }
 
-        let cpu_iter = rows.clone().map(|ev| CpuGadget {
+        let state_iter = rows.clone().map(|ev| StateGadget {
             pc: ev.pc.val(),
             next_pc: None,
             fp: *ev.fp,
@@ -308,7 +308,7 @@ impl TableFiller<ProverPackedField> for B128AddTable {
             arg1: ev.src1,
             arg2: ev.src2,
         });
-        self.cpu_cols.populate(witness, cpu_iter)?;
+        self.state_cols.populate(witness, state_iter)?;
 
         let src1_iter = rows.clone().map(|ev| B128LookupGadget {
             addr: ev.fp.addr(ev.src1),
@@ -337,8 +337,8 @@ impl TableFiller<ProverPackedField> for B128AddTable {
 pub struct B128MulTable {
     /// Table ID
     pub id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ B128_MUL_OPCODE }>,
+    /// State columns
+    state_cols: StateColumns<{ B128_MUL_OPCODE }>,
     /// First source value
     pub src1_val: Col<B128>,
     pub src1_val_unpacked: Col<B32, 4>,
@@ -374,23 +374,23 @@ impl Table for B128MulTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("b128_mul");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             fp,
             arg0: dst,
             arg1: src1,
             arg2: src2,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         let src1_val_unpacked = table.add_committed("b128_mul_src1_val_unpacked");
         let src1_val = table.add_packed("b128_mul_src1_val", src1_val_unpacked);
@@ -432,7 +432,7 @@ impl Table for B128MulTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_val,
             src1_val_unpacked,
             src1_lookup,
@@ -483,7 +483,7 @@ impl TableFiller<ProverPackedField> for B128MulTable {
             }
         }
 
-        let cpu_iter = rows.clone().map(|ev| CpuGadget {
+        let state_iter = rows.clone().map(|ev| StateGadget {
             pc: ev.pc.val(),
             next_pc: None,
             fp: *ev.fp,
@@ -491,7 +491,7 @@ impl TableFiller<ProverPackedField> for B128MulTable {
             arg1: ev.src1,
             arg2: ev.src2,
         });
-        self.cpu_cols.populate(witness, cpu_iter)?;
+        self.state_cols.populate(witness, state_iter)?;
 
         let src1_iter = rows.clone().map(|ev| B128LookupGadget {
             addr: ev.fp.addr(ev.src1),
@@ -516,8 +516,8 @@ impl TableFiller<ProverPackedField> for B128MulTable {
 pub struct XorTable {
     /// Table ID
     id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::Xor as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::Xor as u16 }>,
     /// First source value
     pub src1_val: Col<B32>,
     /// Second source value
@@ -544,18 +544,18 @@ impl Table for XorTable {
         let src1_val = table.add_committed("src1_val");
         let src2_val = table.add_committed("src2_val");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
         let dst_abs_addr =
-            table.add_computed("dst_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+            table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
         let src1_abs_addr =
-            table.add_computed("src1_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+            table.add_computed("src1_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs_addr =
-            table.add_computed("src2_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+            table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
         let dst_val = table.add_computed("dst_val", src1_val + src2_val);
 
@@ -568,7 +568,7 @@ impl Table for XorTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_abs_addr,
             src1_val,
             src2_abs_addr,
@@ -611,7 +611,7 @@ impl TableFiller<ProverPackedField> for XorTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -619,15 +619,15 @@ impl TableFiller<ProverPackedField> for XorTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
 pub struct AndTable {
     /// Table ID
     id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::And as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::And as u16 }>,
     /// First source value
     pub src1_val: Col<B32>,
     /// First source value, unpacked
@@ -662,19 +662,19 @@ impl Table for AndTable {
         let src2_val_unpacked: Col<B1, 32> = table.add_committed("src2_val");
         let src2_val = table.add_packed("src2_val", src2_val_unpacked);
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
 
         let dst_abs_addr =
-            table.add_computed("dst_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+            table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
         let src1_abs_addr =
-            table.add_computed("src1_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+            table.add_computed("src1_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs_addr =
-            table.add_computed("src2_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+            table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
         let dst_val_unpacked =
             table.add_computed("dst_val_unpacked", src1_val_unpacked * src2_val_unpacked);
@@ -689,7 +689,7 @@ impl Table for AndTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_abs_addr,
             src1_val,
             src1_val_unpacked,
@@ -735,7 +735,7 @@ impl TableFiller<ProverPackedField> for AndTable {
                 src2_val_unpacked[i] = event.src2_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -743,15 +743,15 @@ impl TableFiller<ProverPackedField> for AndTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
 pub struct OrTable {
     /// Table ID
     id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::Or as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::Or as u16 }>,
     /// First source value
     pub src1_val: Col<B32>,
     /// First source value, unpacked
@@ -786,19 +786,19 @@ impl Table for OrTable {
         let src2_val_unpacked: Col<B1, 32> = table.add_committed("src2_val");
         let src2_val = table.add_packed("src2_val", src2_val_unpacked);
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
 
         let dst_abs_addr =
-            table.add_computed("dst_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+            table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
         let src1_abs_addr =
-            table.add_computed("src1_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+            table.add_computed("src1_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs_addr =
-            table.add_computed("src2_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+            table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
         let dst_val_unpacked = table.add_computed(
             "dst_val_unpacked",
@@ -816,7 +816,7 @@ impl Table for OrTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src1_abs_addr,
             src1_val,
             src1_val_unpacked,
@@ -863,7 +863,7 @@ impl TableFiller<ProverPackedField> for OrTable {
                 src2_val_unpacked[i] = event.src2_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -871,22 +871,22 @@ impl TableFiller<ProverPackedField> for OrTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
 pub struct OriTable {
     /// Table ID
     id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::Ori as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::Ori as u16 }>,
     /// Source value
     pub src_val: Col<B32>,
     /// Source value, unpacked
     src_val_unpacked: Col<B1, 32>,
     // TODO: `imm` and `imm_32b_unpacked` should not need to be part of this table as fetched
-    // directly from the CPU gadget. Revamp this once a new version of `ZeroPadding` is implemented
-    // on the binius side.
+    // directly from the [`StateGadget`]. Revamp this once a new version of `ZeroPadding` is
+    // implemented on the binius side.
     /// Immediate value
     imm: Col<B1, 16>,
     /// Immediate value, unpacked
@@ -914,20 +914,20 @@ impl Table for OriTable {
         let src_val = table.add_packed("src_val", src_val_unpacked);
         let imm_32b_unpacked: Col<B1, 32> = table.add_committed("imm_32b");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
 
         let dst_abs_addr =
-            table.add_computed("dst_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+            table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs_addr =
-            table.add_computed("src_abs_addr", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+            table.add_computed("src_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
 
         let imm: Col<B1, 16> = table.add_selected_block("imm", imm_32b_unpacked, 0);
-        table.assert_zero("imm_check", imm - cpu_cols.arg2_unpacked);
+        table.assert_zero("imm_check", imm - state_cols.arg2_unpacked);
 
         let imm_high: Col<B1, 16> = table.add_selected_block("imm_high", imm_32b_unpacked, 1);
         table.assert_zero("imm_high_check", imm_high.into());
@@ -947,7 +947,7 @@ impl Table for OriTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src_abs_addr,
             src_val,
             src_val_unpacked,
@@ -993,7 +993,7 @@ impl TableFiller<ProverPackedField> for OriTable {
                 imm_32b_unpacked[i] = event.imm as u32;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -1001,13 +1001,13 @@ impl TableFiller<ProverPackedField> for OriTable {
             arg1: event.src,
             arg2: event.imm,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
 pub struct XoriTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Xori as u16 }>,
+    state_cols: StateColumns<{ Opcode::Xori as u16 }>,
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B32>, // Virtual
     src_abs: Col<B32>, // Virtual
@@ -1025,15 +1025,15 @@ impl Table for XoriTable {
         let mut table = cs.add_table("xori");
         let src_val = table.add_committed("src_val");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
-        let dst_abs = table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
-        let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
-        let imm = cpu_cols.arg2;
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+        let imm = state_cols.arg2;
 
         let dst_val = table.add_computed("dst_val", src_val + upcast_expr(imm.into()));
 
@@ -1045,7 +1045,7 @@ impl Table for XoriTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs,
             dst_val,
             src_abs,
@@ -1084,7 +1084,7 @@ impl TableFiller<ProverPackedField> for XoriTable {
                 src_val[i] = event.src_val;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -1092,13 +1092,13 @@ impl TableFiller<ProverPackedField> for XoriTable {
             arg1: event.src,
             arg2: event.imm,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
 pub struct AndiTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Andi as u16 }>,
+    state_cols: StateColumns<{ Opcode::Andi as u16 }>,
     dst_abs: Col<B32>,             // Virtual
     src_abs: Col<B32>,             // Virtual
     dst_val_unpacked: Col<B1, 16>, // Virtual
@@ -1121,16 +1121,16 @@ impl Table for AndiTable {
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val");
         let src_val = table.add_packed("src_val", src_val_unpacked);
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions::default(),
+            StateColumnsOptions::default(),
         );
 
-        let dst_abs = table.add_computed("dst_abs", cpu_cols.fp + upcast_col(cpu_cols.arg0));
-        let src_abs = table.add_computed("src_abs", cpu_cols.fp + upcast_col(cpu_cols.arg1));
-        let imm = cpu_cols.arg2_unpacked;
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+        let imm = state_cols.arg2_unpacked;
 
         let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
@@ -1145,7 +1145,7 @@ impl Table for AndiTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs,
             src_abs,
             dst_val,
@@ -1187,7 +1187,7 @@ impl TableFiller<ProverPackedField> for AndiTable {
                 src_val_low[i] = event.src_val as u16;
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -1195,7 +1195,7 @@ impl TableFiller<ProverPackedField> for AndiTable {
             arg1: event.src,
             arg2: event.imm,
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -1208,8 +1208,8 @@ impl TableFiller<ProverPackedField> for AndiTable {
 pub struct B32MuliTable {
     /// Table ID
     pub id: TableId,
-    /// CPU columns for first instruction
-    cpu_cols: CpuColumns<{ Opcode::B32Muli as u16 }>,
+    /// State columns for first instruction
+    state_cols: StateColumns<{ Opcode::B32Muli as u16 }>,
     /// Source value
     pub src_val: Col<B32>,
     /// Immediate value (32-bit constructed from two 16-bit values)
@@ -1240,24 +1240,24 @@ impl Table for B32MuliTable {
         let next_pc = table.add_committed("next_pc");
 
         // First instruction - captures the initial opcode, dst, src, and imm_low
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Target(next_pc),
                 next_fp: None,
             },
         );
 
-        let CpuColumns {
+        let StateColumns {
             pc,
             fp,
             arg0: dst,
             arg1: src,
             arg2: imm_low,
             ..
-        } = cpu_cols;
+        } = state_cols;
 
         // Checks that the next PC is PC * G * G
         let second_instruction_pc = table.add_computed("second_instruction_pc", pc * G);
@@ -1293,7 +1293,7 @@ impl Table for B32MuliTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             src_val,
             imm_val,
             dst_val,
@@ -1351,8 +1351,8 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
             }
         }
 
-        // Populate the first instruction CPU rows
-        let cpu_rows = rows.clone().map(|event| CpuGadget {
+        // Populate the first instruction State rows
+        let state_rows = rows.clone().map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some((event.pc * G * G).val()),
             fp: *event.fp,
@@ -1361,7 +1361,7 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
             arg2: event.imm as u16, // imm_low
         });
 
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
 
         Ok(())
     }

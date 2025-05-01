@@ -10,7 +10,7 @@ use crate::{
 /// A gadget for reading an instruction and its operands from the PROM and
 /// setting the next program counter.
 #[derive(Default)]
-pub(crate) struct CpuGadget {
+pub(crate) struct StateGadget {
     /// Current program counter
     pub(crate) pc: u32,
     /// Next program counter
@@ -32,8 +32,8 @@ type OpcodeArg = Col<B16>;
 /// consisting of 16 binary columns.
 type OpcodeArgUnpacked = Col<B1, 16>;
 
-/// The columns associated with the CPU gadget.
-pub(crate) struct CpuColumns<const OPCODE: u16> {
+/// The columns associated with the [`StateGadget`].
+pub(crate) struct StateColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
     // TODO: next pc can be set to anything, so shouldn't be virtual?
     pub(crate) next_pc: Col<B32>, // Virtual
@@ -44,7 +44,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) arg2_unpacked: OpcodeArgUnpacked,
     pub(crate) arg2: OpcodeArg, // Virtual,
 
-    options: CpuColumnsOptions,
+    options: StateColumnsOptions,
     // Virtual columns for communication with the channels
     prom_pull: Col<B128>, // Virtual
 }
@@ -61,17 +61,17 @@ pub(crate) enum NextPc {
 }
 
 #[derive(Default)]
-pub(crate) struct CpuColumnsOptions {
+pub(crate) struct StateColumnsOptions {
     pub(crate) next_pc: NextPc,
     pub(crate) next_fp: Option<Col<B32>>,
 }
 
-impl<const OPCODE: u16> CpuColumns<OPCODE> {
+impl<const OPCODE: u16> StateColumns<OPCODE> {
     pub fn new(
         table: &mut TableBuilder,
         state_channel: ChannelId,
         prom_channel: ChannelId,
-        options: CpuColumnsOptions,
+        options: StateColumnsOptions,
     ) -> Self {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
@@ -114,7 +114,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         rows: T,
     ) -> Result<(), anyhow::Error>
     where
-        T: Iterator<Item = CpuGadget>,
+        T: Iterator<Item = StateGadget>,
     {
         // TODO: Replace with `get_scalars_mut`?
         let mut pc_col = index.get_mut_as(self.pc)?;
@@ -129,7 +129,7 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
 
         for (
             i,
-            CpuGadget {
+            StateGadget {
                 pc,
                 next_pc,
                 fp,

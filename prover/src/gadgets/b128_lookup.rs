@@ -14,7 +14,7 @@ pub(crate) struct B128LookupGadget {
     pub(crate) val: u128,
 }
 
-/// The columns associated with the CPU gadget.
+/// The columns associated with the [`StateGadget`].
 pub(crate) struct B128LookupColumns {
     pub(crate) addr_base: Col<B32>,
     pub(crate) addr_tail: [Col<B32>; 3], // Virtual
