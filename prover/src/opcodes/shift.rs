@@ -2,7 +2,8 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId,
+        TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -303,7 +304,7 @@ define_logic_shift_table!(vrom:  SrlTable,  "srl",
 define_logic_shift_table!(vrom:  SllTable,  "sll",
      Event=SllEvent,  OPCODE=Opcode::Sll,  VARIANT=ShiftVariant::LogicalLeft);
 
-// SRA: Shift Right Arithmetic (register-based shift amount)
+// SRA: Shift Right Arithmetic (vrom-based shift amount)
 pub struct SraTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Sra as u16 }>,
@@ -314,6 +315,7 @@ pub struct SraTable {
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
     inverted_input: Col<B1, 32>,
+    shifter_input: Col<B1, 32>, // Selected input for shifter
     shift_abs: Col<B32>,
     shift_amount_unpacked: Col<B1, 16>,
     shift_vrom_val: Col<B32>,
@@ -347,6 +349,18 @@ impl Table for SraTable {
         // Create inverted input for negative numbers
         let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
 
+        // Add a committed column for the shifter input (selected based on sign bit)
+        let shifter_input = table.add_committed::<B1, 32>("shifter_input");
+
+        // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
+        setup_mux_constraint(
+            &mut table,
+            &shifter_input,
+            &inverted_input,
+            &src_val_unpacked,
+            &sign_bit,
+        );
+
         // Address calculations
         let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
@@ -363,15 +377,15 @@ impl Table for SraTable {
             pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
         );
 
-        // Barrel shifter using logical right shift
+        // Single barrel shifter using the selected input
         let shifter = BarrelShifter::new(
             &mut table,
-            src_val_unpacked,
+            shifter_input,
             shift_amount_unpacked,
             ShiftVariant::LogicalRight,
         );
 
-        // Invert the output if sign_bit is 1
+        // Invert the output for negative numbers
         let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
 
         // Result selector based on sign bit
@@ -404,6 +418,7 @@ impl Table for SraTable {
             src_val_unpacked,
             sign_bit,
             inverted_input,
+            shifter_input,
             shift_abs,
             shift_amount_unpacked,
             shift_vrom_val,
@@ -440,6 +455,7 @@ impl TableFiller<ProverPackedField> for SraTable {
             let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
             let mut shift_vrom_val_high = witness.get_scalars_mut(self.shift_vrom_val_high)?;
             let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
+            let mut shifter_input = witness.get_mut_as(self.shifter_input)?;
             let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
             let mut result = witness.get_mut_as(self.result)?;
             let mut sign_bit = witness.get_mut(self.sign_bit)?;
@@ -453,24 +469,27 @@ impl TableFiller<ProverPackedField> for SraTable {
                 shift_vrom_val[i] = B32::new(ev.shift_amount);
                 shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
 
-                // Calculate result for the witness using invert-shift-invert pattern
+                // Calculate sign bit
                 let is_negative = (ev.src_val >> 31) & 1 == 1;
                 binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
 
-                // Invert the input if negative
+                // Calculate inverted input for negative numbers
                 inverted_input[i] = !ev.src_val;
 
-                // Get shifter output from either the original or inverted input
-                let shift_result = if is_negative {
-                    inverted_input[i] >> (ev.shift_amount & 0x1F) as usize
+                // Select the input for the shifter based on sign bit
+                shifter_input[i] = if is_negative {
+                    inverted_input[i]
                 } else {
-                    ev.src_val >> (ev.shift_amount & 0x1F) as usize
+                    ev.src_val
                 };
 
-                // Invert the output if negative
+                // Calculate the shifted result
+                let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
+
+                // Calculate inverted output (must be calculated with bit negation)
                 inverted_output[i] = !shift_result;
 
-                // Select the result based on sign bit
+                // Select final output based on sign bit
                 result[i] = if is_negative {
                     inverted_output[i]
                 } else {
@@ -490,8 +509,9 @@ impl TableFiller<ProverPackedField> for SraTable {
         });
         self.state_cols.populate(witness, state_rows)?;
 
-        // Populate barrel shifter columns
+        // Populate barrel shifter
         self.shifter.populate(witness)?;
+
         Ok(())
     }
 }
@@ -507,6 +527,7 @@ pub struct SraiTable {
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
     inverted_input: Col<B1, 32>,
+    shifter_input: Col<B1, 32>, // Selected input for shifter
     inverted_output: Col<B1, 32>,
     result: Col<B1, 32>,
 }
@@ -536,19 +557,31 @@ impl Table for SraiTable {
         // Create inverted input for negative numbers
         let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
 
+        // Add a committed column for the shifter input (selected based on sign bit)
+        let shifter_input = table.add_committed::<B1, 32>("shifter_input");
+
+        // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
+        setup_mux_constraint(
+            &mut table,
+            &shifter_input,
+            &inverted_input,
+            &src_val_unpacked,
+            &sign_bit,
+        );
+
         // Absolute addresses for destination and source
         let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
-        // Barrel shifter wired to state_cols.arg2_unpacked (immediate shift amount)
+        // Single barrel shifter using the selected input
         let shifter = BarrelShifter::new(
             &mut table,
-            src_val_unpacked,
+            shifter_input,
             state_cols.arg2_unpacked,
             ShiftVariant::LogicalRight,
         );
 
-        // Invert the output if sign_bit is 1
+        // Invert the output for negative numbers
         let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
 
         // Result selector based on sign bit
@@ -580,6 +613,7 @@ impl Table for SraiTable {
             src_val_unpacked,
             sign_bit,
             inverted_input,
+            shifter_input,
             inverted_output,
             result,
         }
@@ -608,6 +642,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
+            let mut shifter_input = witness.get_mut_as(self.shifter_input)?;
             let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
             let mut result = witness.get_mut_as(self.result)?;
             let mut sign_bit = witness.get_mut(self.sign_bit)?;
@@ -617,24 +652,27 @@ impl TableFiller<ProverPackedField> for SraiTable {
                 dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                 src_abs[i] = B32::new(ev.fp.addr(ev.src));
 
-                // Calculate result for the witness using invert-shift-invert pattern
+                // Calculate sign bit
                 let is_negative = (ev.src_val >> 31) & 1 == 1;
                 binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
 
-                // Invert the input if negative
+                // Calculate inverted input for negative numbers
                 inverted_input[i] = !ev.src_val;
 
-                // Get shifter output from either the original or inverted input
-                let shift_result = if is_negative {
-                    inverted_input[i] >> (ev.shift_amount & 0x1F) as usize
+                // Select the input for the shifter based on sign bit
+                shifter_input[i] = if is_negative {
+                    inverted_input[i]
                 } else {
-                    ev.src_val >> (ev.shift_amount & 0x1F) as usize
+                    ev.src_val
                 };
 
-                // Invert the output if negative
+                // Calculate the shifted result
+                let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
+
+                // Calculate inverted output (must be calculated with bit negation)
                 inverted_output[i] = !shift_result;
 
-                // Select the result based on sign bit
+                // Select final output based on sign bit
                 result[i] = if is_negative {
                     inverted_output[i]
                 } else {
@@ -653,6 +691,8 @@ impl TableFiller<ProverPackedField> for SraiTable {
             arg2: ev.shift_amount as u16,
         });
         self.state_cols.populate(witness, state_rows)?;
+
+        // Populate barrel shifter
         self.shifter.populate(witness)?;
 
         Ok(())
@@ -661,7 +701,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
 
 // Helper function to set up the multiplexer constraint for bit selection
 fn setup_mux_constraint(
-    table: &mut binius_m3::builder::TableBuilder,
+    table: &mut TableBuilder,
     result: &Col<B1, 32>,
     when_true: &Col<B1, 32>,
     when_false: &Col<B1, 32>,
@@ -669,8 +709,7 @@ fn setup_mux_constraint(
 ) {
     // Create packed (32-bit) versions of columns
     let result_packed = table.add_packed("result_packed", *result);
-    let true_packed: binius_m3::builder::Expr<B32, 1> =
-        table.add_packed("when_true_packed", *when_true).into();
+    let true_packed = table.add_packed("when_true_packed", *when_true);
     let false_packed = table.add_packed("when_false_packed", *when_false);
 
     // Create constraint for the mux:
@@ -800,12 +839,5 @@ mod tests {
         ) {
             prop_assert!(test_arithmetic_shift_with_values(val, shift_amount).is_ok());
         }
-    }
-
-    #[test]
-    fn test_arithmetic_shift_with_negative_values() {
-        let val = -1;
-        let shift_amount = 1;
-        test_arithmetic_shift_with_values(val, shift_amount).unwrap();
     }
 }
