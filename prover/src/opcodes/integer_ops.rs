@@ -187,6 +187,8 @@ impl Table for SubTable {
         // Pull the destination and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
         let dst_val = table.add_committed("dst_val");
+        let dst_val_packed = table.add_packed("dst_val_packed", dst_val);
+
         let src1_abs = table.add_computed("src1", cpu_cols.fp + upcast_col(cpu_cols.arg1));
 
         let src2_abs = table.add_computed("src2", cpu_cols.fp + upcast_col(cpu_cols.arg2));
@@ -195,7 +197,6 @@ impl Table for SubTable {
 
         // Carry out the multiplication.
         let add_op = U32Add::new(&mut table, dst_val, src2_val, U32AddFlags::default());
-        let dst_val_packed = table.add_packed("dst_val_packed", dst_val);
         let src1_val_packed = table.add_packed("src1_val_packed", add_op.zout);
 
         // Read src1
