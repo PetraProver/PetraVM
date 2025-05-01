@@ -25,7 +25,7 @@ const MAX_SHIFT_BITS: usize = 5;
 ///
 /// This approach correctly handles the sign bit propagation required for
 /// arithmetic right shift operations.
-pub struct ArithmeticShifter {
+pub struct ArithmeticRightShifter {
     /// The input column representing the 32-bit value to be shifted.
     input: Col<B1, 32>,
 
@@ -73,7 +73,7 @@ pub struct ArithmeticShifter {
     pub output: Col<B1, 32>,
 }
 
-impl ArithmeticShifter {
+impl ArithmeticRightShifter {
     /// Creates a new instance of the `ArithmeticShifter` gadget.
     ///
     /// # Arguments
@@ -333,7 +333,7 @@ mod tests {
     use super::*;
 
     /// Test the arithmetic shifter with given input and shift values.
-    fn test_shifter_with_values(input_val: u32, shift_val: u16) -> Result<(), anyhow::Error> {
+    fn test_shifter_with_values(input: i32, shift_amount: u16) -> Result<(), anyhow::Error> {
         // Set up the constraint system and table
         let mut cs = ConstraintSystem::new();
         let mut table = cs.add_table("ArithmeticShifterTable");
@@ -341,11 +341,11 @@ mod tests {
         let allocator = Bump::new();
 
         // Define input columns
-        let input = table.add_committed::<B1, 32>("input");
-        let shift_amount = table.add_committed::<B1, 16>("shift_amount");
+        let input_col = table.add_committed::<B1, 32>("input");
+        let shift_amount_col = table.add_committed::<B1, 16>("shift_amount");
 
         // Create the arithmetic shifter
-        let shifter = ArithmeticShifter::new(&mut table, input, shift_amount);
+        let shifter = ArithmeticRightShifter::new(&mut table, input_col, shift_amount_col);
 
         // Set up witness and statement
         let statement = Statement {
@@ -358,11 +358,11 @@ mod tests {
         let mut segment = table_witness.full_segment();
 
         // Populate input and shift amount columns
-        let mut input_ref = segment.get_mut_as::<u32, B1, 32>(input).unwrap();
-        input_ref[0] = input_val;
+        let mut input_ref = segment.get_mut_as::<u32, B1, 32>(input_col).unwrap();
+        input_ref[0] = input as u32;
 
-        let mut shift_ref = segment.get_mut_as::<u16, B1, 16>(shift_amount).unwrap();
-        shift_ref[0] = shift_val;
+        let mut shift_ref = segment.get_mut_as::<u16, B1, 16>(shift_amount_col).unwrap();
+        shift_ref[0] = shift_amount;
 
         // Drop the mutable borrows before calling populate
         drop(input_ref);
@@ -375,14 +375,13 @@ mod tests {
         let output_val = segment.get_as::<u32, B1, 32>(shifter.output).unwrap()[0];
 
         // Calculate expected arithmetic right shift result
-        let input_i32 = input_val as i32;
-        let shift = (shift_val & 0x1F) as u32;
-        let expected_output = (input_i32 >> shift) as u32;
+        let shift_amount = shift_amount & 0x1F;
+        let expected_output = (input >> shift_amount) as u32;
 
         assert_eq!(
             output_val, expected_output,
             "Mismatch for input: {:#x}, shift: {}, got: {:#x}, expected: {:#x}",
-            input_val, shift, output_val, expected_output
+            input, shift_amount, output_val, expected_output
         );
 
         // Validate the witness against the constraint system
@@ -400,14 +399,9 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_arithmetic_shift_operations(
+        fn test_arithmetic_right_shift_gadget(
             input_val in prop_oneof![
-                any::<u32>(),                    // Random values
-                Just(0u32),                      // Zero
-                Just(1u32),                      // Positive small number
-                Just(0x7FFFFFFFu32),             // Max positive 32-bit signed
-                Just(0x80000000u32),             // Min negative 32-bit signed
-                Just(0xFFFFFFFFu32),             // -1 in two's complement
+                any::<i32>(),                    // Random values
             ],
             // Shift amount test cases
             shift_val in prop_oneof![
