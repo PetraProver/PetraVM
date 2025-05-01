@@ -272,6 +272,8 @@ impl TableFiller<ProverPackedField> for SubTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
+    use proptest::prelude::*;
+    use proptest::prop_oneof;
     use zcrayvm_assembly::isa::GenericISA;
 
     use super::*;
@@ -372,11 +374,7 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    #[test]
-    fn test_add() -> Result<()> {
-        let src1_value = 0x4567;
-        let src2_value = 0x12345678;
-
+    fn test_add_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
         let trace = generate_add_trace(src1_value, src2_value)?;
         trace.validate()?;
         assert_eq!(trace.add_events().len(), 1);
@@ -385,11 +383,7 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    #[test]
-    fn test_sub() -> Result<()> {
-        let src1_value = 0x4567;
-        let src2_value = 0x12345678;
-
+    fn test_sub_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
         let trace = generate_sub_trace(src1_value, src2_value)?;
         trace.validate()?;
         assert_eq!(trace.sub_events().len(), 1);
@@ -398,12 +392,7 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    #[test]
-    fn test_add_sub() -> Result<()> {
-        let src1_value = 0x4567;
-        let src2_value = 0x12345678;
-        let src3_value = 0x87654321;
-
+    fn test_add_sub_with_values(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<()> {
         let trace = generate_add_sub_trace(src1_value, src2_value, src3_value)?;
         trace.validate()?;
         assert_eq!(trace.add_events().len(), 1);
@@ -411,5 +400,26 @@ mod tests {
         assert_eq!(trace.ldi_events().len(), 3);
         assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_integer_operations(
+            src1_value in prop_oneof![
+                any::<u32>()                    // Random values
+            ],
+            src2_value in prop_oneof![
+                any::<u32>()                    // Random values
+            ],
+            src3_value in prop_oneof![
+                any::<u32>()                    // Random values
+            ],
+        ) {
+            prop_assert!(test_add_with_values(src1_value, src2_value).is_ok());
+            prop_assert!(test_sub_with_values(src1_value, src2_value).is_ok());
+            prop_assert!(test_add_sub_with_values(src1_value, src2_value, src3_value).is_ok());
+        }
     }
 }
