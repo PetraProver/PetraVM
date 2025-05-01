@@ -5,6 +5,7 @@ edition.workspace = true
 authors = ["zCray Team"]
 
 [dependencies]
+array-util = "1.0.2"
 anyhow.workspace = true
 clap = { version = "4.5.20", features = ["derive"] }
 log = "0.4"
