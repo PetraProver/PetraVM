@@ -1,11 +1,12 @@
 use binius_core::oracle::ShiftVariant;
+use binius_field::Field;
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
-use zcrayvm_assembly::{Opcode, SllEvent, SlliEvent, SrlEvent, SrliEvent};
+use zcrayvm_assembly::{Opcode, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
@@ -302,6 +303,386 @@ define_logic_shift_table!(vrom:  SrlTable,  "srl",
 define_logic_shift_table!(vrom:  SllTable,  "sll",
      Event=SllEvent,  OPCODE=Opcode::Sll,  VARIANT=ShiftVariant::LogicalLeft);
 
+// SRA: Shift Right Arithmetic (register-based shift amount)
+pub struct SraTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Sra as u16 }>,
+    shifter: BarrelShifter,
+    dst_abs: Col<B32>,
+    dst_val: Col<B32>,
+    src_abs: Col<B32>,
+    src_val_unpacked: Col<B1, 32>,
+    sign_bit: Col<B1>,
+    inverted_input: Col<B1, 32>,
+    shift_abs: Col<B32>,
+    shift_amount_unpacked: Col<B1, 16>,
+    shift_vrom_val: Col<B32>,
+    shift_vrom_val_high: Col<B16>,
+    inverted_output: Col<B1, 32>,
+    result: Col<B1, 32>,
+}
+
+impl Table for SraTable {
+    type Event = SraEvent;
+    fn name(&self) -> &'static str {
+        "SraTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("sra");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
+
+        // Source value columns
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
+        let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+
+        // Get sign bit (MSB of src value)
+        let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
+
+        // Create inverted input for negative numbers
+        let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
+
+        // Address calculations
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+        let shift_abs =
+            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
+
+        // Shift amount columns
+        let shift_amount_unpacked: Col<B1, 16> = table.add_committed("shift_amount_unpacked");
+        let shift_amount_packed: Col<B16, 1> =
+            table.add_packed("shift_amount", shift_amount_unpacked);
+        let shift_vrom_val_high = table.add_committed("shift_vrom_val_high");
+        let shift_vrom_val = table.add_computed(
+            "shift_vrom_val",
+            pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
+        );
+
+        // Barrel shifter using logical right shift
+        let shifter = BarrelShifter::new(
+            &mut table,
+            src_val_unpacked,
+            shift_amount_unpacked,
+            ShiftVariant::LogicalRight,
+        );
+
+        // Invert the output if sign_bit is 1
+        let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
+
+        // Result selector based on sign bit
+        let result = table.add_committed("result");
+
+        // Set up multiplexer constraint: result = sign_bit ? inverted_output :
+        // shifter.output
+        setup_mux_constraint(
+            &mut table,
+            &result,
+            &inverted_output,
+            &shifter.output,
+            &sign_bit,
+        );
+
+        let dst_val = table.add_packed("dst_val", result);
+
+        // Pull memory access data from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        table.pull(channels.vrom_channel, [shift_abs, shift_vrom_val]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            shifter,
+            dst_abs,
+            dst_val,
+            src_abs,
+            src_val_unpacked,
+            sign_bit,
+            inverted_input,
+            shift_abs,
+            shift_amount_unpacked,
+            shift_vrom_val,
+            shift_vrom_val_high,
+            inverted_output,
+            result,
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for SraTable {
+    type Event = SraEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SraEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill basic columns and shift amount data
+        {
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
+            let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
+            let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
+            let mut shift_vrom_val_high = witness.get_scalars_mut(self.shift_vrom_val_high)?;
+            let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
+            let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
+            let mut result = witness.get_mut_as(self.result)?;
+            let mut sign_bit = witness.get_mut(self.sign_bit)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_unpacked[i] = ev.src_val;
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
+                shift_unpacked[i] = ev.shift_amount as u16;
+                shift_vrom_val[i] = B32::new(ev.shift_amount);
+                shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
+
+                // Calculate result for the witness using invert-shift-invert pattern
+                let is_negative = (ev.src_val >> 31) & 1 == 1;
+                binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
+
+                // Invert the input if negative
+                inverted_input[i] = !ev.src_val;
+
+                // Get shifter output from either the original or inverted input
+                let shift_result = if is_negative {
+                    inverted_input[i] >> (ev.shift_amount & 0x1F) as usize
+                } else {
+                    ev.src_val >> (ev.shift_amount & 0x1F) as usize
+                };
+
+                // Invert the output if negative
+                inverted_output[i] = !shift_result;
+
+                // Select the result based on sign bit
+                result[i] = if is_negative {
+                    inverted_output[i]
+                } else {
+                    shift_result
+                };
+            }
+        }
+
+        // Populate StateGadget columns
+        let state_rows = rows.clone().map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+
+        // Populate barrel shifter columns
+        self.shifter.populate(witness)?;
+        Ok(())
+    }
+}
+
+// SRAI: Shift Right Arithmetic Immediate
+pub struct SraiTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Srai as u16 }>,
+    shifter: BarrelShifter,
+    dst_abs: Col<B32>,
+    dst_val: Col<B32>,
+    src_abs: Col<B32>,
+    src_val_unpacked: Col<B1, 32>,
+    sign_bit: Col<B1>,
+    inverted_input: Col<B1, 32>,
+    inverted_output: Col<B1, 32>,
+    result: Col<B1, 32>,
+}
+
+impl Table for SraiTable {
+    type Event = SraiEvent;
+    fn name(&self) -> &'static str {
+        "SraiTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("srai");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
+
+        // Source value columns
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
+        let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+
+        // Get sign bit (MSB of src value)
+        let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
+
+        // Create inverted input for negative numbers
+        let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
+
+        // Absolute addresses for destination and source
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+
+        // Barrel shifter wired to state_cols.arg2_unpacked (immediate shift amount)
+        let shifter = BarrelShifter::new(
+            &mut table,
+            src_val_unpacked,
+            state_cols.arg2_unpacked,
+            ShiftVariant::LogicalRight,
+        );
+
+        // Invert the output if sign_bit is 1
+        let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
+
+        // Result selector based on sign bit
+        let result = table.add_committed("result");
+
+        // Set up multiplexer constraint: result = sign_bit ? inverted_output :
+        // shifter.output
+        setup_mux_constraint(
+            &mut table,
+            &result,
+            &inverted_output,
+            &shifter.output,
+            &sign_bit,
+        );
+
+        let dst_val = table.add_packed("dst_val", result);
+
+        // Pull columns from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            shifter,
+            dst_abs,
+            dst_val,
+            src_abs,
+            src_val_unpacked,
+            sign_bit,
+            inverted_input,
+            inverted_output,
+            result,
+        }
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for SraiTable {
+    type Event = SraiEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SraiEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill source value, destination address, and source address
+        {
+            let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
+            let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
+            let mut result = witness.get_mut_as(self.result)?;
+            let mut sign_bit = witness.get_mut(self.sign_bit)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_unpacked[i] = ev.src_val;
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+
+                // Calculate result for the witness using invert-shift-invert pattern
+                let is_negative = (ev.src_val >> 31) & 1 == 1;
+                binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
+
+                // Invert the input if negative
+                inverted_input[i] = !ev.src_val;
+
+                // Get shifter output from either the original or inverted input
+                let shift_result = if is_negative {
+                    inverted_input[i] >> (ev.shift_amount & 0x1F) as usize
+                } else {
+                    ev.src_val >> (ev.shift_amount & 0x1F) as usize
+                };
+
+                // Invert the output if negative
+                inverted_output[i] = !shift_result;
+
+                // Select the result based on sign bit
+                result[i] = if is_negative {
+                    inverted_output[i]
+                } else {
+                    shift_result
+                };
+            }
+        }
+
+        // Populate StateGadget
+        let state_rows = rows.map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift_amount as u16,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        self.shifter.populate(witness)?;
+
+        Ok(())
+    }
+}
+
+// Helper function to set up the multiplexer constraint for bit selection
+fn setup_mux_constraint(
+    table: &mut binius_m3::builder::TableBuilder,
+    result: &Col<B1, 32>,
+    when_true: &Col<B1, 32>,
+    when_false: &Col<B1, 32>,
+    select_bit: &Col<B1>,
+) {
+    // Create packed (32-bit) versions of columns
+    let result_packed = table.add_packed("result_packed", *result);
+    let true_packed: binius_m3::builder::Expr<B32, 1> =
+        table.add_packed("when_true_packed", *when_true).into();
+    let false_packed = table.add_packed("when_false_packed", *when_false);
+
+    // Create constraint for the mux:
+    // result = select_bit ? when_true : when_false
+    table.assert_zero(
+        "mux_constraint",
+        result_packed
+            - (true_packed * upcast_col(*select_bit)
+                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -353,6 +734,40 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
+    /// Creates an execution trace for a simple program that uses various shift
+    /// instructions to test shift operations.
+    ///
+    /// The test program performs:
+    /// - SRAI: Arithmetic right shift with immediate value
+    /// - SRA: Arithmetic right shift with vrom value
+    fn generate_arithmetic_shift_trace(val: i32, shift_amount: u32) -> Result<Trace> {
+        let imm = shift_amount as u16;
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+            _start:\n\
+            LDI.W @3, #{}\n\
+            SRAI @4, @2, #{}\n\
+            SRA  @5, @2, @3 \n\
+            RET\n",
+            shift_amount, imm,
+        );
+
+        let init_values = vec![0, 0, val as u32];
+        generate_trace(asm_code, Some(init_values), None)
+    }
+
+    fn test_arithmetic_shift_with_values(val: i32, shift_amount: u32) -> Result<()> {
+        let trace = generate_arithmetic_shift_trace(val, shift_amount)?;
+        trace.validate()?;
+
+        // Verify we have the correct number of events
+        assert_eq!(trace.srai_events().len(), 1);
+        assert_eq!(trace.sra_events().len(), 1);
+
+        // Validate the witness
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
     proptest! {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
@@ -361,7 +776,6 @@ mod tests {
             val in prop_oneof![
                 any::<u32>()                    // Random values
             ],
-            // Minimal shift amount test cases
             shift_amount in prop_oneof![
                 Just(0u32),                     // Zero shift
                 Just(1),                        // Minimal shift
@@ -371,5 +785,27 @@ mod tests {
         ) {
             prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
         }
+
+        #[test]
+        fn test_arithmetic_shift_operations(
+            val in prop_oneof![
+                any::<i32>()                    // Random values
+            ],
+            shift_amount in prop_oneof![
+                Just(0u32),                     // Zero shift
+                Just(1),                        // Minimal shift
+                Just(31),                       // Maximum shift for i32
+                any::<u32>()                    // Random values
+            ]
+        ) {
+            prop_assert!(test_arithmetic_shift_with_values(val, shift_amount).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_arithmetic_shift_with_negative_values() {
+        let val = -1;
+        let shift_amount = 1;
+        test_arithmetic_shift_with_values(val, shift_amount).unwrap();
     }
 }
