@@ -2,8 +2,7 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
-        B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -14,7 +13,7 @@ use crate::{
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::pack_b16_into_b32,
+    utils::{pack_b16_into_b32, setup_mux_constraint},
 };
 
 /// This macro generates table structures for shift operations.
@@ -731,29 +730,6 @@ impl TableFiller<ProverPackedField> for SraiTable {
     }
 }
 
-// Helper function to set up the multiplexer constraint for bit selection
-fn setup_mux_constraint(
-    table: &mut TableBuilder,
-    result: &Col<B1, 32>,
-    when_true: &Col<B1, 32>,
-    when_false: &Col<B1, 32>,
-    select_bit: &Col<B1>,
-) {
-    // Create packed (32-bit) versions of columns
-    let result_packed = table.add_packed("result_packed", *result);
-    let true_packed = table.add_packed("when_true_packed", *when_true);
-    let false_packed = table.add_packed("when_false_packed", *when_false);
-
-    // Create constraint for the mux:
-    // result = select_bit ? when_true : when_false
-    table.assert_zero(
-        "mux_constraint",
-        result_packed
-            - (true_packed * upcast_col(*select_bit)
-                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -767,13 +743,7 @@ mod tests {
 
     /// Creates an execution trace for a simple program that uses various shift
     /// instructions to test shift operations.
-    ///
-    /// The test program performs:
-    /// - SRLI: Logical right shift with immediate value
-    /// - SRL: Logical right shift with vrom value
-    /// - SLLI: Logical left shift with immediate value
-    /// - SLL: Logical left shift with vrom value
-    fn generate_logic_shift_trace(val: u32, shift_amount: u32) -> Result<Trace> {
+    fn generate_shift_trace(val: u32, shift_amount: u32) -> Result<Trace> {
         let imm = shift_amount as u16;
         let asm_code = format!(
             "#[framesize(0x10)]\n\
@@ -783,8 +753,10 @@ mod tests {
             SRL  @5, @2, @3 \n\
             SLLI @6, @2, #{}\n\
             SLL  @7, @2, @3 \n\
+            SRAI @8, @2, #{}\n\
+            SRA  @9, @2, @3 \n\
             RET\n",
-            shift_amount, imm, imm
+            shift_amount, imm, imm, imm
         );
 
         let init_values = vec![0, 0, val];
@@ -792,7 +764,7 @@ mod tests {
     }
 
     fn test_shift_with_values(val: u32, shift_amount: u32) -> Result<()> {
-        let trace = generate_logic_shift_trace(val, shift_amount)?;
+        let trace = generate_shift_trace(val, shift_amount)?;
         trace.validate()?;
 
         // Verify we have the correct number of events
@@ -800,38 +772,6 @@ mod tests {
         assert_eq!(trace.slli_events().len(), 1);
         assert_eq!(trace.srl_events().len(), 1);
         assert_eq!(trace.sll_events().len(), 1);
-
-        // Validate the witness
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
-    }
-
-    /// Creates an execution trace for a simple program that uses various shift
-    /// instructions to test shift operations.
-    ///
-    /// The test program performs:
-    /// - SRAI: Arithmetic right shift with immediate value
-    /// - SRA: Arithmetic right shift with vrom value
-    fn generate_arithmetic_shift_trace(val: i32, shift_amount: u32) -> Result<Trace> {
-        let imm = shift_amount as u16;
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-            _start:\n\
-            LDI.W @3, #{}\n\
-            SRAI @4, @2, #{}\n\
-            SRA  @5, @2, @3 \n\
-            RET\n",
-            shift_amount, imm,
-        );
-
-        let init_values = vec![0, 0, val as u32];
-        generate_trace(asm_code, Some(init_values), None)
-    }
-
-    fn test_arithmetic_shift_with_values(val: i32, shift_amount: u32) -> Result<()> {
-        let trace = generate_arithmetic_shift_trace(val, shift_amount)?;
-        trace.validate()?;
-
-        // Verify we have the correct number of events
         assert_eq!(trace.srai_events().len(), 1);
         assert_eq!(trace.sra_events().len(), 1);
 
@@ -843,7 +783,7 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_logic_shift_operations(
+        fn test_shift_operations(
             val in prop_oneof![
                 any::<u32>()                    // Random values
             ],
@@ -855,21 +795,6 @@ mod tests {
             ]
         ) {
             prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
-        }
-
-        #[test]
-        fn test_arithmetic_shift_operations(
-            val in prop_oneof![
-                any::<i32>()                    // Random values
-            ],
-            shift_amount in prop_oneof![
-                Just(0u32),                     // Zero shift
-                Just(1),                        // Minimal shift
-                Just(31),                       // Maximum shift for i32
-                any::<u32>()                    // Random values
-            ]
-        ) {
-            prop_assert!(test_arithmetic_shift_with_values(val, shift_amount).is_ok());
         }
     }
 }
