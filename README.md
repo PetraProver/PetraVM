@@ -5,16 +5,9 @@ A verifiable supercomputer
 zCrayVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
 
 ## Instruction Set
-The zCrayVM features a comprehensive instruction set including:
-- Binary field operations
-- Integer arithmetic and logic operations
-- Memory operations
-- Control flow instructions
-- Function call mechanics
+zCrayVM's full instruction set is divided into five categories—Binary field, Arithmetic & Logic, Memory, Control Flow, and Function Calls—and the prover's current support is noted below.
 
-Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
-
-### Supported Instructions in the Prover
+### Prover Support (Work in Progress)
 
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication
@@ -76,6 +69,15 @@ Check out our [instruction set test suite](examples/opcodes.asm) for a complete 
 - [x] `TAILI` - Tail call to immediate address
 - [x] `TAILV` - Tail call to address in variable
 - [x] `RET` - Return from function
+
+#### Future Memory Extensions
+- [ ] `LW`/`SW` - Load/Store word (32-bit)
+- [ ] `LB`/`SB` - Load/Store byte
+- [ ] `LBU` - Load byte unsigned
+- [ ] `LH`/`SH` - Load/Store halfword
+- [ ] `LHU` - Load halfword unsigned
+
+Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of zCrayVM:
