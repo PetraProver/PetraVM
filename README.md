@@ -23,7 +23,6 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [x] `ADD` - Integer addition
 - [ ] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
-- [ ] `SUBI` - Integer subtraction with immediate
 - [ ] `MUL` - Signed multiplication
 - [ ] `MULI` - Signed multiplication with immediate
 - [ ] `MULU` - Unsigned multiplication
@@ -63,9 +62,8 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 
 #### Control Flow
 - [x] `J` - Jump to label or address
-- [x] `JUMPI` - Jump to immediate address
-- [x] `JUMPV` - Jump to address in variable
-- [x] `BZ` - Branch if zero
+    - [x] `JUMPI` - Jump to immediate address
+    - [x] `JUMPV` - Jump to address in variable
 - [x] `BNZ` - Branch if not zero
 
 #### Function Calls
