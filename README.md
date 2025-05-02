@@ -9,6 +9,10 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 
 ### Prover Support (Work in Progress)
 
+> **Note:** In zCrayVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
+
+> **Note:** Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication
 - [x] `B32_MULI` - 32-bit binary field multiplication with immediate
@@ -20,10 +24,10 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [ ] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
 - [ ] `SUBI` - Integer subtraction with immediate
-- [ ] `MUL` - Integer multiplication (signed)
-- [ ] `MULI` - Integer multiplication with immediate (signed)
-- [ ] `MULU` - Integer multiplication (unsigned)
-- [ ] `MULSU` - Integer multiplication (signed × unsigned)
+- [ ] `MUL` - Signed multiplication
+- [ ] `MULI` - Signed multiplication with immediate
+- [ ] `MULU` - Unsigned multiplication
+- [ ] `MULSU` - Signed × unsigned multiplication
 
 #### Logic Operations
 - [x] `AND` - Bitwise AND
@@ -52,32 +56,31 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
 
 #### Memory Operations
-- [x] `LDI` (LDI.W) - Load immediate word
-- [x] `MVV.W` - Move variable to variable (word)
-- [x] `MVV.L` - Move variable to variable (long, 128-bit)
-- [x] `MVI.H` - Move immediate to variable (half-word)
+- [x] `LDI.W` - Load immediate word
+- [x] `MVV.W` - Move word between addresses
+- [x] `MVV.L` - Move 128-bit value between addresses
+- [x] `MVI.H` - Move immediate half-word
 
 #### Control Flow
-- [x] `J` - Jump (to label or variable)
+- [x] `J` - Jump to label or address
 - [x] `JUMPI` - Jump to immediate address
 - [x] `JUMPV` - Jump to address in variable
+- [x] `BZ` - Branch if zero
 - [x] `BNZ` - Branch if not zero
 
 #### Function Calls
 - [x] `CALLI` - Call function at immediate address
-- [x] `CALLV` - Call function at address in variable
+- [x] `CALLV` - Call function at variable address
 - [x] `TAILI` - Tail call to immediate address
-- [x] `TAILV` - Tail call to address in variable
+- [x] `TAILV` - Tail call to variable address
 - [x] `RET` - Return from function
 
 #### Future Memory Extensions
-- [ ] `LW`/`SW` - Load/Store word (32-bit)
+- [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte
 - [ ] `LBU` - Load byte unsigned
 - [ ] `LH`/`SH` - Load/Store halfword
 - [ ] `LHU` - Load halfword unsigned
-
-Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of zCrayVM:
