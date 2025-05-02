@@ -7,7 +7,6 @@ use common::test_utils::{execute_test_asm, AsmToExecute};
 // TODO: Once we can support non-unsized arithmetic update and enable this
 // test...
 #[test]
-#[ignore]
 fn test_bezout_integration() {
     // Define test cases with (a, b) pairs and their expected gcd
     let test_cases = [
@@ -29,7 +28,7 @@ fn test_bezout_integration() {
         // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
         // Verify the gcd result
         assert_eq!(
-            bezout_frame.get_vrom_expected::<u32>(3),
+            bezout_frame.get_vrom_expected::<u32>(4),
             expected_gcd,
             "GCD of {} and {} should be {}",
             a,
@@ -39,11 +38,12 @@ fn test_bezout_integration() {
 
         // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
         // Verify Bezout coefficients satisfy the equation: a*x + b*y = gcd(a, b)
-        let x = bezout_frame.get_vrom_expected::<u32>(4);
-        let y = bezout_frame.get_vrom_expected::<u32>(5);
+        let x = bezout_frame.get_vrom_expected::<u32>(5) as i32;
+        let y = bezout_frame.get_vrom_expected::<u32>(6) as i32;
+
         assert_eq!(
-            a * x + b * y,
-            expected_gcd,
+            a as i32 * x + b as i32 * y,
+            expected_gcd as i32,
             "Bezout coefficients do not satisfy the equation for a = {}, b = {}",
             a,
             b

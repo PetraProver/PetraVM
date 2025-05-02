@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use binius_field::{BinaryField, BinaryField32b};
 use zcrayvm_assembly::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
@@ -230,9 +229,6 @@ pub fn execute_test_asm<T: Into<AsmToExecute>>(prog: T) -> ExecutedTestProgInfo 
 
     // Init the tracing subscriber if not already initialized.
     let _ = tracing_subscriber::fmt::try_init();
-
-    // Use the multiplicative generator G for calculations
-    const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
 
     let compiled_program = Assembler::from_code(&prog.asm_bytes).unwrap();
     let frame_templates = extract_frame_templates_from_assembled_program(&compiled_program);
