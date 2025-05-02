@@ -14,6 +14,70 @@ The zCrayVM features a comprehensive instruction set including:
 
 Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
+### Supported Instructions in the Prover
+
+#### Binary Field Operations
+- [x] `B32_MUL` - 32-bit binary field multiplication
+- [x] `B32_MULI` - 32-bit binary field multiplication with immediate
+- [x] `B128_ADD` - 128-bit binary field addition
+- [x] `B128_MUL` - 128-bit binary field multiplication
+
+#### Arithmetic Operations
+- [x] `ADD` - Integer addition
+- [ ] `ADDI` - Integer addition with immediate
+- [x] `SUB` - Integer subtraction
+- [ ] `SUBI` - Integer subtraction with immediate
+- [ ] `MUL` - Integer multiplication (signed)
+- [ ] `MULI` - Integer multiplication with immediate (signed)
+- [ ] `MULU` - Integer multiplication (unsigned)
+- [ ] `MULSU` - Integer multiplication (signed × unsigned)
+
+#### Logic Operations
+- [x] `AND` - Bitwise AND
+- [x] `ANDI` - Bitwise AND with immediate
+- [x] `OR` - Bitwise OR
+- [x] `ORI` - Bitwise OR with immediate
+- [x] `XOR` - Bitwise XOR
+- [x] `XORI` - Bitwise XOR with immediate
+
+#### Shift Operations
+- [x] `SLL` - Shift left logical
+- [x] `SLLI` - Shift left logical with immediate
+- [x] `SRL` - Shift right logical
+- [x] `SRLI` - Shift right logical with immediate
+- [x] `SRA` - Shift right arithmetic
+- [x] `SRAI` - Shift right arithmetic with immediate
+
+#### Comparison Operations
+- [ ] `SLT` - Set if less than (signed)
+- [ ] `SLTI` - Set if less than immediate (signed)
+- [ ] `SLTU` - Set if less than (unsigned)
+- [ ] `SLTIU` - Set if less than immediate (unsigned)
+- [ ] `SLE` - Set if less than or equal (signed)
+- [ ] `SLEI` - Set if less than or equal immediate (signed)
+- [ ] `SLEU` - Set if less than or equal (unsigned)
+- [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
+
+#### Memory Operations
+- [x] `LDI` (LDI.W) - Load immediate word
+- [x] `MVV.W` - Move variable to variable (word)
+- [x] `MVV.L` - Move variable to variable (long, 128-bit)
+- [x] `MVI.H` - Move immediate to variable (half-word)
+- [ ] `MVI.W` - Move immediate to variable (word)
+
+#### Control Flow
+- [x] `J` - Jump (to label or variable)
+- [x] `JUMPI` - Jump to immediate address
+- [x] `JUMPV` - Jump to address in variable
+- [x] `BNZ` - Branch if not zero
+
+#### Function Calls
+- [x] `CALLI` - Call function at immediate address
+- [x] `CALLV` - Call function at address in variable
+- [x] `TAILI` - Tail call to immediate address
+- [x] `TAILV` - Tail call to address in variable
+- [x] `RET` - Return from function
+
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of zCrayVM:
 
