@@ -45,8 +45,8 @@ Check out our [instruction set test suite](examples/opcodes.asm) for a complete 
 - [x] `SLLI` - Shift left logical with immediate
 - [x] `SRL` - Shift right logical
 - [x] `SRLI` - Shift right logical with immediate
-- [x] `SRA` - Shift right arithmetic
-- [x] `SRAI` - Shift right arithmetic with immediate
+- [ ] `SRA` - Shift right arithmetic
+- [ ] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
 - [ ] `SLT` - Set if less than (signed)
@@ -63,7 +63,6 @@ Check out our [instruction set test suite](examples/opcodes.asm) for a complete 
 - [x] `MVV.W` - Move variable to variable (word)
 - [x] `MVV.L` - Move variable to variable (long, 128-bit)
 - [x] `MVI.H` - Move immediate to variable (half-word)
-- [ ] `MVI.W` - Move immediate to variable (word)
 
 #### Control Flow
 - [x] `J` - Jump (to label or variable)
