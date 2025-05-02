@@ -77,7 +77,7 @@ impl<const OPCODE: u16> StateColumns<OPCODE> {
         let fp = table.add_committed("fp");
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
-        let arg2_unpacked = table.add_committed("arg2"); // This will be necessary for opcodes like SRLI
+        let arg2_unpacked = table.add_committed("arg2");
         let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         // Pull the current pc and instruction to the prom channel
