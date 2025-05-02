@@ -2,8 +2,8 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId,
-        TableWitnessSegment, B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
+        B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -314,14 +314,15 @@ pub struct SraTable {
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
-    inverted_input: Col<B1, 32>,
-    shifter_input: Col<B1, 32>, // Selected input for shifter
+    inverted_input: Col<B1, 32>, // ~input for negative number path
+    shifter_input: Col<B1, 32>,  /* Selected input for shifter (original or inverted based on
+                                  * sign bit) */
     shift_abs: Col<B32>,
     shift_amount_unpacked: Col<B1, 16>,
     shift_vrom_val: Col<B32>,
     shift_vrom_val_high: Col<B16>,
-    inverted_output: Col<B1, 32>,
-    result: Col<B1, 32>,
+    inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
+    result: Col<B1, 32>,          // Final result after selection
 }
 
 impl Table for SraTable {
@@ -346,10 +347,12 @@ impl Table for SraTable {
         // Get sign bit (MSB of src value)
         let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
 
-        // Create inverted input for negative numbers
+        // Create inverted input for negative numbers: ~input
         let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
 
         // Add a committed column for the shifter input (selected based on sign bit)
+        // For positive numbers: original input
+        // For negative numbers: inverted input (~input)
         let shifter_input = table.add_committed::<B1, 32>("shifter_input");
 
         // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
@@ -378,6 +381,8 @@ impl Table for SraTable {
         );
 
         // Single barrel shifter using the selected input
+        // For positive numbers: input >> shift
+        // For negative numbers: (~input) >> shift
         let shifter = BarrelShifter::new(
             &mut table,
             shifter_input,
@@ -385,7 +390,8 @@ impl Table for SraTable {
             ShiftVariant::LogicalRight,
         );
 
-        // Invert the output for negative numbers
+        // Invert the shifter output for negative numbers: ~(shifted value)
+        // This completes the invert-shift-invert pattern (~(~input >> shift))
         let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
 
         // Result selector based on sign bit
@@ -473,17 +479,25 @@ impl TableFiller<ProverPackedField> for SraTable {
                 let is_negative = (ev.src_val >> 31) & 1 == 1;
                 binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
 
-                // Calculate inverted input for negative numbers
+                // Calculate inverted input for negative numbers (~input)
                 inverted_input[i] = !ev.src_val;
 
                 // Select the input for the shifter based on sign bit
+                // For positive numbers: original input
+                // For negative numbers: inverted input (~input)
                 shifter_input[i] = if is_negative {
                     inverted_input[i]
                 } else {
                     ev.src_val
                 };
 
-                // Calculate the shifted result
+                // For positive numbers: input >> shift
+                // For negative numbers: We implement arithmetic right shift using the
+                // invert-shift-invert pattern:
+                //   1. Invert the input (~input)
+                //   2. Perform logical right shift on inverted input
+                //   3. Invert the result (~(~input >> shift))
+                // This correctly fills 1s from the left for negative numbers
                 let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
 
                 // Calculate inverted output (must be calculated with bit negation)
@@ -491,8 +505,10 @@ impl TableFiller<ProverPackedField> for SraTable {
 
                 // Select final output based on sign bit
                 result[i] = if is_negative {
-                    inverted_output[i]
+                    // For negative numbers: ~(~input >> shift)
+                    !shift_result
                 } else {
+                    // For positive numbers: input >> shift
                     shift_result
                 };
             }
@@ -526,10 +542,11 @@ pub struct SraiTable {
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
-    inverted_input: Col<B1, 32>,
-    shifter_input: Col<B1, 32>, // Selected input for shifter
-    inverted_output: Col<B1, 32>,
-    result: Col<B1, 32>,
+    inverted_input: Col<B1, 32>,  // ~input for negative number path
+    shifter_input: Col<B1, 32>,   /* Selected input for shifter (original or inverted based on
+                                   * sign bit) */
+    inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
+    result: Col<B1, 32>,          // Final result after selection
 }
 
 impl Table for SraiTable {
@@ -554,10 +571,12 @@ impl Table for SraiTable {
         // Get sign bit (MSB of src value)
         let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
 
-        // Create inverted input for negative numbers
+        // Create inverted input for negative numbers: ~input
         let inverted_input = table.add_computed("inverted_input", src_val_unpacked + B1::ONE);
 
         // Add a committed column for the shifter input (selected based on sign bit)
+        // For positive numbers: original input
+        // For negative numbers: inverted input (~input)
         let shifter_input = table.add_committed::<B1, 32>("shifter_input");
 
         // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
@@ -574,6 +593,8 @@ impl Table for SraiTable {
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
         // Single barrel shifter using the selected input
+        // For positive numbers: input >> shift
+        // For negative numbers: (~input) >> shift
         let shifter = BarrelShifter::new(
             &mut table,
             shifter_input,
@@ -581,7 +602,8 @@ impl Table for SraiTable {
             ShiftVariant::LogicalRight,
         );
 
-        // Invert the output for negative numbers
+        // Invert the shifter output for negative numbers: ~(shifted value)
+        // This completes the invert-shift-invert pattern (~(~input >> shift))
         let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
 
         // Result selector based on sign bit
@@ -656,17 +678,25 @@ impl TableFiller<ProverPackedField> for SraiTable {
                 let is_negative = (ev.src_val >> 31) & 1 == 1;
                 binius_field::packed::set_packed_slice(&mut sign_bit, i, B1::from(is_negative));
 
-                // Calculate inverted input for negative numbers
+                // Calculate inverted input for negative numbers (~input)
                 inverted_input[i] = !ev.src_val;
 
                 // Select the input for the shifter based on sign bit
+                // For positive numbers: original input
+                // For negative numbers: inverted input (~input)
                 shifter_input[i] = if is_negative {
                     inverted_input[i]
                 } else {
                     ev.src_val
                 };
 
-                // Calculate the shifted result
+                // For positive numbers: input >> shift
+                // For negative numbers: We implement arithmetic right shift using the
+                // invert-shift-invert pattern:
+                //   1. Invert the input (~input)
+                //   2. Perform logical right shift on inverted input
+                //   3. Invert the result (~(~input >> shift))
+                // This correctly fills 1s from the left for negative numbers
                 let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
 
                 // Calculate inverted output (must be calculated with bit negation)
@@ -674,8 +704,10 @@ impl TableFiller<ProverPackedField> for SraiTable {
 
                 // Select final output based on sign bit
                 result[i] = if is_negative {
-                    inverted_output[i]
+                    // For negative numbers: ~(~input >> shift)
+                    !shift_result
                 } else {
+                    // For positive numbers: input >> shift
                     shift_result
                 };
             }
