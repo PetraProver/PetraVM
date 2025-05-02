@@ -41,8 +41,8 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [x] `SLLI` - Shift left logical with immediate
 - [x] `SRL` - Shift right logical
 - [x] `SRLI` - Shift right logical with immediate
-- [ ] `SRA` - Shift right arithmetic
-- [ ] `SRAI` - Shift right arithmetic with immediate
+- [x] `SRA` - Shift right arithmetic
+- [x] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
 - [ ] `SLT` - Set if less than (signed)
