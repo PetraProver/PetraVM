@@ -542,9 +542,9 @@ pub struct SraiTable {
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
-    inverted_input: Col<B1, 32>,  // ~input for negative number path
-    shifter_input: Col<B1, 32>,   /* Selected input for shifter (original or inverted based on
-                                   * sign bit) */
+    inverted_input: Col<B1, 32>, // ~input for negative number path
+    shifter_input: Col<B1, 32>,  /* Selected input for shifter (original or inverted based on
+                                  * sign bit) */
     inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
     result: Col<B1, 32>,          // Final result after selection
 }
