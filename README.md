@@ -55,7 +55,7 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [ ] `SLEU` - Set if less than or equal (unsigned)
 - [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
 
-#### Memory Operations
+#### VROM Operations
 - [x] `LDI.W` - Load immediate word
 - [x] `MVV.W` - Move word between addresses
 - [x] `MVV.L` - Move 128-bit value between addresses
