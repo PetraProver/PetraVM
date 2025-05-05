@@ -4,7 +4,7 @@ use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
 
 use super::{AccessSize, MemoryError};
-use crate::{event::context::EventContext, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
+use crate::{memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -295,9 +295,9 @@ mod tests {
         assert_eq!(vrom.read::<u32>(2).unwrap(), 0x55667788);
         assert_eq!(vrom.read::<u32>(3).unwrap(), 0x11223344);
 
-        vrom.read::<u32>(3);
-        vrom.read::<u32>(2);
-        vrom.read::<u32>(2);
+        vrom.read::<u32>(3).unwrap();
+        vrom.read::<u32>(2).unwrap();
+        vrom.read::<u32>(2).unwrap();
 
         let vrom_access_counts = vrom.sorted_access_counts();
         assert_eq!(vrom_access_counts.len(), 4);

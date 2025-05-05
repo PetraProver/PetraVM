@@ -238,6 +238,7 @@ define_table_registry_and_accessors!(
     (andi, Andi),
     (xori, Xori),
     (add, Add),
+    (sub, Sub),
     (taili, Taili),
     (tailv, Tailv),
     (calli, Calli),
@@ -252,4 +253,7 @@ define_table_registry_and_accessors!(
     (jumpi, Jumpi),
     (jumpv, Jumpv),
     (srli, Srli),
+    (slli, Slli),
+    (srl, Srl),
+    (sll, Sll),
 );

@@ -5,7 +5,7 @@ use binius_m3::builder::{B16, B32};
 use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
-    memory::{AccessSize, MemoryError, Ram, RamValueT, VromValueT},
+    memory::{MemoryError, Ram, RamValueT, VromValueT},
     ValueRom, ZCrayTrace,
 };
 
@@ -71,7 +71,11 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        self.trace.vrom_write(addr, value)
+        for i in 0..T::word_size() {
+            let cur_word = (value.to_u128() >> (32 * i)) as u32;
+            self.trace.vrom_write(addr + i as u32, cur_word)?;
+        }
+        Ok(())
     }
 
     // /// Inserts a pending value in VROM to be set later.

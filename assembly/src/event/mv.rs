@@ -162,8 +162,6 @@ pub struct MvvwEvent {
     pub offset: u16,
 }
 
-// TODO: this is a 4-byte move instruction. So it needs to be updated once we
-// have multi-granularity.
 impl MvvwEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
@@ -488,8 +486,6 @@ pub struct MvihEvent {
     pub offset: u16,
 }
 
-// TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
-// zero-extended. So it needs to be updated once we have multi-granularity.
 impl MvihEvent {
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
@@ -846,6 +842,12 @@ mod tests {
         let target = G.pow(target_pc as u64 - 1);
 
         // Do MVVW and MVVL with an unaccessible source value.
+        // _start:
+        //     MVV.W @9[2], @4
+        //     MVV.L @9[4], @4
+        //     MVI.H @9[8], #12
+        //     TAILV @8, @9
+        //     RET
         let instructions = vec![
             [
                 Opcode::Mvvw.get_field_elt(),

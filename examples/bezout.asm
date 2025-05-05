@@ -1,5 +1,4 @@
-;; NOTE: `div` needs to be defined and this currently can not run.
-
+;; NOTE: `div` is defined in `div.asm` and is included when `bezout.asm` is run.
 #[framesize(0xd)]
 bezout:
     ;; Frame:

@@ -7,7 +7,7 @@ pub mod common;
 #[test]
 fn test_bit_ops_integration() {
     // Generate the trace for the `bit_ops.asm` program
-    let mut info = execute_test_asm(include_str!("../../examples/bit_ops.asm"), &[]);
+    let mut info = execute_test_asm(include_str!("../../examples/bit_ops.asm"));
     let bit_ops_frame = info.frames.add_frame("bit_ops");
 
     assert_eq!(

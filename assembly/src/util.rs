@@ -1,3 +1,4 @@
+#[cfg(test)]
 use binius_m3::builder::B16;
 use tracing_subscriber::EnvFilter;
 
@@ -9,22 +10,13 @@ pub fn init_logger() {
     tracing_subscriber::fmt().with_env_filter(filter).init();
 }
 
+#[cfg(test)]
 #[inline(always)]
 pub(crate) const fn get_binary_slot(i: u16) -> B16 {
     B16::new(i)
 }
 
-/// Helper method to obtain the n-th Fibonacci number.
-pub(crate) fn fibonacci(n: usize) -> u32 {
-    let mut cur_fibs = [0, 1];
-    for _ in 0..n {
-        let s = cur_fibs[0] + cur_fibs[1];
-        cur_fibs[0] = cur_fibs[1];
-        cur_fibs[1] = s;
-    }
-    cur_fibs[0]
-}
-
+#[cfg(test)]
 /// Helper method to obtain the Collatz orbits.
 pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
     let mut cur_value = initial_val;

@@ -174,7 +174,6 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 
     generate_trace(asm_code, None, Some(vrom_writes))
 }
-
 #[test]
 fn test_ldi_add_ret() -> Result<()> {
     test_from_trace_generator(
