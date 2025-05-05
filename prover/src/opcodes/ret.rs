@@ -9,8 +9,10 @@ use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, NextPc};
-use crate::{channels::Channels, gadgets::cpu::CpuGadget, table::Table, types::ProverPackedField};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions};
+use crate::{
+    channels::Channels, gadgets::state::StateGadget, table::Table, types::ProverPackedField,
+};
 /// RET (Return) table.
 ///
 /// This table handles the Return instruction, which returns from a function
@@ -25,8 +27,8 @@ use crate::{channels::Channels, gadgets::cpu::CpuGadget, table::Table, types::Pr
 pub struct RetTable {
     /// Table ID
     id: TableId,
-    /// CPU columns
-    cpu_cols: CpuColumns<{ Opcode::Ret as u16 }>,
+    /// State columns
+    state_cols: StateColumns<{ Opcode::Ret as u16 }>,
     fp_xor_1: Col<B32>, // Virtual
     next_pc: Col<B32>,
     next_fp: Col<B32>,
@@ -44,17 +46,17 @@ impl Table for RetTable {
         let next_pc = table.add_committed("next_pc");
         let next_fp = table.add_committed("next_fp");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Target(next_pc),
                 next_fp: Some(next_fp),
             },
         );
 
-        let fp0 = cpu_cols.fp;
+        let fp0 = state_cols.fp;
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
 
         // Read the next_pc
@@ -65,7 +67,7 @@ impl Table for RetTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             fp_xor_1,
             next_pc,
             next_fp,
@@ -90,21 +92,21 @@ impl TableFiller<ProverPackedField> for RetTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
-            let mut fp_xor_1 = witness.get_mut_as(self.fp_xor_1)?;
-            let mut next_pc = witness.get_mut_as(self.next_pc)?;
-            let mut next_fp = witness.get_mut_as(self.next_fp)?;
+            let mut fp_xor_1 = witness.get_scalars_mut(self.fp_xor_1)?;
+            let mut next_pc = witness.get_scalars_mut(self.next_pc)?;
+            let mut next_fp = witness.get_scalars_mut(self.next_fp)?;
             for (i, event) in rows.clone().enumerate() {
-                fp_xor_1[i] = event.fp.addr(1u32);
-                next_pc[i] = event.pc_next;
-                next_fp[i] = event.fp_next;
+                fp_xor_1[i] = B32::new(event.fp.addr(1u32));
+                next_pc[i] = B32::new(event.pc_next);
+                next_fp[i] = B32::new(event.fp_next);
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: Some(event.pc_next),
             fp: *event.fp,
             ..Default::default()
         });
-        self.cpu_cols.populate(witness, cpu_rows)
+        self.state_cols.populate(witness, state_rows)
     }
 }

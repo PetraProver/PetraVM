@@ -10,7 +10,7 @@ use crate::{
 /// A gadget for reading an instruction and its operands from the PROM and
 /// setting the next program counter.
 #[derive(Default)]
-pub(crate) struct CpuGadget {
+pub(crate) struct StateGadget {
     /// Current program counter
     pub(crate) pc: u32,
     /// Next program counter
@@ -32,8 +32,8 @@ type OpcodeArg = Col<B16>;
 /// consisting of 16 binary columns.
 type OpcodeArgUnpacked = Col<B1, 16>;
 
-/// The columns associated with the CPU gadget.
-pub(crate) struct CpuColumns<const OPCODE: u16> {
+/// The columns associated with the [`StateGadget`].
+pub(crate) struct StateColumns<const OPCODE: u16> {
     pub(crate) pc: Col<B32>,
     // TODO: next pc can be set to anything, so shouldn't be virtual?
     pub(crate) next_pc: Col<B32>, // Virtual
@@ -44,7 +44,7 @@ pub(crate) struct CpuColumns<const OPCODE: u16> {
     pub(crate) arg2_unpacked: OpcodeArgUnpacked,
     pub(crate) arg2: OpcodeArg, // Virtual,
 
-    options: CpuColumnsOptions,
+    options: StateColumnsOptions,
     // Virtual columns for communication with the channels
     prom_pull: Col<B128>, // Virtual
 }
@@ -61,23 +61,23 @@ pub(crate) enum NextPc {
 }
 
 #[derive(Default)]
-pub(crate) struct CpuColumnsOptions {
+pub(crate) struct StateColumnsOptions {
     pub(crate) next_pc: NextPc,
     pub(crate) next_fp: Option<Col<B32>>,
 }
 
-impl<const OPCODE: u16> CpuColumns<OPCODE> {
+impl<const OPCODE: u16> StateColumns<OPCODE> {
     pub fn new(
         table: &mut TableBuilder,
         state_channel: ChannelId,
         prom_channel: ChannelId,
-        options: CpuColumnsOptions,
+        options: StateColumnsOptions,
     ) -> Self {
         let pc = table.add_committed("pc");
         let fp = table.add_committed("fp");
         let arg0 = table.add_committed("arg0");
         let arg1 = table.add_committed("arg1");
-        let arg2_unpacked = table.add_committed("arg2"); // This will be necessary for opcodes like SRLI
+        let arg2_unpacked = table.add_committed("arg2");
         let arg2 = table.add_packed("arg2", arg2_unpacked);
 
         // Pull the current pc and instruction to the prom channel
@@ -114,22 +114,21 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
         rows: T,
     ) -> Result<(), anyhow::Error>
     where
-        T: Iterator<Item = CpuGadget>,
+        T: Iterator<Item = StateGadget>,
     {
-        // TODO: Replace with `get_scalars_mut`?
-        let mut pc_col = index.get_mut_as(self.pc)?;
-        let mut fp_col = index.get_mut_as(self.fp)?;
-        let mut next_pc_col = index.get_mut_as(self.next_pc)?;
+        let mut pc_col = index.get_scalars_mut(self.pc)?;
+        let mut fp_col = index.get_scalars_mut(self.fp)?;
+        let mut next_pc_col = index.get_scalars_mut(self.next_pc)?;
 
-        let mut arg0_col = index.get_mut_as(self.arg0)?;
-        let mut arg1_col = index.get_mut_as(self.arg1)?;
-        let mut arg2_col = index.get_mut_as(self.arg2)?;
+        let mut arg0_col = index.get_scalars_mut(self.arg0)?;
+        let mut arg1_col = index.get_scalars_mut(self.arg1)?;
+        let mut arg2_col = index.get_scalars_mut(self.arg2)?;
 
-        let mut prom_pull = index.get_mut_as(self.prom_pull)?;
+        let mut prom_pull = index.get_scalars_mut(self.prom_pull)?;
 
         for (
             i,
-            CpuGadget {
+            StateGadget {
                 pc,
                 next_pc,
                 fp,
@@ -139,16 +138,18 @@ impl<const OPCODE: u16> CpuColumns<OPCODE> {
             },
         ) in rows.enumerate()
         {
-            pc_col[i] = pc;
-            fp_col[i] = fp;
-            arg0_col[i] = arg0;
-            arg1_col[i] = arg1;
-            arg2_col[i] = arg2;
+            pc_col[i] = B32::new(pc);
+            fp_col[i] = B32::new(fp);
+            arg0_col[i] = B16::new(arg0);
+            arg1_col[i] = B16::new(arg1);
+            arg2_col[i] = B16::new(arg2);
 
             next_pc_col[i] = match self.options.next_pc {
-                NextPc::Increment => (B32::new(pc) * G).val(),
-                NextPc::Target(_) => next_pc.expect("next_pc must be Some when NextPc::Target"),
-                NextPc::Immediate => arg0 as u32 | (arg1 as u32) << 16,
+                NextPc::Increment => B32::new(pc) * G,
+                NextPc::Target(_) => {
+                    B32::new(next_pc.expect("next_pc must be Some when NextPc::Target"))
+                }
+                NextPc::Immediate => B32::new(arg0 as u32 | (arg1 as u32) << 16),
             };
 
             prom_pull[i] = pack_instruction_u128(pc, OPCODE, arg0, arg1, arg2);

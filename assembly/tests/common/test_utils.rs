@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use binius_field::{BinaryField, BinaryField32b, Field};
 use zcrayvm_assembly::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
@@ -176,6 +175,46 @@ fn extract_frame_templates_from_assembled_program(
     frame_templates
 }
 
+/// Binary(ies) to execute along with initial stack values.
+#[derive(Debug)]
+pub struct AsmToExecute {
+    asm_bytes: String,
+
+    /// Note that the first two values on the stack are always both set to `0`.
+    /// These values are applied to stack values [..2] onwards.
+    init_vals: Vec<u32>,
+}
+
+impl AsmToExecute {
+    pub fn new(asm_bytes: &str) -> Self {
+        Self {
+            asm_bytes: asm_bytes.to_string(),
+            init_vals: Vec::default(),
+        }
+    }
+
+    /// Add an additional binary to include.
+    ///
+    /// Note that program execution always starts at the first instruction in
+    /// the first binary. Also note that subsequent binaries are just
+    /// concatenated together.
+    pub fn add_binary(mut self, asm_bytes: &str) -> Self {
+        self.asm_bytes.push_str(asm_bytes);
+        self
+    }
+
+    pub fn init_vals(mut self, init_vals: Vec<u32>) -> Self {
+        self.init_vals = init_vals;
+        self
+    }
+}
+
+impl From<&'static str> for AsmToExecute {
+    fn from(v: &'static str) -> Self {
+        Self::new(v)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct ExecutedTestProgInfo {
     pub frames: Frames,
@@ -185,22 +224,21 @@ pub struct ExecutedTestProgInfo {
 /// Common logic that all ASM tests need to run.
 ///
 /// Note that `init_vals` are converted to a 32-bit binary field.
-pub fn execute_test_asm(asm_bytes: &str, init_vals: &[u32]) -> ExecutedTestProgInfo {
+pub fn execute_test_asm<T: Into<AsmToExecute>>(prog: T) -> ExecutedTestProgInfo {
+    let prog: AsmToExecute = prog.into();
+
     // Init the tracing subscriber if not already initialized.
     let _ = tracing_subscriber::fmt::try_init();
 
-    // Use the multiplicative generator G for calculations
-    const G: BinaryField32b = BinaryField32b::MULTIPLICATIVE_GENERATOR;
-
-    let compiled_program = Assembler::from_code(asm_bytes).unwrap();
+    let compiled_program = Assembler::from_code(&prog.asm_bytes).unwrap();
     let frame_templates = extract_frame_templates_from_assembled_program(&compiled_program);
 
-    let mut processed_init_vals = Vec::with_capacity(2 + init_vals.len());
+    let mut processed_init_vals = Vec::with_capacity(2 + prog.init_vals.len());
 
     // We always start execution on PC = 0, so the initial VROM should always
     // contain [0, 0].
     processed_init_vals.extend([0, 0]);
-    processed_init_vals.extend(init_vals.iter().map(|x| G.pow([*x as u64]).val()));
+    processed_init_vals.extend(prog.init_vals);
 
     let vrom = ValueRom::new_with_init_vals(&processed_init_vals);
     let memory = Memory::new(compiled_program.prom.clone(), vrom);

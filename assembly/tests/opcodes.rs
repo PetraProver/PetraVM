@@ -8,7 +8,7 @@ use zcrayvm_assembly::Opcode;
 
 #[test]
 fn test_opcodes() {
-    let mut info = execute_test_asm(include_str!("../../examples/opcodes.asm"), &[]);
+    let mut info = execute_test_asm(include_str!("../../examples/opcodes.asm"));
 
     // Ensure all opcodes are present in the program
     let mut unseen_types_remaining: HashSet<_> = HashSet::from_iter(Opcode::VARIANTS);

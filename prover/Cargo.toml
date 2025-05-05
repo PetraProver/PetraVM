@@ -6,24 +6,24 @@ authors = ["zCray Team"]
 
 [dependencies]
 anyhow.workspace = true
-clap = { version = "4.5.20", features = ["derive"] }
-log = "0.4"
-env_logger = "0.11.7"
-paste = "1.0.15"
-zcrayvm-assembly = { path = "../assembly" }
 bumpalo = { version = "3.16.0", features = ["collections"] }
 bytemuck = { version = "1.18.0", features = ["derive", "min_const_generics"] }
+clap = { version = "4.5.20", features = ["derive"] }
+env_logger = "0.11.7"
+log = "0.4"
+paste = "1.0.15"
 thiserror = "2.0.11"
+zcrayvm-assembly = { path = "../assembly" }
 
 # Binius dependencies
 binius_core.workspace = true
 binius_field.workspace = true
-binius_m3.workspace = true
-binius_hash.workspace = true
 binius_hal.workspace = true
+binius_hash.workspace = true
+binius_m3.workspace = true
 
 [dev-dependencies]
-zcrayvm-assembly = { path = "../assembly" }
 binius_m3 = { workspace = true, features = ["test_utils"] }
-rand = { version = "0.9.1", features = ["std"] }
 proptest = "1.4.0"
+rand = { version = "0.9.1", features = ["std"] }
+zcrayvm-assembly = { path = "../assembly" }

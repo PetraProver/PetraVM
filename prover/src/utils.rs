@@ -139,12 +139,14 @@ pub fn pack_instruction_b128(pc: B32, opcode: B16, arg1: B16, arg2: B16, arg3: B
 /// Format: [PC (32 bits) | arg3 (16 bits) | arg2 (16 bits) | arg1 (16 bits) |
 /// opcode (16 bits)]
 #[inline(always)]
-pub const fn pack_instruction_u128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> u128 {
-    opcode as u128
-        | (arg1 as u128) << 16
-        | (arg2 as u128) << 32
-        | (arg3 as u128) << 48
-        | (pc as u128) << 64
+pub const fn pack_instruction_u128(pc: u32, opcode: u16, arg1: u16, arg2: u16, arg3: u16) -> B128 {
+    B128::new(
+        opcode as u128
+            | (arg1 as u128) << 16
+            | (arg2 as u128) << 32
+            | (arg3 as u128) << 48
+            | (pc as u128) << 64,
+    )
 }
 
 /// Creates a B128 value by packing instruction components with a 32-bit

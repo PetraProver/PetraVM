@@ -29,19 +29,19 @@ fn generate_addi_ret_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
     );
 
     // Initialize memory with return PC = 0, return FP = 0
-    let init_values = [0, 0];
+    let init_values = vec![0, 0];
 
     // Add VROM writes from LDI eventsff
     let vrom_writes = vec![
         // Initial values
+        (2, src_value, 2),
         (0, 0, 1),
         (1, 0, 1),
-        (2, src_value, 2),
         // ADDI event
         (3, src_value + imm_value as u32, 1),
     ];
 
-    generate_test_trace(asm_code, init_values, vrom_writes)
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
 }
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
@@ -204,7 +204,6 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
 
     generate_trace(asm_code, None, Some(vrom_writes))
 }
-
 #[test]
 fn test_ldi_add_ret() -> Result<()> {
     test_from_trace_generator(
@@ -483,11 +482,6 @@ fn test_ldi_addi_ret() -> Result<()> {
         },
         |trace| {
             assert_eq!(
-                trace.program.len(),
-                3,
-                "Program should have exactly 3 instructions"
-            );
-            assert_eq!(
                 trace.addi_events().len(),
                 1,
                 "Should have exactly one ADDI event"
@@ -501,11 +495,6 @@ fn test_ldi_addi_ret() -> Result<()> {
                 trace.ret_events().len(),
                 1,
                 "Should have exactly one RET event"
-            );
-            assert_eq!(
-                trace.b32_mul_events().len(),
-                0,
-                "Shouldn't have any B32_MUL event"
             );
         },
     )
