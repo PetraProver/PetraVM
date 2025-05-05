@@ -10,7 +10,6 @@ use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
     gadgets::Add64Gadget,
-    Opcode,
 };
 
 define_bin32_imm_op_event!(
@@ -258,10 +257,6 @@ fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
 
 pub trait SignedMulOperation: Debug + Clone {
     fn mul_op(input1: u32, input2: u32) -> u64;
-    fn instruction() -> Opcode;
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized;
 }
 
 #[derive(Debug, Clone)]
@@ -272,17 +267,6 @@ impl SignedMulOperation for MulsuOp {
         // i64 to get the 64-bit value. Otherwise, directly cast as an i64 for
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i64) as u64
-    }
-
-    fn instruction() -> Opcode {
-        Opcode::Mulsu
-    }
-
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.signed_mul.push(Box::new(event));
     }
 }
 
@@ -295,52 +279,63 @@ impl SignedMulOperation for MulOp {
         // the multiplication.
         (input1 as i32 as i64).wrapping_mul(input2 as i32 as i64) as u64
     }
-
-    fn instruction() -> Opcode {
-        Opcode::Mul
-    }
-
-    fn push_event(ctx: &mut EventContext, event: SignedMulEvent<Self>)
-    where
-        Self: Sized,
-    {
-        ctx.trace.signed_mul.push(Box::new(event));
-    }
 }
 
-/// Group of all signed mul events for convenient downcasting.
-pub enum AnySignedMulEvent {
-    Mul(MulEvent),
-    Mulsu(MulsuEvent),
-}
-
-pub trait GenericSignedMulEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> AnySignedMulEvent;
-}
-
-/// Convenience macro to implement the [`GenericSignedMulEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`Event`] trait for signed mul events.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnySignedMulEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the field name of the instruction within the
+/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// instruction's [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
-/// ```
-macro_rules! impl_generic_signed_mul_event {
-    ($variant:ident, $ty:ty) => {
-        impl GenericSignedMulEvent for $ty {
-            fn as_any(&self) -> AnySignedMulEvent {
-                AnySignedMulEvent::$variant(self.clone())
+/// impl_signed_mul_event!(mul, MulEvent);
+macro_rules! impl_signed_mul_event {
+    ($variant:ident, $ty:ty, $op:ty) => {
+        impl Event for $ty {
+            fn generate(
+                ctx: &mut EventContext,
+                dst: B16,
+                src1: B16,
+                src2: B16,
+            ) -> Result<(), InterpreterError> {
+                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+
+                let dst_val = <$op>::mul_op(src1_val, src2_val);
+                ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+
+                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+                ctx.incr_pc();
+
+                let event = Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_val,
+                    src1: src1.val(),
+                    src1_val,
+                    src2: src2.val(),
+                    src2_val,
+                    _phantom: PhantomData,
+                };
+
+                ctx.trace.$variant.push(event);
+                Ok(())
+            }
+
+            fn fire(&self, channels: &mut InterpreterChannels) {
+                assert_eq!(self.dst_val, <$op>::mul_op(self.src1_val, self.src2_val));
+                fire_non_jump_event!(self, channels);
             }
         }
     };
 }
 
-impl_generic_signed_mul_event!(Mul, MulEvent);
-impl_generic_signed_mul_event!(Mulsu, MulsuEvent);
+impl_signed_mul_event!(mul, MulEvent, MulOp);
+impl_signed_mul_event!(mulsu, MulsuEvent, MulsuOp);
 
 /// Event for MUL or MULSU.
 ///
@@ -360,101 +355,8 @@ pub struct SignedMulEvent<SignedMulOperation> {
     _phantom: PhantomData<SignedMulOperation>,
 }
 
-impl<T: SignedMulOperation> Event for SignedMulEvent<T> {
-    fn generate(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
-
-        let dst_val = T::mul_op(src1_val, src2_val);
-        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
-
-        let event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-            _phantom: PhantomData,
-        };
-
-        T::push_event(ctx, event);
-        Ok(())
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels) {
-        assert_eq!(self.dst_val, T::mul_op(self.src1_val, self.src2_val));
-        fire_non_jump_event!(self, channels);
-    }
-}
-
 pub type MulEvent = SignedMulEvent<MulOp>;
 pub type MulsuEvent = SignedMulEvent<MulsuOp>;
-
-// Note: The addition is checked thanks to the ADD32 table.
-define_bin32_op_event!(
-    /// Event for SLTU.
-    ///
-    /// Performs an SLTU between two target addresses.
-    ///
-    /// Logic:
-    ///   1. FP[dst] = FP[src1] < FP[src2]
-    SltuEvent,
-    sltu,
-    // LT is checked using a SUB gadget.
-    |a: B32, b: B32| B32::new((a.val() < b.val()) as u32)
-);
-
-// Note: The addition is checked thanks to the ADD32 table.
-define_bin32_op_event!(
-    /// Event for SLT.
-    ///
-    /// Performs an SLT between two signed target addresses.
-    ///
-    /// Logic:
-    ///   1. FP[dst] = FP[src1] < FP[src2]
-    SltEvent,
-    slt,
-    // LT is checked using a SUB gadget.
-    |a: B32, b: B32| B32::new(((a.val() as i32) < (b.val() as i32)) as u32)
-);
-
-define_bin32_imm_op_event!(
-    /// Event for SLTIU.
-    ///
-    /// Performs an SLTIU between an unsigned target address and immediate.
-    ///
-    /// Logic:
-    ///   1. FP[dst] = FP[src1] < FP[src2]
-    SltiuEvent,
-    sltiu,
-    // LT is checked using a SUB gadget.
-    |a: B32, imm: B16| B32::new((a.val() < imm.val() as u32) as u32)
-);
-
-define_bin32_imm_op_event!(
-    /// Event for SLTI.
-    ///
-    /// Performs an SLTI between two target addresses.
-    ///
-    /// Logic:
-    ///   1. FP[dst] = FP[src1] < FP[src2]
-    SltiEvent,
-    slti,
-    // LT is checked using a SUB gadget.
-    |a: B32, imm: B16| B32::new(((a.val() as i32) < (imm.val() as i16 as i32)) as u32)
-);
 
 define_bin32_op_event!(
     // Event for SUB.
@@ -725,10 +627,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mul(ev) => ev,
-                _ => panic!("Expected MulEvent"),
-            };
+            let event = get_last_event!(ctx, mul);
 
             assert_eq!(
                 event.dst_val, mul_expected,
@@ -768,10 +667,7 @@ mod tests {
                 .unwrap();
 
             // Extract the event
-            let event = match get_last_event!(ctx, signed_mul).as_any() {
-                AnySignedMulEvent::Mulsu(ev) => ev,
-                _ => panic!("Expected MulsuEvent"),
-            };
+            let event = get_last_event!(ctx, mulsu);
 
             assert_eq!(
                 event.dst_val, mulsu_expected,
@@ -845,171 +741,6 @@ mod tests {
                 event.dst_val, expected,
                 "MULI failed for {}: expected 0x{:x} got 0x{:x} (src=0x{:x}, imm=0x{:x})",
                 desc, expected, event.dst_val, src_val, imm_val
-            );
-        }
-    }
-
-    /// Tests for Comparison operations (without immediate)
-    #[test]
-    fn test_comparison_operations() {
-        // Test cases for SLT, SLTU
-        let test_cases = [
-            // (src1_val, src2_val, slt_expected, sltu_expected, description)
-            (5, 10, 1, 1, "simple less than"),
-            (10, 5, 0, 0, "simple greater than"),
-            (5, 5, 0, 0, "equal values"),
-            (0, 0, 0, 0, "zero comparison"),
-            (0xFFFFFFFF, 5, 1, 0, "signed -1 < 5, unsigned MAX > 5"),
-            (5, 0xFFFFFFFF, 0, 1, "signed 5 > -1, unsigned 5 < MAX"),
-            (
-                0x80000000,
-                0x7FFFFFFF,
-                1,
-                0,
-                "signed MIN < MAX, unsigned MIN > MAX",
-            ),
-            (
-                0x7FFFFFFF,
-                0x80000000,
-                0,
-                1,
-                "signed MAX > MIN, unsigned MAX < MIN",
-            ),
-            (0, 0x80000000, 0, 1, "signed 0 > MIN, unsigned 0 < MIN"),
-            (0x80000000, 0, 1, 0, "signed MIN < 0, unsigned MIN > 0"),
-        ];
-
-        for (src1_val, src2_val, slt_expected, sltu_expected, desc) in test_cases {
-            // Test SLT (Signed Less Than)
-            let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
-            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src1_offset = B16::new(2);
-            let src2_offset = B16::new(3);
-            let dst_offset = B16::new(4);
-
-            // Set values in VROM at the computed addresses (FP ^ offset)
-            ctx.set_vrom(src1_offset.val(), src1_val);
-            ctx.set_vrom(src2_offset.val(), src2_val);
-
-            SltEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
-            let event = get_last_event!(ctx, slt);
-
-            assert_eq!(
-                event.dst_val, slt_expected,
-                "SLT failed for {}: expected {} got {} (src1=0x{:x}, src2=0x{:x})",
-                desc, slt_expected, event.dst_val, src1_val, src2_val
-            );
-
-            // Test SLTU (Unsigned Less Than)
-            let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
-            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            // Set values in VROM at the computed addresses (FP ^ offset)
-            ctx.set_vrom(src1_offset.val(), src1_val);
-            ctx.set_vrom(src2_offset.val(), src2_val);
-
-            SltuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
-            let event = get_last_event!(ctx, sltu);
-
-            assert_eq!(
-                event.dst_val, sltu_expected,
-                "SLTU failed for {}: expected {} got {} (src1=0x{:x}, src2=0x{:x})",
-                desc, sltu_expected, event.dst_val, src1_val, src2_val
-            );
-        }
-    }
-
-    /// Tests for Comparison operations (with immediate)
-    #[test]
-    fn test_comparison_immediate_operations() {
-        // Test cases for SLTI, SLTIU
-        let test_cases = [
-            // (src_val, imm_val, slti_expected, sltiu_expected, description)
-            (5, 10, 1, 1, "simple less than"),
-            (10, 5, 0, 0, "simple greater than"),
-            (5, 5, 0, 0, "equal values"),
-            (0, 0, 0, 0, "zero comparison"),
-            // Tests with max positive and min negative 16-bit immediates
-            (0x7FFF, 0x7FFF, 0, 0, "equal to max positive immediate"),
-            (0x7FFE, 0x7FFF, 1, 1, "just below max positive immediate"),
-            (0x8000, 0x7FFF, 0, 0, "just above max positive immediate"),
-            (0x0000, 0x7FFF, 1, 1, "0 vs 0x7FFF (max positive immediate)"),
-            // Sign extension tests for immediates
-            (
-                0x0000,
-                0x8000,
-                0,
-                1,
-                "0 vs 0x8000 (sign extended to -32768)",
-            ),
-            (
-                0x7FFF,
-                0x8000,
-                0,
-                1,
-                "0x7FFF vs 0x8000 (sign extended to -32768)",
-            ),
-            (0x8000, 0x8000, 0, 0, "0x8000 vs 0x8000 (equal values)"),
-            (
-                0x8001,
-                0x8000,
-                0,
-                0,
-                "0x8001 vs 0x8000 (both negative, first more negative)",
-            ),
-            // Tests with 0xFFFF (-1 signed, max unsigned)
-            (0x0000, 0xFFFF, 0, 1, "0 vs 0xFFFF (sign extended to -1)"),
-            (0xFFFE, 0xFFFF, 0, 1, "0xFFFE vs 0xFFFF (test just below)"),
-            (0xFFFF, 0xFFFF, 0, 0, "0xFFFF vs 0xFFFF (equal values)"),
-            (0x10000, 0xFFFF, 0, 0, "0x10000 vs 0xFFFF (test just above)"),
-            (
-                0xFFFFFFFF,
-                0xFFFF,
-                0,
-                0,
-                "-1 vs -1 (both sign extended to -1)",
-            ),
-            // Additional tests with signed vs unsigned interpretation
-            (0xFFFFFFFF, 0x0005, 1, 0, "-1 vs 5 (signed vs unsigned)"),
-            (0x00000005, 0xFFFF, 0, 1, "5 vs -1 (signed vs unsigned)"),
-        ];
-
-        for (src_val, imm_val, slti_expected, sltiu_expected, desc) in test_cases {
-            // Test SLTI (Signed Less Than Immediate)
-            let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
-            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            let src_offset = B16::new(2);
-            let dst_offset = B16::new(4);
-            let imm = B16::new(imm_val);
-
-            // Set value in VROM at the computed address (FP ^ offset)
-            ctx.set_vrom(src_offset.val(), src_val);
-
-            SltiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
-            let event = get_last_event!(ctx, slti);
-
-            assert_eq!(
-                event.dst_val, slti_expected,
-                "SLTI failed for {}: expected {} got {} (src=0x{:x}, imm=0x{:x})",
-                desc, slti_expected, event.dst_val, src_val, imm_val
-            );
-
-            // Test SLTIU (Unsigned Less Than Immediate)
-            let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
-            let mut ctx = EventContext::new(&mut interpreter, &mut trace);
-            // Set value in VROM at the computed address (FP ^ offset)
-            ctx.set_vrom(src_offset.val(), src_val);
-
-            SltiuEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
-            let event = get_last_event!(ctx, sltiu);
-
-            assert_eq!(
-                event.dst_val, sltiu_expected,
-                "SLTIU failed for {}: expected {} got {} (src=0x{:x}, imm=0x{:x})",
-                desc, sltiu_expected, event.dst_val, src_val, imm_val
             );
         }
     }

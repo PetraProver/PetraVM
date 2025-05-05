@@ -108,6 +108,26 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Sle {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Slei {
+        dst: Slot,
+        src: Slot,
+        imm: Immediate,
+    },
+    Sleu {
+        dst: Slot,
+        src1: Slot,
+        src2: Slot,
+    },
+    Sleiu {
+        dst: Slot,
+        src: Slot,
+        imm: Immediate,
+    },
     Slt {
         dst: Slot,
         src1: Slot,
@@ -241,6 +261,18 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "ORI {dst} {src1} {imm}")
             }
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
+            InstructionsWithLabels::Sle { dst, src1, src2 } => {
+                write!(f, "SLE {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Slei { dst, src, imm } => {
+                write!(f, "SLEI {dst} {src} {imm}")
+            }
+            InstructionsWithLabels::Sleu { dst, src1, src2 } => {
+                write!(f, "SLEU {dst} {src1} {src2}")
+            }
+            InstructionsWithLabels::Sleiu { dst, src, imm } => {
+                write!(f, "SLEIU {dst} {src} {imm}")
+            }
             InstructionsWithLabels::Slt { dst, src1, src2 } => {
                 write!(f, "SLT {dst} {src1} {src2}")
             }

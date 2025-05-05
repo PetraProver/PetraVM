@@ -4,10 +4,6 @@
 //! This includes instruction definitions, program parsing and program
 //! execution.
 
-// TODO: Remove these once stable enough
-#![allow(unused)]
-#![allow(dead_code)]
-
 // TODO: Add doc
 
 pub mod assembler;

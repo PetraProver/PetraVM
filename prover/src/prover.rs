@@ -7,13 +7,12 @@ use anyhow::{anyhow, Result};
 use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
-    tower::CanonicalTowerFamily,
 };
 use binius_field::arch::OptimalUnderlier128b;
+use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
-use binius_m3::builder::TableFiller;
-use binius_m3::builder::{Statement, B128};
+use binius_m3::builder::{Statement, TableFiller, B128};
 use bumpalo::Bump;
 use zcrayvm_assembly::isa::ISA;
 
@@ -140,13 +139,6 @@ impl Prover {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;
 
-        // Compile the constraint system
-        let compiled_cs = self
-            .circuit
-            .cs
-            .compile(&statement)
-            .map_err(|e| anyhow!(e))?;
-
         // Create a memory allocator for the witness
         let allocator = Bump::new();
 
@@ -157,7 +149,6 @@ impl Prover {
             .build_witness::<ProverPackedField>(&allocator);
 
         // Fill all table witnesses in sequence
-
         // 1. Fill PROM table with program instructions
         witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
 
@@ -185,16 +176,13 @@ impl Prover {
             table.fill(&mut witness, trace)?;
         }
 
-        // Convert witness to multilinear extension format
-        let witness = witness.into_multilinear_extension_index();
+        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier128b>(
+            &self.circuit.cs,
+            witness,
+            statement.boundaries,
+        );
 
-        // Validate the witness against the constraint system in debug mode only
-        binius_core::constraint_system::validate::validate_witness(
-            &compiled_cs,
-            &statement.boundaries,
-            &witness,
-        )
-        .map_err(|e| anyhow!(e))
+        Ok(())
     }
 }
 

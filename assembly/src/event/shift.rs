@@ -83,8 +83,8 @@ impl ShiftSource for VromOffsetShift {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ShiftEvent<S, O>
 where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
+    S: ShiftSource,
+    O: ShiftOperation<S>,
 {
     pub pc: B32,
     pub fp: FramePointer,
@@ -92,6 +92,7 @@ where
     pub dst: u16,          // 16-bit destination VROM offset
     pub src: u16,          // 16-bit source VROM offset
     pub src_val: u32,      // 32-bit source value
+    pub shift: u16,        // 16-bit shift amount offset
     pub shift_amount: u32, // 32-bit amount to shift source value
 
     _phantom: PhantomData<(S, O)>,
@@ -99,9 +100,10 @@ where
 
 impl<S, O> ShiftEvent<S, O>
 where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
+    S: ShiftSource,
+    O: ShiftOperation<S>,
 {
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         pc: B32,
         fp: FramePointer,
@@ -109,6 +111,7 @@ where
         dst: u16,
         src: u16,
         src_val: u32,
+        shift: u16,
         shift_amount: u32,
     ) -> Self {
         Self {
@@ -118,6 +121,7 @@ where
             dst,
             src,
             src_val,
+            shift,
             shift_amount,
             _phantom: PhantomData,
         }
@@ -169,6 +173,7 @@ where
             dst.val(),
             src.val(),
             src_val,
+            0, // No shift amount offset for immediate shifts
             shift_amount,
         ))
     }
@@ -199,68 +204,44 @@ where
             dst.val(),
             src1.val(),
             src_val,
+            src2.val(),
             shift_amount,
         ))
     }
 }
 
-impl<S, O> Event for ShiftEvent<S, O>
-where
-    S: ShiftSource + Send + Sync + 'static,
-    O: ShiftOperation<S> + Send + Sync + 'static,
-    ShiftEvent<S, O>: GenericShiftEvent,
-{
-    fn generate(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        let event = if S::is_immediate() {
-            Self::generate_immediate_event(ctx, dst, src1, src2)?
-        } else {
-            Self::generate_vrom_event(ctx, dst, src1, src2)?
-        };
-
-        ctx.trace.shifts.push(Box::new(event));
-        Ok(())
-    }
-
-    fn fire(&self, channels: &mut InterpreterChannels) {
-        fire_non_jump_event!(self, channels);
-    }
-}
-
-/// Group of all shift events for convenient downcasting.
-pub enum AnyShiftEvent {
-    Slli(SlliEvent),
-    Srli(SrliEvent),
-    Srai(SraiEvent),
-    Sll(SllEvent),
-    Srl(SrlEvent),
-    Sra(SraEvent),
-}
-
-pub trait GenericShiftEvent: std::fmt::Debug + Send + Sync + Event {
-    fn as_any(&self) -> AnyShiftEvent;
-}
-
-/// Convenience macro to implement the [`GenericShiftEvent`] trait for MV
-/// events.
+/// Convenience macro to implement the [`Event`] trait for shift events.
 ///
-/// It takes as argument the variant name of the instruction within the
-/// [`AnyShiftEvent`] object, and the corresponding instruction's [`Event`].
+/// It takes as argument the field name of the instruction within the
+/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// instruction's [`Event`].
 ///
 /// # Example
 ///
 /// ```ignore
-/// impl_generic_shift_event!(Sll, SllEvent);
+/// impl_shift_event!(sll, SllEvent);
 /// ```
-macro_rules! impl_generic_shift_event {
-    ($variant:ident, $ty:ty) => {
-        impl GenericShiftEvent for $ty {
-            fn as_any(&self) -> AnyShiftEvent {
-                AnyShiftEvent::$variant(self.clone())
+macro_rules! impl_shift_event {
+    ($variant:ident, $ty:ty, $source:ty) => {
+        impl Event for $ty {
+            fn generate(
+                ctx: &mut EventContext,
+                dst: B16,
+                src1: B16,
+                src2: B16,
+            ) -> Result<(), InterpreterError> {
+                let event = if <$source>::is_immediate() {
+                    Self::generate_immediate_event(ctx, dst, src1, src2)?
+                } else {
+                    Self::generate_vrom_event(ctx, dst, src1, src2)?
+                };
+
+                ctx.trace.$variant.push(event);
+                Ok(())
+            }
+
+            fn fire(&self, channels: &mut InterpreterChannels) {
+                fire_non_jump_event!(self, channels);
             }
         }
     };
@@ -273,12 +254,12 @@ pub type SllEvent = ShiftEvent<VromOffsetShift, LogicalLeft>;
 pub type SrlEvent = ShiftEvent<VromOffsetShift, LogicalRight>;
 pub type SraEvent = ShiftEvent<VromOffsetShift, ArithmeticRight>;
 
-impl_generic_shift_event!(Slli, SlliEvent);
-impl_generic_shift_event!(Srli, SrliEvent);
-impl_generic_shift_event!(Srai, SraiEvent);
-impl_generic_shift_event!(Sll, SllEvent);
-impl_generic_shift_event!(Srl, SrlEvent);
-impl_generic_shift_event!(Sra, SraEvent);
+impl_shift_event!(slli, SlliEvent, ImmediateShift);
+impl_shift_event!(srli, SrliEvent, ImmediateShift);
+impl_shift_event!(srai, SraiEvent, ImmediateShift);
+impl_shift_event!(sll, SllEvent, VromOffsetShift);
+impl_shift_event!(srl, SrlEvent, VromOffsetShift);
+impl_shift_event!(sra, SraEvent, VromOffsetShift);
 
 #[cfg(test)]
 mod test {

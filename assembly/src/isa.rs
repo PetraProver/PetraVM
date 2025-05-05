@@ -12,8 +12,6 @@
 use core::fmt::Debug;
 use std::collections::HashSet;
 
-use binius_m3::builder::ConstraintSystem;
-
 use crate::event::*;
 use crate::Opcode;
 
@@ -113,6 +111,10 @@ define_isa!(
         OrEvent,
         OriEvent,
         RetEvent,
+        SleEvent,
+        SleiEvent,
+        SleiuEvent,
+        SleuEvent,
         SllEvent,
         SlliEvent,
         SltEvent,

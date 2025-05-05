@@ -532,6 +532,56 @@ test_integer_ops:
     XORI @77, @75, #0    ;; SLT should be 0
     BNZ int_fail, @77
 
+    ;; ------------------------------------------------------------
+    ;; INSTRUCTION: SLE / SLEI / SLEU / SLEIU
+    ;; 
+    ;; FORMAT:
+    ;;   SLE dst, src1, src2  (Set if Less Than Or Equal, signed)
+    ;;   SLEI dst, src, imm   (Set if Less Than Or Equal Immediate, signed)
+    ;;   SLEU dst, src1, src2  (Set if Less Than Or Equal, unsigned)
+    ;;   SLEIU dst, src, imm   (Set if Less Than Or Equal Immediate, unsigned)
+    ;; 
+    ;; DESCRIPTION:
+    ;;   Set destination to 1 if first value is less than second,
+    ;;   otherwise set to 0.
+    ;;
+    ;; EFFECT: 
+    ;;   fp[dst] = (fp[src1] <= fp[src2]) ? 1 : 0
+    ;;   fp[dst] = (fp[src] <= imm) ? 1 : 0
+    ;; ------------------------------------------------------------
+    ;; Test SLE (signed comparison)
+    SLE @64, @4, @3      ;; 7 <= 42? = 1 (true)
+    XORI @65, @64, #1    ;; Check result
+    BNZ int_fail, @65
+    
+    ;; Test SLEI (signed immediate comparison)
+    SLEI @66, @4, #42    ;; 7 <= 42? = 1 (true)
+    XORI @67, @66, #1    ;; Check result
+    BNZ int_fail, @67
+    
+    ;; Test SLE with negative value
+    SLE @68, @10, @3     ;; -1 <= 42? = 1 (true)
+    XORI @69, @68, #1    ;; Check result
+    BNZ int_fail, @69
+    
+    ;; Test SLEU (unsigned comparison)
+    SLEU @70, @4, @3     ;; 7 <=u 42? = 1 (true)
+    XORI @71, @70, #1    ;; Check result
+    BNZ int_fail, @71
+    
+    ;; Test SLEIU (unsigned immediate comparison)
+    SLEIU @72, @4, #42   ;; 7 <=u 42? = 1 (true)
+    XORI @73, @72, #1    ;; Check result
+    BNZ int_fail, @73
+    
+    ;; Test signed vs unsigned difference
+    SLEU @74, @3, @10    ;; 42 <=u 0xFFFFFFFF? = 1 (true in unsigned)
+    SLE @75, @3, @10     ;; 42 <= -1? = 0 (false in signed)
+    XORI @76, @74, #1    ;; SLEU should be 1
+    BNZ int_fail, @76
+    XORI @77, @75, #0    ;; SLE should be 0
+    BNZ int_fail, @77
+
     LDI.W @2, #0         ;; Set success flag (0 = success)
     RET
 int_fail:

@@ -103,7 +103,10 @@ impl Circuit {
 
         let prom_size = trace.program.len();
 
-        let vrom_addr_space_size = trace.max_vrom_addr.next_power_of_two();
+        // By adding 1 to `max_vrom_addr`, `next_power_of_two()` will advance to the
+        // next power of two even when `max_vrom_addr` is already a power of two,
+        // ensuring the VROM address space includes the highest address.
+        let vrom_addr_space_size = (trace.max_vrom_addr + 1).next_power_of_two();
 
         // VROM write size is the number of addresses we write to
         let vrom_write_size = trace.vrom_writes.len();
