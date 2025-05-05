@@ -4,11 +4,11 @@
 //! to represent the zCrayVM execution in the M3 arithmetization system.
 
 use binius_field::Field;
+use binius_m3::builder::TableWitnessSegment;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
-use binius_m3::builder::{StructuredDynSize, TableWitnessSegment};
 use binius_m3::gadgets::lookup::LookupProducer;
-use binius_m3::gadgets::structured::fill_incrementing_b32;
 
+// use binius_m3::gadgets::structured::fill_incrementing_b32;
 use crate::prover::{PROM_MULTIPLICITY_BITS, VROM_MULTIPLICITY_BITS};
 use crate::{
     channels::Channels,
@@ -301,7 +301,9 @@ impl VromAddrSpaceTable {
         table.require_power_of_two_size();
 
         // Add column for address
-        let addr = table.add_structured::<B32>("addr", StructuredDynSize::Incrementing);
+        // let addr = table.add_structured::<B32>("addr",
+        // StructuredDynSize::Incrementing);
+        let addr = table.add_committed("addr");
 
         // Push to VROM address space channel
         table.push(channels.vrom_addr_space_channel, [addr]);
@@ -322,10 +324,14 @@ impl TableFiller<ProverPackedField> for VromAddrSpaceTable {
 
     fn fill<'a>(
         &'a self,
-        _rows: impl Iterator<Item = &'a Self::Event>,
+        rows: impl Iterator<Item = &'a Self::Event>,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        fill_incrementing_b32(witness, self.addr)?;
+        // fill_incrementing_b32(witness, self.addr)?;
+        let mut addr_col = witness.get_scalars_mut(self.addr)?;
+        for (i, addr) in rows.enumerate() {
+            addr_col[i] = B32::new(*addr);
+        }
 
         Ok(())
     }
