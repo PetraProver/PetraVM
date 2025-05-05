@@ -4,7 +4,7 @@
 
 use std::any::Any;
 
-use binius_field::Field;
+use binius_field::{underlier::Divisible, Field};
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B128, B16, B32,
@@ -17,7 +17,7 @@ use zcrayvm_assembly::{
 use crate::{
     channels::Channels,
     gadgets::{
-        b128_lookup::{B128LookupColumns, B128LookupGadget},
+        multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget},
         state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     },
     table::Table,
@@ -168,15 +168,15 @@ pub struct B128AddTable {
     /// First source value
     pub src1_val_unpacked: Col<B32, 4>,
     /// Lookup for first source
-    src1_lookup: B128LookupColumns,
+    src1_lookup: MultipleLookupColumns<4>,
     /// Second source value
     pub src2_val_unpacked: Col<B32, 4>,
     /// Lookup for second source
-    src2_lookup: B128LookupColumns,
+    src2_lookup: MultipleLookupColumns<4>,
     /// Result value
     pub result_val_unpacked: Col<B32, 4>, // Virtual
     /// Lookup for result
-    result_lookup: B128LookupColumns,
+    result_lookup: MultipleLookupColumns<4>,
     /// First source absolute address
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -224,7 +224,7 @@ impl Table for B128AddTable {
 
         // Pull source values from VROM channel
         let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
-        let src1_lookup = B128LookupColumns::new(
+        let src1_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             src1_abs_addr,
@@ -232,7 +232,7 @@ impl Table for B128AddTable {
             "b128_add_src1",
         );
         let src2_abs_addr = table.add_computed("src2_addr", fp + upcast_expr(src2.into()));
-        let src2_lookup = B128LookupColumns::new(
+        let src2_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             src2_abs_addr,
@@ -242,7 +242,7 @@ impl Table for B128AddTable {
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        let result_lookup = B128LookupColumns::new(
+        let result_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             dst_abs_addr,
@@ -310,21 +310,30 @@ impl TableFiller<ProverPackedField> for B128AddTable {
         });
         self.state_cols.populate(witness, state_iter)?;
 
-        let src1_iter = rows.clone().map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.src1),
-            val: ev.src1_val,
+        let src1_iter = rows.clone().map(|ev| {
+            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.src1_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.src1),
+                vals,
+            }
         });
         self.src1_lookup.populate(witness, src1_iter)?;
 
-        let src2_iter = rows.clone().map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.src2),
-            val: ev.src2_val,
+        let src2_iter = rows.clone().map(|ev| {
+            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.src2_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.src2),
+                vals,
+            }
         });
         self.src2_lookup.populate(witness, src2_iter)?;
 
-        let result_iter = rows.map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.dst),
-            val: ev.dst_val,
+        let result_iter = rows.map(|ev| {
+            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.dst_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.dst),
+                vals,
+            }
         });
         self.result_lookup.populate(witness, result_iter)
     }
@@ -343,17 +352,17 @@ pub struct B128MulTable {
     pub src1_val: Col<B128>,
     pub src1_val_unpacked: Col<B32, 4>,
     /// Lookup for first source
-    src1_lookup: B128LookupColumns,
+    src1_lookup: MultipleLookupColumns<4>,
     /// Second source value
     pub src2_val: Col<B128>,
     pub src2_val_unpacked: Col<B32, 4>,
     /// Lookup for second source
-    src2_lookup: B128LookupColumns,
+    src2_lookup: MultipleLookupColumns<4>,
     /// Result value
     pub result_val: Col<B128>,
     pub result_val_unpacked: Col<B32, 4>,
     /// Lookup for result
-    result_lookup: B128LookupColumns,
+    result_lookup: MultipleLookupColumns<4>,
     /// First source absolute address
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -401,7 +410,7 @@ impl Table for B128MulTable {
 
         // Pull source values from VROM channel
         let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
-        let src1_lookup = B128LookupColumns::new(
+        let src1_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             src1_abs_addr,
@@ -410,7 +419,7 @@ impl Table for B128MulTable {
         );
 
         let src2_abs_addr = table.add_computed("src2_addr", fp + upcast_expr(src2.into()));
-        let src2_lookup = B128LookupColumns::new(
+        let src2_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             src2_abs_addr,
@@ -422,7 +431,7 @@ impl Table for B128MulTable {
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        let result_lookup = B128LookupColumns::new(
+        let result_lookup = MultipleLookupColumns::new(
             &mut table,
             channels.vrom_channel,
             dst_abs_addr,
@@ -493,21 +502,30 @@ impl TableFiller<ProverPackedField> for B128MulTable {
         });
         self.state_cols.populate(witness, state_iter)?;
 
-        let src1_iter = rows.clone().map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.src1),
-            val: ev.src1_val,
+        let src1_iter = rows.clone().map(|ev| {
+            let vals = <u128 as Divisible<u32>>::split_val(ev.src1_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.src1),
+                vals,
+            }
         });
         self.src1_lookup.populate(witness, src1_iter)?;
 
-        let src2_iter = rows.clone().map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.src2),
-            val: ev.src2_val,
+        let src2_iter = rows.clone().map(|ev| {
+            let vals = <u128 as Divisible<u32>>::split_val(ev.src2_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.src2),
+                vals,
+            }
         });
         self.src2_lookup.populate(witness, src2_iter)?;
 
-        let result_iter = rows.map(|ev| B128LookupGadget {
-            addr: ev.fp.addr(ev.dst),
-            val: ev.dst_val,
+        let result_iter = rows.map(|ev| {
+            let vals = <u128 as Divisible<u32>>::split_val(ev.dst_val);
+            MultipleLookupGadget {
+                addr: ev.fp.addr(ev.dst),
+                vals,
+            }
         });
         self.result_lookup.populate(witness, result_iter)
     }

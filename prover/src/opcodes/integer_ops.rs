@@ -70,7 +70,7 @@ impl Table for AddTable {
         let src2_val = table.add_committed("src2_val");
         let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
-        // Carry out the multiplication.
+        // Carry out the addition.
         let add_op = U32Add::new(&mut table, src1_val, src2_val, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
@@ -194,7 +194,7 @@ impl Table for SubTable {
         let src2_val = table.add_committed("src2_val");
         let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
-        // Carry out the multiplication.
+        // Carry out the subtraction.
         let add_op = U32Add::new(&mut table, dst_val, src2_val, U32AddFlags::default());
         let src1_val_packed = table.add_packed("src1_val_packed", add_op.zout);
 
