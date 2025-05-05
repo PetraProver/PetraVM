@@ -78,7 +78,9 @@ impl Table for SltuTable {
         };
         let subber = U32Sub::new(&mut table, src1_val, src2_val, flags);
         // `final_borrow` is 1 exactly when src1_val < src2_val
-        let final_borrow: Col<B1> = subber.final_borrow.unwrap();
+        let final_borrow: Col<B1> = subber
+            .final_borrow
+            .expect("Flag `expose_final_borrow` was set to `true`");
         let dst_val = upcast_col(final_borrow);
 
         // Read src1 and src2
@@ -158,7 +160,7 @@ mod tests {
 
     /// Creates an execution trace for a simple program that uses the SLTU
     /// instruction.
-    fn generate_sltu_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    fn generate_sltu_trace(src1_val: u32, src2_val: u32) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
@@ -166,17 +168,17 @@ mod tests {
                 LDI.W @3, #{}\n\
                 SLTU @4, @2, @3\n\
                 RET\n",
-            src1_value, src2_value
+            src1_val, src2_val
         );
 
         // Calculate the expected result (1 if src1 < src2, 0 otherwise)
-        let expected = (src1_value < src2_value) as u32;
+        let expected = (src1_val < src2_val) as u32;
 
         // Add VROM writes from LDI and SLTU events
         let vrom_writes = vec![
             // LDI events
-            (2, src1_value, 2),
-            (3, src2_value, 2),
+            (2, src1_val, 2),
+            (3, src2_val, 2),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
@@ -187,8 +189,8 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    fn test_sltu_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
-        let trace = generate_sltu_trace(src1_value, src2_value)?;
+    fn test_sltu_with_values(src1_val: u32, src2_val: u32) -> Result<()> {
+        let trace = generate_sltu_trace(src1_val, src2_val)?;
         trace.validate()?;
         assert_eq!(trace.sltu_events().len(), 1);
         assert_eq!(trace.ret_events().len(), 1);
@@ -201,7 +203,7 @@ mod tests {
         #[test]
         fn test_sltu_operations(
             // Test both random values and specific edge cases
-            (src1, src2) in prop_oneof![
+            (src1_val, src2_val) in prop_oneof![
                 // Random value pairs
                 (any::<u32>(), any::<u32>()),
 
@@ -219,7 +221,7 @@ mod tests {
                 Just((u32::MAX - 1, u32::MAX))       // MAX-1 < MAX
             ],
         ) {
-            prop_assert!(test_sltu_with_values(src1, src2).is_ok());
+            prop_assert!(test_sltu_with_values(src1_val, src2_val).is_ok());
         }
     }
 }
