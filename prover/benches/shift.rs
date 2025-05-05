@@ -52,11 +52,16 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
 fn bench_shifts(c: &mut Criterion) {
     let mut group = c.benchmark_group("Shift Operations");
 
-    for n in [48, 192, 768].iter() {
-        let trace = generate_shift_trace(*n).expect("Failed to generate shift trace");
+    let sizes = [48, 192, 768];
+    let sample_sizes = [100, 80, 40];
+
+    for (&n, &sample_size) in sizes.iter().zip(sample_sizes.iter()) {
+        let trace = generate_shift_trace(n).expect("Failed to generate shift trace");
         let prover = Prover::new(Box::new(GenericISA));
 
-        group.bench_with_input(BenchmarkId::new("Prove", n), n, |b, _n_val| {
+        group.sample_size(sample_size);
+
+        group.bench_with_input(BenchmarkId::new("Prove", n), &n, |b, _n_val| {
             b.iter(|| {
                 let (_proof, _statement, _compiled_cs) = prover.prove(&trace).unwrap();
             });
@@ -64,7 +69,7 @@ fn bench_shifts(c: &mut Criterion) {
 
         let (proof, statement, compiled_cs) = prover.prove(&trace).unwrap();
 
-        group.bench_with_input(BenchmarkId::new("Verify", n), n, |b, _n_val| {
+        group.bench_with_input(BenchmarkId::new("Verify", n), &n, |b, _n_val| {
             b.iter(|| {
                 verify_proof(&statement, &compiled_cs, proof.clone()).unwrap();
             });
