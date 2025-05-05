@@ -1,36 +1,43 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use rand::Rng;
 use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 use zcrayvm_prover::test_utils::generate_trace;
 
 fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
-    let initial_val: u32 = 0xdeadbeef;
-    let shift_amount: u32 = 5;
-    let shift_imm = shift_amount as u16;
+    let mut rng = rand::rng();
 
     let mut asm_lines = vec![
-        format!("#[framesize(0x{:x})]", n + 4),
+        format!("#[framesize(0x{:x})]", n * 3 + 2),
         "_start:".to_string(),
-        format!("LDI.W @2, #{}", initial_val),
-        format!("LDI.W @3, #{}", shift_amount),
     ];
 
     let shift_opcodes = ["SRLI", "SRL", "SLLI", "SLL", "SRAI", "SRA"];
     let num_opcodes = shift_opcodes.len();
 
     for i in 0..n {
-        let dest_reg = 4 + i;
+        let src_pos = 2 + i * 3;
+        let shift_amount_pos = src_pos + 1;
+        let dst_pos = shift_amount_pos + 1;
+
         let opcode_index = i % num_opcodes;
         let opcode = shift_opcodes[opcode_index];
 
+        let src_val = rng.random::<u32>();
+        let shift_amount = rng.random_range(0..32);
+        let shift_imm = shift_amount as u16;
+
+        asm_lines.push(format!("LDI.W @{}, #{}", src_pos, src_val));
+        asm_lines.push(format!("LDI.W @{}, #{}", shift_amount_pos, shift_amount));
+
         let line = match opcode {
-            "SRLI" => format!("SRLI @{}, @2, #{}", dest_reg, shift_imm),
-            "SRL" => format!("SRL  @{}, @2, @3", dest_reg),
-            "SLLI" => format!("SLLI @{}, @2, #{}", dest_reg, shift_imm),
-            "SLL" => format!("SLL  @{}, @2, @3", dest_reg),
-            "SRAI" => format!("SRAI @{}, @2, #{}", dest_reg, shift_imm),
-            "SRA" => format!("SRA  @{}, @2, @3", dest_reg),
+            "SRLI" => format!("SRLI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
+            "SRL" => format!("SRL  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
+            "SLLI" => format!("SLLI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
+            "SLL" => format!("SLL  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
+            "SRAI" => format!("SRAI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
+            "SRA" => format!("SRA  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
             _ => unreachable!(),
         };
         asm_lines.push(line);
@@ -39,8 +46,7 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
     asm_lines.push("RET".to_string());
     let asm_code = asm_lines.join("\n");
 
-    let init_values = Some(vec![0, 0, initial_val, shift_amount]);
-    generate_trace(asm_code, init_values, None)
+    generate_trace(asm_code, None, None)
 }
 
 fn bench_shifts(c: &mut Criterion) {
