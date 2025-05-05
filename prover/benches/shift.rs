@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use rand::Rng;
 use zcrayvm_assembly::isa::GenericISA;
 use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
@@ -51,7 +50,7 @@ fn bench_shifts(c: &mut Criterion) {
         let trace = generate_shift_trace(*n).expect("Failed to generate shift trace");
         let prover = Prover::new(Box::new(GenericISA));
 
-        group.bench_with_input(BenchmarkId::new("Prove", n), n, |b, &n_val| {
+        group.bench_with_input(BenchmarkId::new("Prove", n), n, |b, _n_val| {
             b.iter(|| {
                 let (_proof, _statement, _compiled_cs) = prover.prove(&trace).unwrap();
             });
