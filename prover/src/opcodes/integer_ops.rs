@@ -10,10 +10,7 @@ use zcrayvm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent};
 
 use crate::{
     channels::Channels,
-    gadgets::{
-        state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
-        u32u16::U32U16Add,
-    },
+    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
 };
@@ -271,14 +268,14 @@ impl TableFiller<ProverPackedField> for SubTable {
 /// multiplication between a 32-bit element and a 16-bit immediate.
 pub struct AddiTable {
     id: TableId,
-    cpu_cols: StateColumns<{ Opcode::Addi as u16 }>,
+    state_cols: StateColumns<{ Opcode::Addi as u16 }>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
     src_abs: Col<B32>, // Virtual
     src_val: Col<B1, 32>,
     src_val_packed: Col<B32>,
-    imm_unpacked: Col<B1, 16>,
-    add_op: U32U16Add,
+    imm_32b: Col<B1, 32>, // Virtual
+    add_op: U32Add,
 }
 
 impl Table for AddiTable {
@@ -298,7 +295,7 @@ impl Table for AddiTable {
             ..
         } = *channels;
 
-        let cpu_cols = StateColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             state_channel,
             prom_channel,
@@ -309,15 +306,16 @@ impl Table for AddiTable {
         );
 
         // Pull the destination and source values from the VROM channel.
-        let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
-        let src_abs = table.add_computed("src", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
         let src_val = table.add_committed("src_val");
         let src_val_packed = table.add_packed("src_val_packed", src_val);
 
-        let imm_unpacked = table.add_committed("imm_unpacked");
+        let imm_unpacked = state_cols.arg2_unpacked;
+        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
 
         // Carry out the multiplication.
-        let add_op = U32U16Add::new(&mut table, src_val, imm_unpacked, U32AddFlags::default());
+        let add_op = U32Add::new(&mut table, src_val, imm_32b, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Read src1
@@ -328,12 +326,12 @@ impl Table for AddiTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_abs,
             src_abs,
             src_val,
             src_val_packed,
-            imm_unpacked,
+            imm_32b,
             add_op,
             dst_val_packed,
         }
@@ -360,16 +358,16 @@ impl TableFiller<ProverPackedField> for AddiTable {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
-            let mut imm = witness.get_mut_as(self.imm_unpacked)?;
+            let mut imm = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 src_abs[i] = event.fp.addr(event.src as u32);
                 src_val[i] = event.src_val;
-                imm[i] = event.imm;
+                imm[i] = event.imm as u32;
             }
         }
-        let cpu_rows = rows.map(|event| StateGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp.deref(),
@@ -377,7 +375,7 @@ impl TableFiller<ProverPackedField> for AddiTable {
             arg1: event.src,
             arg2: event.imm,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         self.add_op.populate(witness)
     }
 }
