@@ -145,7 +145,8 @@ mod tests {
             (3, 127 >> 2, 1),
         ];
 
-        generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, Some(init_values), Some(vrom_writes), isa)
     }
 
     #[test]

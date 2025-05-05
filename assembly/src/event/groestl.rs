@@ -107,13 +107,11 @@ impl Event for Groestl256OutputEvent {
     ) -> Result<(), InterpreterError> {
         let mut src1_val = Vec::with_capacity(16);
         for i in 0..8 {
-            println!("src1_val[{}]: {}", i, src1.val() + i);
             src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
         }
         let src1_val = cast_slice::<u32, u8>(&src1_val);
         let mut src2_val = Vec::with_capacity(16);
         for i in 0..8 {
-            println!("src2_val[{}]: {}", i, src2.val() + i);
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
@@ -175,7 +173,7 @@ mod tests {
         // Slots 2-15: Padding
         // Slots 16-31: src1_val
         // Slots 32-47: src2_val
-        // Slots 48-64: dst_val
+        // Slots 48-63: dst_val
 
         let mut src1_val = [0u8; 64];
         src1_val[0] = 1;

@@ -3,7 +3,8 @@ use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
 use zcrayvm_assembly::{
-    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
+    isa::{GenericISA, ISA},
+    Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
 };
 
 use crate::model::Trace;
@@ -42,8 +43,8 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 2: Arg: n
     // Slot 3: Arg: Result
     let init_values = vec![0, 0, n, res];
-
-    generate_trace(asm_code, Some(init_values), None)
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), None, isa)
 }
 
 pub fn collatz(mut n: u32) -> usize {
@@ -79,8 +80,8 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
     let init_values = vec![0, 0, n];
-
-    generate_trace(asm_code, Some(init_values), None)
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), None, isa)
 }
 
 /// Creates an execution trace for the instructions in `asm_code`.
@@ -96,6 +97,7 @@ pub fn generate_trace(
     asm_code: String,
     init_values: Option<Vec<u32>>,
     vrom_writes: Option<Vec<(u32, u32, u32)>>,
+    isa: Box<dyn ISA>,
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
@@ -119,7 +121,7 @@ pub fn generate_trace(
 
     // Generate the trace from the compiled program
     let (zcray_trace, _) = ZCrayTrace::generate(
-        Box::new(GenericISA),
+        isa,
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,

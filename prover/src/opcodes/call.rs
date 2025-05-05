@@ -607,8 +607,8 @@ mod tests {
                 TAILI loop, @5\n",
             pc_val
         );
-
-        generate_trace(asm_code, None, None)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, None, isa)
     }
 
     /// Creates an execution trace for a simple program that uses the CALLI and
@@ -638,7 +638,8 @@ mod tests {
             pc_val
         );
 
-        generate_trace(asm_code, None, None)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, None, isa)
     }
 
     #[test]

@@ -111,7 +111,8 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
         (19, mul_result_array[3], 1),
     ];
 
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes), isa)
 }
 
 #[test]
@@ -172,7 +173,8 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
         (5, src1_value + src2_value, 1),
     ];
 
-    generate_trace(asm_code, None, Some(vrom_writes))
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, None, Some(vrom_writes), isa)
 }
 
 #[test]
@@ -262,7 +264,8 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
         (2, 100, 1), // Return value
     ];
 
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes), isa)
 }
 
 #[test]
@@ -387,7 +390,8 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
         (11, b32_muli_result, 1),
     ];
 
-    generate_trace(asm_code, None, Some(vrom_writes))
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, None, Some(vrom_writes), isa)
 }
 
 #[test]
