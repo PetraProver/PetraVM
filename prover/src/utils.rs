@@ -2,7 +2,7 @@
 //! operations.
 
 use binius_field::ExtensionField;
-use binius_m3::builder::{upcast_col, upcast_expr, Col, Expr, TableBuilder, B128, B16, B32, B64};
+use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -167,13 +167,4 @@ pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm
 /// Packs two 16-bit limbs into a single 32-bit value.
 pub(crate) fn pack_b16_into_b32(low: Col<B16, 1>, high: Col<B16, 1>) -> Expr<B32, 1> {
     upcast_expr(high.into()) * <B32 as ExtensionField<B16>>::basis(1) + upcast_expr(low.into())
-}
-
-pub(crate) fn pack_vrom_entry(addr: Col<B32>, value: Col<B32>) -> Expr<B64, 1> {
-    upcast_col(addr) * <B64 as ExtensionField<B32>>::basis(0)
-        + upcast_col(value) * <B64 as ExtensionField<B32>>::basis(1)
-}
-
-pub(crate) fn pack_vrom_entry_u64(addr: u32, value: u32) -> u64 {
-    ((value as u64) << 32) + addr as u64
 }

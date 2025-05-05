@@ -1,5 +1,6 @@
 use std::{any::Any, ops::Deref};
 
+use binius_field::{Field, PackedBinaryField32x1b};
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
@@ -22,8 +23,7 @@ use crate::{
 pub struct AddTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Add as u16 }>,
-    dst_abs: Col<B32>, // Virtual
-    dst_val_packed: Col<B32>,
+    dst_abs: Col<B32>,  // Virtual
     src1_abs: Col<B32>, // Virtual
     src1_val: Col<B1, 32>,
     src2_abs: Col<B32>, // Virtual
@@ -90,7 +90,6 @@ impl Table for AddTable {
             src2_abs,
             src2_val,
             add_op,
-            dst_val_packed,
         }
     }
 
@@ -270,11 +269,14 @@ pub struct AddiTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Addi as u16 }>,
     dst_abs: Col<B32>, // Virtual
-    dst_val_packed: Col<B32>,
     src_abs: Col<B32>, // Virtual
     src_val: Col<B1, 32>,
-    src_val_packed: Col<B32>,
     imm_32b: Col<B1, 32>, // Virtual
+    msb: Col<B1>,         // Virtual
+    negative: Col<B1, 32>,
+    signed_imm_32b: Col<B1, 32>,
+    computed_imm_32b: Col<B32>,
+    ones: Col<B1, 32>,
     add_op: U32Add,
 }
 
@@ -314,8 +316,33 @@ impl Table for AddiTable {
         let imm_unpacked = state_cols.arg2_unpacked;
         let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
 
-        // Carry out the multiplication.
-        let add_op = U32Add::new(&mut table, src_val, imm_32b, U32AddFlags::default());
+        // We need to sign extend `imm`. First, get the sign bit and the necessary
+        // constants.
+        let msb = table.add_selected("msb", imm_unpacked, 15);
+        let mut constants = [B1::ONE; 32];
+        for i in 0..16 {
+            constants[i] = B1::ZERO;
+        }
+        let ones = table.add_constant("ones", constants);
+
+        // Compute the negative case.
+        let negative = table.add_computed("negative", ones + imm_32b);
+        let negative_packed = table.add_packed("negative", negative);
+        let imm_32b_packed = table.add_packed("imm_32b_packed", imm_32b);
+
+        // We commit to the sign-extended value.
+        let signed_imm_32b = table.add_committed("signed_imm_32b");
+        let signed_imm_32b_packed = table.add_packed("signed_imm_32b_packed", signed_imm_32b);
+
+        // Check that the sign extension is correct.
+        let computed_imm_32b = table.add_computed(
+            "computed",
+            upcast_col(msb) * negative_packed + (upcast_col(msb) - B32::ONE) * imm_32b_packed,
+        );
+        table.assert_zero("sign check", computed_imm_32b - signed_imm_32b_packed);
+
+        // Carry out the addition.
+        let add_op = U32Add::new(&mut table, src_val, signed_imm_32b, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Read src1
@@ -330,10 +357,13 @@ impl Table for AddiTable {
             dst_abs,
             src_abs,
             src_val,
-            src_val_packed,
             imm_32b,
+            msb,
+            negative,
+            signed_imm_32b,
+            computed_imm_32b,
+            ones,
             add_op,
-            dst_val_packed,
         }
     }
 
@@ -359,18 +389,35 @@ impl TableFiller<ProverPackedField> for AddiTable {
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_32b)?;
+            let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
+                witness.get_mut_as(self.msb)?;
+            let mut negative = witness.get_mut_as(self.negative)?;
+            let mut signed_imm_32b = witness.get_mut_as(self.signed_imm_32b)?;
+            let mut computed_imm_32b = witness.get_mut_as(self.computed_imm_32b)?;
+            let mut ones_col = witness.get_mut_as(self.ones)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 src_abs[i] = event.fp.addr(event.src as u32);
                 src_val[i] = event.src_val;
                 imm[i] = event.imm as u32;
+
+                // Calculate imm's MSB.
+                let is_negative = (event.imm >> 15) & 1 == 1;
+                binius_field::packed::set_packed_slice(&mut msb, i, B1::from(is_negative));
+
+                // Compute the sign extension of `imm`.
+                let ones = 0b1111_1111_1111_1111u32;
+                ones_col[i] = ones << 16;
+                negative[i] = (ones << 16) + event.imm as u32;
+                signed_imm_32b[i] = event.imm as i16 as i32;
+                computed_imm_32b[i] = signed_imm_32b[i];
             }
         }
         let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src,
             arg2: event.imm,
@@ -424,6 +471,36 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
+    /// Creates an execution trace for a simple program that uses the ADDI
+    /// instruction.
+    fn generate_addi_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                ADDI @3, @2, #{}\n\
+                RET\n",
+            src_value, imm_value
+        );
+
+        // Add VROM writes from LDI and ADDI events
+        let vrom_writes = vec![
+            // LDI event
+            (2, src_value, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // ADDI event
+            (
+                3,
+                src_value.wrapping_add((imm_value as i16 as i32) as u32),
+                1,
+            ),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
     /// Creates an execution trace for a simple program that uses the SUB
     /// instruction.
     fn generate_sub_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
@@ -462,6 +539,15 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
+    fn test_addi_with_values(src_value: u32, imm: u16) -> Result<()> {
+        let trace = generate_addi_trace(src_value, imm)?;
+        trace.validate()?;
+        assert_eq!(trace.addi_events().len(), 1);
+        assert_eq!(trace.ldi_events().len(), 1);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
     fn test_sub_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
         let trace = generate_sub_trace(src1_value, src2_value)?;
         trace.validate()?;
@@ -485,6 +571,7 @@ mod tests {
         ) {
             prop_assert!(test_add_with_values(src1_value, src2_value).is_ok());
             prop_assert!(test_sub_with_values(src1_value, src2_value).is_ok());
+            prop_assert!(test_addi_with_values(src1_value, src2_value as u16).is_ok());
         }
     }
 }

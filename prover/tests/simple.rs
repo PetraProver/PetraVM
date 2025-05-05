@@ -14,36 +14,6 @@ use zcrayvm_prover::model::Trace;
 use zcrayvm_prover::prover::{verify_proof, Prover};
 use zcrayvm_prover::test_utils::generate_trace;
 
-fn generate_addi_ret_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
-    // Create a simple assembly program with LDI and RET
-    // Note: Format follows the grammar requirements:
-    // - Program must start with a label followed by an instruction
-    // - Used framesize for stack allocation
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-         _start: 
-            LDI.W @2, #{}\n\
-            ADDI @3, @2, #{}\n\
-            RET\n",
-        src_value, imm_value
-    );
-
-    // Initialize memory with return PC = 0, return FP = 0
-    let init_values = vec![0, 0];
-
-    // Add VROM writes from LDI eventsff
-    let vrom_writes = vec![
-        // Initial values
-        (2, src_value, 2),
-        (0, 0, 1),
-        (1, 0, 1),
-        // ADDI event
-        (3, src_value + imm_value as u32, 1),
-    ];
-
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
-}
-
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
@@ -469,33 +439,4 @@ fn test_all_binary_ops() -> Result<()> {
             "Should have exactly one RET event"
         );
     })
-}
-
-#[test]
-fn test_ldi_addi_ret() -> Result<()> {
-    test_from_trace_generator(
-        || {
-            // Test value to load
-            let src_value = 0x12345678;
-            let imm_value = 3;
-            generate_addi_ret_trace(src_value, imm_value)
-        },
-        |trace| {
-            assert_eq!(
-                trace.addi_events().len(),
-                1,
-                "Should have exactly one ADDI event"
-            );
-            assert_eq!(
-                trace.ldi_events().len(),
-                1,
-                "Should have exactly one LDI event"
-            );
-            assert_eq!(
-                trace.ret_events().len(),
-                1,
-                "Should have exactly one RET event"
-            );
-        },
-    )
 }
