@@ -29,7 +29,6 @@ rand = { version = "0.9.1", features = ["std"] }
 zcrayvm-assembly = { path = "../assembly" }
 criterion = "0.5.1"
 
-# Explicitly define the benchmark target
 [[bench]]
 name = "shift"
-harness = false # Criterion provides its own harness
+harness = false
