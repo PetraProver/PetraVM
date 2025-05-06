@@ -6,11 +6,11 @@ use binius_m3::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::{
-        u32::{U32Add, U32AddFlags},
         mul::MulUU32,
+        u32::{U32Add, U32AddFlags},
     },
 };
-use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent, MulEvent};
+use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, SubEvent};
 
 use crate::{
     channels::Channels,
@@ -427,7 +427,7 @@ impl TableFiller<ProverPackedField> for AddiTable {
 /// with the low 32 bits stored in the destination register.
 pub struct MulTable {
     id: TableId,
-    state_cols: StateColumns<MUL_OPCODE>,
+    state_cols: StateColumns<{ Opcode::Mul as u16 }>,
     dst_abs: Col<B32>, // Virtual
     dst_val_packed: Col<B32>,
     src1_abs: Col<B32>, // Virtual
@@ -547,7 +547,7 @@ impl TableFiller<ProverPackedField> for MulTable {
             arg2: event.src2,
         });
         self.state_cols.populate(witness, state_rows)?;
-        
+
         // Populate the mul_op with the appropriate values
         self.mul_op.populate(
             witness,
@@ -613,6 +613,7 @@ mod tests {
                 ;; Skip @4 to test a gap in vrom writes
                 SUB @5, @2, @3\n\
                 ADD @6, @2, @3\n\
+                MUL @7, @2, @3\n\
                 RET\n",
             src1_value, src2_value
         );
@@ -620,8 +621,8 @@ mod tests {
         // Add VROM writes from LDI and SUB events
         let vrom_writes = vec![
             // LDI events
-            (2, src1_value, 3),
-            (3, src2_value, 3),
+            (2, src1_value, 4),
+            (3, src2_value, 4),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
@@ -629,38 +630,8 @@ mod tests {
             (5, src1_value.wrapping_sub(src2_value), 1),
             // ADD event
             (6, src1_value.wrapping_add(src2_value), 1),
-        ];
-
-        generate_trace(asm_code, None, Some(vrom_writes))
-    }
-
-    /// Creates an execution trace for a simple program that uses the MUL
-    /// instruction.
-    fn generate_mul_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-             _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
-                ;; Skip @4 to test a gap in vrom writes
-                MUL @5, @2, @3\n\
-                RET\n",
-            src1_value, src2_value
-        );
-
-        // Calculate expected result (signed multiplication)
-        let result = ((src1_value as i32) as i64 * (src2_value as i32) as i64) as u32;
-
-        // Add VROM writes from LDI and MUL events
-        let vrom_writes = vec![
-            // LDI events
-            (2, src1_value, 2),
-            (3, src2_value, 2),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // MUL event (writing the low 32 bits of the result)
-            (5, result, 1),
+            // MUL event
+            (7, src1_value.wrapping_mul(src2_value), 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
@@ -678,15 +649,7 @@ mod tests {
         trace.validate()?;
         assert_eq!(trace.sub_events().len(), 1);
         assert_eq!(trace.add_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
-    }
-
-    fn test_mul_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
-        let trace = generate_mul_trace(src1_value, src2_value)?;
-        trace.validate()?;
         assert_eq!(trace.mul_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 2);
-        assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
@@ -703,18 +666,13 @@ mod tests {
             ],
         ) {
             prop_assert!(test_vrom_integer_ops_with_values(src1_value, src2_value).is_ok());
-
         }
         #[test]
     fn test_imm_integer_ops(
-        src in any::<u32>(),
+        src_value in any::<u32>(),
         imm in any::<u16>(),
     ) {
-        prop_assert!(test_imm_integer_ops_with_values(src, imm).is_ok());
+        prop_assert!(test_imm_integer_ops_with_values(src_value, imm).is_ok());
     }
-            prop_assert!(test_add_with_values(src1_value, src2_value).is_ok());
-            prop_assert!(test_sub_with_values(src1_value, src2_value).is_ok());
-            prop_assert!(test_mul_with_values(src1_value, src2_value).is_ok());
-        }
     }
 }
