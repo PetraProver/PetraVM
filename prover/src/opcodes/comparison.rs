@@ -1,4 +1,4 @@
-use std::{any::Any, ops::Deref};
+use std::any::Any;
 
 use binius_m3::{
     builder::{
@@ -6,7 +6,7 @@ use binius_m3::{
     },
     gadgets::u32::{U32Sub, U32SubFlags},
 };
-use petravm_assembly::{opcodes::Opcode, SltuEvent};
+use petravm_assembly::{opcodes::Opcode, SltiuEvent, SltuEvent};
 
 use crate::{
     channels::Channels,
@@ -16,6 +16,7 @@ use crate::{
 };
 
 const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
+const SLTIU_OPCODE: u16 = Opcode::Sltiu as u16;
 
 /// SLTU table.
 ///
@@ -137,10 +138,135 @@ impl TableFiller<ProverPackedField> for SltuTable {
         let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        self.subber.populate(witness)
+    }
+}
+
+/// SLTIU table.
+///
+/// This table handles the SLTIU instruction, which performs unsigned
+/// integer comparison (set if less than) between a 32-bit element and
+/// a 16-bit immediate.
+pub struct SltiuTable {
+    id: TableId,
+    state_cols: StateColumns<SLTIU_OPCODE>,
+    dst_abs: Col<B32>,
+    src_abs: Col<B32>,
+    src_val: Col<B1, 32>,
+    imm_32b: Col<B1, 32>,
+    subber: U32Sub,
+}
+
+impl Table for SltiuTable {
+    type Event = SltiuEvent;
+
+    fn name(&self) -> &'static str {
+        "SltiuTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("sltiu");
+
+        let Channels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
+
+        let state_cols = StateColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            StateColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        // Pull the destination and source values from the VROM channel.
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
+
+        let src_val = table.add_committed("src_val");
+        let src_val_packed = table.add_packed("src_val_packed", src_val);
+
+        let imm_unpacked = state_cols.arg2_unpacked;
+        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
+
+        // Instantiate the subtractor with the appropriate flags
+        let flags = U32SubFlags {
+            borrow_in_bit: None,       // no extra borrow-in
+            expose_final_borrow: true, // we want the "underflow" bit out
+            commit_zout: false,        // we don't need the raw subtraction result
+        };
+        let subber = U32Sub::new(&mut table, src_val, imm_32b, flags);
+        // `final_borrow` is 1 exactly when src_val < imm_val
+        let final_borrow: Col<B1> = subber
+            .final_borrow
+            .expect("Flag `expose_final_borrow` was set to `true`");
+        let dst_val = upcast_col(final_borrow);
+
+        // Read src
+        table.pull(vrom_channel, [src_abs, src_val_packed]);
+
+        // Read dst
+        table.pull(vrom_channel, [dst_abs, dst_val]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            src_abs,
+            src_val,
+            imm_32b,
+            subber,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for SltiuTable {
+    type Event = SltiuEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_val = witness.get_mut_as(self.src_val)?;
+            let mut imm = witness.get_mut_as(self.imm_32b)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                src_abs[i] = B32::new(event.fp.addr(event.src));
+                src_val[i] = event.src_val;
+                imm[i] = event.imm;
+            }
+        }
+        let state_rows = rows.map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm,
         });
         self.state_cols.populate(witness, state_rows)?;
         self.subber.populate(witness)
@@ -197,6 +323,43 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
+    /// Creates an execution trace for a simple program that uses the SLTIU
+    /// instruction.
+    fn generate_sltiu_trace(src_val: u32, imm_val: u16) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                SLTIU @3, @2, #{}\n\
+                RET\n",
+            src_val, imm_val
+        );
+
+        // Calculate the expected result (1 if src < imm, 0 otherwise)
+        let expected = (src_val < imm_val as u32) as u32;
+
+        // Add VROM writes from LDI and SLTU events
+        let vrom_writes = vec![
+            // LDI event
+            (2, src_val, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // SLTIU event
+            (3, expected, 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    fn test_sltiu_with_values(src_val: u32, imm_val: u16) -> Result<()> {
+        let trace = generate_sltiu_trace(src_val, imm_val)?;
+        trace.validate()?;
+        assert_eq!(trace.sltiu_events().len(), 1);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
     proptest! {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
@@ -222,6 +385,26 @@ mod tests {
             ],
         ) {
             prop_assert!(test_sltu_with_values(src1_val, src2_val).is_ok());
+        }
+
+        #[test]
+        fn test_sltiu_operations(
+            // Test both random values and specific edge cases
+            (src_val, imm_val) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u16>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((u32::MAX, u16::MAX)),    // Equal at max
+                Just((1, u16::MAX)),           // 1 < MAX
+                Just((0, u16::MAX)),           // Min < Max
+                Just((u32::MAX, 0)),           // Max > Min
+            ],
+        ) {
+            prop_assert!(test_sltiu_with_values(src_val, imm_val).is_ok());
         }
     }
 }
