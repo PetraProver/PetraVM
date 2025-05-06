@@ -239,6 +239,7 @@ define_table_registry_and_accessors!(
     (xori, Xori),
     (add, Add),
     (sub, Sub),
+    (mul, Mul),
     (taili, Taili),
     (tailv, Tailv),
     (calli, Calli),
