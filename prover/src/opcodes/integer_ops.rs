@@ -561,20 +561,15 @@ impl TableFiller<ProverPackedField> for MulTable {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use binius_field::BinaryField;
     use petravm_assembly::isa::GenericISA;
     use proptest::prelude::*;
-    use proptest::prop_oneof;
 
-    use super::*;
     use crate::model::Trace;
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
-
-    /// Creates an execution trace for a simple program that uses the ADDI
-    /// instruction.
+    /// Creates an execution trace for a simple program that uses the immediate
+    /// integer operations.
     fn generate_imm_integer_ops_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
@@ -585,6 +580,8 @@ mod tests {
             src_value, imm_value
         );
 
+        let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
+
         // Add VROM writes from LDI and ADDI events
         let vrom_writes = vec![
             // LDI event
@@ -593,19 +590,15 @@ mod tests {
             (0, 0, 1),
             (1, 0, 1),
             // ADDI event
-            (
-                3,
-                src_value.wrapping_add((imm_value as i16 as i32) as u32),
-                1,
-            ),
+            (3, addi_result, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    /// Creates an execution trace for a simple program that uses the SUB and
-    /// ADD instructions.
-    fn generate_vrom_integer_ops_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    /// Creates an execution trace for a simple program that uses the unsigned
+    /// integer operations.
+    fn generate_vrom_integer_ops_trace_unsigned(src1_value: u32, src2_value: u32) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
@@ -613,18 +606,15 @@ mod tests {
                 LDI.W @3, #{}\n\
                 SUB @4, @2, @3\n\
                 ADD @5, @2, @3\n\
-                MUL @6, @2, @3\n\
                 RET\n",
             src1_value, src2_value
         );
 
-        let mul_result = ((src1_value as i32 as i64) * (src2_value as i32 as i64)) as u64;
-
         // Add VROM writes from LDI and SUB events
         let vrom_writes = vec![
             // LDI events
-            (2, src1_value, 4),
-            (3, src2_value, 4),
+            (2, src1_value, 3),
+            (3, src2_value, 3),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
@@ -632,9 +622,37 @@ mod tests {
             (4, src1_value.wrapping_sub(src2_value), 1),
             // ADD event
             (5, src1_value.wrapping_add(src2_value), 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    /// Creates an execution trace for a simple program that uses the signed
+    /// integer operations.
+    fn generate_vrom_integer_ops_trace_signed(src1_value: i32, src2_value: i32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                MUL @4, @2, @3\n\
+                RET\n",
+            src1_value as u32, src2_value as u32
+        );
+
+        let mul_result = ((src1_value as i64) * (src2_value as i64)) as u64;
+
+        // Add VROM writes from LDI and SUB events
+        let vrom_writes: Vec<(u32, u32, u32)> = vec![
+            // LDI events
+            (2, src1_value as u32, 2),
+            (3, src2_value as u32, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
             // MUL event
-            (6, (mul_result & 0xFFFFFFFF) as u32, 1),
-            (7, (mul_result >> 32) as u32, 1),
+            (4, (mul_result & 0xFFFFFFFF) as u32, 1),
+            (5, (mul_result >> 32) as u32, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
@@ -647,11 +665,17 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    fn test_vrom_integer_ops_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
-        let trace = generate_vrom_integer_ops_trace(src1_value, src2_value)?;
+    fn test_vrom_integer_ops_with_values_unsigned(src1_value: u32, src2_value: u32) -> Result<()> {
+        let trace = generate_vrom_integer_ops_trace_unsigned(src1_value, src2_value)?;
         trace.validate()?;
         assert_eq!(trace.sub_events().len(), 1);
         assert_eq!(trace.add_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    fn test_vrom_integer_ops_with_values_signed(src1_value: i32, src2_value: i32) -> Result<()> {
+        let trace = generate_vrom_integer_ops_trace_signed(src1_value, src2_value)?;
+        trace.validate()?;
         assert_eq!(trace.mul_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
@@ -660,15 +684,19 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_vrom_integer_ops(
-            src1_value in prop_oneof![
-                any::<u32>()                    // Random values
-            ],
-            src2_value in prop_oneof![
-                any::<u32>()                    // Random values
-            ],
+        fn test_vrom_integer_ops_unsigned(
+            src1_value in  any::<u32>(),
+            src2_value in  any::<u32>(),
         ) {
-            prop_assert!(test_vrom_integer_ops_with_values(src1_value, src2_value).is_ok());
+            prop_assert!(test_vrom_integer_ops_with_values_unsigned(src1_value, src2_value).is_ok());
+        }
+
+        #[test]
+        fn test_vrom_integer_ops_signed(
+            src1_value in  any::<i32>(),
+            src2_value in  any::<i32>(),
+        ) {
+            prop_assert!(test_vrom_integer_ops_with_values_signed(src1_value, src2_value).is_ok());
         }
 
         #[test]
@@ -678,13 +706,5 @@ mod tests {
         ) {
             prop_assert!(test_imm_integer_ops_with_values(src_value, imm).is_ok());
         }
-    }
-
-    #[test]
-    fn test_mul_integer_ops() -> Result<()> {
-        let trace = generate_vrom_integer_ops_trace(10, 20)?;
-        trace.validate()?;
-        assert_eq!(trace.mul_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }
