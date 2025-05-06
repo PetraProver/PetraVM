@@ -15,7 +15,7 @@ use tracing::trace;
 use crate::{
     assembler::LabelsFrameSizes,
     context::EventContext,
-    execution::{StateChannel, ZCrayTrace},
+    execution::{PetraTrace, StateChannel},
     isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
     mv::MVInfo,
@@ -63,7 +63,7 @@ impl DerefMut for FramePointer {
     }
 }
 
-/// Main program executor, used to build a [`ZCrayTrace`] from a program's PROM.
+/// Main program executor, used to build a [`PetraTrace`] from a program's PROM.
 ///
 /// The interpreter manages control flow, memory accesses, instruction execution
 /// and state updates.
@@ -209,8 +209,8 @@ impl Interpreter {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 
-    pub fn run(&mut self, memory: Memory) -> Result<ZCrayTrace, InterpreterError> {
-        let mut trace = ZCrayTrace::new(memory);
+    pub fn run(&mut self, memory: Memory) -> Result<PetraTrace, InterpreterError> {
+        let mut trace = PetraTrace::new(memory);
 
         let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
@@ -233,7 +233,7 @@ impl Interpreter {
         }
     }
 
-    pub fn step(&mut self, trace: &mut ZCrayTrace) -> Result<(), InterpreterError> {
+    pub fn step(&mut self, trace: &mut PetraTrace) -> Result<(), InterpreterError> {
         if self.pc as usize - 1 > trace.prom().len() {
             return Err(InterpreterError::BadPc);
         }
@@ -274,7 +274,7 @@ impl Interpreter {
 
     pub(crate) fn allocate_new_frame(
         &self,
-        trace: &mut ZCrayTrace,
+        trace: &mut PetraTrace,
         target: B32,
     ) -> Result<u32, InterpreterError> {
         let frame_size = self
@@ -295,7 +295,7 @@ mod tests {
     use crate::ValueRom;
 
     #[test]
-    fn test_zcray() {
+    fn test_petra() {
         let zero = B16::zero();
         let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
         let prom = code_to_prom(&code);
@@ -305,7 +305,7 @@ mod tests {
         frames.insert(B32::ONE, 12);
 
         let (trace, boundary_values) =
-            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
                 .expect("Ouch!");
         trace.validate(boundary_values);
     }
@@ -471,7 +471,7 @@ mod tests {
         let mut frames_args_size = HashMap::new();
         frames_args_size.insert(B32::ONE, 10);
 
-        let (traces, boundary_values) = ZCrayTrace::generate(
+        let (traces, boundary_values) = PetraTrace::generate(
             Box::new(GenericISA),
             memory,
             frames_args_size,

@@ -1,5 +1,5 @@
 [package]
-name = "zcrayvm-assembly"
+name = "petravm-assembly"
 version.workspace = true
 edition.workspace = true
 

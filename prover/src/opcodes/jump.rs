@@ -3,7 +3,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{JumpiEvent, JumpvEvent, Opcode};
+use petravm_assembly::{JumpiEvent, JumpvEvent, Opcode};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
@@ -162,7 +162,7 @@ impl TableFiller<ProverPackedField> for JumpvTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
-    use zcrayvm_assembly::isa::GenericISA;
+    use petravm_assembly::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;

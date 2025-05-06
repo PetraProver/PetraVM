@@ -4,7 +4,7 @@ use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{BnzEvent, BzEvent, Opcode};
+use petravm_assembly::{BnzEvent, BzEvent, Opcode};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField};

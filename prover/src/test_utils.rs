@@ -2,8 +2,8 @@ use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
-use zcrayvm_assembly::{
-    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
+use petravm_assembly::{
+    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
 
 use crate::model::Trace;
@@ -118,7 +118,7 @@ pub fn generate_trace(
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
-    let (zcray_trace, _) = ZCrayTrace::generate(
+    let (petra_trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -127,7 +127,7 @@ pub fn generate_trace(
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
+    let mut zkvm_trace = Trace::from_petra_trace(program, petra_trace);
     let actual_vrom_writes = zkvm_trace.trace.vrom().sorted_access_counts();
 
     // Validate that manually specified multiplicities match the actual ones if

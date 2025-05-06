@@ -4,7 +4,7 @@ use binius_m3::builder::{B16, B32};
 use super::context::EventContext;
 use crate::{
     event::Event,
-    execution::{FramePointer, InterpreterChannels, InterpreterError, ZCrayTrace},
+    execution::{FramePointer, InterpreterChannels, InterpreterError, PetraTrace},
     fire_non_jump_event,
     memory::{MemoryError, VromValueT},
     opcodes::Opcode,
@@ -30,7 +30,7 @@ pub struct MVInfo {
 /// Convenience macro to implement the [`Event`] trait for MV events.
 ///
 /// It takes as argument the instruction and its corresponding field name in the
-/// [`ZCrayTrace`] where such events are being logged.
+/// [`PetraTrace`] where such events are being logged.
 ///
 /// # Example
 ///
@@ -99,7 +99,7 @@ impl MVEventOutput {
         }
     }
 
-    pub(crate) fn push_mv_event(&self, trace: &mut ZCrayTrace) {
+    pub(crate) fn push_mv_event(&self, trace: &mut PetraTrace) {
         let &MVEventOutput {
             opcode,
             field_pc,
