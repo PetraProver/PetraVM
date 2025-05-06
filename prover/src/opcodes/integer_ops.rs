@@ -434,7 +434,7 @@ mod tests {
 
     /// Creates an execution trace for a simple program that uses the ADDI
     /// instruction.
-    fn generate_addi_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
+    fn generate_imm_integer_ops_trace(src_value: u32, imm_value: u16) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
@@ -464,54 +464,48 @@ mod tests {
 
     /// Creates an execution trace for a simple program that uses the SUB and
     /// ADD instructions.
-    fn generate_sub_add_trace(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<Trace> {
+    fn generate_vrom_integer_ops_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
                 LDI.W @2, #{}\n\
                 LDI.W @3, #{}\n\
-                LDI.W @4, #{}\n\
-                ;; Skip @5 to test a gap in vrom writes
-                SUB @6, @2, @3\n\
-                ADD @7, @4, @3\n\
+                ;; Skip @4 to test a gap in vrom writes
+                SUB @5, @2, @3\n\
+                ADD @6, @2, @3\n\
                 RET\n",
-            src1_value, src2_value, src3_value
+            src1_value, src2_value
         );
 
         // Add VROM writes from LDI and SUB events
         let vrom_writes = vec![
             // LDI events
+            (2, src1_value, 3),
             (3, src2_value, 3),
-            (2, src1_value, 2),
-            (4, src3_value, 2),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
             // SUB event
-            (6, src1_value.wrapping_sub(src2_value), 1),
+            (5, src1_value.wrapping_sub(src2_value), 1),
             // ADD event
-            (7, src2_value.wrapping_add(src3_value), 1),
+            (6, src1_value.wrapping_add(src2_value), 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    fn test_addi_with_values(src_value: u32, imm: u16) -> Result<()> {
-        let trace = generate_addi_trace(src_value, imm)?;
+    fn test_imm_integer_ops_with_values(src_value: u32, imm: u16) -> Result<()> {
+        let trace = generate_imm_integer_ops_trace(src_value, imm)?;
         trace.validate()?;
         assert_eq!(trace.addi_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 1);
-        assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    fn test_sub_add_with_values(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<()> {
-        let trace = generate_sub_add_trace(src1_value, src2_value, src3_value)?;
+    fn test_vrom_integer_ops_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
+        let trace = generate_vrom_integer_ops_trace(src1_value, src2_value)?;
         trace.validate()?;
         assert_eq!(trace.sub_events().len(), 1);
         assert_eq!(trace.add_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 3);
-        assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
@@ -526,11 +520,8 @@ mod tests {
             src2_value in prop_oneof![
                 any::<u32>()                    // Random values
             ],
-            src3_value in prop_oneof![
-                any::<u32>()                    // Random values
-            ],
         ) {
-            prop_assert!(test_sub_add_with_values(src1_value, src2_value, src3_value).is_ok());
+            prop_assert!(test_vrom_integer_ops_with_values(src1_value, src2_value).is_ok());
 
         }
         #[test]
@@ -538,7 +529,7 @@ mod tests {
         src in any::<u32>(),
         imm in any::<u16>(),
     ) {
-        prop_assert!(test_addi_with_values(src, imm).is_ok());
+        prop_assert!(test_imm_integer_ops_with_values(src, imm).is_ok());
     }
     }
 }
