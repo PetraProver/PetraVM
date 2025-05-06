@@ -1,14 +1,14 @@
-//! LDI (Load Immediate) table implementation for the zCrayVM M3 circuit.
+//! LDI (Load Immediate) table implementation for the PetraVM M3 circuit.
 //!
 //! This module contains the LDI table which handles loading immediate values
-//! into VROM locations in the zCrayVM execution.
+//! into VROM locations in the PetraVM execution.
 
 use std::any::Any;
 
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{opcodes::Opcode, LdiEvent};
+use petravm_assembly::{opcodes::Opcode, LdiEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};

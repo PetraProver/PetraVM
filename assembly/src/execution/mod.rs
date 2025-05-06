@@ -1,4 +1,4 @@
-//! Implements the execution engine for the zCrayVM.
+//! Implements the execution engine for the PetraVM.
 //!
 //! The emulator is responsible for interpreting and running
 //! parsed programs and managing the virtual machine state.
@@ -9,4 +9,4 @@ pub mod trace;
 
 pub use channels::*;
 pub use emulator::*;
-pub use trace::ZCrayTrace;
+pub use trace::PetraTrace;

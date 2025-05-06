@@ -1,15 +1,15 @@
-# zCrayVM
+# PetraVM
 A verifiable supercomputer
 
 ## Overview
-zCrayVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
+PetraVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
 
 ## Instruction Set
-zCrayVM's full instruction set is divided into five categories—Binary field, Arithmetic & Logic, Memory, Control Flow, and Function Calls—and the prover's current support is noted below.
+PetraVM's full instruction set is divided into five categories—Binary field, Arithmetic & Logic, Memory, Control Flow, and Function Calls—and the prover's current support is noted below.
 
 ### Prover Support (Work in Progress)
 
-> **Note:** In zCrayVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
+> **Note:** In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
 
 > **Note:** Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
@@ -81,6 +81,6 @@ zCrayVM's full instruction set is divided into five categories—Binary field, A
 - [ ] `LHU` - Load halfword unsigned
 
 ## Example Programs
-The project includes several example programs that demonstrate the capabilities of zCrayVM:
+The project includes several example programs that demonstrate the capabilities of PetraVM:
 
 - [Fibonacci](prover/tests/fibonacci.rs): Prove a Fibonacci number

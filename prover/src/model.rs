@@ -1,4 +1,4 @@
-//! Data models for the zCrayVM proving system.
+//! Data models for the PetraVM proving system.
 //!
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
@@ -8,13 +8,13 @@ use std::collections::HashMap;
 use anyhow::Result;
 use binius_m3::builder::B32;
 use paste::paste;
-use zcrayvm_assembly::{event::*, InterpreterInstruction, Opcode, ZCrayTrace};
+use petravm_assembly::{event::*, InterpreterInstruction, Opcode, PetraTrace};
 
 use crate::table::*;
 
 /// Implements the [`TableInfo`] trait that lifts
-/// [`InstructionInfo`](zcrayvm_assembly::InstructionInfo) and maps events to
-/// their corresponding field in the [`ZCrayTrace`], as well as corresponding
+/// [`InstructionInfo`](petravm_assembly::InstructionInfo) and maps events to
+/// their corresponding field in the [`PetraTrace`], as well as corresponding
 /// event accessors for the main [`Trace`].
 ///
 /// It will also implement the mapping between an [`Opcode`] and its associated
@@ -74,7 +74,7 @@ macro_rules! define_table_registry_and_accessors {
     };
 }
 
-/// High-level representation of a zCrayVM instruction with its PC and
+/// High-level representation of a PetraVM instruction with its PC and
 /// arguments.
 ///
 /// This is a simplified representation of the instruction format used in the
@@ -105,15 +105,15 @@ impl From<InterpreterInstruction> for Instruction {
 
 /// Execution trace containing a program and all execution events.
 ///
-/// This is a wrapper around ZCrayTrace that provides a simplified interface
+/// This is a wrapper around PetraTrace that provides a simplified interface
 /// for the proving system. It contains:
 /// 1. The program instructions in a format optimized for the prover
-/// 2. The original ZCrayTrace with all execution events and memory state
+/// 2. The original PetraTrace with all execution events and memory state
 /// 3. A list of VROM writes (address, value) pairs
 #[derive(Debug)]
 pub struct Trace {
-    /// The underlying ZCrayTrace containing all execution events
-    pub trace: ZCrayTrace,
+    /// The underlying PetraTrace containing all execution events
+    pub trace: PetraTrace,
     /// Program instructions in a more convenient format for the proving system
     pub program: Vec<(Instruction, u32)>,
     /// List of VROM writes (address, value, multiplicity) pairs
@@ -132,14 +132,14 @@ impl Trace {
     /// Creates a new empty execution trace.
     pub fn new() -> Self {
         Self {
-            trace: ZCrayTrace::default(),
+            trace: PetraTrace::default(),
             program: Vec::new(),
             vrom_writes: Vec::new(),
             max_vrom_addr: 0,
         }
     }
 
-    /// Creates a Trace from an existing ZCrayTrace.
+    /// Creates a Trace from an existing PetraTrace.
     ///
     /// This is useful when you have a trace from the interpreter and want
     /// to convert it to the proving format.
@@ -150,7 +150,7 @@ impl Trace {
     /// TODO: Refactor this approach to directly obtain the zkVMTrace from
     /// program emulation rather than requiring separate population of
     /// program instructions.
-    pub fn from_zcray_trace(program: Vec<InterpreterInstruction>, trace: ZCrayTrace) -> Self {
+    pub fn from_petra_trace(program: Vec<InterpreterInstruction>, trace: PetraTrace) -> Self {
         // Add the program instructions to the trace
         let mut zkvm_trace = Self::new();
         zkvm_trace.add_instructions(program, &trace.instruction_counter);

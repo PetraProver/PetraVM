@@ -284,7 +284,7 @@ impl SignedMulOperation for MulOp {
 /// Convenience macro to implement the [`Event`] trait for signed mul events.
 ///
 /// It takes as argument the field name of the instruction within the
-/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// [`PetraTrace`](crate::execution::PetraTrace) object, and the corresponding
 /// instruction's [`Event`].
 ///
 /// # Example
@@ -374,7 +374,7 @@ define_bin32_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{execution::Interpreter, get_last_event, ZCrayTrace};
+    use crate::{execution::Interpreter, get_last_event, PetraTrace};
 
     /// Tests for Add operations (without immediate)
     #[test]
@@ -404,7 +404,7 @@ mod tests {
 
         for (src1_val, src2_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = B16::new(2);
             let src2_offset = B16::new(3);
@@ -468,7 +468,7 @@ mod tests {
 
         for (src1_val, src2_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = B16::new(2);
             let src2_offset = B16::new(3);
@@ -519,7 +519,7 @@ mod tests {
 
         for (src_val, imm_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = B16::new(2);
             let dst_offset = B16::new(4);
@@ -613,7 +613,7 @@ mod tests {
         for (src1_val, src2_val, mul_expected, mulu_expected, mulsu_expected, desc) in test_cases {
             // Test MUL (sign * sign)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = B16::new(2);
             let src2_offset = B16::new(3);
@@ -642,7 +642,7 @@ mod tests {
             interpreter.pc = 1;
 
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
@@ -658,7 +658,7 @@ mod tests {
 
             // Test MULSU (sign * unsigned)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
@@ -723,7 +723,7 @@ mod tests {
 
         for (src_val, imm_val, expected, desc) in test_cases {
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = B16::new(2);
             let dst_offset = B16::new(4);

@@ -5,7 +5,7 @@ use binius_m3::{
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
-use zcrayvm_assembly::{Opcode, SllEvent, SlliEvent, SrlEvent, SrliEvent};
+use petravm_assembly::{Opcode, SllEvent, SlliEvent, SrlEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
@@ -307,7 +307,7 @@ mod tests {
     use anyhow::Result;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use zcrayvm_assembly::isa::GenericISA;
+    use petravm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

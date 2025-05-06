@@ -1,4 +1,4 @@
-//! Modular Instruction Set Architectures (ISAs) for the zCray Virtual Machine.
+//! Modular Instruction Set Architectures (ISAs) for the Petra Virtual Machine.
 //!
 //! An ISA defines:
 //! - The instructions it supports.
@@ -15,7 +15,7 @@ use std::collections::HashSet;
 use crate::event::*;
 use crate::Opcode;
 
-/// Defines an Instruction Set Architecture for the zCray Virtual Machine.
+/// Defines an Instruction Set Architecture for the Petra Virtual Machine.
 ///
 /// Each implementation of this trait should provide the different instructions
 /// supported. This can be done easily through the
@@ -70,7 +70,7 @@ macro_rules! define_isa {
 // Needs to implement #79.
 
 // define_isa!(
-//     /// A minimal ISA for the zCray Virtual Machine,
+//     /// A minimal ISA for the Petra Virtual Machine,
 //     /// tailored for efficient recursion.
 //     RecursionISA => [
 //         B32MulEvent,
@@ -83,7 +83,7 @@ macro_rules! define_isa {
 // );
 
 define_isa!(
-    /// The main Instruction Set Architecture (ISA) for the zCray Virtual Machine,
+    /// The main Instruction Set Architecture (ISA) for the Petra Virtual Machine,
     /// supporting all existing instructions.
     GenericISA => [
         AddEvent,

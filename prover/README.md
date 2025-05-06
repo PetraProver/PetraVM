@@ -1,6 +1,6 @@
-# zCrayVM Prover
+# PetraVM Prover
 
-This crate implements the proving system for zCrayVM.
+This crate implements the proving system for PetraVM.
 
 ## Architecture
 
@@ -72,11 +72,11 @@ The proving system is built using an M3 arithmetic circuit with the following co
 
 ## Usage
 
-The proving system is used to generate and verify proofs of zCrayVM execution:
+The proving system is used to generate and verify proofs of PetraVM execution:
 
 ```rust
-use zcrayvm_prover::prover::{Prover, verify_proof};
-use zcrayvm_prover::model::Trace;
+use petravm_prover::prover::{Prover, verify_proof};
+use petravm_prover::model::Trace;
 
 // Create a prover
 let prover = Prover::new(Box::new(GenericISA));

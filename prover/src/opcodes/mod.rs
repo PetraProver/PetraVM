@@ -1,4 +1,4 @@
-//! Opcode implementations for the zCrayVM M3 circuit.
+//! Opcode implementations for the PetraVM M3 circuit.
 //!
 //! This module contains the tables for each opcode instruction.
 

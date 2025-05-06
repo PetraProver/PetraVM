@@ -6,7 +6,7 @@ use binius_m3::{
     },
     gadgets::u32::{U32Add, U32AddFlags},
 };
-use zcrayvm_assembly::{opcodes::Opcode, AddEvent, SubEvent};
+use petravm_assembly::{opcodes::Opcode, AddEvent, SubEvent};
 
 use crate::{
     channels::Channels,
@@ -270,7 +270,7 @@ mod tests {
     use binius_field::BinaryField;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use zcrayvm_assembly::isa::GenericISA;
+    use petravm_assembly::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;

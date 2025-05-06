@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
 
-/// Represents the set of instructions supported by the zCrayVM.
+/// Represents the set of instructions supported by the PetraVM.
 #[derive(
     Debug,
     Display,
@@ -86,7 +86,7 @@ pub enum Opcode {
 
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
-    // Not needed for recursion program or first version of zCrayVM
+    // Not needed for recursion program or first version of PetraVM
     // Design note: Considering 32-bit word-sized memory instead of byte-addressed memory
     // LW,
     // SW,

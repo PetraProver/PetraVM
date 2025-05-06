@@ -1,4 +1,4 @@
-//! Defines execution events for the zCray VM.
+//! Defines execution events for the Petra VM.
 //!
 //! Each instruction executed by the VM, such as arithmetic operations,
 //! branching, or function calls, results in an `Event`, which records the state

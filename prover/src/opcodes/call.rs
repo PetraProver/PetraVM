@@ -1,11 +1,11 @@
-//! Function call instructions for the zCrayVM M3 circuit.
+//! Function call instructions for the PetraVM M3 circuit.
 
 use std::any::Any;
 
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use zcrayvm_assembly::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEvent};
+use petravm_assembly::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
@@ -574,7 +574,7 @@ impl TableFiller<ProverPackedField> for CallvTable {
 mod tests {
     use anyhow::Result;
     use binius_field::{BinaryField, PackedField};
-    use zcrayvm_assembly::isa::GenericISA;
+    use petravm_assembly::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;
