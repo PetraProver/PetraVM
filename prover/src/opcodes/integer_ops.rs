@@ -320,8 +320,8 @@ impl Table for AddiTable {
         // constants.
         let msb = table.add_selected("msb", imm_unpacked, 15);
         let mut constants = [B1::ONE; 32];
-        for i in 0..16 {
-            constants[i] = B1::ZERO;
+        for c in constants.iter_mut().take(16) {
+            *c = B1::ZERO;
         }
         let ones = table.add_constant("ones", constants);
 
