@@ -269,7 +269,7 @@ mod test {
 
     use super::*;
     use crate::{
-        isa::GenericISA, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, PetraTrace,
+        isa::GenericISA, memory::Memory, opcodes::Opcode, util::code_to_prom, PetraTrace, ValueRom,
     };
 
     #[test]

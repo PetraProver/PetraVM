@@ -3,8 +3,8 @@ pub mod common;
 use std::collections::HashSet;
 
 use common::test_utils::execute_test_asm;
-use strum::VariantArray;
 use petravm_assembly::Opcode;
+use strum::VariantArray;
 
 #[test]
 fn test_opcodes() {

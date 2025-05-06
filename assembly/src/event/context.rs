@@ -6,7 +6,7 @@ use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{MemoryError, Ram, RamValueT, VromValueT},
-    ValueRom, PetraTrace,
+    PetraTrace, ValueRom,
 };
 
 /// A context sufficient to generate any `Event`, update the state machine and

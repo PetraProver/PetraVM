@@ -268,9 +268,9 @@ impl TableFiller<ProverPackedField> for SubTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
+    use petravm_assembly::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use petravm_assembly::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;

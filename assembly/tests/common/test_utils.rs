@@ -8,7 +8,7 @@ use std::{
 use petravm_assembly::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
-    AssembledProgram, Assembler, Memory, ValueRom, PetraTrace,
+    AssembledProgram, Assembler, Memory, PetraTrace, ValueRom,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.

@@ -291,8 +291,8 @@ mod tests {
     use binius_m3::builder::{B16, B32};
 
     use crate::{
-        execution::G, isa::GenericISA, opcodes::Opcode, util::code_to_prom, Memory, ValueRom,
-        PetraTrace,
+        execution::G, isa::GenericISA, opcodes::Opcode, util::code_to_prom, Memory, PetraTrace,
+        ValueRom,
     };
 
     #[test]

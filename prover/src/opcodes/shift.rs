@@ -305,9 +305,9 @@ define_logic_shift_table!(vrom:  SllTable,  "sll",
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use petravm_assembly::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use petravm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

@@ -15,7 +15,7 @@ use tracing::trace;
 use crate::{
     assembler::LabelsFrameSizes,
     context::EventContext,
-    execution::{StateChannel, PetraTrace},
+    execution::{PetraTrace, StateChannel},
     isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
     mv::MVInfo,
