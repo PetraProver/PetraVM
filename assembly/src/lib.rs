@@ -1,5 +1,5 @@
 //! The `assembly` crate provides the core components and functionalities for
-//! assembling and executing programs with the zCray Virtual Machine (zCrayVM).
+//! assembling and executing programs with the Petra Virtual Machine (PetraVM).
 //!
 //! This includes instruction definitions, program parsing and program
 //! execution.
@@ -20,7 +20,7 @@ pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use event::*;
 pub use execution::emulator::{Instruction, InterpreterInstruction};
 pub use execution::trace::BoundaryValues;
-pub use execution::trace::ZCrayTrace;
+pub use execution::trace::PetraTrace;
 pub use memory::{Memory, ProgramRom, ValueRom};
 pub use opcodes::{InstructionInfo, Opcode};
 pub use util::init_logger;

@@ -1,10 +1,10 @@
-//! Circuit definition for the zCrayVM proving system.
+//! Circuit definition for the PetraVM proving system.
 //!
-//! This module defines the complete M3 circuit for zCrayVM, combining
+//! This module defines the complete M3 circuit for PetraVM, combining
 //! all the individual tables and channels.
 
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
-use zcrayvm_assembly::isa::ISA;
+use petravm_assembly::isa::ISA;
 
 use crate::{
     channels::Channels,
@@ -13,9 +13,9 @@ use crate::{
     table::FillableTable,
 };
 
-/// Arithmetic circuit for the zCrayVM proving system.
+/// Arithmetic circuit for the PetraVM proving system.
 ///
-/// This struct represents the complete M3 arithmetization circuit for zCrayVM.
+/// This struct represents the complete M3 arithmetization circuit for PetraVM.
 /// It contains all the tables and channels needed to encode program execution
 /// as arithmetic constraints.
 pub struct Circuit {
@@ -40,10 +40,10 @@ pub struct Circuit {
 }
 
 impl Circuit {
-    /// Create a new zCrayVM circuit.
+    /// Create a new PetraVM circuit.
     ///
     /// This initializes the constraint system, channels, and all tables
-    /// needed for the zCrayVM execution.
+    /// needed for the PetraVM execution.
     pub fn new(isa: Box<dyn ISA>) -> Self {
         let mut cs = ConstraintSystem::new();
         let channels = Channels::new(&mut cs);
@@ -78,7 +78,7 @@ impl Circuit {
     /// Create a circuit statement for a given trace.
     ///
     /// # Arguments
-    /// * `trace` - The zCrayVM execution trace
+    /// * `trace` - The PetraVM execution trace
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes

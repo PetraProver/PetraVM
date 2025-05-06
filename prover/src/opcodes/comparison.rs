@@ -6,7 +6,7 @@ use binius_m3::{
     },
     gadgets::u32::{U32Sub, U32SubFlags},
 };
-use zcrayvm_assembly::{opcodes::Opcode, SltuEvent};
+use petravm_assembly::{opcodes::Opcode, SltuEvent};
 
 use crate::{
     channels::Channels,
@@ -150,9 +150,9 @@ impl TableFiller<ProverPackedField> for SltuTable {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use petravm_assembly::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use zcrayvm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

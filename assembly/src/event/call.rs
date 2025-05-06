@@ -291,8 +291,8 @@ mod tests {
     use binius_m3::builder::{B16, B32};
 
     use crate::{
-        execution::G, isa::GenericISA, opcodes::Opcode, util::code_to_prom, Memory, ValueRom,
-        ZCrayTrace,
+        execution::G, isa::GenericISA, opcodes::Opcode, util::code_to_prom, Memory, PetraTrace,
+        ValueRom,
     };
 
     #[test]
@@ -346,7 +346,7 @@ mod tests {
         pc_field_to_int.insert(target, ret_pc as u32);
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
                 .expect("Trace generation should not fail.");
 
         // Check that there are no MOVE events that have yet to be executed.
@@ -410,7 +410,7 @@ mod tests {
         pc_field_to_int.insert(ldi, ldi_pc as u32);
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
                 .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());

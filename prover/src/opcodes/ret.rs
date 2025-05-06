@@ -1,13 +1,13 @@
-//! RET (Return) table implementation for the zCrayVM M3 circuit.
+//! RET (Return) table implementation for the PetraVM M3 circuit.
 //!
 //! This module contains the RET table which handles return operations
-//! in the zCrayVM execution.
+//! in the PetraVM execution.
 
 use std::any::Any;
 
 use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
-use zcrayvm_assembly::{opcodes::Opcode, RetEvent};
+use petravm_assembly::{opcodes::Opcode, RetEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions};
 use crate::{

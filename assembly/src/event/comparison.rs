@@ -118,7 +118,7 @@ define_bin32_imm_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{execution::Interpreter, get_last_event, Event, ZCrayTrace};
+    use crate::{execution::Interpreter, get_last_event, Event, PetraTrace};
 
     /// Tests for Comparison operations (without immediate)
     #[test]
@@ -185,7 +185,7 @@ mod tests {
         {
             // Test SLT (Signed Less Than)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src1_offset = B16::new(2);
             let src2_offset = B16::new(3);
@@ -206,7 +206,7 @@ mod tests {
 
             // Test SLTU (Unsigned Less Than)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
@@ -223,7 +223,7 @@ mod tests {
 
             // Test SLE (Signed Less Than Or Equal)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
@@ -240,7 +240,7 @@ mod tests {
 
             // Test SLEU (Unsigned Less Than Or Equal)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set values in VROM at the computed addresses (FP ^ offset)
             ctx.set_vrom(src1_offset.val(), src1_val);
@@ -421,7 +421,7 @@ mod tests {
         {
             // Test SLTI (Signed Less Than Immediate)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             let src_offset = B16::new(2);
             let dst_offset = B16::new(4);
@@ -441,7 +441,7 @@ mod tests {
 
             // Test SLTIU (Unsigned Less Than Immediate)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
@@ -457,7 +457,7 @@ mod tests {
 
             // Test SLEI (Signed Less Than Or Equal Immediate)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
@@ -473,7 +473,7 @@ mod tests {
 
             // Test SLEUI (Unsigned Less Than Or Equal Immediate)
             let mut interpreter = Interpreter::default();
-            let mut trace = ZCrayTrace::default();
+            let mut trace = PetraTrace::default();
             let mut ctx = EventContext::new(&mut interpreter, &mut trace);
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);

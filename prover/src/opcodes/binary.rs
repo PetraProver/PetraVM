@@ -1,4 +1,4 @@
-//! Binary field operation tables for the zCrayVM M3 circuit.
+//! Binary field operation tables for the PetraVM M3 circuit.
 //!
 //! This module contains tables for binary field arithmetic operations.
 
@@ -9,7 +9,7 @@ use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B128, B16, B32,
 };
-use zcrayvm_assembly::{
+use petravm_assembly::{
     opcodes::Opcode, AndEvent, AndiEvent, B128AddEvent, B128MulEvent, B32MulEvent, B32MuliEvent,
     OrEvent, OriEvent, XorEvent, XoriEvent,
 };

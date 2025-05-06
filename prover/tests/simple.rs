@@ -1,4 +1,4 @@
-//! Test the zCrayVM proving system with LDI and RET instructions.
+//! Test the PetraVM proving system with LDI and RET instructions.
 //!
 //! This file contains an integration test that verifies the complete
 //! proving system pipeline from assembly to proof verification.
@@ -7,12 +7,12 @@ use anyhow::Result;
 use binius_field::underlier::Divisible;
 use binius_m3::builder::{B128, B32};
 use log::trace;
+use petravm_assembly::isa::GenericISA;
+use petravm_prover::model::Trace;
+use petravm_prover::prover::{verify_proof, Prover};
+use petravm_prover::test_utils::generate_trace;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_prover::model::Trace;
-use zcrayvm_prover::prover::{verify_proof, Prover};
-use zcrayvm_prover::test_utils::generate_trace;
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where

@@ -1,6 +1,6 @@
 use common::test_utils::execute_test_asm;
 
-// filepath: /home/brendan/work/predicate_labs/our_repos/zCrayVM/assembly/tests/
+// filepath: /home/brendan/work/predicate_labs/our_repos/PetraVM/assembly/tests/
 // bit_ops.rs
 pub mod common;
 

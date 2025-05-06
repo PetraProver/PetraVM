@@ -1,7 +1,7 @@
-//! Main prover interface for zCrayVM.
+//! Main prover interface for PetraVM.
 //!
 //! This module provides the main entry point for creating proofs from
-//! zCrayVM execution traces.
+//! PetraVM execution traces.
 
 use anyhow::{anyhow, Result};
 use binius_core::{
@@ -14,7 +14,7 @@ use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, TableFiller, B128};
 use bumpalo::Bump;
-use zcrayvm_assembly::isa::ISA;
+use petravm_assembly::isa::ISA;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
@@ -23,14 +23,14 @@ const SECURITY_BITS: usize = 100;
 pub(crate) const PROM_MULTIPLICITY_BITS: usize = 32;
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
 
-/// Main prover for zCrayVM.
+/// Main prover for PetraVM.
 pub struct Prover {
-    /// Arithmetic circuit for zCrayVM
+    /// Arithmetic circuit for PetraVM
     circuit: Circuit,
 }
 
 impl Prover {
-    /// Create a new zCrayVM prover.
+    /// Create a new PetraVM prover.
     pub fn new(isa: Box<dyn ISA>) -> Self {
         Self {
             circuit: Circuit::new(isa),
@@ -39,7 +39,7 @@ impl Prover {
 
     // TODO: Split witness generation from actual proving?
 
-    /// Prove a zCrayVM execution trace.
+    /// Prove a PetraVM execution trace.
     ///
     /// This function:
     /// 1. Creates a statement from the trace
@@ -49,7 +49,7 @@ impl Prover {
     /// 5. Generates a proof
     ///
     /// # Arguments
-    /// * `trace` - The zCrayVM execution trace to prove
+    /// * `trace` - The PetraVM execution trace to prove
     ///
     /// # Returns
     /// * Result containing the proof, statement, and compiled constraint system
@@ -133,7 +133,7 @@ impl Prover {
         Ok((proof, statement, compiled_cs))
     }
 
-    /// Validate a zCrayVM execution trace.
+    /// Validate a PetraVM execution trace.
     #[cfg(test)]
     pub fn validate_witness(&self, trace: &Trace) -> Result<()> {
         // Create a statement from the trace
@@ -186,7 +186,7 @@ impl Prover {
     }
 }
 
-/// Verify a zCrayVM execution proof.
+/// Verify a PetraVM execution proof.
 ///
 /// This function:
 /// 1. Uses the provided compiled constraint system
