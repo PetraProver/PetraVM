@@ -24,7 +24,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [x] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
 - [x] `MUL` - Signed multiplication
-- [ ] `MULI` - Signed multiplication with immediate
+- [x] `MULI` - Signed multiplication with immediate
 - [ ] `MULU` - Unsigned multiplication
 - [ ] `MULSU` - Signed × unsigned multiplication
 
@@ -65,6 +65,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
     - [x] `JUMPI` - Jump to immediate address
     - [x] `JUMPV` - Jump to address in variable
 - [x] `BNZ` - Branch if not zero
+    - [x] `BZ` - Branch if zero
 
 #### Function Calls
 - [x] `CALLI` - Call function at immediate address
@@ -83,4 +84,15 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
-- [Fibonacci](prover/tests/fibonacci.rs): Prove a Fibonacci number
+- [Fibonacci](prover/examples/fibonacci.rs): Prove a Fibonacci number
+- [Collatz](prover/examples/collatz.rs): Prove the Collatz conjecture
+
+### Running Examples
+
+```bash
+# Calculate and prove the 10th Fibonacci number
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 10
+
+# Run Collatz conjecture for starting value 7
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
+```
