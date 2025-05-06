@@ -734,17 +734,14 @@ impl TableFiller<ProverPackedField> for MuliTable {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
-
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val_unpacked)?;
-
             let mut imm = witness.get_mut_as(self.imm_unpacked)?;
             let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
                 witness.get_mut_as(self.msb)?;
             let mut negative = witness.get_mut_as(self.negative_unpacked)?;
             let mut signed_imm = witness.get_mut_as(self.signed_imm_unpacked)?;
             let mut ones = witness.get_mut_as(self.ones)?;
-
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
@@ -753,8 +750,6 @@ impl TableFiller<ProverPackedField> for MuliTable {
                 src_val[i] = event.src_val;
 
                 let imm_val = event.imm as u32;
-                let imm_val_i16 = event.imm as i16;
-
                 imm[i] = imm_val;
 
                 let is_negative = (imm_val >> 15) & 1 == 1;
@@ -770,7 +765,7 @@ impl TableFiller<ProverPackedField> for MuliTable {
                 // For the signed extension
                 if is_negative {
                     // Sign-extend by using the i16->i32 conversion
-                    signed_imm[i] = imm_val_i16 as i32 as u32;
+                    signed_imm[i] = imm_val as i16 as i32 as u32;
                 } else {
                     // For positive numbers, just use the imm value directly
                     signed_imm[i] = imm_val;
