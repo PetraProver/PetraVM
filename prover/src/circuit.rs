@@ -10,7 +10,8 @@ use crate::{
     channels::Channels,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::{build_table_for_opcode, Trace},
-    table::FillableTable,
+    table::{FillableTable, Table},
+    gadgets::right_shifter_table::RightShifterTable,
 };
 
 /// Arithmetic circuit for the zCrayVM proving system.
@@ -35,6 +36,8 @@ pub struct Circuit {
     pub vrom_write_table: VromWriteTable,
     /// VROM Skip table
     pub vrom_skip_table: VromSkipTable,
+    /// Right Logical Shifter table
+    pub right_shifter_table: RightShifterTable,
     /// Instruction tables
     pub tables: Vec<Box<dyn FillableTable>>,
 }
@@ -53,6 +56,7 @@ impl Circuit {
         let vrom_write_table = VromWriteTable::new(&mut cs, &channels);
         let vrom_addr_space_table = VromAddrSpaceTable::new(&mut cs, &channels);
         let vrom_skip_table = VromSkipTable::new(&mut cs, &channels);
+        let right_shifter_table = RightShifterTable::new(&mut cs, &channels);
 
         // Generate all tables required to prove the instructions supported by this ISA.
         // Sort the opcodes to ensure deterministic table creation
@@ -71,6 +75,7 @@ impl Circuit {
             vrom_write_table,
             vrom_addr_space_table,
             vrom_skip_table,
+            right_shifter_table,
             tables,
         }
     }
@@ -113,6 +118,9 @@ impl Circuit {
 
         // VROM skip size is the number of addresses we skip
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
+        
+        // Size of the right shifter table is the number of right shift events
+        let right_shifter_size = trace.right_shift_events().len();
 
         // Define the table sizes in order of table creation
         let mut table_sizes = vec![
@@ -120,6 +128,7 @@ impl Circuit {
             vrom_write_size,      // VROM write table size
             vrom_addr_space_size, // VROM address space table size
             vrom_skip_size,       // VROM skip table size
+            right_shifter_size,   // Right shifter table size
         ];
 
         // Add table sizes for each supported instruction
