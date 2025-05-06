@@ -896,7 +896,7 @@ mod tests {
             (0, 0, 1),
             (1, 0, 1),
             // MUL event
-            (4, (mul_result & 0xFFFFFFFF) as u32, 1),
+            (4, mul_result as u32, 1),
             (5, (mul_result >> 32) as u32, 1),
         ];
 
