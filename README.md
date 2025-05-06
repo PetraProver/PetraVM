@@ -21,7 +21,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 
 #### Arithmetic Operations
 - [x] `ADD` - Integer addition
-- [ ] `ADDI` - Integer addition with immediate
+- [x] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
 - [ ] `MUL` - Signed multiplication
 - [ ] `MULI` - Signed multiplication with immediate
