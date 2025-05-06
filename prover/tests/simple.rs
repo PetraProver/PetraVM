@@ -144,7 +144,8 @@ fn test_b128_add_b128_mul() -> Result<()> {
     )
 }
 
-fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+fn generate_ldi_add_addi_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    let imm = src2_value as u16;
     // Create a simple assembly program with LDI, ADD and RET
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
@@ -156,38 +157,33 @@ fn generate_add_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
             LDI.W @3, #{}\n\
             ;; Skip @4 to test a gap in vrom writes
             ADD @5, @2, @3\n\
+            ADDI @6, @2, #{}\n\
             RET\n",
-        src1_value, src2_value
+        src1_value, src2_value, imm
     );
 
-    // Add VROM writes from LDI and ADD events
-    let vrom_writes = vec![
-        // LDI events
-        (2, src1_value, 2),
-        (3, src2_value, 2),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // ADD event
-        (5, src1_value + src2_value, 1),
-    ];
-
-    generate_trace(asm_code, None, Some(vrom_writes))
+    generate_trace(asm_code, None, None)
 }
 #[test]
-fn test_ldi_add_ret() -> Result<()> {
+fn test_ldi_add_addi_ret() -> Result<()> {
+    let mut rng = StdRng::seed_from_u64(54321);
     test_from_trace_generator(
         || {
             // Test value to load
-            let src1_value = 0x12345678;
-            let src2_value = 0x4567;
-            generate_add_ret_trace(src1_value, src2_value)
+            let src1_value = rng.random::<u32>();
+            let src2_value = rng.random::<u32>();
+            generate_ldi_add_addi_ret_trace(src1_value, src2_value)
         },
         |trace| {
             assert_eq!(
                 trace.add_events().len(),
                 1,
                 "Should have exactly one ADD event"
+            );
+            assert_eq!(
+                trace.addi_events().len(),
+                1,
+                "Should have exactly one ADDI event"
             );
             assert_eq!(
                 trace.ldi_events().len(),
