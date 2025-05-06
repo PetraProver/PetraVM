@@ -21,11 +21,11 @@ use crate::{
 };
 
 struct SignExtendedImmediateOutput {
-    imm_32b: Col<B1, 32>,
+    imm_unpacked: Col<B1, 32>,
     msb: Col<B1>,
-    negative_case: Col<B1, 32>,
-    signed_imm_32b: Col<B1, 32>,
-    ones_const: Col<B1, 32>,
+    negative_unpacked: Col<B1, 32>,
+    signed_imm_unpacked: Col<B1, 32>,
+    ones: Col<B1, 32>,
 }
 
 /// Set up a signed-extended immediate from a 16-bit value to a 32-bit value.
@@ -38,7 +38,7 @@ fn setup_sign_extended_immediate(
     imm_unpacked: Col<B1, 16>,
 ) -> SignExtendedImmediateOutput {
     // Zero-pad imm to 32 bits
-    let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
+    let imm_unpacked = table.add_zero_pad("imm_unpacked", imm_unpacked, 0);
 
     // Get the sign bit and the necessary constants
     let msb = table.add_selected("msb", imm_unpacked, 15);
@@ -49,20 +49,26 @@ fn setup_sign_extended_immediate(
     let ones = table.add_constant("ones", constants);
 
     // Compute the negative case
-    let negative = table.add_computed("negative", ones + imm_32b);
+    let negative_unpacked = table.add_computed("negative_unpacked", ones + imm_unpacked);
 
     // Commit to the sign-extended value
-    let signed_imm_32b = table.add_committed("signed_imm_32b");
+    let signed_imm_unpacked = table.add_committed("signed_imm_unpacked");
 
     // Check that the sign extension is correct
-    setup_mux_constraint(table, &signed_imm_32b, &negative, &imm_32b, &msb);
+    setup_mux_constraint(
+        table,
+        &signed_imm_unpacked,
+        &negative_unpacked,
+        &imm_unpacked,
+        &msb,
+    );
 
     SignExtendedImmediateOutput {
-        imm_32b,
+        imm_unpacked,
         msb,
-        negative_case: negative,
-        signed_imm_32b,
-        ones_const: ones,
+        negative_unpacked,
+        signed_imm_unpacked,
+        ones,
     }
 }
 
@@ -321,10 +327,10 @@ pub struct AddiTable {
     dst_abs: Col<B32>, // Virtual
     src_abs: Col<B32>, // Virtual
     src_val: Col<B1, 32>,
-    imm_32b: Col<B1, 32>, // Virtual
-    msb: Col<B1>,         // Virtual
-    negative: Col<B1, 32>,
-    signed_imm_32b: Col<B1, 32>,
+    imm_unpacked: Col<B1, 32>, // Virtual
+    msb: Col<B1>,              // Virtual
+    negative_unpacked: Col<B1, 32>,
+    signed_imm_unpacked: Col<B1, 32>,
     ones: Col<B1, 32>,
     add_op: U32Add,
 }
@@ -363,15 +369,20 @@ impl Table for AddiTable {
 
         let imm_unpacked = state_cols.arg2_unpacked;
         let SignExtendedImmediateOutput {
-            imm_32b,
+            imm_unpacked,
             msb,
-            negative_case: negative,
-            signed_imm_32b,
-            ones_const: ones,
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
         } = setup_sign_extended_immediate(&mut table, imm_unpacked);
 
         // Carry out the addition.
-        let add_op = U32Add::new(&mut table, src_val, signed_imm_32b, U32AddFlags::default());
+        let add_op = U32Add::new(
+            &mut table,
+            src_val,
+            signed_imm_unpacked,
+            U32AddFlags::default(),
+        );
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Pull the destination and source values from the VROM channel.
@@ -387,10 +398,10 @@ impl Table for AddiTable {
             dst_abs,
             src_abs,
             src_val,
-            imm_32b,
+            imm_unpacked,
             msb,
-            negative,
-            signed_imm_32b,
+            negative_unpacked,
+            signed_imm_unpacked,
             ones,
             add_op,
         }
@@ -417,11 +428,11 @@ impl TableFiller<ProverPackedField> for AddiTable {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
-            let mut imm = witness.get_mut_as(self.imm_32b)?;
+            let mut imm = witness.get_mut_as(self.imm_unpacked)?;
             let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
                 witness.get_mut_as(self.msb)?;
-            let mut negative = witness.get_mut_as(self.negative)?;
-            let mut signed_imm_32b = witness.get_mut_as(self.signed_imm_32b)?;
+            let mut negative = witness.get_mut_as(self.negative_unpacked)?;
+            let mut signed_imm = witness.get_mut_as(self.signed_imm_unpacked)?;
             let mut ones_col = witness.get_mut_as(self.ones)?;
 
             for (i, event) in rows.clone().enumerate() {
@@ -438,7 +449,7 @@ impl TableFiller<ProverPackedField> for AddiTable {
                 let ones = 0b1111_1111_1111_1111u32;
                 ones_col[i] = ones << 16;
                 negative[i] = (ones << 16) + event.imm as u32;
-                signed_imm_32b[i] = event.imm as i16 as i32;
+                signed_imm[i] = event.imm as i16 as i32;
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -607,12 +618,11 @@ pub struct MuliTable {
     dst_val_low: Col<B32>,
     dst_val_high: Col<B32>,
     src_abs: Col<B32>,
-    src_val: Col<B32>,
-    imm_32b: Col<B1, 32>,
+    src_val_unpacked: Col<B1, 32>,
+    imm_unpacked: Col<B1, 32>,
     msb: Col<B1>,
-    negative: Col<B1, 32>,
-    signed_imm_32b: Col<B32>,
-    signed_imm_32b_bits: Col<B1, 32>,
+    negative_unpacked: Col<B1, 32>,
+    signed_imm_unpacked: Col<B1, 32>,
     ones: Col<B1, 32>,
     mul_op: MulSS32,
 }
@@ -644,53 +654,61 @@ impl Table for MuliTable {
             },
         );
 
-        // Carry out the multiplication.
-        let mul_op = MulSS32::new(&mut table);
-        let MulSS32 {
-            xin: src_val,
-            yin: signed_imm_32b,
-            out_low: dst_val_low,
-            out_high: dst_val_high,
-            ..
-        } = mul_op;
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
+        let src_val_packed = table.add_packed("src_val_packed", src_val_unpacked);
 
-        // Set up the immediate with sign extension
-        let imm_unpacked = state_cols.arg2_unpacked;
+        // Unpack src_val_unpacked to [Col<B1>; 32] for MulSS32::with_input
+        let src_val_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
+            table.add_selected(format!("src_val_unpacked_bit_{}", i), src_val_unpacked, i)
+        });
+
         let SignExtendedImmediateOutput {
-            imm_32b,
+            imm_unpacked,
             msb,
-            negative_case: negative,
-            signed_imm_32b: signed_imm_32b_bits,
-            ones_const: ones,
-        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
+        } = setup_sign_extended_immediate(&mut table, state_cols.arg2_unpacked);
 
-        // Connect the sign-extended immediate to the multiplier's y input
-        let packed_signed_imm = table.add_packed("signed_imm_32b_packed", signed_imm_32b_bits);
-        table.assert_zero("signed_imm_connection", signed_imm_32b - packed_signed_imm);
+        // Unpack signed_imm_unpacked to [Col<B1>; 32] for MulSS32::with_input
+        let signed_imm_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
+            table.add_selected(
+                format!("signed_imm_unpacked_bit_{}", i),
+                signed_imm_unpacked,
+                i,
+            )
+        });
+
+        // Carry out the multiplication using MulSS32::with_input with unpacked bit
+        // columns
+        let mul_op =
+            MulSS32::with_input(&mut table, src_val_unpacked_bits, signed_imm_unpacked_bits);
+        let MulSS32 {
+            out_low, out_high, ..
+        } = mul_op;
 
         // Pull the destination and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
 
-        table.pull(vrom_channel, [src_abs, src_val]);
-        table.pull(vrom_channel, [dst_abs, dst_val_low]);
-        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        table.pull(vrom_channel, [dst_abs, out_low]);
+        table.pull(vrom_channel, [dst_abs_plus_1, out_high]);
 
         Self {
             id: table.id(),
             state_cols,
             dst_abs,
             dst_abs_plus_1,
-            dst_val_low,
-            dst_val_high,
+            dst_val_low: out_low,
+            dst_val_high: out_high,
             src_abs,
-            src_val,
-            imm_32b,
+            src_val_unpacked,
+            imm_unpacked,
             msb,
-            negative,
-            signed_imm_32b,
-            signed_imm_32b_bits,
+            negative_unpacked,
+            signed_imm_unpacked,
             ones,
             mul_op,
         }
@@ -716,41 +734,50 @@ impl TableFiller<ProverPackedField> for MuliTable {
         {
             let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
             let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
-            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
-            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
+
             let mut src_abs = witness.get_mut_as(self.src_abs)?;
-            let mut src_val = witness.get_mut_as(self.src_val)?;
-            let mut imm = witness.get_mut_as(self.imm_32b)?;
+            let mut src_val = witness.get_mut_as(self.src_val_unpacked)?;
+
+            let mut imm = witness.get_mut_as(self.imm_unpacked)?;
             let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
                 witness.get_mut_as(self.msb)?;
-            let mut negative = witness.get_mut_as(self.negative)?;
-            let mut signed_imm_32b = witness.get_mut_as(self.signed_imm_32b)?;
-            let mut signed_imm_32b_bits = witness.get_mut_as(self.signed_imm_32b_bits)?;
-            let mut ones_col = witness.get_mut_as(self.ones)?;
+            let mut negative = witness.get_mut_as(self.negative_unpacked)?;
+            let mut signed_imm = witness.get_mut_as(self.signed_imm_unpacked)?;
+            let mut ones = witness.get_mut_as(self.ones)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = event.fp.addr(event.dst as u32);
                 dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
-                dst_val_low[i] = event.dst_val as u32;
-                dst_val_high[i] = (event.dst_val >> 32) as u32;
+
                 src_abs[i] = event.fp.addr(event.src as u32);
                 src_val[i] = event.src_val;
-                imm[i] = event.imm as u32;
 
-                // Calculate imm's MSB
-                let is_negative = (event.imm >> 15) & 1 == 1;
+                let imm_val = event.imm as u32;
+                let imm_val_i16 = event.imm as i16;
+
+                imm[i] = imm_val;
+
+                let is_negative = (imm_val >> 15) & 1 == 1;
                 binius_field::packed::set_packed_slice(&mut msb, i, B1::from(is_negative));
 
-                // Compute the sign extension of `imm`
-                let ones = 0b1111_1111_1111_1111u32;
-                ones_col[i] = ones << 16;
-                negative[i] = (ones << 16) + event.imm as u32;
-                signed_imm_32b[i] = event.imm as i16 as i32 as u32;
-                signed_imm_32b_bits[i] = signed_imm_32b[i];
+                // Set ones - all 1s in upper 16 bits, 0s in lower 16 bits
+                let ones_value = 0xFFFF0000u32;
+                ones[i] = ones_value;
+
+                // Compute negative case with ones | imm
+                negative[i] = ones_value | imm_val;
+
+                // For the signed extension
+                if is_negative {
+                    // Sign-extend by using the i16->i32 conversion
+                    signed_imm[i] = imm_val_i16 as i32 as u32;
+                } else {
+                    // For positive numbers, just use the imm value directly
+                    signed_imm[i] = imm_val;
+                }
             }
         }
 
-        // Clone rows for each different usage
         let state_rows = rows.clone().map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
@@ -762,10 +789,17 @@ impl TableFiller<ProverPackedField> for MuliTable {
         self.state_cols.populate(witness, state_rows)?;
 
         let x_vals = rows.clone().map(|event| event.src_val.into());
-        let y_vals = rows
+        let y_vals: Vec<B32> = rows
             .clone()
-            .map(|event| (event.imm as i16 as i32 as u32).into());
-        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
+            .map(|event| {
+                let imm_val_signed = event.imm as i16 as i32;
+                B32::new(imm_val_signed as u32)
+            })
+            .collect();
+        self.mul_op
+            .populate_with_inputs(witness, x_vals, y_vals.into_iter())?;
+
+        Ok(())
     }
 }
 
