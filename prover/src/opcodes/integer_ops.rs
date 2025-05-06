@@ -264,8 +264,8 @@ impl TableFiller<ProverPackedField> for SubTable {
 
 /// ADDI table.
 ///
-/// This table handles the ADDI instruction, which performs integer
-/// multiplication between a 32-bit element and a 16-bit immediate.
+/// This table handles the ADDI instruction, which performs signed integer
+/// addition between a 32-bit element and a 16-bit immediate.
 pub struct AddiTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Addi as u16 }>,
@@ -307,7 +307,6 @@ impl Table for AddiTable {
             },
         );
 
-        // Pull the destination and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
         let src_val = table.add_committed("src_val");
@@ -338,6 +337,7 @@ impl Table for AddiTable {
         let add_op = U32Add::new(&mut table, src_val, signed_imm_32b, U32AddFlags::default());
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
+        // Pull the destination and source values from the VROM channel.
         // Read src1
         table.pull(vrom_channel, [src_abs, src_val_packed]);
 
