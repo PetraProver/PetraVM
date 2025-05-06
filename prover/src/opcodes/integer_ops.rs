@@ -6,7 +6,7 @@ use binius_m3::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::{
-        mul::MulUU32,
+        mul::MulSS32,
         u32::{U32Add, U32AddFlags},
     },
 };
@@ -424,17 +424,20 @@ impl TableFiller<ProverPackedField> for AddiTable {
 ///
 /// This table handles the MUL instruction, which performs integer
 /// multiplication between two 32-bit elements. It returns a 64-bit result,
-/// with the low 32 bits stored in the destination register.
+/// with the low 32 bits stored in the destination vrom address and the
+/// high 32 bits stored in the destination vrom address + 1.
 pub struct MulTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Mul as u16 }>,
-    dst_abs: Col<B32>, // Virtual
-    dst_val_packed: Col<B32>,
-    src1_abs: Col<B32>, // Virtual
-    src1_val: Col<B1, 32>,
-    src2_abs: Col<B32>, // Virtual
-    src2_val: Col<B1, 32>,
-    mul_op: MulUU32,
+    dst_abs: Col<B32>,
+    dst_abs_plus_1: Col<B32>,
+    dst_val_low: Col<B32>,
+    dst_val_high: Col<B32>,
+    src1_abs: Col<B32>,
+    src1_val: Col<B32>,
+    src2_abs: Col<B32>,
+    src2_val: Col<B32>,
+    mul_op: MulSS32,
 }
 
 impl Table for MulTable {
@@ -464,34 +467,34 @@ impl Table for MulTable {
             },
         );
 
+        // Carry out the multiplication.
+        let mul_op = MulSS32::new(&mut table);
+        let MulSS32 {
+            xin: src1_val,
+            yin: src2_val,
+            out_low: dst_val_low,
+            out_high: dst_val_high,
+            ..
+        } = mul_op;
+
         // Pull the destination and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
-        let src1_val = table.add_committed("src1_val");
-        let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
-
         let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
-        let src2_val = table.add_committed("src2_val");
-        let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
 
-        // Carry out the multiplication.
-        let mul_op = MulUU32::new(&mut table);
-        let dst_val_packed = table.add_packed("dst_val_packed", mul_op.out_low);
-
-        // Read src1
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-
-        // Read src2
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
-
-        // Write dst
-        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
+        table.pull(vrom_channel, [src1_abs, src1_val]);
+        table.pull(vrom_channel, [src2_abs, src2_val]);
+        table.pull(vrom_channel, [dst_abs, dst_val_low]);
+        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
 
         Self {
             id: table.id(),
             state_cols,
             dst_abs,
-            dst_val_packed,
+            dst_abs_plus_1,
+            dst_val_low,
+            dst_val_high,
             src1_abs,
             src1_val,
             src2_abs,
@@ -517,28 +520,29 @@ impl TableFiller<ProverPackedField> for MulTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
-        // Create clones of rows for each part of the method
-        let rows_for_values = rows.clone();
-        let rows_for_state = rows.clone();
-        let rows_for_mul_op_src1 = rows.clone();
-        let rows_for_mul_op_src2 = rows.clone();
-
         {
-            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-            let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
+            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
+            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
+            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
+            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
+            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
 
-            for (i, event) in rows_for_values.enumerate() {
-                dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                src1_abs[i] = B32::new(event.fp.addr(event.src1));
-                src1_val[i] = B32::new(event.src1_val);
-                src2_abs[i] = B32::new(event.fp.addr(event.src2));
-                src2_val[i] = B32::new(event.src2_val);
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = event.fp.addr(event.dst as u32);
+                dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
+                dst_val_low[i] = event.dst_val as u32;
+                dst_val_high[i] = (event.dst_val >> 32) as u32;
+                src1_abs[i] = event.fp.addr(event.src1 as u32);
+                src1_val[i] = event.src1_val;
+                src2_abs[i] = event.fp.addr(event.src2 as u32);
+                src2_val[i] = event.src2_val;
             }
         }
-        let state_rows = rows_for_state.map(|event| StateGadget {
+
+        let state_rows = rows.clone().map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp.deref(),
@@ -548,12 +552,9 @@ impl TableFiller<ProverPackedField> for MulTable {
         });
         self.state_cols.populate(witness, state_rows)?;
 
-        // Populate the mul_op with the appropriate values
-        self.mul_op.populate(
-            witness,
-            rows_for_mul_op_src1.map(|event| B32::new(event.src1_val)),
-            rows_for_mul_op_src2.map(|event| B32::new(event.src2_val)),
-        )
+        let x_vals = rows.clone().map(|event| event.src1_val.into());
+        let y_vals = rows.clone().map(|event| event.src2_val.into());
+        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
     }
 }
 
@@ -610,13 +611,14 @@ mod tests {
              _start: 
                 LDI.W @2, #{}\n\
                 LDI.W @3, #{}\n\
-                ;; Skip @4 to test a gap in vrom writes
-                SUB @5, @2, @3\n\
-                ADD @6, @2, @3\n\
-                MUL @7, @2, @3\n\
+                SUB @4, @2, @3\n\
+                ADD @5, @2, @3\n\
+                MUL @6, @2, @3\n\
                 RET\n",
             src1_value, src2_value
         );
+
+        let mul_result = ((src1_value as i32 as i64) * (src2_value as i32 as i64)) as u64;
 
         // Add VROM writes from LDI and SUB events
         let vrom_writes = vec![
@@ -627,11 +629,12 @@ mod tests {
             (0, 0, 1),
             (1, 0, 1),
             // SUB event
-            (5, src1_value.wrapping_sub(src2_value), 1),
+            (4, src1_value.wrapping_sub(src2_value), 1),
             // ADD event
-            (6, src1_value.wrapping_add(src2_value), 1),
+            (5, src1_value.wrapping_add(src2_value), 1),
             // MUL event
-            (7, src1_value.wrapping_mul(src2_value), 1),
+            (6, (mul_result & 0xFFFFFFFF) as u32, 1),
+            (7, (mul_result >> 32) as u32, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
@@ -667,12 +670,21 @@ mod tests {
         ) {
             prop_assert!(test_vrom_integer_ops_with_values(src1_value, src2_value).is_ok());
         }
+
         #[test]
-    fn test_imm_integer_ops(
-        src_value in any::<u32>(),
-        imm in any::<u16>(),
-    ) {
-        prop_assert!(test_imm_integer_ops_with_values(src_value, imm).is_ok());
+        fn test_imm_integer_ops(
+            src_value in any::<u32>(),
+            imm in any::<u16>(),
+        ) {
+            prop_assert!(test_imm_integer_ops_with_values(src_value, imm).is_ok());
+        }
     }
+
+    #[test]
+    fn test_mul_integer_ops() -> Result<()> {
+        let trace = generate_vrom_integer_ops_trace(10, 20)?;
+        trace.validate()?;
+        assert_eq!(trace.mul_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }
