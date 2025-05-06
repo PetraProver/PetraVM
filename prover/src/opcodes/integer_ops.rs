@@ -14,6 +14,7 @@ use crate::{
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
+    utils::setup_mux_constraint,
 };
 
 /// ADD table.
@@ -275,7 +276,6 @@ pub struct AddiTable {
     msb: Col<B1>,         // Virtual
     negative: Col<B1, 32>,
     signed_imm_32b: Col<B1, 32>,
-    computed_imm_32b: Col<B32>,
     ones: Col<B1, 32>,
     add_op: U32Add,
 }
@@ -327,19 +327,12 @@ impl Table for AddiTable {
 
         // Compute the negative case.
         let negative = table.add_computed("negative", ones + imm_32b);
-        let negative_packed = table.add_packed("negative", negative);
-        let imm_32b_packed = table.add_packed("imm_32b_packed", imm_32b);
 
         // We commit to the sign-extended value.
         let signed_imm_32b = table.add_committed("signed_imm_32b");
-        let signed_imm_32b_packed = table.add_packed("signed_imm_32b_packed", signed_imm_32b);
 
         // Check that the sign extension is correct.
-        let computed_imm_32b = table.add_computed(
-            "computed",
-            upcast_col(msb) * negative_packed + (upcast_col(msb) - B32::ONE) * imm_32b_packed,
-        );
-        table.assert_zero("sign check", computed_imm_32b - signed_imm_32b_packed);
+        setup_mux_constraint(&mut table, &signed_imm_32b, &negative, &imm_32b, &msb);
 
         // Carry out the addition.
         let add_op = U32Add::new(&mut table, src_val, signed_imm_32b, U32AddFlags::default());
@@ -361,7 +354,6 @@ impl Table for AddiTable {
             msb,
             negative,
             signed_imm_32b,
-            computed_imm_32b,
             ones,
             add_op,
         }
@@ -393,7 +385,6 @@ impl TableFiller<ProverPackedField> for AddiTable {
                 witness.get_mut_as(self.msb)?;
             let mut negative = witness.get_mut_as(self.negative)?;
             let mut signed_imm_32b = witness.get_mut_as(self.signed_imm_32b)?;
-            let mut computed_imm_32b = witness.get_mut_as(self.computed_imm_32b)?;
             let mut ones_col = witness.get_mut_as(self.ones)?;
 
             for (i, event) in rows.clone().enumerate() {
@@ -411,7 +402,6 @@ impl TableFiller<ProverPackedField> for AddiTable {
                 ones_col[i] = ones << 16;
                 negative[i] = (ones << 16) + event.imm as u32;
                 signed_imm_32b[i] = event.imm as i16 as i32;
-                computed_imm_32b[i] = signed_imm_32b[i];
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -441,35 +431,6 @@ mod tests {
     use crate::test_utils::generate_trace;
 
     pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
-
-    /// Creates an execution trace for a simple program that uses the ADD
-    /// instruction.
-    fn generate_add_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-             _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
-                ;; Skip @4 to test a gap in vrom writes
-                ADD @5, @2, @3\n\
-                RET\n",
-            src1_value, src2_value
-        );
-
-        // Add VROM writes from LDI and ADD events
-        let vrom_writes = vec![
-            // LDI events
-            (2, src1_value, 2),
-            (3, src2_value, 2),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // ADD event
-            (5, src1_value.wrapping_add(src2_value), 1),
-        ];
-
-        generate_trace(asm_code, None, Some(vrom_writes))
-    }
 
     /// Creates an execution trace for a simple program that uses the ADDI
     /// instruction.
@@ -501,42 +462,38 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    /// Creates an execution trace for a simple program that uses the SUB
-    /// instruction.
-    fn generate_sub_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    /// Creates an execution trace for a simple program that uses the SUB and
+    /// ADD instructions.
+    fn generate_sub_add_trace(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
                 LDI.W @2, #{}\n\
                 LDI.W @3, #{}\n\
-                ;; Skip @4 to test a gap in vrom writes
-                SUB @5, @2, @3\n\
+                LDI.W @4, #{}\n\
+                ;; Skip @5 to test a gap in vrom writes
+                SUB @6, @2, @3\n\
+                ADD @7, @4, @3\n\
                 RET\n",
-            src1_value, src2_value
+            src1_value, src2_value, src3_value
         );
 
         // Add VROM writes from LDI and SUB events
         let vrom_writes = vec![
             // LDI events
+            (3, src2_value, 3),
             (2, src1_value, 2),
-            (3, src2_value, 2),
+            (4, src3_value, 2),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
             // SUB event
-            (5, src1_value.wrapping_sub(src2_value), 1),
+            (6, src1_value.wrapping_sub(src2_value), 1),
+            // ADD event
+            (7, src2_value.wrapping_add(src3_value), 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
-    }
-
-    fn test_add_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
-        let trace = generate_add_trace(src1_value, src2_value)?;
-        trace.validate()?;
-        assert_eq!(trace.add_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 2);
-        assert_eq!(trace.ret_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
     fn test_addi_with_values(src_value: u32, imm: u16) -> Result<()> {
@@ -548,11 +505,12 @@ mod tests {
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    fn test_sub_with_values(src1_value: u32, src2_value: u32) -> Result<()> {
-        let trace = generate_sub_trace(src1_value, src2_value)?;
+    fn test_sub_add_with_values(src1_value: u32, src2_value: u32, src3_value: u32) -> Result<()> {
+        let trace = generate_sub_add_trace(src1_value, src2_value, src3_value)?;
         trace.validate()?;
         assert_eq!(trace.sub_events().len(), 1);
-        assert_eq!(trace.ldi_events().len(), 2);
+        assert_eq!(trace.add_events().len(), 1);
+        assert_eq!(trace.ldi_events().len(), 3);
         assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
@@ -561,17 +519,26 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_integer_operations(
+        fn test_vrom_integer_ops(
             src1_value in prop_oneof![
                 any::<u32>()                    // Random values
             ],
             src2_value in prop_oneof![
                 any::<u32>()                    // Random values
             ],
+            src3_value in prop_oneof![
+                any::<u32>()                    // Random values
+            ],
         ) {
-            prop_assert!(test_add_with_values(src1_value, src2_value).is_ok());
-            prop_assert!(test_sub_with_values(src1_value, src2_value).is_ok());
-            prop_assert!(test_addi_with_values(src1_value, src2_value as u16).is_ok());
+            prop_assert!(test_sub_add_with_values(src1_value, src2_value, src3_value).is_ok());
+
         }
+        #[test]
+    fn test_imm_integer_ops(
+        src in any::<u32>(),
+        imm in any::<u16>(),
+    ) {
+        prop_assert!(test_addi_with_values(src, imm).is_ok());
+    }
     }
 }
