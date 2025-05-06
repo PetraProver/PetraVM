@@ -10,7 +10,7 @@ use binius_m3::{
         u32::{U32Add, U32AddFlags},
     },
 };
-use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, SubEvent};
+use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, SubEvent};
 
 use crate::{
     channels::Channels,
@@ -19,6 +19,52 @@ use crate::{
     types::ProverPackedField,
     utils::setup_mux_constraint,
 };
+
+struct SignExtendedImmediateOutput {
+    imm_32b: Col<B1, 32>,
+    msb: Col<B1>,
+    negative_case: Col<B1, 32>,
+    signed_imm_32b: Col<B1, 32>,
+    ones_const: Col<B1, 32>,
+}
+
+/// Set up a signed-extended immediate from a 16-bit value to a 32-bit value.
+///
+/// This function adds the necessary columns and constraints to handle sign
+/// extension of a 16-bit immediate value to a 32-bit value. The sign extension
+/// is based on the MSB (bit 15) of the 16-bit immediate.
+fn setup_sign_extended_immediate(
+    table: &mut binius_m3::builder::TableBuilder<'_>,
+    imm_unpacked: Col<B1, 16>,
+) -> SignExtendedImmediateOutput {
+    // Zero-pad imm to 32 bits
+    let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
+
+    // Get the sign bit and the necessary constants
+    let msb = table.add_selected("msb", imm_unpacked, 15);
+    let mut constants = [B1::ONE; 32];
+    for c in constants.iter_mut().take(16) {
+        *c = B1::ZERO;
+    }
+    let ones = table.add_constant("ones", constants);
+
+    // Compute the negative case
+    let negative = table.add_computed("negative", ones + imm_32b);
+
+    // Commit to the sign-extended value
+    let signed_imm_32b = table.add_committed("signed_imm_32b");
+
+    // Check that the sign extension is correct
+    setup_mux_constraint(table, &signed_imm_32b, &negative, &imm_32b, &msb);
+
+    SignExtendedImmediateOutput {
+        imm_32b,
+        msb,
+        negative_case: negative,
+        signed_imm_32b,
+        ones_const: ones,
+    }
+}
 
 /// ADD table.
 ///
@@ -316,25 +362,13 @@ impl Table for AddiTable {
         let src_val_packed = table.add_packed("src_val_packed", src_val);
 
         let imm_unpacked = state_cols.arg2_unpacked;
-        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
-
-        // We need to sign extend `imm`. First, get the sign bit and the necessary
-        // constants.
-        let msb = table.add_selected("msb", imm_unpacked, 15);
-        let mut constants = [B1::ONE; 32];
-        for c in constants.iter_mut().take(16) {
-            *c = B1::ZERO;
-        }
-        let ones = table.add_constant("ones", constants);
-
-        // Compute the negative case.
-        let negative = table.add_computed("negative", ones + imm_32b);
-
-        // We commit to the sign-extended value.
-        let signed_imm_32b = table.add_committed("signed_imm_32b");
-
-        // Check that the sign extension is correct.
-        setup_mux_constraint(&mut table, &signed_imm_32b, &negative, &imm_32b, &msb);
+        let SignExtendedImmediateOutput {
+            imm_32b,
+            msb,
+            negative_case: negative,
+            signed_imm_32b,
+            ones_const: ones,
+        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
 
         // Carry out the addition.
         let add_op = U32Add::new(&mut table, src_val, signed_imm_32b, U32AddFlags::default());
@@ -558,6 +592,183 @@ impl TableFiller<ProverPackedField> for MulTable {
     }
 }
 
+/// MULI table.
+///
+/// This table handles the MULI instruction, which performs signed integer
+/// multiplication between a 32-bit element and a 16-bit immediate.
+/// It returns a 64-bit result, with the low 32 bits stored in the destination
+/// vrom address and the high 32 bits stored in the destination vrom address +
+/// 1.
+pub struct MuliTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Muli as u16 }>,
+    dst_abs: Col<B32>,
+    dst_abs_plus_1: Col<B32>,
+    dst_val_low: Col<B32>,
+    dst_val_high: Col<B32>,
+    src_abs: Col<B32>,
+    src_val: Col<B32>,
+    imm_32b: Col<B1, 32>,
+    msb: Col<B1>,
+    negative: Col<B1, 32>,
+    signed_imm_32b: Col<B32>,
+    signed_imm_32b_bits: Col<B1, 32>,
+    ones: Col<B1, 32>,
+    mul_op: MulSS32,
+}
+
+impl Table for MuliTable {
+    type Event = MuliEvent;
+
+    fn name(&self) -> &'static str {
+        "MuliTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("muli");
+
+        let Channels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
+
+        let state_cols = StateColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            StateColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        // Carry out the multiplication.
+        let mul_op = MulSS32::new(&mut table);
+        let MulSS32 {
+            xin: src_val,
+            yin: signed_imm_32b,
+            out_low: dst_val_low,
+            out_high: dst_val_high,
+            ..
+        } = mul_op;
+
+        // Set up the immediate with sign extension
+        let imm_unpacked = state_cols.arg2_unpacked;
+        let SignExtendedImmediateOutput {
+            imm_32b,
+            msb,
+            negative_case: negative,
+            signed_imm_32b: signed_imm_32b_bits,
+            ones_const: ones,
+        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
+
+        // Connect the sign-extended immediate to the multiplier's y input
+        let packed_signed_imm = table.add_packed("signed_imm_32b_packed", signed_imm_32b_bits);
+        table.assert_zero("signed_imm_connection", signed_imm_32b - packed_signed_imm);
+
+        // Pull the destination and source values from the VROM channel.
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
+        let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
+
+        table.pull(vrom_channel, [src_abs, src_val]);
+        table.pull(vrom_channel, [dst_abs, dst_val_low]);
+        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            dst_abs_plus_1,
+            dst_val_low,
+            dst_val_high,
+            src_abs,
+            src_val,
+            imm_32b,
+            msb,
+            negative,
+            signed_imm_32b,
+            signed_imm_32b_bits,
+            ones,
+            mul_op,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for MuliTable {
+    type Event = MuliEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
+            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
+            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
+            let mut src_abs = witness.get_mut_as(self.src_abs)?;
+            let mut src_val = witness.get_mut_as(self.src_val)?;
+            let mut imm = witness.get_mut_as(self.imm_32b)?;
+            let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
+                witness.get_mut_as(self.msb)?;
+            let mut negative = witness.get_mut_as(self.negative)?;
+            let mut signed_imm_32b = witness.get_mut_as(self.signed_imm_32b)?;
+            let mut signed_imm_32b_bits = witness.get_mut_as(self.signed_imm_32b_bits)?;
+            let mut ones_col = witness.get_mut_as(self.ones)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = event.fp.addr(event.dst as u32);
+                dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
+                dst_val_low[i] = event.dst_val as u32;
+                dst_val_high[i] = (event.dst_val >> 32) as u32;
+                src_abs[i] = event.fp.addr(event.src as u32);
+                src_val[i] = event.src_val;
+                imm[i] = event.imm as u32;
+
+                // Calculate imm's MSB
+                let is_negative = (event.imm >> 15) & 1 == 1;
+                binius_field::packed::set_packed_slice(&mut msb, i, B1::from(is_negative));
+
+                // Compute the sign extension of `imm`
+                let ones = 0b1111_1111_1111_1111u32;
+                ones_col[i] = ones << 16;
+                negative[i] = (ones << 16) + event.imm as u32;
+                signed_imm_32b[i] = event.imm as i16 as i32 as u32;
+                signed_imm_32b_bits[i] = signed_imm_32b[i];
+            }
+        }
+
+        // Clone rows for each different usage
+        let state_rows = rows.clone().map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp.deref(),
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+
+        let x_vals = rows.clone().map(|event| event.src_val.into());
+        let y_vals = rows
+            .clone()
+            .map(|event| (event.imm as i16 as i32 as u32).into());
+        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -576,21 +787,26 @@ mod tests {
              _start: 
                 LDI.W @2, #{}\n\
                 ADDI @3, @2, #{}\n\
+                MULI @4, @2, #{}\n\
                 RET\n",
-            src_value, imm_value
+            src_value, imm_value, imm_value
         );
 
         let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
+        let muli_result = ((src_value as i32 as i64) * (imm_value as i16 as i64)) as u64;
 
         // Add VROM writes from LDI and ADDI events
         let vrom_writes = vec![
             // LDI event
-            (2, src_value, 2),
+            (2, src_value, 3),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
             // ADDI event
             (3, addi_result, 1),
+            // MULI event
+            (4, muli_result as u32, 1),
+            (5, (muli_result >> 32) as u32, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
