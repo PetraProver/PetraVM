@@ -25,7 +25,7 @@ The proving system is built using an M3 arithmetic circuit with the following co
      - Format: [Address]
      - Connected through `vrom_addr_space_channel`
 3. **Instruction Tables**
-   - Tables for all supported instructions (LDI, ADD, AND, OR, XOR, etc.)
+   - Tables for all supported instructions (LDI, ADD, ADDI, AND, OR, XOR, etc.)
    - Each table implements the corresponding instruction's semantics
 
 ### Channels
@@ -92,7 +92,7 @@ verify_proof(&statement, &compiled_cs, proof)?;
 
 The crate includes integration tests that verify the complete proving pipeline, including:
 
-- Basic operations with LDI, ADD, and RET
+- Basic operations with LDI, ADD, ADDI, and RET
 - All binary operations (AND, OR, XOR, etc.)
 - Tail call optimizations
 - Fibonacci number proving
