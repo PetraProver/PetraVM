@@ -46,6 +46,25 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     generate_trace(asm_code, Some(init_values), None)
 }
 
+/// Creates an execution trace for the All opcodes program.
+///
+///
+/// # Returns
+/// * A trace containing the All opcodes program execution
+pub fn generate_all_opcodes_trace() -> Result<Trace> {
+    // Read the Fibonacci assembly code from examples directory
+    let asm_path = format!("{}/../examples/opcodes.asm", env!("CARGO_MANIFEST_DIR"));
+    let asm_code = std::fs::read_to_string(asm_path)
+        .map_err(|e| anyhow::anyhow!("Failed to read opcodes.asm: {}", e))?;
+
+    // Initialize memory with:
+    // Slot 0: Return PC = 0
+    // Slot 1: Return FP = 0
+    let init_values = vec![0, 0];
+
+    generate_trace(asm_code, Some(init_values), None)
+}
+
 pub fn collatz(mut n: u32) -> usize {
     let mut count = 0;
     while n != 1 {

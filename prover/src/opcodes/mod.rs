@@ -19,7 +19,7 @@ pub mod shift;
 pub use binary::*;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
-pub use comparison::SltuTable;
+pub use comparison::{SltTable, SltuTable};
 pub use integer_ops::{AddTable, SubTable};
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;

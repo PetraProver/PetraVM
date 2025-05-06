@@ -1,12 +1,14 @@
 use std::{any::Any, ops::Deref};
 
+use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
+        B1, B32,
     },
     gadgets::u32::{U32Sub, U32SubFlags},
 };
-use zcrayvm_assembly::{opcodes::Opcode, SltuEvent};
+use zcrayvm_assembly::{opcodes::Opcode, SltEvent, SltuEvent};
 
 use crate::{
     channels::Channels,
@@ -147,6 +149,246 @@ impl TableFiller<ProverPackedField> for SltuTable {
     }
 }
 
+const SLT_OPCODE: u16 = Opcode::Slt as u16;
+
+/// SLT table.
+///
+/// This table handles the SLT instruction, which performs signed
+/// integer comparison (set if less than) between two 32-bit elements.
+
+pub struct SltTable {
+    id: TableId,
+    state_cols: StateColumns<SLT_OPCODE>,
+    dst_abs: Col<B32>,
+    src1_abs: Col<B32>,
+    src1_val: Col<B1, 32>,
+    src1_sign: Col<B1>,
+    src1_val_inverted: Col<B1, 32>,
+    src2_abs: Col<B32>,
+    src2_val: Col<B1, 32>,
+    src2_sign: Col<B1>,
+    src2_val_inverted: Col<B1, 32>,
+    xin: Col<B1, 32>,
+    yin: Col<B1, 32>,
+    dst_bit: Col<B1>,
+    subber: U32Sub,
+}
+
+impl Table for SltTable {
+    type Event = SltEvent;
+
+    fn name(&self) -> &'static str {
+        "SltTable"
+    }
+
+    // TODO: Consider swapping the order of src1 and src2 depending on the sign,
+    // or using a U32Add gadget.
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("slt");
+
+        let Channels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
+
+        let state_cols = StateColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            StateColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        // Pull the destination and source values from the VROM channel.
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
+        let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
+
+        let src1_val = table.add_committed("src1_val");
+        let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
+
+        let src2_val = table.add_committed("src2_val");
+        let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
+
+        // Get the sign bits of src1 and src2
+        let src1_sign = table.add_selected("src1_sign", src1_val, 31);
+        let src2_sign = table.add_selected("src2_sign", src2_val, 31);
+
+        // Compute the inverted values of src1 and src2
+        let src1_val_inverted = table.add_computed("src1_val_inverted", src1_val + B1::ONE);
+        let src2_val_inverted = table.add_computed("src2_val_inverted", src2_val + B1::ONE);
+
+        // Comit to the subber inputs
+        let xin = table.add_committed("subber_input1");
+        let yin = table.add_committed("subber_input2");
+
+        // Set up multiplexer constraint: xin = src1_sign ? src1_val_inverted :
+        // src1_val
+        setup_mux_constraint(&mut table, &xin, &src1_val_inverted, &src1_val, &src1_sign);
+        // Set up multiplexer constraint: yin = src2_sign ? src2_val_inverted :
+        // src2_val
+        setup_mux_constraint(&mut table, &yin, &src2_val_inverted, &src2_val, &src2_sign);
+
+        // Instantiate the subtractor with the appropriate flags
+        let flags = U32SubFlags {
+            borrow_in_bit: None,       // no extra borrow-in
+            expose_final_borrow: true, // we want the "underflow" bit out
+            commit_zout: false,        // we don't need the raw subtraction result
+        };
+        let subber = U32Sub::new(&mut table, xin, yin, flags);
+        // `final_borrow` is 1 exactly when src1_val < src2_val
+        let final_borrow: Col<B1> = subber
+            .final_borrow
+            .expect("Flag `expose_final_borrow` was set to `true`");
+
+        // The final bit is (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR
+        // src2_sign)*final_borrow
+        let dst_bit = table.add_computed(
+            "dst_val",
+            (src1_sign + src2_sign) * src1_sign + (src1_sign + src2_sign + B1::ONE) * final_borrow,
+        );
+        let dst_val = upcast_col(final_borrow);
+
+        // Read src1 and src2
+        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
+        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+
+        // Read dst
+        table.pull(vrom_channel, [dst_abs, dst_val]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            src1_abs,
+            src1_val,
+            src1_sign,
+            src1_val_inverted,
+            src2_abs,
+            src2_val,
+            src2_sign,
+            src2_val_inverted,
+            xin,
+            yin,
+            dst_bit,
+            subber,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        todo!()
+    }
+}
+
+impl TableFiller<ProverPackedField> for SltTable {
+    type Event = SltEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
+            let mut src1_val = witness.get_mut_as(self.src1_val)?;
+            let mut src1_sign = witness.get_mut(self.src1_sign)?;
+            let mut src1_val_inverted = witness.get_mut_as(self.src1_val_inverted)?;
+            let mut xin = witness.get_mut_as(self.xin)?;
+            let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
+            let mut src2_val = witness.get_mut_as(self.src2_val)?;
+            let mut src2_sign = witness.get_mut(self.src2_sign)?;
+            let mut src2_val_inverted = witness.get_mut_as(self.src2_val_inverted)?;
+            let mut yin = witness.get_mut_as(self.yin)?;
+            let mut dst_bit = witness.get_mut(self.dst_bit)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                // Set the values of the first operand
+                src1_abs[i] = B32::new(event.fp.addr(event.src1));
+                src1_val[i] = event.src1_val;
+                let is_src1_negative = (event.src1_val >> 31) & 1 == 1;
+                binius_field::packed::set_packed_slice(
+                    &mut src1_sign,
+                    i,
+                    B1::from(is_src1_negative),
+                );
+                src1_val_inverted[i] = !event.src1_val;
+                xin[i] = if is_src1_negative {
+                    src1_val_inverted[i]
+                } else {
+                    event.src1_val
+                };
+
+                // Set the values of the second operand
+                src2_abs[i] = B32::new(event.fp.addr(event.src2));
+                src2_val[i] = event.src2_val;
+                let is_src2_negative = (event.src2_val >> 31) & 1 == 1;
+                binius_field::packed::set_packed_slice(
+                    &mut src2_sign,
+                    i,
+                    B1::from(is_src2_negative),
+                );
+                src2_val_inverted[i] = !event.src2_val;
+                yin[i] = if is_src2_negative {
+                    src2_val_inverted[i]
+                } else {
+                    event.src2_val
+                };
+
+                // Set the destination
+                dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                binius_field::packed::set_packed_slice(
+                    &mut dst_bit,
+                    i,
+                    B1::from((event.src1_val as i32) < (event.src2_val as i32)),
+                );
+            }
+        }
+        let state_rows = rows.map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp.deref(),
+            arg0: event.dst,
+            arg1: event.src1,
+            arg2: event.src2,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        self.subber.populate(witness)
+    }
+}
+
+// TODO: move to utils
+// Helper function to set up the multiplexer constraint for bit selection
+fn setup_mux_constraint(
+    table: &mut TableBuilder,
+    result: &Col<B1, 32>,
+    when_true: &Col<B1, 32>,
+    when_false: &Col<B1, 32>,
+    select_bit: &Col<B1>,
+) {
+    // Create packed (32-bit) versions of columns
+    let result_packed = table.add_packed("result_packed", *result);
+    let true_packed = table.add_packed("when_true_packed", *when_true);
+    let false_packed = table.add_packed("when_false_packed", *when_false);
+
+    // Create constraint for the mux:
+    // result = select_bit ? when_true : when_false
+    table.assert_zero(
+        "mux_constraint",
+        result_packed
+            - (true_packed * upcast_col(*select_bit)
+                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -222,6 +464,77 @@ mod tests {
             ],
         ) {
             prop_assert!(test_sltu_with_values(src1_val, src2_val).is_ok());
+        }
+    }
+
+    /// Creates an execution trace for a simple program that uses the SLTU
+    /// instruction.
+    fn generate_slt_trace(src1_val: u32, src2_val: u32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                SLT @4, @2, @3\n\
+                RET\n",
+            src1_val, src2_val
+        );
+
+        // Calculate the expected result (1 if src1 < src2, 0 otherwise)
+        let expected = ((src1_val as i32) < (src2_val as i32)) as u32;
+
+        // Add VROM writes from LDI and SLTU events
+        let vrom_writes = vec![
+            // LDI events
+            (2, src1_val, 2),
+            (3, src2_val, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // SLTU event
+            (4, expected, 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
+    fn test_slt_with_values(src1_val: u32, src2_val: u32) -> Result<()> {
+        let trace = generate_slt_trace(src1_val, src2_val)?;
+        trace.validate()?;
+        assert_eq!(trace.slt_events().len(), 1);
+        assert_eq!(trace.ret_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_slt_operations(
+            // Test both random values and specific edge cases
+            (src1_val, src2_val) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u32>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((-1i32 as u32, 0)),          // -1 < 0
+                Just((i32::MAX as u32, i32::MAX as u32)),   // Equal at max
+                Just((i32::MIN as u32, i32::MIN as u32)),   // Equal at min
+                Just((i32::MIN as u32, i32::MAX as u32)),   // Min < Max
+                Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
+
+                // Additional interesting cases
+                Just(((i32::MAX/2) as u32, (i32::MAX/2 + 1) as u32)),  // Middle values
+                Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
+                Just((1, i32::MAX as u32)),                // 1 < MAX
+                Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
+                Just((i32::MIN as u32, (i32::MIN + 1) as u32)),      // MIN < MIN + 1
+            ],
+        ) {
+            prop_assert!(test_slt_with_values(src1_val, src2_val).is_ok());
         }
     }
 }
