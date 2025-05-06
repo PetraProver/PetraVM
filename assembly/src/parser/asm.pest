@@ -11,6 +11,8 @@ GROESTL256_COMPRESS_instr = { "GROESTL256_COMPRESS" }
 GROESTL256_OUTPUT_instr   = { "GROESTL256_OUTPUT" }
 ADD_instr                 = { "ADD" }
 SUB_instr                 = { "SUB" }
+SLE_instr      = { "SLE" }
+SLEU_instr     = { "SLEU" }
 SLT_instr                 = { "SLT" }
 SLTU_instr                = { "SLTU" }
 AND_instr                 = { "AND" }
@@ -25,6 +27,8 @@ XORI_instr                = { "XORI" }
 B32_ADDI_instr            = { "B32_ADDI" }
 B32_MULI_instr            = { "B32_MULI" }
 ADDI_instr                = { "ADDI" }
+SLEI_instr                = { "SLEI" }
+SLEIU_instr               = { "SLEIU" }
 SLTI_instr                = { "SLTI" }
 SLTIU_instr               = { "SLTIU" }
 ANDI_instr                = { "ANDI" }
@@ -64,6 +68,8 @@ binary_non_imm_instrs = ${
   | GROESTL256_OUTPUT_instr
   | ADD_instr
   | SUB_instr
+  | SLEU_instr
+  | SLE_instr
   | SLTU_instr
   | SLT_instr
   | AND_instr
@@ -80,6 +86,8 @@ binary_imm_instrs     = ${
   | B32_ADDI_instr
   | B32_MULI_instr
   | ADDI_instr
+  | SLEIU_instr
+  | SLEI_instr
   | SLTIU_instr
   | SLTI_instr
   | ANDI_instr

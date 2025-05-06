@@ -5,7 +5,7 @@ use binius_m3::builder::{
 };
 use zcrayvm_assembly::{JumpiEvent, JumpvEvent, Opcode};
 
-use crate::gadgets::cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc};
+use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for JUMPI instruction.
@@ -14,7 +14,7 @@ use crate::{channels::Channels, table::Table, types::ProverPackedField};
 /// Logic: PC = target
 pub struct JumpiTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Jumpi as u16 }>,
+    state_cols: StateColumns<{ Opcode::Jumpi as u16 }>,
 }
 
 impl Table for JumpiTable {
@@ -27,11 +27,11 @@ impl Table for JumpiTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("jumpi");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Immediate,
                 next_fp: None,
             },
@@ -39,7 +39,7 @@ impl Table for JumpiTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
         }
     }
 
@@ -60,7 +60,7 @@ impl TableFiller<ProverPackedField> for JumpiTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target.val()),
             fp: *event.fp,
@@ -68,7 +68,7 @@ impl TableFiller<ProverPackedField> for JumpiTable {
             arg1: (event.target.val() >> 16) as u16,
             arg2: 0, // Unused for jumpi
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         Ok(())
     }
 }
@@ -79,7 +79,7 @@ impl TableFiller<ProverPackedField> for JumpiTable {
 /// Logic: PC = FP[offset]
 pub struct JumpvTable {
     id: TableId,
-    cpu_cols: CpuColumns<{ Opcode::Jumpv as u16 }>,
+    state_cols: StateColumns<{ Opcode::Jumpv as u16 }>,
     offset_addr: Col<B32>, // Virtual
     target_val: Col<B32>,
 }
@@ -96,25 +96,25 @@ impl Table for JumpvTable {
 
         let target_val = table.add_committed("target_val");
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             channels.state_channel,
             channels.prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Target(target_val),
                 next_fp: None,
             },
         );
 
         let offset_addr =
-            table.add_computed("offset_addr", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+            table.add_computed("offset_addr", state_cols.fp + upcast_col(state_cols.arg0));
 
         // Read target_val from VROM
         table.pull(channels.vrom_channel, [offset_addr, target_val]);
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             offset_addr,
             target_val,
         }
@@ -138,14 +138,14 @@ impl TableFiller<ProverPackedField> for JumpvTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         {
-            let mut offset_addr = witness.get_mut_as(self.offset_addr)?;
-            let mut target_val = witness.get_mut_as(self.target_val)?;
+            let mut offset_addr = witness.get_scalars_mut(self.offset_addr)?;
+            let mut target_val = witness.get_scalars_mut(self.target_val)?;
             for (i, event) in rows.clone().enumerate() {
-                offset_addr[i] = event.fp.addr(event.offset);
-                target_val[i] = event.target;
+                offset_addr[i] = B32::new(event.fp.addr(event.offset));
+                target_val[i] = B32::new(event.target);
             }
         }
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.val(),
             next_pc: Some(event.target),
             fp: *event.fp,
@@ -153,7 +153,7 @@ impl TableFiller<ProverPackedField> for JumpvTable {
             arg1: 0, // Unused for jumpv
             arg2: 0, // Unused for jumpv
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
         Ok(())
     }
 }

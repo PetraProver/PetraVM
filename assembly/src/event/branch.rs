@@ -94,10 +94,10 @@ pub struct BzEvent {
 
 impl Event for BzEvent {
     fn generate(
-        ctx: &mut EventContext,
-        target_low: B16,
-        target_high: B16,
-        cond: B16,
+        _ctx: &mut EventContext,
+        _target_low: B16,
+        _target_high: B16,
+        _cond: B16,
     ) -> Result<(), InterpreterError> {
         unimplemented!("BzEvent generation is defined in BnzEvent::generate method");
     }

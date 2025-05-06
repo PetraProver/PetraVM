@@ -4,7 +4,6 @@ use strum::EnumCount;
 use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
-use crate::{event::context::EventContext, execution::InterpreterError};
 
 /// Represents the set of instructions supported by the zCrayVM.
 #[derive(
@@ -28,8 +27,8 @@ use crate::{event::context::EventContext, execution::InterpreterError};
 // Consider Deref to account for aliases?
 pub enum Opcode {
     // GROESTL instructions
-    Groestl256Compress = 0x28,
-    Groestl256Output = 0x29,
+    Groestl256Compress = 0x2c,
+    Groestl256Output = 0x2d,
 
     // Integer instructions
     Xori = 0x02,
@@ -52,10 +51,6 @@ pub enum Opcode {
     Or = 0x14,
     Ori = 0x15,
     Sub = 0x19,
-    Slt = 0x25,
-    Slti = 0x26,
-    Sltu = 0x1a,
-    Sltiu = 0x1b,
     Sll = 0x1c,
     Srl = 0x1d,
     Sra = 0x1e,
@@ -74,6 +69,16 @@ pub enum Opcode {
     Calli = 0x18,
     Callv = 0x0a,
     Ret = 0x0b,
+
+    // Comparison instructions
+    Sle = 0x28,
+    Slei = 0x29,
+    Sleu = 0x2a,
+    Sleiu = 0x2b,
+    Slt = 0x25,
+    Slti = 0x26,
+    Sltu = 0x1a,
+    Sltiu = 0x1b,
 
     // Branch instructions
     Bnz = 0x01,
@@ -130,6 +135,10 @@ impl Opcode {
             Opcode::And => 3,                // dst, src1, src2
             Opcode::Andi => 3,               // dst, src, imm
             Opcode::Sub => 3,                // dst, src1, src2
+            Opcode::Sle => 3,                // dst, src1, src2
+            Opcode::Slei => 3,               // dst, src, imm
+            Opcode::Sleu => 3,               // dst, src1, src2
+            Opcode::Sleiu => 3,              // dst, src, imm
             Opcode::Slt => 3,                // dst, src1, src2
             Opcode::Slti => 3,               // dst, src, imm
             Opcode::Sltu => 3,               // dst, src1, src2
@@ -203,6 +212,10 @@ impl_instruction_info!(
     (OrEvent, Opcode::Or),
     (OriEvent, Opcode::Ori),
     (RetEvent, Opcode::Ret),
+    (SleEvent, Opcode::Sle),
+    (SleiEvent, Opcode::Slei),
+    (SleuEvent, Opcode::Sleu),
+    (SleiuEvent, Opcode::Sleiu),
     (SllEvent, Opcode::Sll),
     (SlliEvent, Opcode::Slli),
     (SltEvent, Opcode::Slt),

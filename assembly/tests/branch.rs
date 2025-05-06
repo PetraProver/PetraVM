@@ -1,9 +1,11 @@
 pub mod common;
 
-use common::test_utils::execute_test_asm;
+use common::test_utils::{execute_test_asm, AsmToExecute};
 
 fn run_test(input: u32, expected: u32, condition: &str) {
-    let mut info = execute_test_asm(include_str!("../../examples/branch.asm"), &[input]);
+    let mut info = execute_test_asm(
+        AsmToExecute::new(include_str!("../../examples/branch.asm")).init_vals(vec![input]),
+    );
     let branch_frame = info.frames.add_frame("branches");
 
     assert_eq!(

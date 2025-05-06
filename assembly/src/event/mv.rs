@@ -162,8 +162,6 @@ pub struct MvvwEvent {
     pub offset: u16,
 }
 
-// TODO: this is a 4-byte move instruction. So it needs to be updated once we
-// have multi-granularity.
 impl MvvwEvent {
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
@@ -226,7 +224,7 @@ impl MvvwEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
-            ctx.vrom_record_access(dst_addr_offset);
+            ctx.vrom_record_access::<u32>(dst_addr_offset);
             ctx.trace.insert_pending(
                 dst_addr_offset,
                 (
@@ -239,6 +237,7 @@ impl MvvwEvent {
                     dst_addr,
                     src,
                     offset,
+                    0,
                 ),
             )?;
             Ok(None)
@@ -386,21 +385,24 @@ impl MvvlEvent {
             // function called. So we insert `dst_addr ^ offset` to the addresses to track
             // in `pending_updates`. As soon as it is set in the called function, we can
             // also set the value at `src_addr` and generate the MOVE event.
-            ctx.vrom_record_access(dst_addr_offset);
-            ctx.trace.insert_pending(
-                dst_addr_offset,
-                (
-                    src_addr,
-                    Opcode::Mvvl,
-                    pc,
-                    *fp,
-                    timestamp,
-                    dst,
-                    dst_addr,
-                    src,
-                    offset,
-                ),
-            )?;
+            ctx.vrom_record_access::<u128>(dst_addr_offset);
+            for i in 0..4 {
+                ctx.trace.insert_pending(
+                    dst_addr_offset + i,
+                    (
+                        src_addr + i,
+                        Opcode::Mvvl,
+                        pc,
+                        *fp,
+                        timestamp,
+                        dst,
+                        dst_addr,
+                        src,
+                        offset,
+                        i,
+                    ),
+                )?;
+            }
             Ok(None)
         }
     }
@@ -484,8 +486,6 @@ pub struct MvihEvent {
     pub offset: u16,
 }
 
-// TODO: this is a 2-byte move instruction, which sets a 4 byte address to imm
-// zero-extended. So it needs to be updated once we have multi-granularity.
 impl MvihEvent {
     /// This method is called once the next_fp has been set by the CALL
     /// procedure.
@@ -842,6 +842,12 @@ mod tests {
         let target = G.pow(target_pc as u64 - 1);
 
         // Do MVVW and MVVL with an unaccessible source value.
+        // _start:
+        //     MVV.W @9[2], @4
+        //     MVV.L @9[4], @4
+        //     MVI.H @9[8], #12
+        //     TAILV @8, @9
+        //     RET
         let instructions = vec![
             [
                 Opcode::Mvvw.get_field_elt(),
@@ -909,6 +915,7 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset1,               // Offset
+            0,                     // Pending update position for MVVL
         );
         let second_move = (
             src_addr.val() as u32, // Address to set
@@ -920,21 +927,27 @@ mod tests {
             next_fp,               // Dst addr
             src_addr,              // Src
             offset2,               // Offset
+            0,                     // Pending update position for MVVL
         );
 
+        // Insert the first move
         pending_updates.insert(next_fp + offset1.val() as u32, vec![first_move]);
-        pending_updates.insert(next_fp + offset2.val() as u32, vec![second_move]);
 
-        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(), "The expected pending updates are of length {} but the actual pending updates are of length {}", traces.vrom_pending_updates().len(), pending_updates.len());
+        // Insert the second move for each of the 4 bytes (for u128)
+        for i in 0..4 {
+            let mut current_move = second_move;
+            current_move.0 += i; // Increment address to set
+            current_move.9 += i; // Increment pending update position
+            pending_updates.insert(next_fp + offset2.val() as u32 + i, vec![current_move]);
+        }
+
+        // Assert that pending updates are correctly tracked
+        assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(),);
         for (k, pending_update) in traces.vrom_pending_updates() {
             let expected_update = pending_updates.get(k).unwrap_or_else(|| {
                 panic!("Missing expected update {:?} at addr {}", pending_update, k)
             });
-            assert_eq!(
-                *expected_update, *pending_update,
-                "expected update {:?}, but got {:?}",
-                *expected_update, *pending_update
-            );
+            assert_eq!(*expected_update, *pending_update,);
         }
         // Check that `next_fp` has been set and the third MOVE operation was carried
         // out correctly,

@@ -18,22 +18,22 @@ use crate::{
         },
         branch::{BnzEvent, BzEvent},
         call::{CalliEvent, CallvEvent, TailiEvent, TailvEvent},
-        groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
-        integer_ops::{
-            AddEvent, AddiEvent, GenericSignedMulEvent, MuliEvent, MuluEvent, SltEvent, SltiEvent,
-            SltiuEvent, SltuEvent, SubEvent,
+        comparison::{
+            SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
+        integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
-        shift::GenericShiftEvent,
+        shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    AnyShiftEvent, SrliEvent,
+    Opcode,
 };
 
 #[derive(Debug, Default)]
@@ -51,18 +51,25 @@ pub struct ZCrayTrace {
     pub sub: Vec<SubEvent>,
     pub slt: Vec<SltEvent>,
     pub slti: Vec<SltiEvent>,
+    pub sle: Vec<SleEvent>,
+    pub slei: Vec<SleiEvent>,
+    pub sleu: Vec<SleuEvent>,
+    pub sleiu: Vec<SleiuEvent>,
     pub sltu: Vec<SltuEvent>,
     pub sltiu: Vec<SltiuEvent>,
-    pub shifts: Vec<Box<dyn GenericShiftEvent>>,
-    // TODO: In the meanwhile I'm adding this, because the srli_events() method must
-    // return a reference to a slice.
     pub srli: Vec<SrliEvent>,
+    pub slli: Vec<SlliEvent>,
+    pub srai: Vec<SraiEvent>,
+    pub sll: Vec<SllEvent>,
+    pub srl: Vec<SrlEvent>,
+    pub sra: Vec<SraEvent>,
     pub add: Vec<AddEvent>,
     pub addi: Vec<AddiEvent>,
     pub add32: Vec<Add32Gadget>,
     pub add64: Vec<Add64Gadget>,
     pub muli: Vec<MuliEvent>,
-    pub signed_mul: Vec<Box<dyn GenericSignedMulEvent>>,
+    pub mul: Vec<MulEvent>,
+    pub mulsu: Vec<MulsuEvent>,
     pub mulu: Vec<MuluEvent>,
     pub taili: Vec<TailiEvent>,
     pub tailv: Vec<TailvEvent>,
@@ -131,16 +138,7 @@ impl ZCrayTrace {
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
         let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
 
-        let mut trace = interpreter.run(memory)?;
-        // FIXME: I'm doing this for now, but we should probably find a better way.
-        trace.srli = trace
-            .shifts
-            .iter()
-            .filter_map(|event| match event.as_any() {
-                AnyShiftEvent::Srli(event) => Some(event),
-                _ => None,
-            })
-            .collect();
+        let trace = interpreter.run(memory)?;
 
         let final_pc = if interpreter.pc == 0 {
             B32::zero()
@@ -179,17 +177,27 @@ impl ZCrayTrace {
         fire_events!(self.and, &mut channels);
         fire_events!(self.andi, &mut channels);
         fire_events!(self.sub, &mut channels);
+        fire_events!(self.sle, &mut channels);
+        fire_events!(self.slei, &mut channels);
+        fire_events!(self.sleu, &mut channels);
+        fire_events!(self.sleiu, &mut channels);
         fire_events!(self.slt, &mut channels);
         fire_events!(self.slti, &mut channels);
         fire_events!(self.sltu, &mut channels);
         fire_events!(self.sltiu, &mut channels);
-        fire_events!(self.shifts, &mut channels);
+        fire_events!(self.slli, &mut channels);
+        fire_events!(self.srli, &mut channels);
+        fire_events!(self.srai, &mut channels);
+        fire_events!(self.sll, &mut channels);
+        fire_events!(self.srl, &mut channels);
+        fire_events!(self.sra, &mut channels);
         fire_events!(self.add, &mut channels);
         fire_events!(self.addi, &mut channels);
         // add32 gadgets do not incur any flushes
         // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels);
-        fire_events!(self.signed_mul, &mut channels);
+        fire_events!(self.mul, &mut channels);
+        fire_events!(self.mulsu, &mut channels);
         fire_events!(self.mulu, &mut channels);
         fire_events!(self.taili, &mut channels);
         fire_events!(self.tailv, &mut channels);
@@ -218,29 +226,43 @@ impl ZCrayTrace {
     /// VROM.
     ///
     /// This will also execute pending VROM updates if necessary.
-    pub(crate) fn vrom_write<T: VromValueT>(
-        &mut self,
-        index: u32,
-        value: T,
-    ) -> Result<(), MemoryError> {
+    pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value)?;
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset) =
+                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, mvvl_pos) =
                     pending_update;
                 self.vrom_write(parent, value)?;
-                let event_out = MVEventOutput::new(
-                    opcode,
-                    field_pc,
-                    fp.into(),
-                    timestamp,
-                    dst,
-                    dst_addr,
-                    src,
-                    offset,
-                    value.to_u128(),
-                );
-                event_out.push_mv_event(self);
+                if opcode == Opcode::Mvvw {
+                    let event_out = MVEventOutput::new(
+                        opcode,
+                        field_pc,
+                        fp.into(),
+                        timestamp,
+                        dst,
+                        dst_addr,
+                        src,
+                        offset,
+                        value.to_u128(),
+                    );
+                    event_out.push_mv_event(self);
+                } else if mvvl_pos == 3 {
+                    // There is a limitation here that pos = 3 must be the last position set for
+                    // Mvvl, otherwise a vrom read error will occur.
+                    let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
+                    let event_out = MVEventOutput::new(
+                        opcode,
+                        field_pc,
+                        fp.into(),
+                        timestamp,
+                        dst,
+                        dst_addr,
+                        src,
+                        offset,
+                        value,
+                    );
+                    event_out.push_mv_event(self);
+                }
             }
         }
 

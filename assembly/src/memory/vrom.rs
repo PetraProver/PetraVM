@@ -4,7 +4,7 @@ use binius_m3::builder::{B16, B32};
 use num_traits::Zero;
 
 use super::{AccessSize, MemoryError};
-use crate::{event::context::EventContext, memory::vrom_allocator::VromAllocator, opcodes::Opcode};
+use crate::{memory::vrom_allocator::VromAllocator, opcodes::Opcode};
 
 pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
 
@@ -19,6 +19,7 @@ pub(crate) type VromUpdate = (
     u32,    // dst addr
     B16,    // src
     B16,    // offset
+    u32,    // pending update position only used for Mvvl
 );
 
 /// `ValueRom` represents a memory structure for storing different sized values.
@@ -77,8 +78,18 @@ impl ValueRom {
     pub fn read<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         self.check_alignment::<T>(index)?;
         self.check_bounds::<T>(index)?;
-        self.record_access(index, T::word_size());
+        self.record_access::<T>(index);
+        self.read_internal::<T>(index)
+    }
 
+    /// Peeks at the value at the given index without recording an access.
+    pub fn peek<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
+        self.check_alignment::<T>(index)?;
+        self.check_bounds::<T>(index)?;
+        self.read_internal::<T>(index)
+    }
+
+    fn read_internal<T: VromValueT>(&self, index: u32) -> Result<T, MemoryError> {
         let mut value = T::zero();
 
         // Read the entire chunk at once.
@@ -119,7 +130,7 @@ impl ValueRom {
     pub fn write<T: VromValueT>(&mut self, index: u32, value: T) -> Result<(), MemoryError> {
         self.check_alignment::<T>(index)?;
         self.ensure_capacity::<T>(index);
-        self.record_access(index, T::word_size());
+        self.record_access::<T>(index);
         for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
             let prev_value = &mut self.data[index as usize + i];
@@ -202,8 +213,8 @@ impl ValueRom {
     }
 
     /// Record accesses for addresses [addr, addr+size).
-    pub(crate) fn record_access(&self, addr: u32, size: usize) {
-        for i in 0..size {
+    pub(crate) fn record_access<T: VromValueT>(&self, addr: u32) {
+        for i in 0..T::word_size() {
             let idx = addr as usize + i;
             let count = self.access_counts[idx].get();
             self.access_counts[idx].set(count + 1);
@@ -284,9 +295,9 @@ mod tests {
         assert_eq!(vrom.read::<u32>(2).unwrap(), 0x55667788);
         assert_eq!(vrom.read::<u32>(3).unwrap(), 0x11223344);
 
-        vrom.read::<u32>(3);
-        vrom.read::<u32>(2);
-        vrom.read::<u32>(2);
+        vrom.read::<u32>(3).unwrap();
+        vrom.read::<u32>(2).unwrap();
+        vrom.read::<u32>(2).unwrap();
 
         let vrom_access_counts = vrom.sorted_access_counts();
         assert_eq!(vrom_access_counts.len(), 4);

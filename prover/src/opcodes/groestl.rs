@@ -15,8 +15,8 @@ use zcrayvm_assembly::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 use crate::{
     channels::Channels,
     gadgets::{
-        cpu::{CpuColumns, CpuColumnsOptions, CpuGadget, NextPc},
-        multiple_lookup::{MultipleVromLookupColumns, MultipleVromLookupGadget},
+        multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget},
+        state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     },
     table::Table,
     types::ProverPackedField,
@@ -31,20 +31,20 @@ const GROESTL_OUTPUT_OPCODE: u16 = Opcode::Groestl256Output as u16;
 /// compression function described in the Groestl specs.
 pub struct Groestl256CompressTable {
     id: TableId,
-    cpu_cols: CpuColumns<GROESTL_COMPRESS_OPCODE>,
+    state_cols: StateColumns<GROESTL_COMPRESS_OPCODE>,
     // Base address.
     dst_addresses: [Col<B32>; 8],
     // We need to write all 16 words to the VROM channel.
-    dst_lookups: [MultipleVromLookupColumns<2>; 8],
+    dst_lookups: [MultipleLookupColumns<2>; 8],
     dst_vals: [Col<B64>; 8],
     // Base address.
     src1_addresses: [Col<B32>; 8],
     // We need to read all 16 words from the VROM channel.
-    src1_lookups: [MultipleVromLookupColumns<2>; 8],
+    src1_lookups: [MultipleLookupColumns<2>; 8],
     src1_vals: [Col<B8, 8>; 8],
     src2_addresses: [Col<B32>; 8],
     // We need to read all 16 words from the VROM channel.
-    src2_lookups: [MultipleVromLookupColumns<2>; 8],
+    src2_lookups: [MultipleLookupColumns<2>; 8],
     src2_vals: [Col<B8, 8>; 8],
     // Input state for the P permutation.
     p_state_in: [Col<B8, 8>; 8],
@@ -73,11 +73,11 @@ impl Table for Groestl256CompressTable {
             ..
         } = *channels;
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             state_channel,
             prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
@@ -94,7 +94,8 @@ impl Table for Groestl256CompressTable {
             .collect::<Vec<_>>();
 
         // Get the base address for the first source value.
-        let src1_abs = table.add_computed("src1_addr_0", cpu_cols.fp + upcast_col(cpu_cols.arg1));
+        let src1_abs =
+            table.add_computed("src1_addr_0", state_cols.fp + upcast_col(state_cols.arg1));
         let mut src1_addresses = [src1_abs; 8];
         for i in 1..8 {
             src1_addresses[i] = table.add_computed(
@@ -104,7 +105,7 @@ impl Table for Groestl256CompressTable {
         }
         // Pull the first source value from the VROM channel.
         let src1_lookups = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 src1_abs,
@@ -114,7 +115,8 @@ impl Table for Groestl256CompressTable {
         });
 
         // Get the base address for the second source value.
-        let src2_abs = table.add_computed("src2_addr_0", cpu_cols.fp + upcast_col(cpu_cols.arg2));
+        let src2_abs =
+            table.add_computed("src2_addr_0", state_cols.fp + upcast_col(state_cols.arg2));
         let mut src2_addresses = [src2_abs; 8];
         for i in 1..8 {
             src2_addresses[i] = table.add_computed(
@@ -124,7 +126,7 @@ impl Table for Groestl256CompressTable {
         }
         // Pull the second source value from the VROM channel.
         let src2_lookups = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 src2_abs,
@@ -166,7 +168,7 @@ impl Table for Groestl256CompressTable {
         let out_packed: [Col<B32, 2>; 8] = from_fn(|i| table.add_packed("dst_val_packed", out[i]));
 
         // Get the base address for the destination value.
-        let dst_abs = table.add_computed("dst", cpu_cols.fp + upcast_col(cpu_cols.arg0));
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let mut dst_addresses = [dst_abs; 8];
         for i in 1..8 {
             dst_addresses[i] =
@@ -174,7 +176,7 @@ impl Table for Groestl256CompressTable {
         }
         // Pull the destination value from the VROM channel.
         let dst_lookups = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 dst_addresses[i],
@@ -187,7 +189,7 @@ impl Table for Groestl256CompressTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_addresses,
             dst_vals,
             dst_lookups,
@@ -324,7 +326,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     let vals = <u64 as Divisible<u32>>::split_val(ev.dst_val[i])
                         .try_into()
                         .unwrap();
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.dst as u32) + 2 * i as u32,
                         vals,
                     }
@@ -342,7 +344,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                         .try_into()
                         .unwrap();
 
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src1) + 2 * i as u32,
                         vals,
                     }
@@ -360,7 +362,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                         .try_into()
                         .unwrap();
 
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src2) + 2 * i as u32,
                         vals,
                     }
@@ -416,7 +418,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
         // Populate the Q permutation.
         self.q_op.populate(witness)?;
 
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -424,7 +426,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
 
         Ok(())
     }
@@ -436,11 +438,11 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
 /// 2-to-1 compression output.
 pub struct Groestl256OutputTable {
     id: TableId,
-    cpu_cols: CpuColumns<GROESTL_OUTPUT_OPCODE>,
+    state_cols: StateColumns<GROESTL_OUTPUT_OPCODE>,
     // All addresses where we need to read the values for dst.
     dst_addrs: [Col<B32>; 4],
     // We need to write all 4 words to the VROM channel.
-    dst_lookups: [MultipleVromLookupColumns<2>; 4],
+    dst_lookups: [MultipleLookupColumns<2>; 4],
     // Output values.
     dst_vals: [Col<B64>; 4],
     // All addresses where we need to read the values for src1.
@@ -448,13 +450,13 @@ pub struct Groestl256OutputTable {
     // First 256 bits of the input state.
     src1_vals: [Col<B8, 8>; 4],
     // We need to write all 4 words to the VROM channel.
-    src1_lookups: [MultipleVromLookupColumns<2>; 4],
+    src1_lookups: [MultipleLookupColumns<2>; 4],
     // All addresses where we need to read the values for src2.
     src2_addrs: [Col<B32>; 4],
     // Last 256 bits of the input state.
     src2_vals: [Col<B8, 8>; 4],
     // We need to write all 4 words to the VROM channel.
-    src2_lookups: [MultipleVromLookupColumns<2>; 4],
+    src2_lookups: [MultipleLookupColumns<2>; 4],
     // Output of the P permutation.
     out: [Col<B8, 8>; 8],
     // P permutation.
@@ -478,11 +480,11 @@ impl Table for Groestl256OutputTable {
             ..
         } = *channels;
 
-        let cpu_cols = CpuColumns::new(
+        let state_cols = StateColumns::new(
             &mut table,
             state_channel,
             prom_channel,
-            CpuColumnsOptions {
+            StateColumnsOptions {
                 next_pc: NextPc::Increment,
                 next_fp: None,
             },
@@ -499,7 +501,7 @@ impl Table for Groestl256OutputTable {
             .collect::<Vec<_>>();
 
         // Get the base address for the first source value.
-        let src1_base_addr = cpu_cols.fp + upcast_col(cpu_cols.arg1);
+        let src1_base_addr = state_cols.fp + upcast_col(state_cols.arg1);
         let src1_addrs = from_fn(|i| {
             table.add_computed(
                 format!("src1_addr_{}", i),
@@ -508,8 +510,8 @@ impl Table for Groestl256OutputTable {
         });
 
         // Pull the first source value from the VROM channel.
-        let src1_lookups: [MultipleVromLookupColumns<2>; 4] = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+        let src1_lookups: [MultipleLookupColumns<2>; 4] = from_fn(|i| {
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 src1_addrs[i],
@@ -523,7 +525,7 @@ impl Table for Groestl256OutputTable {
         // }
 
         // Get the base address for the second source value.
-        let src2_base_addr = cpu_cols.fp + upcast_col(cpu_cols.arg2);
+        let src2_base_addr = state_cols.fp + upcast_col(state_cols.arg2);
         let src2_addrs = from_fn(|i| {
             table.add_computed(
                 format!("src2_addr_{}", i),
@@ -531,8 +533,8 @@ impl Table for Groestl256OutputTable {
             )
         });
         // Pull the second source value from the VROM channel.
-        let src2_lookups: [MultipleVromLookupColumns<2>; 4] = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+        let src2_lookups: [MultipleLookupColumns<2>; 4] = from_fn(|i| {
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 src2_addrs[i],
@@ -567,7 +569,7 @@ impl Table for Groestl256OutputTable {
         let dst_vals = from_fn(|i| table.add_packed(format!("dst_val_{}", i), lookup_vals[i]));
 
         // Get the base address for the destination value.
-        let dst_base_addr = cpu_cols.fp + upcast_col(cpu_cols.arg0);
+        let dst_base_addr = state_cols.fp + upcast_col(state_cols.arg0);
         let dst_addrs = from_fn(|i| {
             table.add_computed(
                 format!("dst_addr_{}", i),
@@ -577,7 +579,7 @@ impl Table for Groestl256OutputTable {
 
         // Pull the destination value from the VROM channel.
         let dst_lookups = from_fn(|i| {
-            MultipleVromLookupColumns::new(
+            MultipleLookupColumns::new(
                 &mut table,
                 vrom_channel,
                 dst_addrs[i],
@@ -588,7 +590,7 @@ impl Table for Groestl256OutputTable {
 
         Self {
             id: table.id(),
-            cpu_cols,
+            state_cols,
             dst_addrs,
             dst_vals,
             dst_lookups,
@@ -692,7 +694,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .try_into()
                         .unwrap();
 
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src1),
                         vals,
                     }
@@ -709,7 +711,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .try_into()
                         .unwrap();
 
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src2),
                         vals,
                     }
@@ -720,7 +722,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             .map(|i| {
                 rows.clone().map(move |ev| {
                     let vals = [ev.dst_val[i] as u32, (ev.dst_val[i] >> 32) as u32];
-                    MultipleVromLookupGadget {
+                    MultipleLookupGadget {
                         addr: ev.fp.addr(ev.dst as u32) + 2 * i as u32,
                         vals,
                     }
@@ -760,7 +762,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
         // Populate the P permutation.
         self.p_op.populate(witness)?;
 
-        let cpu_rows = rows.map(|event| CpuGadget {
+        let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
             fp: *event.fp,
@@ -768,7 +770,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             arg1: event.src1,
             arg2: event.src2,
         });
-        self.cpu_cols.populate(witness, cpu_rows)?;
+        self.state_cols.populate(witness, state_rows)?;
 
         Ok(())
     }
