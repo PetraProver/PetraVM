@@ -23,7 +23,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [x] `ADD` - Integer addition
 - [x] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
-- [ ] `MUL` - Signed multiplication
+- [x] `MUL` - Signed multiplication
 - [ ] `MULI` - Signed multiplication with immediate
 - [ ] `MULU` - Unsigned multiplication
 - [ ] `MULSU` - Signed × unsigned multiplication
