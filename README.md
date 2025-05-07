@@ -104,7 +104,7 @@ Expansion to include RAM-related instructions is kept for future work.
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
 - [Fibonacci](prover/tests/fibonacci.rs): Prove a Fibonacci number
-- [Collatz](prover/test/collatz.rs): Prove the Collatz sequence for a given number (*This example is missing the ADDI instruction to run successfully, see #105*)
+- [Collatz](prover/test/collatz.rs): Prove the Collatz sequence for a given number
 
 ## Development Status
 
