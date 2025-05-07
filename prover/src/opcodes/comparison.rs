@@ -560,23 +560,30 @@ mod tests {
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses the SLTU
-    /// instruction.
-    fn generate_sltu_trace(src1_val: u32, src2_val: u32) -> Result<Trace> {
+    /// Creates an execution trace for a simple program that uses the SLEU or
+    /// SLTU instructions.
+    fn generate_unsigned_trace(src1_val: u32, src2_val: u32, op: &str) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
                 LDI.W @2, #{}\n\
                 LDI.W @3, #{}\n\
-                SLTU @4, @2, @3\n\
+                {} @4, @2, @3\n\
                 RET\n",
-            src1_val, src2_val
+            src1_val,
+            src2_val,
+            op.to_uppercase(),
         );
 
-        // Calculate the expected result (1 if src1 < src2, 0 otherwise)
-        let expected = (src1_val < src2_val) as u32;
+        // Calculate the expected result (1 if src1 < src2 (or src1 <= src2), 0
+        // otherwise)
+        let expected = match op {
+            "sltu" => (src1_val < src2_val) as u32,
+            "sleu" => (src1_val <= src2_val) as u32,
+            _ => panic!("Unsupported operation"),
+        };
 
-        // Add VROM writes from LDI and SLTU events
+        // Add VROM writes from LDI and comparison events
         let vrom_writes = vec![
             // LDI events
             (2, src1_val, 2),
@@ -584,130 +591,76 @@ mod tests {
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
-            // SLTU event
+            // Comparison event
             (4, expected, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    fn test_sltu_with_values(src1_val: u32, src2_val: u32) -> Result<()> {
-        let trace = generate_sltu_trace(src1_val, src2_val)?;
+    fn test_unsigned_comparisons_with_values(src1_val: u32, src2_val: u32, op: &str) -> Result<()> {
+        let trace = generate_unsigned_trace(src1_val, src2_val, op)?;
         trace.validate()?;
-        assert_eq!(trace.sltu_events().len(), 1);
+
+        match op {
+            "sltu" => assert_eq!(trace.sltu_events().len(), 1),
+            "sleu" => assert_eq!(trace.sleu_events().len(), 1),
+            _ => panic!("Unsupported operation"),
+        }
+
         assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
-    /// Creates an execution trace for a simple program that uses the SLTIU
-    /// instruction.
-    fn generate_sltiu_trace(src_val: u32, imm_val: u16) -> Result<Trace> {
+    /// Creates an execution trace for a simple program that uses the SLEIU or
+    /// SLTIU instructions.
+    fn generate_imm_unsigned_trace(src_val: u32, imm_val: u16, op: &str) -> Result<Trace> {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
                 LDI.W @2, #{}\n\
-                SLTIU @3, @2, #{}\n\
+                {} @3, @2, #{}\n\
                 RET\n",
-            src_val, imm_val
+            src_val,
+            op.to_uppercase(),
+            imm_val
         );
 
-        // Calculate the expected result (1 if src < imm, 0 otherwise)
-        let expected = (src_val < imm_val as u32) as u32;
+        // Calculate the expected result (1 if src < imm (or src <= imm), 0 otherwise)
+        let expected = match op {
+            "sltiu" => (src_val < imm_val as u32) as u32,
+            "sleiu" => (src_val <= imm_val as u32) as u32,
+            _ => panic!("Unsupported operation"),
+        };
 
-        // Add VROM writes from LDI and SLTU events
+        // Add VROM writes from LDI and comparison events
         let vrom_writes = vec![
             // LDI event
             (2, src_val, 2),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
-            // SLTIU event
+            // Comparison event
             (3, expected, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
-    fn test_sltiu_with_values(src_val: u32, imm_val: u16) -> Result<()> {
-        let trace = generate_sltiu_trace(src_val, imm_val)?;
+    fn test_imm_unsigned_comparisons_with_values(
+        src_val: u32,
+        imm_val: u16,
+        op: &str,
+    ) -> Result<()> {
+        let trace = generate_imm_unsigned_trace(src_val, imm_val, op)?;
         trace.validate()?;
-        assert_eq!(trace.sltiu_events().len(), 1);
-        assert_eq!(trace.ret_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
-    }
 
-    /// Creates an execution trace for a simple program that uses the SLEU
-    /// instruction.
-    fn generate_sleu_trace(src1_val: u32, src2_val: u32) -> Result<Trace> {
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-             _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
-                SLEU @4, @2, @3\n\
-                RET\n",
-            src1_val, src2_val
-        );
+        match op {
+            "sltiu" => assert_eq!(trace.sltiu_events().len(), 1),
+            "sleiu" => assert_eq!(trace.sleiu_events().len(), 1),
+            _ => panic!("Unsupported operation"),
+        }
 
-        // Calculate the expected result (1 if src1 <= src2, 0 otherwise)
-        let expected = (src1_val <= src2_val) as u32;
-
-        // Add VROM writes from LDI and SLTU events
-        let vrom_writes = vec![
-            // LDI events
-            (2, src1_val, 2),
-            (3, src2_val, 2),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // SLEU event
-            (4, expected, 1),
-        ];
-
-        generate_trace(asm_code, None, Some(vrom_writes))
-    }
-
-    fn test_sleu_with_values(src1_val: u32, src2_val: u32) -> Result<()> {
-        let trace = generate_sleu_trace(src1_val, src2_val)?;
-        trace.validate()?;
-        assert_eq!(trace.sleu_events().len(), 1);
-        assert_eq!(trace.ret_events().len(), 1);
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
-    }
-
-    /// Creates an execution trace for a simple program that uses the SLEIU
-    /// instruction.
-    fn generate_sleiu_trace(src_val: u32, imm_val: u16) -> Result<Trace> {
-        let asm_code = format!(
-            "#[framesize(0x10)]\n\
-             _start: 
-                LDI.W @2, #{}\n\
-                SLEIU @3, @2, #{}\n\
-                RET\n",
-            src_val, imm_val
-        );
-
-        // Calculate the expected result (1 if src < imm, 0 otherwise)
-        let expected = (src_val <= imm_val as u32) as u32;
-
-        // Add VROM writes from LDI and SLTU events
-        let vrom_writes = vec![
-            // LDI event
-            (2, src_val, 2),
-            // Initial values
-            (0, 0, 1),
-            (1, 0, 1),
-            // SLEIU event
-            (3, expected, 1),
-        ];
-
-        generate_trace(asm_code, None, Some(vrom_writes))
-    }
-
-    fn test_sleiu_with_values(src_val: u32, imm_val: u16) -> Result<()> {
-        let trace = generate_sleiu_trace(src_val, imm_val)?;
-        trace.validate()?;
-        assert_eq!(trace.sleiu_events().len(), 1);
         assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
@@ -736,7 +689,7 @@ mod tests {
                 Just((u32::MAX - 1, u32::MAX))       // MAX-1 < MAX
             ],
         ) {
-            prop_assert!(test_sltu_with_values(src1_val, src2_val).is_ok());
+            prop_assert!(test_unsigned_comparisons_with_values(src1_val, src2_val, "sltu").is_ok());
         }
 
         #[test]
@@ -756,7 +709,7 @@ mod tests {
                 Just((u32::MAX, 0)),           // Max > Min
             ],
         ) {
-            prop_assert!(test_sltiu_with_values(src_val, imm_val).is_ok());
+            prop_assert!(test_imm_unsigned_comparisons_with_values(src_val, imm_val, "sltiu").is_ok());
         }
 
         #[test]
@@ -780,7 +733,7 @@ mod tests {
                 Just((u32::MAX - 1, u32::MAX))       // MAX-1 < MAX
             ],
         ) {
-            prop_assert!(test_sleu_with_values(src1_val, src2_val).is_ok());
+            prop_assert!(test_unsigned_comparisons_with_values(src1_val, src2_val, "sleu").is_ok());
         }
 
         #[test]
@@ -800,7 +753,7 @@ mod tests {
                 Just((u32::MAX, 0)),           // Max > Min
             ],
         ) {
-            prop_assert!(test_sleiu_with_values(src_val, imm_val).is_ok());
+            prop_assert!(test_imm_unsigned_comparisons_with_values(src_val, imm_val, "sleiu").is_ok());
         }
     }
 }
