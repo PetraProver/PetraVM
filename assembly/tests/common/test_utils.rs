@@ -5,10 +5,10 @@ use std::{
     rc::Rc,
 };
 
-use zcrayvm_assembly::{
+use petravm_assembly::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
-    AssembledProgram, Assembler, Memory, ValueRom, ZCrayTrace,
+    AssembledProgram, Assembler, Memory, PetraTrace, ValueRom,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.
@@ -36,7 +36,7 @@ pub struct Frames {
     /// Map of frame templates names to instantiated frames of that template (in
     /// order of allocation).
     frames: HashMap<String, Vec<Rc<AllocatedFrame>>>,
-    trace: Rc<ZCrayTrace>,
+    trace: Rc<PetraTrace>,
 
     frame_templates: HashMap<String, FrameTemplate>,
 
@@ -51,7 +51,7 @@ pub struct Frames {
 }
 
 impl Frames {
-    fn new(trace: Rc<ZCrayTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
+    fn new(trace: Rc<PetraTrace>, frame_templates: HashMap<String, FrameTemplate>) -> Self {
         Self {
             frames: HashMap::new(),
             trace,
@@ -100,7 +100,7 @@ pub(crate) struct FrameTemplate {
 }
 
 impl FrameTemplate {
-    pub fn build(self, trace: Rc<ZCrayTrace>, frame_start_addr: u32) -> AllocatedFrame {
+    pub fn build(self, trace: Rc<PetraTrace>, frame_start_addr: u32) -> AllocatedFrame {
         AllocatedFrame {
             label: self.label,
             trace,
@@ -119,7 +119,7 @@ impl FrameTemplate {
 /// test "by hand" and instead only worry about slot offsets from a given frame.
 pub struct AllocatedFrame {
     label: String,
-    trace: Rc<ZCrayTrace>,
+    trace: Rc<PetraTrace>,
     frame_start_addr: u32,
     frame_size: u32,
 }
@@ -244,7 +244,7 @@ pub fn execute_test_asm<T: Into<AsmToExecute>>(prog: T) -> ExecutedTestProgInfo 
     let memory = Memory::new(compiled_program.prom.clone(), vrom);
 
     // Execute the program and generate the trace
-    let (trace, boundary_values) = ZCrayTrace::generate(
+    let (trace, boundary_values) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes.clone(),

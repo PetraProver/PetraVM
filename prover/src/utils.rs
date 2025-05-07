@@ -1,8 +1,8 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
-use binius_field::ExtensionField;
-use binius_m3::builder::{upcast_expr, Col, Expr, TableBuilder, B128, B16, B32};
+use binius_field::{ExtensionField, Field};
+use binius_m3::builder::{upcast_col, upcast_expr, Col, Expr, TableBuilder, B1, B128, B16, B32};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -167,4 +167,27 @@ pub fn pack_instruction_with_32bits_imm_b128(pc: B32, opcode: B16, arg: B16, imm
 /// Packs two 16-bit limbs into a single 32-bit value.
 pub(crate) fn pack_b16_into_b32(low: Col<B16, 1>, high: Col<B16, 1>) -> Expr<B32, 1> {
     upcast_expr(high.into()) * <B32 as ExtensionField<B16>>::basis(1) + upcast_expr(low.into())
+}
+
+/// Helper function to set up the multiplexer constraint for bit selection  
+pub(crate) fn setup_mux_constraint(
+    table: &mut TableBuilder,
+    result: &Col<B1, 32>,
+    when_true: &Col<B1, 32>,
+    when_false: &Col<B1, 32>,
+    select_bit: &Col<B1>,
+) {
+    // Create packed (32-bit) versions of columns
+    let result_packed = table.add_packed("result_packed", *result);
+    let true_packed = table.add_packed("when_true_packed", *when_true);
+    let false_packed = table.add_packed("when_false_packed", *when_false);
+
+    // Create constraint for the mux:
+    // result = select_bit ? when_true : when_false
+    table.assert_zero(
+        "mux_constraint",
+        result_packed
+            - (true_packed * upcast_col(*select_bit)
+                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
+    );
 }

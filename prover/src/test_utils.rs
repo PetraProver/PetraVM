@@ -2,8 +2,8 @@ use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
-use zcrayvm_assembly::{
-    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, ValueRom, ZCrayTrace,
+use petravm_assembly::{
+    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
 
 use crate::model::Trace;
@@ -42,25 +42,6 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 2: Arg: n
     // Slot 3: Arg: Result
     let init_values = vec![0, 0, n, res];
-
-    generate_trace(asm_code, Some(init_values), None)
-}
-
-/// Creates an execution trace for the All opcodes program.
-///
-///
-/// # Returns
-/// * A trace containing the All opcodes program execution
-pub fn generate_all_opcodes_trace() -> Result<Trace> {
-    // Read the Fibonacci assembly code from examples directory
-    let asm_path = format!("{}/../examples/opcodes.asm", env!("CARGO_MANIFEST_DIR"));
-    let asm_code = std::fs::read_to_string(asm_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read opcodes.asm: {}", e))?;
-
-    // Initialize memory with:
-    // Slot 0: Return PC = 0
-    // Slot 1: Return FP = 0
-    let init_values = vec![0, 0];
 
     generate_trace(asm_code, Some(init_values), None)
 }
@@ -137,7 +118,7 @@ pub fn generate_trace(
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
-    let (zcray_trace, _) = ZCrayTrace::generate(
+    let (petra_trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -146,7 +127,7 @@ pub fn generate_trace(
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_zcray_trace(program, zcray_trace);
+    let mut zkvm_trace = Trace::from_petra_trace(program, petra_trace);
     let actual_vrom_writes = zkvm_trace.trace.vrom().sorted_access_counts();
 
     // Validate that manually specified multiplicities match the actual ones if

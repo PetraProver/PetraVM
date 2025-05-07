@@ -1,7 +1,7 @@
 ;; ============================================================================
-;; zCrayVM INSTRUCTION SET TEST SUITE
+;; PetraVM INSTRUCTION SET TEST SUITE
 ;; ============================================================================
-;; This file tests the support for zCrayVM instructions to ensure the emulator
+;; This file tests the support for PetraVM instructions to ensure the emulator
 ;; can correctly parse and execute all defined instructions.
 ;;
 ;; INSTRUCTION CATEGORIES:

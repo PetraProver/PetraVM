@@ -8,7 +8,7 @@ use binius_m3::{
     },
     gadgets::u32::{U32Sub, U32SubFlags},
 };
-use zcrayvm_assembly::{opcodes::Opcode, SltEvent, SltuEvent};
+use petravm_assembly::{opcodes::Opcode, SltEvent, SltuEvent};
 
 use crate::{
     channels::Channels,
@@ -155,7 +155,6 @@ const SLT_OPCODE: u16 = Opcode::Slt as u16;
 ///
 /// This table handles the SLT instruction, which performs signed
 /// integer comparison (set if less than) between two 32-bit elements.
-
 pub struct SltTable {
     id: TableId,
     state_cols: StateColumns<SLT_OPCODE>,
@@ -359,9 +358,9 @@ fn setup_mux_constraint(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use petravm_assembly::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use zcrayvm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

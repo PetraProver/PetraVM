@@ -1,4 +1,4 @@
-use zcrayvm_assembly::{isa::GenericISA, Assembler, Memory, ValueRom, ZCrayTrace};
+use petravm_assembly::{isa::GenericISA, Assembler, Memory, PetraTrace, ValueRom};
 
 #[test]
 fn test_naive_div() {
@@ -9,7 +9,7 @@ fn test_naive_div() {
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let memory = Memory::new(compiled_program.prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(
+    let (trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -48,7 +48,7 @@ fn test_bezout() {
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let memory = Memory::new(compiled_program.prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(
+    let (trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -93,7 +93,7 @@ fn test_non_tail_long_div() {
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let memory = Memory::new(compiled_program.prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(
+    let (trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -127,7 +127,7 @@ fn test_tail_long_div() {
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let memory = Memory::new(compiled_program.prom, vrom);
-    let (trace, _) = ZCrayTrace::generate(
+    let (trace, _) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,

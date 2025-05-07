@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use anyhow::Result;
 use clap::{value_parser, Parser};
-use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_prover::{
+use petravm_assembly::isa::GenericISA;
+use petravm_prover::{
     prover::{verify_proof, Prover},
     test_utils::{collatz, generate_collatz_trace},
 };

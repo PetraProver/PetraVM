@@ -122,7 +122,7 @@ macro_rules! impl_left_right_output_for_bin_op {
 /// Implements the [`Event`](crate::event::Event) trait for a binary operation.
 ///
 /// It takes as input the instruction and its corresponding field name in the
-/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// [`PetraTrace`](crate::execution::trace::PetraTrace) where such events are
 /// being logged.
 ///
 /// # Example
@@ -265,7 +265,7 @@ macro_rules! impl_32b_immediate_binary_operation {
 ///
 /// It takes as argument the instruction, with optional Rust documentation, its
 /// corresponding field name in the
-/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// [`PetraTrace`](crate::execution::trace::PetraTrace) where such events are
 /// being logged, and the operation to be applied on the instruction's inputs.
 ///
 /// # Example
@@ -320,7 +320,7 @@ macro_rules! define_bin32_op_event {
 ///
 /// It takes as argument the instruction, with optional Rust documentation, its
 /// corresponding field name in the
-/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// [`PetraTrace`](crate::execution::trace::PetraTrace) where such events are
 /// being logged, and the operation to be applied on the instruction's inputs.
 ///
 /// # Example
@@ -373,7 +373,7 @@ macro_rules! define_bin32_imm_op_event {
 ///
 /// It takes as argument the instruction, with optional Rust documentation, its
 /// corresponding field name in the
-/// [`ZCrayTrace`](crate::execution::trace::ZCrayTrace) where such events are
+/// [`PetraTrace`](crate::execution::trace::PetraTrace) where such events are
 /// being logged, and the operation to be applied on the instruction's inputs.
 ///
 /// # Example

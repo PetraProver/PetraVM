@@ -1,9 +1,9 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_prover::prover::{verify_proof, Prover};
-use zcrayvm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
+use petravm_assembly::isa::GenericISA;
+use petravm_prover::prover::{verify_proof, Prover};
+use petravm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
 
 #[test]
 fn test_fibonacci() -> Result<()> {

@@ -36,7 +36,7 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-pub struct ZCrayTrace {
+pub struct PetraTrace {
     pub bnz: Vec<BnzEvent>,
     pub jumpi: Vec<JumpiEvent>,
     pub jumpv: Vec<JumpvEvent>,
@@ -97,7 +97,7 @@ pub struct BoundaryValues {
 }
 
 /// Convenience macro to execute all the flushing rules of a given kind of
-/// instructions present in a [`ZCrayTrace`].
+/// instructions present in a [`PetraTrace`].
 ///
 /// It takes as argument the list events for the targeted instruction in a
 /// trace, the [`InterpreterChannels`] against which the flushing rules will be
@@ -115,7 +115,7 @@ macro_rules! fire_events {
     };
 }
 
-impl ZCrayTrace {
+impl PetraTrace {
     pub(crate) fn new(memory: Memory) -> Self {
         Self {
             memory,
