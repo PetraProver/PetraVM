@@ -51,8 +51,8 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [x] `SLTIU` - Set if less than immediate (unsigned)
 - [ ] `SLE` - Set if less than or equal (signed)
 - [ ] `SLEI` - Set if less than or equal immediate (signed)
-- [ ] `SLEU` - Set if less than or equal (unsigned)
-- [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
+- [x] `SLEU` - Set if less than or equal (unsigned)
+- [x] `SLEIU` - Set if less than or equal immediate (unsigned)
 
 #### VROM Operations
 - [x] `LDI.W` - Load immediate word
