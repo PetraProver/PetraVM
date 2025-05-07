@@ -1,7 +1,8 @@
-//! Helper macros for [`Event`] definitions.
+//! Helper macros for [`Event`](crate::event::Event) definitions.
 
-/// Implements the [`NonImmediateBinaryOperation`] and associated
-/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// Implements the
+/// [`NonImmediateBinaryOperation`](crate::event::binary_ops::NonImmediateBinaryOperation)
+/// and associated [`LeftOp`](crate::event::binary_ops::LeftOp),
 /// [`RightOp`](crate::event::binary_ops::RightOp) and
 /// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
 ///
@@ -172,8 +173,9 @@ macro_rules! fire_non_jump_event {
     };
 }
 
-/// Implements the [`ImmediateBinaryOperation`] and associated
-/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// Implements the
+/// [`ImmediateBinaryOperation`](crate::event::binary_ops::ImmediateBinaryOperation)
+/// and associated [`LeftOp`](crate::event::binary_ops::LeftOp),
 /// [`RightOp`](crate::event::binary_ops::RightOp) and
 /// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
 ///
