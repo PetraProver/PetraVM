@@ -3,7 +3,6 @@ members = ["assembly", "prover"]
 resolver = "2"
 
 [workspace.package]
-name = "petravm"
 version = "0.1.0"
 edition = "2021"
 authors = ["The PetraVM Developers"]

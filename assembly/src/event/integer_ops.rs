@@ -4,11 +4,10 @@ use std::marker::PhantomData;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
+use crate::macros::{define_bin32_imm_op_event, define_bin32_op_event, fire_non_jump_event};
 use crate::{
-    define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, Event},
     execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
 };
 
 define_bin32_imm_op_event!(
@@ -270,7 +269,8 @@ define_bin32_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{execution::Interpreter, get_last_event, PetraTrace};
+    use crate::test_util::get_last_event;
+    use crate::{execution::Interpreter, PetraTrace};
 
     /// Tests for Add operations (without immediate)
     #[test]

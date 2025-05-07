@@ -16,6 +16,9 @@ pub mod opcodes;
 mod parser;
 mod util;
 
+#[cfg(test)]
+mod test_util;
+
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use event::*;
 pub use execution::emulator::{Instruction, InterpreterInstruction};

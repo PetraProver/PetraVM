@@ -25,7 +25,7 @@ pub(crate) type VromUpdate = (
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
 pub struct ValueRom {
-    /// Storage for values, each slot is an Option<u32>.
+    /// Storage for values, each slot is an `Option<u32>`.
     data: Vec<Option<u32>>,
     /// Number of reads/writes per address (interior mutability).
     access_counts: Vec<Cell<u32>>,

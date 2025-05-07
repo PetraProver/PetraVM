@@ -14,6 +14,7 @@ pub mod opcodes;
 pub mod prover;
 pub mod table;
 pub mod types;
+#[macro_use]
 pub mod utils;
 
 /// Publicly exported module for testing purposes only

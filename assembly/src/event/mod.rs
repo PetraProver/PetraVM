@@ -24,6 +24,7 @@ pub(crate) mod comparison;
 pub(crate) mod context;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
+#[macro_use]
 pub(crate) mod macros;
 pub(crate) mod mv;
 pub(crate) mod ret;
