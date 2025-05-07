@@ -92,8 +92,8 @@ impl Opcode {
             Opcode::Sll => shift::SllEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Srl => shift::SrlEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Sra => shift::SraEvent::generate(ctx, arg0, arg1, arg2),
-            Opcode::Addi => event_helper::generate_addi(ctx, arg0, arg1, arg2),
-            Opcode::Add => event_helper::generate_add(ctx, arg0, arg1, arg2),
+            Opcode::Addi => integer_ops::AddiEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Add => integer_ops::AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Sle => comparison::SleEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Slei => comparison::SleiEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Sleu => comparison::SleuEvent::generate(ctx, arg0, arg1, arg2),
@@ -126,62 +126,5 @@ impl Opcode {
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
-    }
-}
-
-mod event_helper {
-    use binius_m3::builder::B16;
-
-    use super::{
-        context::EventContext,
-        integer_ops::{AddEvent, AddiEvent},
-        Event,
-    };
-    use crate::{execution::InterpreterError, gadgets::Add32Gadget};
-
-    /// Helper method to generate `AddEvent` and associated `Add32Gadget`.
-    pub fn generate_add(
-        ctx: &mut EventContext,
-        dst: B16,
-        src1: B16,
-        src2: B16,
-    ) -> Result<(), InterpreterError> {
-        AddEvent::generate(ctx, dst, src1, src2)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_add_event = ctx.trace.add.last().expect("Event should have been pushed");
-
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_add_event.src1_val, new_add_event.src2_val);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
-    }
-
-    /// Helper method to generate `AddiEvent` and associated `Add32Gadget`.
-    pub fn generate_addi(
-        ctx: &mut EventContext,
-        dst: B16,
-        src: B16,
-        imm: B16,
-    ) -> Result<(), InterpreterError> {
-        AddiEvent::generate(ctx, dst, src, imm)?;
-
-        // TODO(Robin): Do this directly within AddEvent / AddiEvent?
-
-        // Retrieve event
-        let new_addi_event = ctx
-            .trace
-            .addi
-            .last()
-            .expect("Event should have been pushed");
-
-        let new_add32_gadget =
-            Add32Gadget::generate_gadget(ctx, new_addi_event.src_val, imm.val() as u32);
-        ctx.trace.add32.push(new_add32_gadget);
-
-        Ok(())
     }
 }

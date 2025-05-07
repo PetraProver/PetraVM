@@ -9,7 +9,6 @@
 pub mod assembler;
 pub mod event;
 pub mod execution;
-pub mod gadgets;
 pub mod isa;
 pub mod memory;
 pub mod opcodes;
