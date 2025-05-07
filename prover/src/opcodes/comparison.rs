@@ -4,7 +4,7 @@ use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
-    gadgets::u32::{U32Sub, U32SubFlags},
+    gadgets::sub::{U32Sub, U32SubFlags},
 };
 use petravm_assembly::{opcodes::Opcode, SltuEvent};
 

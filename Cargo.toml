@@ -18,12 +18,12 @@ categories = ["cryptography", "zkvm", "snark"]
 
 [workspace.dependencies]
 anyhow = "1.0"
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "b4705d9" }
+binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
 
 [profile.release]
 lto = "fat"
