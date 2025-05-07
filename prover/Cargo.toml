@@ -2,7 +2,15 @@
 name = "petravm-prover"
 version.workspace = true
 edition.workspace = true
-authors = ["Petra Team"]
+description = "PetraVM's prover"
+documentation = "https://docs.rs/petravm-assembly"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 anyhow.workspace = true

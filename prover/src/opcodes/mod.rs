@@ -27,5 +27,5 @@ pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};
 pub use ret::RetTable;
-pub use shift::{SllTable, SlliTable, SrlTable, SrliTable};
+pub use shift::{SllTable, SlliTable, SraTable, SraiTable, SrlTable, SrliTable};
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
