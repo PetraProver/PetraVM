@@ -590,7 +590,7 @@ impl TableFiller<ProverPackedField> for MulTable {
         let state_rows = rows.clone().map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
@@ -776,7 +776,7 @@ impl TableFiller<ProverPackedField> for MuliTable {
         let state_rows = rows.clone().map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src,
             arg2: event.imm,
