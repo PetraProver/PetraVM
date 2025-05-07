@@ -1,11 +1,31 @@
 # PetraVM
-A verifiable supercomputer
+
+A verifiable supercomputer.
 
 ## Overview
 PetraVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
 
+## Features
+
+- Binary field and arithmetic operations
+- Memory and control flow primitives
+- Efficient support for recursion
+- Write-once memory model (VROM)
+
 ## Instruction Set
-PetraVM's full instruction set is divided into five categories—Binary field, Arithmetic & Logic, Memory, Control Flow, and Function Calls—and the prover's current support is noted below.
+
+PetraVM's full instruction set is divided into five categories:
+- Binary field operations
+- Arithmetic & Logic operations
+- Memory operations
+- Control Flow instructions
+- Function Calls
+
+Prover support for the full instruction set is a work in progress, tracked below.
+
+The VM will also define a minimal ISA tailored for efficient recursion.
+
+Expansion to include RAM-related instructions is kept for future work.
 
 ### Prover Support (Work in Progress)
 
@@ -41,8 +61,8 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [x] `SLLI` - Shift left logical with immediate
 - [x] `SRL` - Shift right logical
 - [x] `SRLI` - Shift right logical with immediate
-- [ ] `SRA` - Shift right arithmetic
-- [ ] `SRAI` - Shift right arithmetic with immediate
+- [x] `SRA` - Shift right arithmetic
+- [x] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
 - [ ] `SLT` - Set if less than (signed)
@@ -74,7 +94,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [x] `TAILV` - Tail call to variable address
 - [x] `RET` - Return from function
 
-#### Future Memory Extensions
+#### Future Random-Access Memory Extensions
 - [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte
 - [ ] `LBU` - Load byte unsigned
@@ -85,7 +105,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
 - [Fibonacci](prover/examples/fibonacci.rs): Prove a Fibonacci number
-- [Collatz](prover/examples/collatz.rs): Prove the Collatz conjecture
+- [Collatz](prover/examples/collatz.rs): Prove the Collatz sequence for a given number
 
 ### Running Examples
 
@@ -96,3 +116,22 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 1
 # Run Collatz conjecture for starting value 7
 RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
 ```
+
+## Development Status
+
+The project is actively developed. Many instructions are already supported by the prover, with new instructions and additional features added regularly.
+
+## Crates
+
+- [`assembly`](./assembly): zkVM assembly DSL, parser and program executor
+- [`prover`](./prover): Circuit definition and proof generation
+
+## License
+
+Licensed under Apache 2.0. See [LICENSE](LICENSE).
+
+## Contributing
+
+We welcome contributions! Please open issues or pull requests for bugs, features, or improvements.
+
+We reserve the right to close issues and PRs deemed unecessary or not bringing sufficient interest.

@@ -9,7 +9,6 @@ use crate::{
     event::{binary_ops::*, Event},
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     fire_non_jump_event,
-    gadgets::Add64Gadget,
 };
 
 define_bin32_imm_op_event!(
@@ -108,12 +107,6 @@ pub struct MuluEvent {
     pub src1_val: u32,
     pub src2: u16,
     pub src2_val: u32,
-    // Auxiliary commitments
-    pub aux: [u32; 8],
-    // Stores all aux[2i] + aux[2i + 1] << 8.
-    pub aux_sums: [u64; 4],
-    // Stores the cumulative sums: cum_sum[i] = cum_sum[i-1] + aux_sum[i] << 8*i
-    pub cum_sums: [u64; 2],
 }
 
 impl Event for MuluEvent {
@@ -130,9 +123,6 @@ impl Event for MuluEvent {
 
         ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        let (aux, aux_sums, cum_sums) =
-            schoolbook_multiplication_intermediate_sums::<u32>(src1_val, src2_val, dst_val);
-
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
         ctx.incr_pc();
 
@@ -146,37 +136,7 @@ impl Event for MuluEvent {
             src1_val,
             src2: src2.val(),
             src2_val,
-            aux: aux.try_into().expect("Created an incorrect aux vector."),
-            aux_sums: aux_sums
-                .try_into()
-                .expect("Created an incorrect aux_sums vector."),
-            cum_sums: cum_sums
-                .try_into()
-                .expect("Created an incorrect cum_sums vector."),
         };
-
-        // Check auxiliary values with gadgets
-        let aux = mulu_event.aux;
-        let aux_sums = mulu_event.aux_sums;
-        let cum_sums = mulu_event.cum_sums;
-
-        // This is to check aux_sums[i] = aux[2i] + aux[2i+1] << 8.
-        for i in 0..aux.len() / 2 {
-            let new_add64_gadget =
-                Add64Gadget::generate_gadget(ctx, aux[2 * i] as u64, (aux[2 * i + 1] as u64) << 8);
-            ctx.trace.add64.push(new_add64_gadget);
-        }
-        // This is to check cum_sums[i] = cum_sums[i-1] + aux_sums[i] << 8.
-        // Check the first element.
-        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, aux_sums[0], aux_sums[1] << 8);
-        ctx.trace.add64.push(new_add64_gadget);
-        // CHeck the second element.
-        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, cum_sums[0], aux_sums[2] << 16);
-        ctx.trace.add64.push(new_add64_gadget);
-
-        // This is to check that dst_val = cum_sums[1] + aux_sums[3] << 24.
-        let new_add64_gadget = Add64Gadget::generate_gadget(ctx, cum_sums[1], aux_sums[3] << 24);
-        ctx.trace.add64.push(new_add64_gadget);
 
         ctx.trace.mulu.push(mulu_event);
         Ok(())
@@ -189,70 +149,6 @@ impl Event for MuluEvent {
         );
         fire_non_jump_event!(self, channels);
     }
-}
-
-/// This function computes the intermediate sums of the schoolbook
-/// multiplication algorithm.
-fn schoolbook_multiplication_intermediate_sums<T: Into<u32>>(
-    src_val: u32,
-    imm_val: T,
-    dst_val: u64,
-) -> (Vec<u32>, Vec<u64>, Vec<u64>) {
-    let xs = src_val.to_le_bytes();
-    let num_ys_bytes = std::mem::size_of::<T>();
-    let ys = &imm_val.into().to_le_bytes()[..num_ys_bytes];
-
-    let mut aux = vec![0; num_ys_bytes * 2];
-    // Compute ys[i]*(xs[0] + xs[1]*2^8 + 2^16*xs[2] + 2^24 xs[3]) in two u32, each
-    // containing the summands that wont't overlap
-    for i in 0..num_ys_bytes {
-        aux[2 * i] = ys[i] as u32 * xs[0] as u32 + ((ys[i] as u32 * xs[2] as u32) << 16);
-        aux[2 * i + 1] = ys[i] as u32 * xs[1] as u32 + ((ys[i] as u32 * xs[3] as u32) << 16);
-    }
-
-    // We call the ADD64 gadget to check these additions.
-    // sum[i] = aux[2*i] + aux[2*i+1]
-    //        = ys[i]*xs[0] + 2^8*ys[i]*xs[1] + 2^16*ys[i]*xs[2] + 2^24*ys[i]*xs[3]
-    let aux_sums: Vec<u64> = (0..num_ys_bytes)
-        .map(|i| aux[2 * i] as u64 + ((aux[2 * i + 1] as u64) << 8))
-        .collect();
-
-    // We call the ADD64 gadget to check these additions. These compute the
-    // cumulative sums of all auxiliary sums. Indeed, the final output corresponds
-    // to the sum of all auxiliary sums.
-    //
-    // Note that we only need to store l-2 values because the last cumulative sum is
-    // actually equal to the output. Moreover, the thirst cumulative sum is
-    // simply `aux_sums[0]`. If `l` is the number of bytes in `T`, then:
-    // - cum_sums[0] = aux_sums[0] + aux_sums[1] << 8
-    // - output = cum_sums[l-3] + aux_sums[l-1] << 8*l
-    // - cum_sums[i] = cum_sums[i-1] + aux_sum[i] << 8*(i+1)
-    let cum_sums = if num_ys_bytes > 2 {
-        let mut cum_sums = vec![0; num_ys_bytes - 2];
-
-        cum_sums[0] = aux_sums[0] + (aux_sums[1] << 8);
-        (1..num_ys_bytes - 2)
-            .for_each(|i| cum_sums[i] = cum_sums[i - 1] + (aux_sums[i + 1] << (8 * (i + 1))));
-        cum_sums
-    } else {
-        vec![]
-    };
-
-    if !cum_sums.is_empty() {
-        assert_eq!(
-            cum_sums[num_ys_bytes - 3] + (aux_sums[num_ys_bytes - 1] << (8 * (num_ys_bytes - 1))),
-            dst_val,
-            "Incorrect cum_sums."
-        );
-    } else {
-        assert_eq!(
-            aux_sums[0] + (aux_sums[1] << 8),
-            dst_val,
-            "Incorrect aux_sums."
-        );
-    }
-
-    (aux, aux_sums, cum_sums)
 }
 
 pub trait SignedMulOperation: Debug + Clone {
