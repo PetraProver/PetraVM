@@ -6,8 +6,8 @@ use binius_m3::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::{
-        mul::MulSS32,
         add::{U32Add, U32AddFlags},
+        mul::MulSS32,
     },
 };
 use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, SubEvent};
