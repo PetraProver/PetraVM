@@ -14,7 +14,7 @@ use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, TableFiller, B128};
 use bumpalo::Bump;
-use petravm_assembly::isa::ISA;
+use petravm_asm::isa::ISA;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use anyhow::Result;
 use clap::{value_parser, Parser};
-use petravm_assembly::isa::GenericISA;
+use petravm_asm::isa::GenericISA;
 use petravm_prover::{
     prover::{verify_proof, Prover},
     test_utils::{fibonacci, generate_fibonacci_trace},

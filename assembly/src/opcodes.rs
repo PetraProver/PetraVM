@@ -158,13 +158,12 @@ impl Opcode {
     }
 }
 
-/// Trait implemented by each [`Event`](crate::event::Event) type.
+/// Trait implemented by each [`Event`] type.
 pub trait InstructionInfo {
     /// The unique opcode associated with this instruction.
     fn opcode() -> Opcode;
 }
 
-#[macro_export]
 macro_rules! impl_instruction_info {
     ( $( ($event_ty:ty, $opcode:path) ),* $(,)? ) => {
         $(

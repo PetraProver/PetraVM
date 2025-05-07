@@ -5,9 +5,8 @@
 //! - Specific logic associated with it (for instance the notion of RAM).
 //!
 //! On the prover side, the ISA is fed when initializing a new
-//! [`Circuit`](crate::circuit::Circuit), which invokes
-//! [`ISA::register_instructions`] to instantiate and wire up all instruction
-//! tables needed.
+//! `Circuit`, which invokes the static table registry to instantiate and wire
+//! up all instruction tables needed by this ISA.
 
 use core::fmt::Debug;
 use std::collections::HashSet;
@@ -19,7 +18,7 @@ use crate::Opcode;
 ///
 /// Each implementation of this trait should provide the different instructions
 /// supported. This can be done easily through the
-/// [`register_instruction!`](crate::register_instruction) macro.
+/// [`define_isa!`](crate::define_isa) macro.
 pub trait ISA: Debug {
     /// Returns the set of supported opcodes.
     fn supported_opcodes(&self) -> &HashSet<Opcode>;

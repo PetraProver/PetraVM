@@ -9,12 +9,14 @@
 pub mod assembler;
 pub mod event;
 pub mod execution;
-pub mod gadgets;
 pub mod isa;
 pub mod memory;
 pub mod opcodes;
 mod parser;
 mod util;
+
+#[cfg(test)]
+mod test_util;
 
 pub use assembler::{AssembledProgram, Assembler, AssemblerError};
 pub use event::*;

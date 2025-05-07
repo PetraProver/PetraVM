@@ -5,7 +5,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use petravm_assembly::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEvent};
+use petravm_asm::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
@@ -574,7 +574,7 @@ impl TableFiller<ProverPackedField> for CallvTable {
 mod tests {
     use anyhow::Result;
     use binius_field::{BinaryField, PackedField};
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
 
     use super::*;
     use crate::model::Trace;

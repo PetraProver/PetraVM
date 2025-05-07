@@ -1,10 +1,9 @@
 [workspace]
-members = ["assembly", "prover"]
+members = ["assembly", "prover", "verifier"]
 resolver = "2"
 
 [workspace.package]
-name = "petravm"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["The PetraVM Developers"]
 description = "PetraVM: a zkVM optimized for efficient recursive composition backed by the Binius proving system."
@@ -14,7 +13,7 @@ homepage = "https://github.com/PetraProver/PetraVM"
 documentation = "https://docs.rs/petravm"
 readme = "README.md"
 keywords = ["zkvm", "zero-knowledge", "binius", "rust", "snark"]
-categories = ["cryptography", "zkvm", "snark"]
+categories = ["cryptography", "compilers", "wasm"]
 
 [workspace.dependencies]
 anyhow = "1.0"

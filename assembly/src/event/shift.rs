@@ -7,7 +7,7 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
+    macros::fire_non_jump_event,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -269,7 +269,8 @@ mod test {
 
     use super::*;
     use crate::{
-        isa::GenericISA, memory::Memory, opcodes::Opcode, util::code_to_prom, PetraTrace, ValueRom,
+        isa::GenericISA, memory::Memory, opcodes::Opcode, test_util::code_to_prom, PetraTrace,
+        ValueRom,
     };
 
     #[test]

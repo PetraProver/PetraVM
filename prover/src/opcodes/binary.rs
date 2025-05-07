@@ -9,7 +9,7 @@ use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B128, B16, B32,
 };
-use petravm_assembly::{
+use petravm_asm::{
     opcodes::Opcode, AndEvent, AndiEvent, B128AddEvent, B128MulEvent, B32MulEvent, B32MuliEvent,
     OrEvent, OriEvent, XorEvent, XoriEvent,
 };

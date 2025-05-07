@@ -151,7 +151,7 @@ pub enum InterpreterError {
     InvalidInput,
     #[error("A memory access failed with error {0}")]
     MemoryError(MemoryError),
-    #[error("An exception occured.")]
+    #[error("An exception occurred.")]
     Exception(InterpreterException),
 }
 
@@ -290,8 +290,8 @@ mod tests {
     use binius_field::{ExtensionField, Field};
 
     use super::*;
-    use crate::util::{code_to_prom, get_binary_slot};
-    use crate::util::{collatz_orbits, init_logger};
+    use crate::test_util::{code_to_prom, collatz_orbits, get_binary_slot};
+    use crate::util::init_logger;
     use crate::ValueRom;
 
     #[test]

@@ -68,11 +68,11 @@ Expansion to include RAM-related instructions is kept for future work.
 - [ ] `SLT` - Set if less than (signed)
 - [ ] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
-- [ ] `SLTIU` - Set if less than immediate (unsigned)
+- [x] `SLTIU` - Set if less than immediate (unsigned)
 - [ ] `SLE` - Set if less than or equal (signed)
 - [ ] `SLEI` - Set if less than or equal immediate (signed)
-- [ ] `SLEU` - Set if less than or equal (unsigned)
-- [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
+- [x] `SLEU` - Set if less than or equal (unsigned)
+- [x] `SLEIU` - Set if less than or equal immediate (unsigned)
 
 #### VROM Operations
 - [x] `LDI.W` - Load immediate word
@@ -134,4 +134,4 @@ Licensed under Apache 2.0. See [LICENSE](LICENSE).
 
 We welcome contributions! Please open issues or pull requests for bugs, features, or improvements.
 
-We reserve the right to close issues and PRs deemed unecessary or not bringing sufficient interest.
+We reserve the right to close issues and PRs deemed unnecessary or not bringing sufficient interest.

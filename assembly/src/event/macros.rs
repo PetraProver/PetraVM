@@ -1,7 +1,8 @@
-//! Helper macros for [`Event`] definitions.
+//! Helper macros for [`Event`](crate::event::Event) definitions.
 
-/// Implements the [`NonImmediateBinaryOperation`] and associated
-/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// Implements the
+/// [`NonImmediateBinaryOperation`](crate::event::binary_ops::NonImmediateBinaryOperation)
+/// and associated [`LeftOp`](crate::event::binary_ops::LeftOp),
 /// [`RightOp`](crate::event::binary_ops::RightOp) and
 /// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
 ///
@@ -10,10 +11,9 @@
 /// ```ignore
 /// impl_binary_operation!(AddEvent)
 /// ```
-#[macro_export]
 macro_rules! impl_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_bin_op!($t, B32);
+        $crate::macros::impl_left_right_output_for_bin_op!($t, B32);
         impl $crate::event::binary_ops::NonImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
@@ -56,7 +56,6 @@ macro_rules! impl_binary_operation {
 /// ```ignore
 /// impl_left_right_output_for_imm_bin_op!(AddEvent, B32)
 /// ```
-#[macro_export]
 macro_rules! impl_left_right_output_for_imm_bin_op {
     ($t:ty, $imm_field_ty:ty) => {
         impl $crate::event::binary_ops::LeftOp for $t {
@@ -95,7 +94,6 @@ macro_rules! impl_left_right_output_for_imm_bin_op {
 /// ```ignore
 /// impl_left_right_output_for_bin_op!(AddEvent, B32)
 /// ```
-#[macro_export]
 macro_rules! impl_left_right_output_for_bin_op {
     ($t:ty, $field_ty:ty) => {
         impl $crate::event::binary_ops::LeftOp for $t {
@@ -130,7 +128,6 @@ macro_rules! impl_left_right_output_for_bin_op {
 /// ```ignore
 /// impl_event_for_binary_operation!(AddEvent, add)
 /// ```
-#[macro_export]
 macro_rules! impl_event_for_binary_operation {
     ($ty:ty, $trace_field:ident) => {
         impl $crate::event::Event for $ty {
@@ -148,7 +145,7 @@ macro_rules! impl_event_for_binary_operation {
             fn fire(&self, channels: &mut $crate::execution::InterpreterChannels) {
                 use $crate::event::binary_ops::{LeftOp, OutputOp, RightOp};
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
-                $crate::fire_non_jump_event!(self, channels);
+                $crate::macros::fire_non_jump_event!(self, channels);
             }
         }
     };
@@ -163,7 +160,6 @@ macro_rules! impl_event_for_binary_operation {
 /// ```ignore
 /// fire_non_jump_event!(AddEvent, add)
 /// ```
-#[macro_export]
 macro_rules! fire_non_jump_event {
     ($event:ident, $channels:ident) => {
         $channels
@@ -177,8 +173,9 @@ macro_rules! fire_non_jump_event {
     };
 }
 
-/// Implements the [`ImmediateBinaryOperation`] and associated
-/// [`LeftOp`](crate::event::binary_ops::LeftOp),
+/// Implements the
+/// [`ImmediateBinaryOperation`](crate::event::binary_ops::ImmediateBinaryOperation)
+/// and associated [`LeftOp`](crate::event::binary_ops::LeftOp),
 /// [`RightOp`](crate::event::binary_ops::RightOp) and
 /// [`OutputOp`](crate::event::binary_ops::OutputOp) traits for an event.
 ///
@@ -187,10 +184,9 @@ macro_rules! fire_non_jump_event {
 /// ```ignore
 /// impl_immediate_binary_operation!(AddiEvent)
 /// ```
-#[macro_export]
 macro_rules! impl_immediate_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_imm_bin_op!($t, B16);
+        $crate::macros::impl_left_right_output_for_imm_bin_op!($t, B16);
         impl $crate::event::binary_ops::ImmediateBinaryOperation for $t {
             fn new(
                 timestamp: u32,
@@ -227,10 +223,9 @@ macro_rules! impl_immediate_binary_operation {
 /// ```ignore
 /// impl_32b_immediate_binary_operation!(B32MuliEvent)
 /// ```
-#[macro_export]
 macro_rules! impl_32b_immediate_binary_operation {
     ($t:ty) => {
-        $crate::impl_left_right_output_for_imm_bin_op!($t, B32);
+        $crate::macros::impl_left_right_output_for_imm_bin_op!($t, B32);
         #[allow(clippy::too_many_arguments)]
         impl $t {
             const fn new(
@@ -283,7 +278,6 @@ macro_rules! impl_32b_immediate_binary_operation {
 ///    |a: B32, b: B32| B32::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
 /// );
 /// ```
-#[macro_export]
 macro_rules! define_bin32_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
@@ -307,8 +301,8 @@ macro_rules! define_bin32_op_event {
             }
         }
 
-        $crate::impl_binary_operation!($name);
-        $crate::impl_event_for_binary_operation!($name, $trace_field);
+        $crate::macros::impl_binary_operation!($name);
+        $crate::macros::impl_event_for_binary_operation!($name, $trace_field);
     };
 }
 
@@ -338,7 +332,6 @@ macro_rules! define_bin32_op_event {
 ///    |a: B32, imm: B16| B32::new((a.val() as i32).wrapping_add(imm.val() as i16 as i32) as u32)
 /// );
 /// ```
-#[macro_export]
 macro_rules! define_bin32_imm_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op_fn:expr) => {
         $(#[$meta])*
@@ -361,8 +354,8 @@ macro_rules! define_bin32_imm_op_event {
             }
         }
 
-        $crate::impl_immediate_binary_operation!($name);
-        $crate::impl_event_for_binary_operation!($name, $trace_field);
+        $crate::macros::impl_immediate_binary_operation!($name);
+        $crate::macros::impl_event_for_binary_operation!($name, $trace_field);
     };
 }
 
@@ -391,7 +384,6 @@ macro_rules! define_bin32_imm_op_event {
 ///    +
 /// );
 /// ```
-#[macro_export]
 macro_rules! define_bin128_op_event {
     ($(#[$meta:meta])* $name:ident, $trace_field:ident, $op:tt) => {
         $(#[$meta])*
@@ -415,7 +407,7 @@ macro_rules! define_bin128_op_event {
             }
         }
 
-        $crate::impl_left_right_output_for_bin_op!($name, B128);
+        $crate::macros::impl_left_right_output_for_bin_op!($name, B128);
 
         impl Event for $name {
             fn generate(
@@ -472,3 +464,11 @@ macro_rules! define_bin128_op_event {
         }
     };
 }
+
+// Re-export macros for use in other modules
+pub(crate) use {
+    define_bin128_op_event, define_bin32_imm_op_event, define_bin32_op_event, fire_non_jump_event,
+    impl_32b_immediate_binary_operation, impl_binary_operation, impl_event_for_binary_operation,
+    impl_immediate_binary_operation, impl_left_right_output_for_bin_op,
+    impl_left_right_output_for_imm_bin_op,
+};

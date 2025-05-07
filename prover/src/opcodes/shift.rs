@@ -6,7 +6,7 @@ use binius_m3::{
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
-use petravm_assembly::{Opcode, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent};
+use petravm_asm::{Opcode, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
@@ -733,7 +733,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
 

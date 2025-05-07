@@ -3,7 +3,7 @@
 //! This module contains the definitions and abstractions of all the arithmetic
 //! tables, to be leveraged by any PetraVM instruction set. Each of these
 //! instruction tables are registered through the
-//! [`ISA`](petravm_assembly::isa::ISA) interface, and are dynamically managed
+//! [`ISA`](petravm_asm::isa::ISA) interface, and are dynamically managed
 //! when building the proving circuit.
 
 use std::any::Any;
@@ -12,7 +12,7 @@ use anyhow::anyhow;
 use binius_m3::builder::ConstraintSystem;
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
-use petravm_assembly::opcodes::InstructionInfo;
+use petravm_asm::opcodes::InstructionInfo;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
@@ -59,7 +59,7 @@ pub trait Table: Any {
 ///
 /// NOTE: This is necessary to "hide" the associated [`Event`](Table::Event)
 /// type of the [`Table`] trait, so that it can be used within the definition of
-/// [`ISA`](petravm_assembly::isa::ISA).
+/// [`ISA`](petravm_asm::isa::ISA).
 pub trait FillableTable {
     /// Fills the table's witness rows with data from the corresponding events
     /// prevent in the provided [`Trace`].
@@ -75,7 +75,7 @@ pub trait FillableTable {
 }
 
 /// A dynamic table entry that binds a [`Table`] instance with an event
-/// accessor, to be used when defining an [`ISA`](petravm_assembly::isa::ISA)
+/// accessor, to be used when defining an [`ISA`](petravm_asm::isa::ISA)
 /// and to register tables inside a [`Circuit`](crate::circuit::Circuit).
 ///
 /// The underlying table type is a pointer to an instance implementing both
