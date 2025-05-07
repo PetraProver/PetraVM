@@ -7,7 +7,7 @@ use binius_m3::{
     },
     gadgets::{
         mul::MulSS32,
-        u32::{U32Add, U32AddFlags},
+        add::{U32Add, U32AddFlags},
     },
 };
 use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, SubEvent};
