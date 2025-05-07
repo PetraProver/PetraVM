@@ -45,7 +45,7 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 - [ ] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
-- [ ] `SLT` - Set if less than (signed)
+- [x] `SLT` - Set if less than (signed)
 - [ ] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
 - [ ] `SLTIU` - Set if less than immediate (unsigned)
