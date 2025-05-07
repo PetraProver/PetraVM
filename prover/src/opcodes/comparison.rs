@@ -284,6 +284,7 @@ pub struct SleuTable {
     id: TableId,
     state_cols: StateColumns<SLEU_OPCODE>,
     dst_abs: Col<B32>,
+    dst_val: Col<B32>,
     src1_abs: Col<B32>,
     src1_val: Col<B1, 32>,
     src2_abs: Col<B32>,
@@ -358,6 +359,7 @@ impl Table for SleuTable {
             id: table.id(),
             state_cols,
             dst_abs,
+            dst_val,
             src1_abs,
             src1_val,
             src2_abs,
@@ -385,6 +387,7 @@ impl TableFiller<ProverPackedField> for SleuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
             let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
@@ -392,6 +395,7 @@ impl TableFiller<ProverPackedField> for SleuTable {
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                dst_val[i] = B32::new(event.dst_val);
                 src1_abs[i] = B32::new(event.fp.addr(event.src1));
                 src1_val[i] = event.src1_val;
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
@@ -420,6 +424,7 @@ pub struct SleiuTable {
     id: TableId,
     state_cols: StateColumns<SLEIU_OPCODE>,
     dst_abs: Col<B32>,
+    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val: Col<B1, 32>,
     imm_32b: Col<B1, 32>,
@@ -491,6 +496,7 @@ impl Table for SleiuTable {
             id: table.id(),
             state_cols,
             dst_abs,
+            dst_val,
             src_abs,
             src_val,
             imm_32b,
@@ -517,12 +523,14 @@ impl TableFiller<ProverPackedField> for SleiuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                dst_val[i] = B32::new(event.dst_val);
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
                 imm[i] = event.imm;
