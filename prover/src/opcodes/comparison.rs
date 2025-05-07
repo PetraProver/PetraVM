@@ -163,13 +163,9 @@ pub struct SltTable {
     src1_abs: Col<B32>,
     src1_val: Col<B1, 32>,
     src1_sign: Col<B1>,
-    src1_val_inverted: Col<B1, 32>,
     src2_abs: Col<B32>,
     src2_val: Col<B1, 32>,
     src2_sign: Col<B1>,
-    src2_val_inverted: Col<B1, 32>,
-    xin: Col<B1, 32>,
-    yin: Col<B1, 32>,
     dst_bit: Col<B1>,
     subber: U32Sub,
 }
@@ -218,40 +214,27 @@ impl Table for SltTable {
         let src1_sign = table.add_selected("src1_sign", src1_val, 31);
         let src2_sign = table.add_selected("src2_sign", src2_val, 31);
 
-        // Compute the inverted values of src1 and src2
-        let src1_val_inverted = table.add_computed("src1_val_inverted", src1_val + B1::ONE);
-        let src2_val_inverted = table.add_computed("src2_val_inverted", src2_val + B1::ONE);
-
-        // Comit to the subber inputs
-        let xin = table.add_committed("subber_input1");
-        let yin = table.add_committed("subber_input2");
-
-        // Set up multiplexer constraint: xin = src1_sign ? src1_val_inverted :
-        // src1_val
-        setup_mux_constraint(&mut table, &xin, &src1_val_inverted, &src1_val, &src1_sign);
-        // Set up multiplexer constraint: yin = src2_sign ? src2_val_inverted :
-        // src2_val
-        setup_mux_constraint(&mut table, &yin, &src2_val_inverted, &src2_val, &src2_sign);
-
         // Instantiate the subtractor with the appropriate flags
         let flags = U32SubFlags {
             borrow_in_bit: None,       // no extra borrow-in
             expose_final_borrow: true, // we want the "underflow" bit out
             commit_zout: false,        // we don't need the raw subtraction result
         };
-        let subber = U32Sub::new(&mut table, xin, yin, flags);
+        let subber = U32Sub::new(&mut table, src1_val, src2_val, flags);
         // `final_borrow` is 1 exactly when src1_val < src2_val
         let final_borrow: Col<B1> = subber
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // The final bit is (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR
-        // src2_sign)*final_borrow
+        // Direct comparison works whenever both sigs are equal. If not, it's determined
+        // by the src1_val sign. Therefore, the  bit is computed as (src1_sign
+        // XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
+        // final_borrow
         let dst_bit = table.add_computed(
             "dst_val",
             (src1_sign + src2_sign) * src1_sign + (src1_sign + src2_sign + B1::ONE) * final_borrow,
         );
-        let dst_val = upcast_col(final_borrow);
+        let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
         table.pull(vrom_channel, [src1_abs, src1_val_packed]);
@@ -267,13 +250,9 @@ impl Table for SltTable {
             src1_abs,
             src1_val,
             src1_sign,
-            src1_val_inverted,
             src2_abs,
             src2_val,
             src2_sign,
-            src2_val_inverted,
-            xin,
-            yin,
             dst_bit,
             subber,
         }
@@ -301,13 +280,9 @@ impl TableFiller<ProverPackedField> for SltTable {
             let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src1_sign = witness.get_mut(self.src1_sign)?;
-            let mut src1_val_inverted = witness.get_mut_as(self.src1_val_inverted)?;
-            let mut xin = witness.get_mut_as(self.xin)?;
             let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
             let mut src2_val = witness.get_mut_as(self.src2_val)?;
             let mut src2_sign = witness.get_mut(self.src2_sign)?;
-            let mut src2_val_inverted = witness.get_mut_as(self.src2_val_inverted)?;
-            let mut yin = witness.get_mut_as(self.yin)?;
             let mut dst_bit = witness.get_mut(self.dst_bit)?;
 
             for (i, event) in rows.clone().enumerate() {
@@ -320,12 +295,6 @@ impl TableFiller<ProverPackedField> for SltTable {
                     i,
                     B1::from(is_src1_negative),
                 );
-                src1_val_inverted[i] = !event.src1_val;
-                xin[i] = if is_src1_negative {
-                    src1_val_inverted[i]
-                } else {
-                    event.src1_val
-                };
 
                 // Set the values of the second operand
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
@@ -336,19 +305,17 @@ impl TableFiller<ProverPackedField> for SltTable {
                     i,
                     B1::from(is_src2_negative),
                 );
-                src2_val_inverted[i] = !event.src2_val;
-                yin[i] = if is_src2_negative {
-                    src2_val_inverted[i]
-                } else {
-                    event.src2_val
-                };
 
-                // Set the destination
+                // Set the destination to
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
                 binius_field::packed::set_packed_slice(
                     &mut dst_bit,
                     i,
-                    B1::from((event.src1_val as i32) < (event.src2_val as i32)),
+                    B1::from(if is_src1_negative ^ is_src2_negative {
+                        is_src1_negative
+                    } else {
+                        event.src1_val < event.src2_val
+                    }),
                 );
             }
         }
@@ -527,7 +494,7 @@ mod tests {
                 Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
 
                 // Additional interesting cases
-                Just(((i32::MAX/2) as u32, (i32::MAX/2 + 1) as u32)),  // Middle values
+                Just(((i32::MAX/2 - 1) as u32, (i32::MAX/2) as u32)),  // Middle values
                 Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
                 Just((1, i32::MAX as u32)),                // 1 < MAX
                 Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
