@@ -1,5 +1,5 @@
 [workspace]
-members = ["assembly", "prover"]
+members = ["assembly", "prover", "verifier"]
 resolver = "2"
 
 [workspace.package]
