@@ -37,6 +37,31 @@ define_bin32_op_event!(
     |a: B32, b: B32| B32::new((a.val() as i32).wrapping_add(b.val() as i32) as u32)
 );
 
+define_bin32_imm_op_event!(
+    /// Event for SUBI.
+    ///
+    /// Performs an SUB between a target address and an immediate.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src] - imm
+    SubiEvent,
+    subi,
+    |a: B32, imm: B16| B32::new((a.val() as i32).wrapping_sub(imm.val() as i16 as i32) as u32)
+);
+
+define_bin32_op_event!(
+    // Event for SUB.
+    ///
+    /// Performs a SUB between two target addresses.
+    ///
+    /// Logic:
+    ///   1. FP[dst] = FP[src1] - FP[src2]
+    SubEvent,
+    sub,
+    // SUB is checked using a specific gadget, similarly to ADD.
+    |a: B32, b: B32| B32::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
+);
+
 /// Event for MULI.
 ///
 /// Performs a MUL between a signed 32-bit integer and a 16-bit immediate.
@@ -357,19 +382,6 @@ pub struct SignedMulEvent<SignedMulOperation> {
 
 pub type MulEvent = SignedMulEvent<MulOp>;
 pub type MulsuEvent = SignedMulEvent<MulsuOp>;
-
-define_bin32_op_event!(
-    // Event for SUB.
-    ///
-    /// Performs a SUB between two target addresses.
-    ///
-    /// Logic:
-    ///   1. FP[dst] = FP[src1] - FP[src2]
-    SubEvent,
-    sub,
-    // SUB is checked using a specific gadget, similarly to ADD.
-    |a: B32, b: B32| B32::new(((a.val() as i32).wrapping_sub(b.val() as i32)) as u32)
-);
 
 #[cfg(test)]
 mod tests {

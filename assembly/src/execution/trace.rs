@@ -10,8 +10,7 @@ use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
 use crate::{
-    assembler::LabelsFrameSizes,
-    event::{
+    assembler::LabelsFrameSizes, event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
@@ -27,12 +26,7 @@ use crate::{
         ret::RetEvent,
         shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
-    },
-    execution::{Interpreter, InterpreterChannels, InterpreterError, G},
-    gadgets::{Add32Gadget, Add64Gadget},
-    isa::ISA,
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    Opcode,
+    }, execution::{Interpreter, InterpreterChannels, InterpreterError, G}, gadgets::{Add32Gadget, Add64Gadget}, integer_ops::SubiEvent, isa::ISA, memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT}, Opcode
 };
 
 #[derive(Debug, Default)]
@@ -48,6 +42,7 @@ pub struct PetraTrace {
     pub and: Vec<AndEvent>,
     pub andi: Vec<AndiEvent>,
     pub sub: Vec<SubEvent>,
+    pub subi: Vec<SubiEvent>,
     pub slt: Vec<SltEvent>,
     pub slti: Vec<SltiEvent>,
     pub sle: Vec<SleEvent>,
