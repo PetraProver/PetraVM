@@ -3,7 +3,7 @@ pub mod common;
 use std::collections::HashSet;
 
 use common::test_utils::execute_test_asm;
-use petravm_assembly::Opcode;
+use petravm_asm::Opcode;
 use strum::VariantArray;
 
 #[test]

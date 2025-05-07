@@ -1,5 +1,5 @@
 [package]
-name = "petravm-assembly"
+name = "petravm-asm"
 version.workspace = true
 edition.workspace = true
 description = "PetraVM's custom assembly language parser and interpreter."
@@ -16,7 +16,6 @@ categories.workspace = true
 anyhow.workspace = true
 binius_field.workspace = true
 binius_utils.workspace = true
-env_logger = "0.11.6"
 num-traits = "0.2"
 num_enum = "0.7.3"
 once_cell = "1.21.3"

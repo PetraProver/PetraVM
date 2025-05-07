@@ -2,7 +2,7 @@ use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
-use petravm_assembly::{
+use petravm_asm::{
     isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
 

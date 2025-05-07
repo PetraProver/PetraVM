@@ -1,4 +1,4 @@
-use petravm_assembly::{isa::GenericISA, Assembler, Memory, PetraTrace, ValueRom};
+use petravm_asm::{isa::GenericISA, Assembler, Memory, PetraTrace, ValueRom};
 
 #[test]
 fn test_naive_div() {

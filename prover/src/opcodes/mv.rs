@@ -7,9 +7,9 @@ use binius_m3::builder::B128;
 use binius_m3::builder::{
     upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use petravm_assembly::MvihEvent;
-use petravm_assembly::MvvlEvent;
-use petravm_assembly::{opcodes::Opcode, MvvwEvent};
+use petravm_asm::MvihEvent;
+use petravm_asm::MvvlEvent;
+use petravm_asm::{opcodes::Opcode, MvvwEvent};
 
 use crate::gadgets::multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget};
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
@@ -447,7 +447,7 @@ impl TableFiller<ProverPackedField> for MvvlTable {
 mod tests {
     use anyhow::Result;
     use binius_field::PackedField;
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

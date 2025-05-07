@@ -8,12 +8,12 @@ use std::collections::HashMap;
 use anyhow::Result;
 use binius_m3::builder::B32;
 use paste::paste;
-use petravm_assembly::{event::*, InterpreterInstruction, Opcode, PetraTrace};
+use petravm_asm::{event::*, InterpreterInstruction, Opcode, PetraTrace};
 
 use crate::table::*;
 
 /// Implements the [`TableInfo`] trait that lifts
-/// [`InstructionInfo`](petravm_assembly::InstructionInfo) and maps events to
+/// [`InstructionInfo`](petravm_asm::InstructionInfo) and maps events to
 /// their corresponding field in the [`PetraTrace`], as well as corresponding
 /// event accessors for the main [`Trace`].
 ///

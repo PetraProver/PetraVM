@@ -7,7 +7,7 @@ use binius_m3::{
     },
     gadgets::sub::{U32Sub, U32SubFlags},
 };
-use petravm_assembly::{opcodes::Opcode, SleiuEvent, SleuEvent, SltiuEvent, SltuEvent};
+use petravm_asm::{opcodes::Opcode, SleiuEvent, SleuEvent, SltiuEvent, SltuEvent};
 
 use crate::{
     channels::Channels,
@@ -552,7 +552,7 @@ impl TableFiller<ProverPackedField> for SleiuTable {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
 

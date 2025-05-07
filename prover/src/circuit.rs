@@ -4,7 +4,7 @@
 //! all the individual tables and channels.
 
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
-use petravm_assembly::isa::ISA;
+use petravm_asm::isa::ISA;
 
 use crate::{
     channels::Channels,

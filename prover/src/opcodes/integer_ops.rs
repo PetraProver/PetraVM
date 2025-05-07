@@ -7,7 +7,7 @@ use binius_m3::{
     },
     gadgets::add::{U32Add, U32AddFlags},
 };
-use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent};
+use petravm_asm::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent};
 
 use crate::{
     channels::Channels,
@@ -421,7 +421,7 @@ impl TableFiller<ProverPackedField> for AddiTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
 

@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use petravm_assembly::isa::GenericISA;
+use petravm_asm::isa::GenericISA;
 use petravm_prover::prover::{verify_proof, Prover};
 use petravm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
 
