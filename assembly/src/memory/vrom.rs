@@ -57,7 +57,7 @@ impl ValueRom {
         self.vrom_allocator.size()
     }
 
-    /// Creates a default VROM and intializes it with the provided u32 values.
+    /// Creates a default VROM and initializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
         let data = init_values.iter().copied().map(Some).collect::<Vec<_>>();
         let len = data.len();

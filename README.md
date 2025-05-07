@@ -123,4 +123,4 @@ Licensed under Apache 2.0. See [LICENSE](LICENSE).
 
 We welcome contributions! Please open issues or pull requests for bugs, features, or improvements.
 
-We reserve the right to close issues and PRs deemed unecessary or not bringing sufficient interest.
+We reserve the right to close issues and PRs deemed unnecessary or not bringing sufficient interest.

@@ -151,7 +151,7 @@ pub enum InterpreterError {
     InvalidInput,
     #[error("A memory access failed with error {0}")]
     MemoryError(MemoryError),
-    #[error("An exception occured.")]
+    #[error("An exception occurred.")]
     Exception(InterpreterException),
 }
 
