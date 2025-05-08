@@ -132,7 +132,7 @@ impl Event for B32MuliEvent {
         // B32_MULI spans over two rows in the PROM
         let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
 
-        if second_opcode.val() != Opcode::B32Muli.into()
+        if second_opcode.val() != Opcode::B32Muli as u16
             || third != B16::ZERO
             || fourth != B16::ZERO
         {
@@ -167,7 +167,7 @@ impl Event for B32MuliEvent {
     fn fire(&self, channels: &mut crate::execution::InterpreterChannels) {
         assert_eq!(
             self.dst_val,
-            Self::operation(B32::new(self.src_val), self.imm.into()).into()
+            Self::operation(B32::new(self.src_val), self.imm.into()).val()
         );
 
         channels
