@@ -797,4 +797,23 @@ mod tests {
             prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
         }
     }
+
+    #[test]
+    fn test_shift_operations_with_values() -> Result<()> {
+        let val = 0x12345678;
+        let shift_amount = 10;
+        let trace = generate_shift_trace(val, shift_amount)?;
+        trace.validate()?;
+
+        // Verify the number of events
+        assert_eq!(trace.srli_events().len(), 1);
+        assert_eq!(trace.slli_events().len(), 1);
+        assert_eq!(trace.srl_events().len(), 1);
+        assert_eq!(trace.sll_events().len(), 1);
+        assert_eq!(trace.srai_events().len(), 1);
+        assert_eq!(trace.sra_events().len(), 1);
+
+        // Validate the witness
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
 }

@@ -20,9 +20,8 @@ pub struct RightShiftEvent {
 pub struct RightShifterTable {
     id: TableId,
     shifter: BarrelShifter,
-    input: Col<B1, 32>,          // Input value in unpacked form
-    shift_amount: Col<B1, 16>,   // Shift amount in unpacked form (truncated to 16 bits)
-    shift_amount_full: Col<B32>, // Full 32-bit shift amount
+    input: Col<B1, 32>,        // Input value in unpacked form
+    shift_amount: Col<B1, 16>, // Shift amount in unpacked form (truncated to 16 bits)
 }
 
 impl Table for RightShifterTable {
@@ -49,20 +48,19 @@ impl Table for RightShifterTable {
         let shifter =
             BarrelShifter::new(&mut table, input, shift_amount, ShiftVariant::LogicalRight);
 
-        let output = table.add_packed("output", shifter.output);
+        // let output = table.add_packed("output", shifter.output);
 
         // Push values to the right shifter channel
-        table.push(
-            channels.right_shifter_channel,
-            [input_packed, shift_amount_full, output],
-        );
+        // table.push(
+        //     channels.right_shifter_channel,
+        //     [input_packed, shift_amount_full, output],
+        // );
 
         Self {
             id: table.id(),
             shifter,
             input,
             shift_amount,
-            shift_amount_full,
         }
     }
 
@@ -87,14 +85,11 @@ impl TableFiller<ProverPackedField> for RightShifterTable {
         {
             let mut input_unpacked = witness.get_mut_as(self.input)?;
             let mut shift_unpacked = witness.get_mut_as(self.shift_amount)?;
-            let mut shift_full = witness.get_scalars_mut(self.shift_amount_full)?;
 
             for (i, ev) in rows.clone().enumerate() {
                 input_unpacked[i] = ev.input;
                 // Truncate shift amount to 16 bits for the barrel shifter
                 shift_unpacked[i] = ev.shift_amount as u16;
-                // Store full 32-bit shift amount
-                shift_full[i] = B32::new(ev.shift_amount);
             }
         }
 
