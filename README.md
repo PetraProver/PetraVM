@@ -1,9 +1,20 @@
 # PetraVM
 
-A verifiable supercomputer.
+PetraVM is a general-purpose virtual machine that is succinctly verifiable using the [Binius](https://www.binius.xyz/) proof system. The PetraVM execution model and instruction set are designed specifically for efficient proving with Binius. The VM is intended to handle several use cases simultaneously:
 
-## Overview
-PetraVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
+1. recursive proof verification,
+2. general purpose computation, via compilation from [WebAssembly](https://webassembly.org/), and
+3. high-performance verifiable computing use cases, using a custom high-level language called PetraML.
+
+The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
+
+The full machine specification can be found [here](./book/src/specification.md).
+
+## Documentation
+
+Documentation is still incomplete and will be improved over time.
+You can go through the [PetraVM book](https://petraprover.github.io/PetraVM/)
+for explanations on the zkVM design and architecture.
 
 ## Features
 
@@ -31,7 +42,7 @@ Expansion to include RAM-related instructions is kept for future work.
 
 > **Note:** In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
 
-> **Note:** Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication
@@ -132,6 +143,8 @@ Licensed under Apache 2.0. See [LICENSE](LICENSE).
 
 ## Contributing
 
-We welcome contributions! Please open issues or pull requests for bugs, features, or improvements.
+The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](CONTRIBUTING.md) document for guidelines.
+
+The initial development is led by [Polygon](https://polygon.technology/) and [Irreducible](https://www.irreducible.com/).
 
 We reserve the right to close issues and PRs deemed unnecessary or not bringing sufficient interest.

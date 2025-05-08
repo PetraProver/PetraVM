@@ -13,13 +13,3 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-petravm-asm = { path = "../assembly" }
-petravm-prover = { path = "../prover" }
-
-# Binius dependencies
-binius_core.workspace = true
-binius_field.workspace = true
-binius_hal.workspace = true
-binius_hash.workspace = true
-binius_m3.workspace = true
-
