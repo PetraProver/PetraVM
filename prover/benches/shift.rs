@@ -1,9 +1,9 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use petravm_asm::isa::GenericISA;
+use petravm_prover::model::Trace;
+use petravm_prover::prover::{verify_proof, Prover};
+use petravm_prover::test_utils::generate_trace;
 use rand::Rng;
-use zcrayvm_assembly::isa::GenericISA;
-use zcrayvm_prover::model::Trace;
-use zcrayvm_prover::prover::{verify_proof, Prover};
-use zcrayvm_prover::test_utils::generate_trace;
 
 fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
     let mut rng = rand::rng();
