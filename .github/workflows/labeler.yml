@@ -14,5 +14,8 @@ jobs:
     steps:
       - uses: actions/labeler@v5
         with:
+          repo-token: ${{ secrets.LABELER_PAT }}
+          configuration-path: .github/labeler.yml
+          dot: true
           # Allow to remove labels that are no longer relevant when new changes are pushed.
           sync-labels: true
