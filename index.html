@@ -1,0 +1,392 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Introduction - The PetraVM Book</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="highlight-css" href="highlight.css">
+        <link rel="stylesheet" id="tomorrow-night-css" href="tomorrow-night.css">
+        <link rel="stylesheet" id="ayu-highlight-css" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">The PetraVM Book</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css">
+<h1 id="petravm"><a class="header" href="#petravm">PetraVM</a></h1>
+<p>PetraVM is a general-purpose virtual machine that is succinctly verifiable using the <a href="https://www.binius.xyz/">Binius</a> proof system. The PetraVM execution model and instruction set are designed specifically for efficient proving with Binius. The VM is intended to handle several use cases simultaneously:</p>
+<ol>
+<li>recursive proof verification,</li>
+<li>general purpose computation, via compilation from <a href="https://webassembly.org/">WebAssembly</a>, and</li>
+<li>high-performance verifiable computing use cases, using a custom high-level language called PetraML.</li>
+</ol>
+<p>The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.</p>
+<p>The full machine specification can be found <a href="./book/src/specification.html">here</a>.</p>
+<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
+<p>Documentation is still incomplete and will be improved over time.
+You can go through the <a href="https://petraprover.github.io/PetraVM/">PetraVM book</a>
+for explanations on the zkVM design and architecture.</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<ul>
+<li>Binary field and arithmetic operations</li>
+<li>Memory and control flow primitives</li>
+<li>Efficient support for recursion</li>
+<li>Write-once memory model (VROM)</li>
+</ul>
+<h2 id="instruction-set"><a class="header" href="#instruction-set">Instruction Set</a></h2>
+<p>PetraVM's full instruction set is divided into five categories:</p>
+<ul>
+<li>Binary field operations</li>
+<li>Arithmetic &amp; Logic operations</li>
+<li>Memory operations</li>
+<li>Control Flow instructions</li>
+<li>Function Calls</li>
+</ul>
+<p>Prover support for the full instruction set is a work in progress, tracked below.</p>
+<p>The VM will also define a minimal ISA tailored for efficient recursion.</p>
+<p>Expansion to include RAM-related instructions is kept for future work.</p>
+<h3 id="prover-support-work-in-progress"><a class="header" href="#prover-support-work-in-progress">Prover Support (Work in Progress)</a></h3>
+<blockquote>
+<p><strong>Note:</strong> In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.</p>
+</blockquote>
+<blockquote>
+<p><strong>Note:</strong> Check out our <a href="https://github.com/PetraProver/PetraVM/examples/opcodes.asm">instruction set test suite</a> for a complete overview of supported instructions and their usage.</p>
+</blockquote>
+<h4 id="binary-field-operations"><a class="header" href="#binary-field-operations">Binary Field Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>B32_MUL</code> - 32-bit binary field multiplication</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>B32_MULI</code> - 32-bit binary field multiplication with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>B128_ADD</code> - 128-bit binary field addition</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>B128_MUL</code> - 128-bit binary field multiplication</li>
+</ul>
+<h4 id="arithmetic-operations"><a class="header" href="#arithmetic-operations">Arithmetic Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>ADD</code> - Integer addition</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>ADDI</code> - Integer addition with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SUB</code> - Integer subtraction</li>
+<li><input disabled="" type="checkbox"/>
+<code>MUL</code> - Signed multiplication</li>
+<li><input disabled="" type="checkbox"/>
+<code>MULI</code> - Signed multiplication with immediate</li>
+<li><input disabled="" type="checkbox"/>
+<code>MULU</code> - Unsigned multiplication</li>
+<li><input disabled="" type="checkbox"/>
+<code>MULSU</code> - Signed × unsigned multiplication</li>
+</ul>
+<h4 id="logic-operations"><a class="header" href="#logic-operations">Logic Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>AND</code> - Bitwise AND</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>ANDI</code> - Bitwise AND with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>OR</code> - Bitwise OR</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>ORI</code> - Bitwise OR with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>XOR</code> - Bitwise XOR</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>XORI</code> - Bitwise XOR with immediate</li>
+</ul>
+<h4 id="shift-operations"><a class="header" href="#shift-operations">Shift Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLL</code> - Shift left logical</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLLI</code> - Shift left logical with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SRL</code> - Shift right logical</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SRLI</code> - Shift right logical with immediate</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SRA</code> - Shift right arithmetic</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SRAI</code> - Shift right arithmetic with immediate</li>
+</ul>
+<h4 id="comparison-operations"><a class="header" href="#comparison-operations">Comparison Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox"/>
+<code>SLT</code> - Set if less than (signed)</li>
+<li><input disabled="" type="checkbox"/>
+<code>SLTI</code> - Set if less than immediate (signed)</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLTU</code> - Set if less than (unsigned)</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLTIU</code> - Set if less than immediate (unsigned)</li>
+<li><input disabled="" type="checkbox"/>
+<code>SLE</code> - Set if less than or equal (signed)</li>
+<li><input disabled="" type="checkbox"/>
+<code>SLEI</code> - Set if less than or equal immediate (signed)</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLEU</code> - Set if less than or equal (unsigned)</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>SLEIU</code> - Set if less than or equal immediate (unsigned)</li>
+</ul>
+<h4 id="vrom-operations"><a class="header" href="#vrom-operations">VROM Operations</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>LDI.W</code> - Load immediate word</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>MVV.W</code> - Move word between addresses</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>MVV.L</code> - Move 128-bit value between addresses</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>MVI.H</code> - Move immediate half-word</li>
+</ul>
+<h4 id="control-flow"><a class="header" href="#control-flow">Control Flow</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>J</code> - Jump to label or address
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>JUMPI</code> - Jump to immediate address</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>JUMPV</code> - Jump to address in variable</li>
+</ul>
+</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>BNZ</code> - Branch if not zero</li>
+</ul>
+<h4 id="function-calls"><a class="header" href="#function-calls">Function Calls</a></h4>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>CALLI</code> - Call function at immediate address</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>CALLV</code> - Call function at variable address</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>TAILI</code> - Tail call to immediate address</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>TAILV</code> - Tail call to variable address</li>
+<li><input disabled="" type="checkbox" checked=""/>
+<code>RET</code> - Return from function</li>
+</ul>
+<h4 id="future-random-access-memory-extensions"><a class="header" href="#future-random-access-memory-extensions">Future Random-Access Memory Extensions</a></h4>
+<ul>
+<li><input disabled="" type="checkbox"/>
+<code>LW</code>/<code>SW</code> - Load/Store word</li>
+<li><input disabled="" type="checkbox"/>
+<code>LB</code>/<code>SB</code> - Load/Store byte</li>
+<li><input disabled="" type="checkbox"/>
+<code>LBU</code> - Load byte unsigned</li>
+<li><input disabled="" type="checkbox"/>
+<code>LH</code>/<code>SH</code> - Load/Store halfword</li>
+<li><input disabled="" type="checkbox"/>
+<code>LHU</code> - Load halfword unsigned</li>
+</ul>
+<h2 id="example-programs"><a class="header" href="#example-programs">Example Programs</a></h2>
+<p>The project includes several example programs that demonstrate the capabilities of PetraVM:</p>
+<ul>
+<li><a href="prover/tests/fibonacci.rs">Fibonacci</a>: Prove a Fibonacci number</li>
+<li><a href="prover/test/collatz.rs">Collatz</a>: Prove the Collatz sequence for a given number</li>
+</ul>
+<h2 id="development-status"><a class="header" href="#development-status">Development Status</a></h2>
+<p>The project is actively developed. Many instructions are already supported by the prover, with new instructions and additional features added regularly.</p>
+<h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
+<ul>
+<li><a href="./assembly"><code>assembly</code></a>: zkVM assembly DSL, parser and program executor</li>
+<li><a href="./prover"><code>prover</code></a>: Circuit definition and proof generation</li>
+</ul>
+<h2 id="license"><a class="header" href="#license">License</a></h2>
+<p>Licensed under Apache 2.0. See <a href="LICENSE">LICENSE</a>.</p>
+<h2 id="contributing"><a class="header" href="#contributing">Contributing</a></h2>
+<p>The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the <a href="CONTRIBUTING.html">CONTRIBUTING</a> document for guidelines.</p>
+<p>The initial development is led by <a href="https://polygon.technology/">Polygon</a> and <a href="https://www.irreducible.com/">Irreducible</a>.</p>
+<p>We reserve the right to close issues and PRs deemed unnecessary or not bringing sufficient interest.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+                            <a rel="next prefetch" href="specification.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+                    <a rel="next prefetch" href="specification.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="mermaid.min.js"></script>
+        <script src="mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
