@@ -2,8 +2,7 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
-        B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };

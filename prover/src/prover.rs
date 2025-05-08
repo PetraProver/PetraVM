@@ -96,9 +96,12 @@ impl Prover {
             .collect();
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
-        
+
         // 5. Fill the right shifter table
-        witness.fill_table_sequential(&self.circuit.right_shifter_table, trace.right_shift_events())?;
+        witness.fill_table_sequential(
+            &self.circuit.right_shifter_table,
+            trace.right_shift_events(),
+        )?;
 
         // 6. Fill all event tables
         for table in &self.circuit.tables {
@@ -173,9 +176,12 @@ impl Prover {
             .collect();
 
         witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
-        
+
         // 5. Fill the right shifter table
-        witness.fill_table_sequential(&self.circuit.right_shifter_table, trace.right_shift_events())?;
+        witness.fill_table_sequential(
+            &self.circuit.right_shifter_table,
+            trace.right_shift_events(),
+        )?;
 
         // 6. Fill all event tables
         for table in &self.circuit.tables {

@@ -26,7 +26,7 @@ pub struct Channels {
     /// Channel for VROM address space (verifier pushes full address space)
     /// Follows format [Address]
     pub vrom_addr_space_channel: ChannelId,
-    
+
     /// Channel for right logical shift operations
     /// Follows format [Input, ShiftAmount, Output]
     pub right_shifter_channel: ChannelId,

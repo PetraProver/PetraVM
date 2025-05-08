@@ -8,10 +8,10 @@ use petravm_asm::isa::ISA;
 
 use crate::{
     channels::Channels,
+    gadgets::right_shifter_table::RightShifterTable,
     memory::{PromTable, VromAddrSpaceTable, VromSkipTable, VromWriteTable},
     model::{build_table_for_opcode, Trace},
     table::{FillableTable, Table},
-    gadgets::right_shifter_table::RightShifterTable,
 };
 
 /// Arithmetic circuit for the PetraVM proving system.
@@ -118,7 +118,7 @@ impl Circuit {
 
         // VROM skip size is the number of addresses we skip
         let vrom_skip_size = vrom_addr_space_size - vrom_write_size;
-        
+
         // Size of the right shifter table is the number of right shift events
         let right_shifter_size = trace.right_shift_events().len();
 
