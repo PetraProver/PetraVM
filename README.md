@@ -8,7 +8,7 @@ PetraVM is a general-purpose virtual machine that is succinctly verifiable using
 
 The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
 
-The full machine specification can be found [here](docs/specification.md).
+The full machine specification can be found [here](./book/src/specification.md).
 
 ## Features
 
@@ -36,7 +36,7 @@ Expansion to include RAM-related instructions is kept for future work.
 
 > **Note:** In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
 
-> **Note:** Check out our [instruction set test suite](examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication

@@ -4,7 +4,7 @@ _This specification document is still in progress._
 
 ## 1. Introduction
 
-This document specifies the architecture and behavior of the Petra Virtual Machine. Petra is a general-purpose virtual machine that is succinctly verifiable using the [Binius](https://www.binius.xyz/) proof system. The PetraVM execution model and instruction set are designed specifically for efficient proving with Binius.
+This document specifies the architecture and behavior of the Petra Virtual Machine. Petra is a general-purpose virtual machine that is succinctly verifiable using the [Binius](https://www.binius.xyz/) proof system @@binius2023. The PetraVM execution model and instruction set are designed specifically for efficient proving with Binius.
 
 ### 1.1 Background
 
