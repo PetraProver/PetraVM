@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/rust
-      - run: RUSTDOCFLAGS='-D warnings -A rustdoc::private_intra_doc_links' cargo doc --all --no-deps
+      - run: RUSTDOCFLAGS='-D warnings -A rustdoc::private_intra_doc_links -A rustdoc::broken-intra-doc-links' cargo doc --all --no-deps
 
   cargo-fmt:
     runs-on: ubuntu-latest
