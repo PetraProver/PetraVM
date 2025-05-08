@@ -17,3 +17,4 @@ jobs:
         with:
           # Allow to remove labels that are no longer relevant when new changes are pushed.
           sync-labels: true
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
