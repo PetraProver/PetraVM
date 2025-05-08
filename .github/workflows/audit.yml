@@ -1,0 +1,17 @@
+---   # Rust cargo audit workflow
+
+name: Security audit
+on:
+  push:
+    paths:
+      - '**/Cargo.toml'
+
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
