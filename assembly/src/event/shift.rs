@@ -7,7 +7,7 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
+    macros::fire_non_jump_event,
 };
 
 /// Marker trait to specify the kind of shift used by a [`ShiftEvent`].
@@ -213,7 +213,7 @@ where
 /// Convenience macro to implement the [`Event`] trait for shift events.
 ///
 /// It takes as argument the field name of the instruction within the
-/// [`ZCrayTrace`](crate::execution::ZCrayTrace) object, and the corresponding
+/// [`PetraTrace`](crate::execution::PetraTrace) object, and the corresponding
 /// instruction's [`Event`].
 ///
 /// # Example
@@ -269,7 +269,8 @@ mod test {
 
     use super::*;
     use crate::{
-        isa::GenericISA, memory::Memory, opcodes::Opcode, util::code_to_prom, ValueRom, ZCrayTrace,
+        isa::GenericISA, memory::Memory, opcodes::Opcode, test_util::code_to_prom, PetraTrace,
+        ValueRom,
     };
 
     #[test]
@@ -482,7 +483,7 @@ mod test {
         let prom = code_to_prom(&instructions);
         let memory = Memory::new(prom, vrom);
 
-        let (trace, _) = ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+        let (trace, _) = PetraTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
             .expect("Trace generation should not fail.");
 
         // Check results for immediate shift operations

@@ -29,14 +29,13 @@ use crate::{
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
-    gadgets::{Add32Gadget, Add64Gadget},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
     Opcode,
 };
 
 #[derive(Debug, Default)]
-pub struct ZCrayTrace {
+pub struct PetraTrace {
     pub bnz: Vec<BnzEvent>,
     pub jumpi: Vec<JumpiEvent>,
     pub jumpv: Vec<JumpvEvent>,
@@ -64,8 +63,6 @@ pub struct ZCrayTrace {
     pub sra: Vec<SraEvent>,
     pub add: Vec<AddEvent>,
     pub addi: Vec<AddiEvent>,
-    pub add32: Vec<Add32Gadget>,
-    pub add64: Vec<Add64Gadget>,
     pub muli: Vec<MuliEvent>,
     pub mul: Vec<MulEvent>,
     pub mulsu: Vec<MulsuEvent>,
@@ -97,11 +94,11 @@ pub struct BoundaryValues {
 }
 
 /// Convenience macro to execute all the flushing rules of a given kind of
-/// instructions present in a [`ZCrayTrace`].
+/// instructions present in a [`PetraTrace`].
 ///
-/// It takes as argument the list events for the targeted instruction in a
-/// trace, the [`InterpreterChannels`] against which the flushing rules will be
-/// performed, and the [`InterpreterTables`].
+/// It takes as argument the list of events for the targeted instruction in a
+/// trace and the [`InterpreterChannels`] against which the flushing rules will
+/// be performed.
 ///
 /// # Example
 ///
@@ -115,7 +112,7 @@ macro_rules! fire_events {
     };
 }
 
-impl ZCrayTrace {
+impl PetraTrace {
     pub(crate) fn new(memory: Memory) -> Self {
         Self {
             memory,
@@ -190,8 +187,6 @@ impl ZCrayTrace {
         fire_events!(self.sra, &mut channels);
         fire_events!(self.add, &mut channels);
         fire_events!(self.addi, &mut channels);
-        // add32 gadgets do not incur any flushes
-        // add64 gadgets do not incur any flushes
         fire_events!(self.muli, &mut channels);
         fire_events!(self.mul, &mut channels);
         fire_events!(self.mulsu, &mut channels);

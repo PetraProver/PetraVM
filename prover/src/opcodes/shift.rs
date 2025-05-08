@@ -2,19 +2,18 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
-        B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
-use zcrayvm_assembly::{Opcode, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent};
+use petravm_asm::{Opcode, SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent};
 
 use crate::{
     channels::Channels,
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::pack_b16_into_b32,
+    utils::{pack_b16_into_b32, setup_mux_constraint},
 };
 
 /// This macro generates table structures for shift operations.
@@ -731,35 +730,12 @@ impl TableFiller<ProverPackedField> for SraiTable {
     }
 }
 
-// Helper function to set up the multiplexer constraint for bit selection
-fn setup_mux_constraint(
-    table: &mut TableBuilder,
-    result: &Col<B1, 32>,
-    when_true: &Col<B1, 32>,
-    when_false: &Col<B1, 32>,
-    select_bit: &Col<B1>,
-) {
-    // Create packed (32-bit) versions of columns
-    let result_packed = table.add_packed("result_packed", *result);
-    let true_packed = table.add_packed("when_true_packed", *when_true);
-    let false_packed = table.add_packed("when_false_packed", *when_false);
-
-    // Create constraint for the mux:
-    // result = select_bit ? when_true : when_false
-    table.assert_zero(
-        "mux_constraint",
-        result_packed
-            - (true_packed * upcast_col(*select_bit)
-                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
-    use zcrayvm_assembly::isa::GenericISA;
 
     use crate::model::Trace;
     use crate::prover::Prover;

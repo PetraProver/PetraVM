@@ -1,6 +1,6 @@
-# zCrayVM Prover
+# PetraVM Prover
 
-This crate implements the proving system for zCrayVM.
+This crate implements the proving system for PetraVM.
 
 ## Architecture
 
@@ -11,7 +11,7 @@ The proving system is built using an M3 arithmetic circuit with the following co
 1. **PROM Table**
    - Stores program instructions
    - Format: [PC, Opcode, Arg1, Arg2, Arg3]
-   - Connected to instruction tables through `prom_channel`
+   - Connected to instruction tables through the `prom_channel`
    - Uses multiplicity field to track how many times each instruction is executed
 
 2. **VROM Tables**
@@ -24,6 +24,7 @@ The proving system is built using an M3 arithmetic circuit with the following co
    - `VromSkipTable`: Handles skipping unused VROM addresses
      - Format: [Address]
      - Connected through `vrom_addr_space_channel`
+
 3. **Instruction Tables**
    - Tables for all supported instructions (LDI, ADD, AND, OR, XOR, etc.)
    - Each table implements the corresponding instruction's semantics
@@ -72,11 +73,11 @@ The proving system is built using an M3 arithmetic circuit with the following co
 
 ## Usage
 
-The proving system is used to generate and verify proofs of zCrayVM execution:
+The proving system is used to generate and verify proofs of PetraVM execution:
 
 ```rust
-use zcrayvm_prover::prover::{Prover, verify_proof};
-use zcrayvm_prover::model::Trace;
+use petravm_prover::prover::{Prover, verify_proof};
+use petravm_prover::model::Trace;
 
 // Create a prover
 let prover = Prover::new(Box::new(GenericISA));
@@ -101,3 +102,7 @@ Run the tests with:
 ```bash
 cargo test
 ```
+
+## License
+
+Licensed under Apache 2.0. See [LICENSE](LICENSE).
