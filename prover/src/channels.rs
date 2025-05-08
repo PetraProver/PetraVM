@@ -1,4 +1,4 @@
-//! Channel definitions for the zCrayVM proving system.
+//! Channel definitions for the PetraVM proving system.
 //!
 //! This module defines all the channels used to connect different tables
 //! in the M3 arithmetic circuit.
@@ -6,7 +6,7 @@
 use binius_core::constraint_system::channel::ChannelId;
 use binius_m3::builder::ConstraintSystem;
 
-/// Holds all channel IDs used in the zCrayVM proving system.
+/// Holds all channel IDs used in the PetraVM proving system.
 #[derive(Debug, Clone)]
 pub struct Channels {
     /// Channel for state transitions (PC, FP)

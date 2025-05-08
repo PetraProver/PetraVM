@@ -25,7 +25,7 @@ pub(crate) type VromUpdate = (
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
 pub struct ValueRom {
-    /// Storage for values, each slot is an Option<u32>.
+    /// Storage for values, each slot is an `Option<u32>`.
     data: Vec<Option<u32>>,
     /// Number of reads/writes per address (interior mutability).
     access_counts: Vec<Cell<u32>>,
@@ -57,7 +57,7 @@ impl ValueRom {
         self.vrom_allocator.size()
     }
 
-    /// Creates a default VROM and intializes it with the provided u32 values.
+    /// Creates a default VROM and initializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
         let data = init_values.iter().copied().map(Some).collect::<Vec<_>>();
         let len = data.len();

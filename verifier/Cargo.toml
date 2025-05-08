@@ -1,0 +1,15 @@
+[package]
+name = "petravm-verifier"
+version.workspace = true
+edition.workspace = true
+description = "PetraVM's verifier"
+documentation = "https://docs.rs/petravm-verifier"
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]

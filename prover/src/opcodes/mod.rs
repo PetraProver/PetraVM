@@ -1,4 +1,4 @@
-//! Opcode implementations for the zCrayVM M3 circuit.
+//! Opcode implementations for the PetraVM M3 circuit.
 //!
 //! This module contains the tables for each opcode instruction.
 
@@ -19,8 +19,10 @@ pub mod shift;
 pub use binary::*;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
-pub use comparison::SltuTable;
-pub use integer_ops::{AddTable, SubTable};
+pub use comparison::*;
+pub use integer_ops::{
+    SubTable, {AddTable, AddiTable},
+};
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};

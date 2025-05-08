@@ -9,8 +9,8 @@ mod test_parser {
     use crate::opcodes::Opcode;
     use crate::parser::InstructionsWithLabels;
     use crate::parser::{parse_program, AsmParser, Rule};
-    use crate::util::code_to_prom;
-    use crate::util::get_binary_slot;
+    use crate::test_util::code_to_prom;
+    use crate::test_util::get_binary_slot;
     use crate::Assembler;
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {

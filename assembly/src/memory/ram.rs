@@ -3,7 +3,7 @@ use binius_m3::builder::B32;
 use super::AccessSize;
 use crate::memory::MemoryError;
 
-/// Represents the RAM for the zCrayVM
+/// Represents the RAM for the PetraVM
 #[derive(Debug, Clone)]
 pub struct Ram {
     /// The actual RAM data

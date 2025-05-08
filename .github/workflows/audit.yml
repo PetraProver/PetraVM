@@ -1,0 +1,20 @@
+---   # Rust cargo audit workflow
+
+name: Security audit
+on:
+  push:
+    paths:
+      - '**/Cargo.toml'
+
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # paste 1.0.15 is unmaintained as completed
+          # see https://users.rust-lang.org/t/paste-alternatives/126787 discussion.
+          ignore: RUSTSEC-2024-0436
