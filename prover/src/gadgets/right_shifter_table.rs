@@ -48,13 +48,13 @@ impl Table for RightShifterTable {
         let shifter =
             BarrelShifter::new(&mut table, input, shift_amount, ShiftVariant::LogicalRight);
 
-        // let output = table.add_packed("output", shifter.output);
+        let output = table.add_packed("output", shifter.output);
 
         // Push values to the right shifter channel
-        // table.push(
-        //     channels.right_shifter_channel,
-        //     [input_packed, shift_amount_full, output],
-        // );
+        table.push(
+            channels.right_shifter_channel,
+            [input_packed, shift_amount_full, output],
+        );
 
         Self {
             id: table.id(),
