@@ -10,6 +10,12 @@ The VM consists of a basic instruction set and optional instruction set extensio
 
 The full machine specification can be found [here](./book/src/specification.md).
 
+## Documentation
+
+Documentation is still incomplete and will be improved over time.
+You can go through the [PetraVM book](https://petraprover.github.io/PetraVM/)
+for explanations on the zkVM design and architecture.
+
 ## Features
 
 - Binary field and arithmetic operations
