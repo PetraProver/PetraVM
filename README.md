@@ -1,9 +1,14 @@
 # PetraVM
 
-A verifiable supercomputer.
+PetraVM is a general-purpose virtual machine that is succinctly verifiable using the [Binius](https://www.binius.xyz/) proof system. The PetraVM execution model and instruction set are designed specifically for efficient proving with Binius. The VM is intended to handle several use cases simultaneously:
 
-## Overview
-PetraVM is a new virtual machine (zkVM) designed specifically for efficient execution within Zero-Knowledge (ZK) proof systems, leveraging the [Binius](https://www.binius.xyz/) SNARK scheme's strengths. The primary goals are to improve performance of recursive proof verification and WebAssembly execution within ZK environments.
+1. recursive proof verification,
+2. general purpose computation, via compilation from [WebAssembly](https://webassembly.org/), and
+3. high-performance verifiable computing use cases, using a custom high-level language called PetraML.
+
+The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
+
+The full machine specification can be found [here](docs/specification.md).
 
 ## Features
 
@@ -121,6 +126,8 @@ Licensed under Apache 2.0. See [LICENSE](LICENSE).
 
 ## Contributing
 
-We welcome contributions! Please open issues or pull requests for bugs, features, or improvements.
+The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](CONTRIBUTING.md) document for guidelines.
+
+The initial development is led by [Polygon](https://polygon.technology/) and [Irreducible](https://www.irreducible.com/).
 
 We reserve the right to close issues and PRs deemed unnecessary or not bringing sufficient interest.
