@@ -63,4 +63,3 @@ jobs:
           github_token: ${{ secrets.GH_PAT }}
           publish_dir: ./book/book
           publish_branch: gh-pages
-

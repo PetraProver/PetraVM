@@ -1,3 +1,5 @@
+---  # Workflow with multiple jobs to test different parts of the project
+
 name: Continuous Integration
 
 on:
