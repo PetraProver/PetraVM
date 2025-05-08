@@ -10,7 +10,8 @@ use super::FramePointer;
 #[cfg(test)]
 use crate::memory::VromPendingUpdates;
 use crate::{
-    assembler::LabelsFrameSizes, event::{
+    assembler::LabelsFrameSizes,
+    event::{
         b128::{B128AddEvent, B128MulEvent},
         b32::{
             AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent,
@@ -26,7 +27,13 @@ use crate::{
         ret::RetEvent,
         shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
-    }, execution::{Interpreter, InterpreterChannels, InterpreterError, G}, gadgets::{Add32Gadget, Add64Gadget}, integer_ops::SubiEvent, isa::ISA, memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT}, Opcode
+    },
+    execution::{Interpreter, InterpreterChannels, InterpreterError, G},
+    gadgets::{Add32Gadget, Add64Gadget},
+    integer_ops::SubiEvent,
+    isa::ISA,
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
+    Opcode,
 };
 
 #[derive(Debug, Default)]
@@ -169,6 +176,7 @@ impl PetraTrace {
         fire_events!(self.and, &mut channels);
         fire_events!(self.andi, &mut channels);
         fire_events!(self.sub, &mut channels);
+        fire_events!(self.subi, &mut channels);
         fire_events!(self.sle, &mut channels);
         fire_events!(self.slei, &mut channels);
         fire_events!(self.sleu, &mut channels);

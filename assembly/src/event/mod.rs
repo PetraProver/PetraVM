@@ -40,7 +40,9 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
-    integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
+    integer_ops::{
+        AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent, SubiEvent,
+    },
     jump::{JumpiEvent, JumpvEvent},
     mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},
     ret::RetEvent,
@@ -106,6 +108,7 @@ impl Opcode {
             Opcode::Mulu => integer_ops::MuluEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Mulsu => integer_ops::MulsuEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Mul => integer_ops::MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Subi => integer_ops::SubiEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Sub => integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Ret => ret::RetEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Taili => call::TailiEvent::generate(ctx, arg0, arg1, arg2),

@@ -240,6 +240,7 @@ define_table_registry_and_accessors!(
     (add, Add),
     (addi, Addi),
     (sub, Sub),
+    (subi, Subi),
     (mul, Mul),
     (muli, Muli),
     (taili, Taili),

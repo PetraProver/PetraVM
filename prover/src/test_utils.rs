@@ -118,13 +118,16 @@ pub fn generate_trace(
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
-    let (petra_trace, _) = PetraTrace::generate(
+    let (petra_trace, boundary_values) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
         compiled_program.pc_field_to_int,
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
+
+    // Validate the trace
+    petra_trace.validate(boundary_values);
 
     // Convert to Trace format for the prover
     let mut zkvm_trace = Trace::from_petra_trace(program, petra_trace);

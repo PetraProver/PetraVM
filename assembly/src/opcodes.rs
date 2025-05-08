@@ -47,6 +47,7 @@ pub enum Opcode {
     Or = 0x14,
     Ori = 0x15,
     Sub = 0x19,
+    Subi = 0x2c,
     Sll = 0x1c,
     Srl = 0x1d,
     Sra = 0x1e,
@@ -129,6 +130,7 @@ impl Opcode {
             Opcode::And => 3,     // dst, src1, src2
             Opcode::Andi => 3,    // dst, src, imm
             Opcode::Sub => 3,     // dst, src1, src2
+            Opcode::Subi => 3,    // dst, src, imm
             Opcode::Sle => 3,     // dst, src1, src2
             Opcode::Slei => 3,    // dst, src, imm
             Opcode::Sleu => 3,    // dst, src1, src2
@@ -219,6 +221,7 @@ impl_instruction_info!(
     (SrlEvent, Opcode::Srl),
     (SrliEvent, Opcode::Srli),
     (SubEvent, Opcode::Sub),
+    (SubiEvent, Opcode::Subi),
     (TailiEvent, Opcode::Taili),
     (TailvEvent, Opcode::Tailv),
     (XorEvent, Opcode::Xor),

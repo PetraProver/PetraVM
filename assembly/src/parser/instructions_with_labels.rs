@@ -108,6 +108,11 @@ pub enum InstructionsWithLabels {
         src1: Slot,
         src2: Slot,
     },
+    Subi {
+        dst: Slot,
+        src1: Slot,
+        imm: Immediate,
+    },
     Sle {
         dst: Slot,
         src1: Slot,
@@ -261,6 +266,7 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "ORI {dst} {src1} {imm}")
             }
             InstructionsWithLabels::Sub { dst, src1, src2 } => write!(f, "SUB {dst} {src1} {src2}"),
+            InstructionsWithLabels::Subi { dst, src1, imm } => write!(f, "SUBI {dst} {src1} {imm}"),
             InstructionsWithLabels::Sle { dst, src1, src2 } => {
                 write!(f, "SLE {dst} {src1} {src2}")
             }

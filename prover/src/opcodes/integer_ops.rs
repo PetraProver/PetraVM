@@ -10,7 +10,9 @@ use binius_m3::{
         u32::{U32Add, U32AddFlags},
     },
 };
-use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, SubEvent};
+use petravm_assembly::{
+    opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, SubEvent, SubiEvent,
+};
 
 use crate::{
     channels::Channels,
@@ -465,6 +467,154 @@ impl TableFiller<ProverPackedField> for AddiTable {
     }
 }
 
+/// SUBI table.
+///
+/// This table handles the SUBI instruction, which performs signed integer
+/// subtraction between a 32-bit element and a 16-bit immediate.
+pub struct SubiTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Subi as u16 }>,
+    dst_abs: Col<B32>, // Virtual
+    dst_val: Col<B1, 32>,
+    src_abs: Col<B32>,         // Virtual
+    imm_unpacked: Col<B1, 32>, // Virtual
+    msb: Col<B1>,              // Virtual
+    negative_unpacked: Col<B1, 32>,
+    signed_imm_unpacked: Col<B1, 32>,
+    ones: Col<B1, 32>,
+    add_op: U32Add,
+}
+
+impl Table for SubiTable {
+    type Event = SubiEvent;
+
+    fn name(&self) -> &'static str {
+        "SubiTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("subi");
+
+        let Channels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
+
+        let state_cols = StateColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            StateColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
+        let dst_val = table.add_committed("dst_val");
+        let dst_val_packed = table.add_packed("dst_val_packed", dst_val);
+
+        let imm_unpacked = state_cols.arg2_unpacked;
+        let SignExtendedImmediateOutput {
+            imm_unpacked,
+            msb,
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
+        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
+
+        // Carry out the addition.
+        let add_op = U32Add::new(
+            &mut table,
+            dst_val,
+            signed_imm_unpacked,
+            U32AddFlags::default(),
+        );
+        let src_val_packed = table.add_packed("src_val_packed", add_op.zout);
+
+        // Pull the destination and source values from the VROM channel.
+        // Read src1
+        table.pull(vrom_channel, [src_abs, src_val_packed]);
+
+        // Write dst
+        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            src_abs,
+            dst_val,
+            imm_unpacked,
+            msb,
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
+            add_op,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for SubiTable {
+    type Event = SubiEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut src_abs = witness.get_mut_as(self.src_abs)?;
+            let mut dst_val = witness.get_mut_as(self.dst_val)?;
+            let mut imm = witness.get_mut_as(self.imm_unpacked)?;
+            let mut msb: std::cell::RefMut<'_, [PackedBinaryField32x1b]> =
+                witness.get_mut_as(self.msb)?;
+            let mut negative = witness.get_mut_as(self.negative_unpacked)?;
+            let mut signed_imm = witness.get_mut_as(self.signed_imm_unpacked)?;
+            let mut ones_col = witness.get_mut_as(self.ones)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = event.fp.addr(event.dst as u32);
+                src_abs[i] = event.fp.addr(event.src as u32);
+                dst_val[i] = event.dst_val;
+                imm[i] = event.imm as u32;
+
+                // Calculate imm's MSB.
+                let is_negative = (event.imm >> 15) & 1 == 1;
+                binius_field::packed::set_packed_slice(&mut msb, i, B1::from(is_negative));
+
+                // Compute the sign extension of `imm`.
+                let ones = 0xFFFFu32;
+                ones_col[i] = ones << 16;
+                negative[i] = (ones << 16) + event.imm as u32;
+                signed_imm[i] = event.imm as i16 as i32;
+            }
+        }
+        let state_rows = rows.map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        self.add_op.populate(witness)
+    }
+}
+
 /// MUL table.
 ///
 /// This table handles the MUL instruction, which performs integer
@@ -817,17 +967,19 @@ mod tests {
                 LDI.W @2, #{}\n\
                 ADDI @3, @2, #{}\n\
                 MULI @4, @2, #{}\n\
+                SUBI @6, @2, #{}\n\
                 RET\n",
-            src_value, imm_value, imm_value
+            src_value, imm_value, imm_value, imm_value
         );
 
         let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
         let muli_result = ((src_value as i32 as i64) * (imm_value as i16 as i64)) as u64;
+        let subi_result = src_value.wrapping_sub((imm_value as i16 as i32) as u32);
 
-        // Add VROM writes from LDI and ADDI events
+        // Add VROM writes from LDI, ADDI and SUBI events
         let vrom_writes = vec![
             // LDI event
-            (2, src_value, 3),
+            (2, src_value, 4),
             // Initial values
             (0, 0, 1),
             (1, 0, 1),
@@ -836,6 +988,8 @@ mod tests {
             // MULI event
             (4, muli_result as u32, 1),
             (5, (muli_result >> 32) as u32, 1),
+            // SUBI event
+            (6, subi_result, 1),
         ];
 
         generate_trace(asm_code, None, Some(vrom_writes))

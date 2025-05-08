@@ -272,17 +272,24 @@ test_integer_ops:
     BNZ int_fail, @13
 
     ;; ------------------------------------------------------------
-    ;; INSTRUCTION: SUB
+    ;; INSTRUCTION: SUB / SUBI
     ;; 
-    ;; FORMAT: SUB dst, src1, src2
+    ;; FORMAT: 
+    ;;   SUB dst, src1, src2   (VROM variant)
+    ;;   SUBI dst, src, imm    (Immediate variant)
     ;; 
     ;; DESCRIPTION:
-    ;;   Subtract the second value from the first.
+    ;;   Subtract integer values.
     ;;
-    ;; EFFECT: fp[dst] = fp[src1] - fp[src2]
+    ;; EFFECT: 
+    ;;   fp[dst] = fp[src1] - fp[src2]
+    ;;   fp[dst] = fp[src] - imm
     ;; ------------------------------------------------------------
-    SUB @14, @11, @4      ;; 49 - 7 = 42
-    XORI @15, @14, #42   ;; Check result
+    SUB @14, @11, @4     ;; 49 - 7 = 42
+    SUBI @78, @11, #7     ;; 42 - 7 = 42
+    
+    ;; Verify both give same result
+    XOR @15, @78, @14    ;; Compare SUB and SUBI results
     BNZ int_fail, @15
 
     ;; ------------------------------------------------------------

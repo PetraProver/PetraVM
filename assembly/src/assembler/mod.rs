@@ -419,6 +419,17 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
+        InstructionsWithLabels::Subi { dst, src1, imm } => {
+            let instruction = [
+                Opcode::Subi.get_field_elt(),
+                dst.get_16bfield_val(),
+                src1.get_16bfield_val(),
+                imm.get_field_val(),
+            ];
+            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+
+            *field_pc *= G;
+        }
         InstructionsWithLabels::Sle { dst, src1, src2 } => {
             let instruction = [
                 Opcode::Sle.get_field_elt(),

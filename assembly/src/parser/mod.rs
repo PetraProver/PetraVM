@@ -105,6 +105,13 @@ fn parse_line(
                                     imm,
                                 });
                             }
+                            Rule::SUBI_instr => {
+                                instrs.push(InstructionsWithLabels::Subi {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    src1: Slot::from_str(src1.as_str())?,
+                                    imm,
+                                });
+                            }
                             Rule::ANDI_instr => {
                                 instrs.push(InstructionsWithLabels::Andi {
                                     dst: Slot::from_str(dst.as_str())?,

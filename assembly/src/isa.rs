@@ -126,6 +126,7 @@ define_isa!(
         SrlEvent,
         SrliEvent,
         SubEvent,
+        SubiEvent,
         TailiEvent,
         TailvEvent,
         XorEvent,
