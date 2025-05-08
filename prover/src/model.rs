@@ -159,17 +159,34 @@ impl Trace {
         let mut zkvm_trace = Self::new();
         zkvm_trace.add_instructions(program, &trace.instruction_counter);
 
-        // Pre-process right shift events from SrliEvent and SrlEvent
+        // Pre-process right shift events from all shift right operations
         // before setting the trace
+
+        // Handle logical right shifts (SRLI)
         for ev in &trace.srli {
-            let shift_amt = (ev.shift_amount & 0x1F) as u16; // Mask to 5 bits for 32-bit values
-            let result = ev.src_val >> shift_amt as usize;
+            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
+            let result = ev.src_val >> shift_amt;
             zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
         }
 
+        // Handle logical right shifts (SRL)
         for ev in &trace.srl {
-            let shift_amt = (ev.shift_amount & 0x1F) as u16; // Mask to 5 bits for 32-bit values
-            let result = ev.src_val >> shift_amt as usize;
+            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
+            let result = ev.src_val >> shift_amt;
+            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+        }
+
+        // Handle arithmetic right shifts (SRAI)
+        for ev in &trace.srai {
+            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
+            let result = ((ev.src_val as i32) >> shift_amt) as u32;
+            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+        }
+
+        // Handle arithmetic right shifts (SRA)
+        for ev in &trace.sra {
+            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
+            let result = ((ev.src_val as i32) >> shift_amt) as u32;
             zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
         }
 
@@ -226,7 +243,7 @@ impl Trace {
     /// * `input` - The input value to be shifted
     /// * `shift_amount` - The shift amount
     /// * `output` - The result after shifting
-    pub fn add_right_shift_event(&mut self, input: u32, shift_amount: u16, output: u32) {
+    pub fn add_right_shift_event(&mut self, input: u32, shift_amount: u32, output: u32) {
         self.right_shift_events.push(RightShiftEvent {
             input,
             shift_amount,

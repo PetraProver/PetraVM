@@ -1,6 +1,6 @@
 use binius_core::oracle::ShiftVariant;
 use binius_m3::builder::{
-    Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
 };
 use binius_m3::gadgets::barrel_shifter::BarrelShifter;
 
@@ -12,7 +12,7 @@ use crate::types::ProverPackedField;
 #[derive(Debug, Clone)]
 pub struct RightShiftEvent {
     pub input: u32,        // The input value to be shifted
-    pub shift_amount: u16, // The shift amount (masked to 5 bits for 32-bit values)
+    pub shift_amount: u32, // The shift amount (masked to 5 bits for 32-bit values)
     pub output: u32,       // The result after shifting
 }
 
@@ -20,10 +20,9 @@ pub struct RightShiftEvent {
 pub struct RightShifterTable {
     id: TableId,
     shifter: BarrelShifter,
-    input: Col<B1, 32>,        // Input value in unpacked form
-    input_packed: Col<B32>,    // Input value in packed form
-    shift_amount: Col<B1, 16>, // Shift amount in unpacked form
-    output: Col<B32>,          // Output value (shifted result)
+    input: Col<B1, 32>,          // Input value in unpacked form
+    shift_amount: Col<B1, 16>,   // Shift amount in unpacked form (truncated to 16 bits)
+    shift_amount_full: Col<B32>, // Full 32-bit shift amount
 }
 
 impl Table for RightShifterTable {
@@ -40,7 +39,11 @@ impl Table for RightShifterTable {
         let input: Col<B1, 32> = table.add_committed("input");
         let input_packed: Col<B32> = table.add_packed("input_packed", input);
 
+        // For shift amount, we'll store both the truncated 16-bit version for the
+        // barrel shifter and the full 32-bit version for the channel
         let shift_amount: Col<B1, 16> = table.add_committed("shift_amount");
+        let shift_amount_packed: Col<B16> = table.add_packed("shift_amount_packed", shift_amount);
+        let shift_amount_full: Col<B32> = upcast_col(shift_amount_packed);
 
         // Create barrel shifter for right logical shift
         let shifter =
@@ -49,15 +52,17 @@ impl Table for RightShifterTable {
         let output = table.add_packed("output", shifter.output);
 
         // Push values to the right shifter channel
-        table.push(channels.right_shifter_channel, [input_packed, output]);
+        table.push(
+            channels.right_shifter_channel,
+            [input_packed, shift_amount_full, output],
+        );
 
         Self {
             id: table.id(),
             shifter,
             input,
-            input_packed,
             shift_amount,
-            output,
+            shift_amount_full,
         }
     }
 
@@ -82,10 +87,14 @@ impl TableFiller<ProverPackedField> for RightShifterTable {
         {
             let mut input_unpacked = witness.get_mut_as(self.input)?;
             let mut shift_unpacked = witness.get_mut_as(self.shift_amount)?;
+            let mut shift_full = witness.get_scalars_mut(self.shift_amount_full)?;
 
             for (i, ev) in rows.clone().enumerate() {
                 input_unpacked[i] = ev.input;
-                shift_unpacked[i] = ev.shift_amount;
+                // Truncate shift amount to 16 bits for the barrel shifter
+                shift_unpacked[i] = ev.shift_amount as u16;
+                // Store full 32-bit shift amount
+                shift_full[i] = B32::new(ev.shift_amount);
             }
         }
 
