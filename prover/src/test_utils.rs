@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
@@ -21,6 +21,32 @@ pub fn fibonacci(n: u32) -> u32 {
     a
 }
 
+/// Creates an execution trace for the instructions in in the file `file_name`
+/// located in the `examples` directory.
+///
+/// # Arguments
+/// * `file_name` - The name of the assembly file.
+/// * `init_values` - The initial values for the VROM.
+///
+/// # Returns
+/// * A trace containing the program execution
+pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<Trace> {
+    // Read the assembly code from the specified files
+    let asm_code = files.iter().fold(
+        Ok(String::new()),
+        |acc: std::result::Result<String, Error>, &file_name| {
+            let mut acc = acc?;
+            let asm_path = format!("{}/../examples/{}", env!("CARGO_MANIFEST_DIR"), file_name);
+            let asm_code = std::fs::read_to_string(asm_path)
+                .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", file_name, e))?;
+            acc.push_str(&asm_code);
+            Ok(acc)
+        },
+    )?;
+
+    generate_trace(asm_code, Some(init_values), None)
+}
+
 /// Creates an execution trace for a Fibonacci program.
 ///
 /// # Arguments
@@ -30,11 +56,6 @@ pub fn fibonacci(n: u32) -> u32 {
 /// # Returns
 /// * A trace containing the Fibonacci program execution
 pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
-    // Read the Fibonacci assembly code from examples directory
-    let asm_path = format!("{}/../examples/fib.asm", env!("CARGO_MANIFEST_DIR"));
-    let asm_code = std::fs::read_to_string(asm_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read fib.asm: {}", e))?;
-
     let n = B32::MULTIPLICATIVE_GENERATOR.pow([n as u64]).val();
     // Initialize memory with:
     // Slot 0: Return PC = 0
@@ -43,7 +64,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 3: Arg: Result
     let init_values = vec![0, 0, n, res];
 
-    generate_trace(asm_code, Some(init_values), None)
+    generate_asm_trace(&["fib.asm"], init_values)
 }
 
 pub fn collatz(mut n: u32) -> usize {
@@ -69,18 +90,13 @@ pub fn collatz(mut n: u32) -> usize {
 /// # Returns
 /// * A trace containing the Fibonacci program execution
 pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
-    // Read the Fibonacci assembly code from examples directory
-    let asm_path = format!("{}/../examples/collatz.asm", env!("CARGO_MANIFEST_DIR"));
-    let asm_code = std::fs::read_to_string(asm_path)
-        .map_err(|e| anyhow::anyhow!("Failed to read collatz.asm: {}", e))?;
-
     // Initialize memory with:
     // Slot 0: Return PC = 0
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
     let init_values = vec![0, 0, n];
 
-    generate_trace(asm_code, Some(init_values), None)
+    generate_asm_trace(&["collatz.asm"], init_values)
 }
 
 /// Creates an execution trace for the instructions in `asm_code`.
