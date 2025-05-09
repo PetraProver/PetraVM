@@ -1,13 +1,12 @@
-//! Modular Instruction Set Architectures (ISAs) for the zCray Virtual Machine.
+//! Modular Instruction Set Architectures (ISAs) for the Petra Virtual Machine.
 //!
 //! An ISA defines:
 //! - The instructions it supports.
 //! - Specific logic associated with it (for instance the notion of RAM).
 //!
 //! On the prover side, the ISA is fed when initializing a new
-//! [`Circuit`](crate::circuit::Circuit), which invokes
-//! [`ISA::register_instructions`] to instantiate and wire up all instruction
-//! tables needed.
+//! `Circuit`, which invokes the static table registry to instantiate and wire
+//! up all instruction tables needed by this ISA.
 
 use core::fmt::Debug;
 use std::collections::HashSet;
@@ -15,11 +14,11 @@ use std::collections::HashSet;
 use crate::event::*;
 use crate::Opcode;
 
-/// Defines an Instruction Set Architecture for the zCray Virtual Machine.
+/// Defines an Instruction Set Architecture for the Petra Virtual Machine.
 ///
 /// Each implementation of this trait should provide the different instructions
 /// supported. This can be done easily through the
-/// [`register_instruction!`](crate::register_instruction) macro.
+/// [`define_isa!`](crate::define_isa) macro.
 pub trait ISA: Debug {
     /// Returns the set of supported opcodes.
     fn supported_opcodes(&self) -> &HashSet<Opcode>;
@@ -70,7 +69,7 @@ macro_rules! define_isa {
 // Needs to implement #79.
 
 define_isa!(
-    /// A minimal ISA for the zCray Virtual Machine,
+    /// A minimal ISA for the Petra Virtual Machine,
     /// tailored for efficient recursion.
     RecursionISA => [
         B32MulEvent,
@@ -84,7 +83,7 @@ define_isa!(
 );
 
 define_isa!(
-    /// The main Instruction Set Architecture (ISA) for the zCray Virtual Machine,
+    /// The main Instruction Set Architecture (ISA) for the Petra Virtual Machine,
     /// supporting all existing instructions.
     GenericISA => [
         AddEvent,

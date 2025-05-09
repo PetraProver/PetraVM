@@ -11,7 +11,7 @@ use binius_m3::{
     gadgets::hash::groestl::Permutation,
 };
 use bytemuck::cast_slice;
-use zcrayvm_assembly::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
+use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
 use crate::{
     channels::Channels,

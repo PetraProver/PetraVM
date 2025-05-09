@@ -10,7 +10,7 @@ use generic_array::GenericArray;
 use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
+    macros::fire_non_jump_event,
 };
 
 /// Event for GROESTL256_COMPRESS.
@@ -165,8 +165,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        execution::Interpreter, isa::RecursionISA, util::code_to_prom, Memory, Opcode, ValueRom,
-        ZCrayTrace,
+        execution::Interpreter, isa::RecursionISA, test_util::code_to_prom, Memory, Opcode,
+        PetraTrace, ValueRom,
     };
 
     #[test]
@@ -213,7 +213,7 @@ mod tests {
 
         // Create an interpreter and run the program
         let (trace, boundary_values) =
-            ZCrayTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
+            PetraTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
                 .expect("Trace generation should not fail.");
 
         // Capture the final PC before boundary_values is moved
@@ -281,7 +281,7 @@ mod tests {
 
         // Create an interpreter and run the program
         let (trace, boundary_values) =
-            ZCrayTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
+            PetraTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
                 .expect("Trace generation should not fail.");
 
         // Capture the final PC before boundary_values is moved

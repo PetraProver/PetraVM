@@ -1,8 +1,8 @@
 use binius_m3::builder::{B128, B16, B32};
 
 use super::BinaryOperation;
+use crate::macros::define_bin128_op_event;
 use crate::{
-    define_bin128_op_event,
     event::{context::EventContext, Event},
     execution::{FramePointer, InterpreterChannels, InterpreterError, G},
 };
@@ -42,8 +42,8 @@ mod tests {
         isa::GenericISA,
         memory::{Memory, ValueRom},
         opcodes::Opcode,
-        util::code_to_prom,
-        ZCrayTrace,
+        test_util::code_to_prom,
+        PetraTrace,
     };
 
     #[test]
@@ -159,7 +159,7 @@ mod tests {
 
         // Create an interpreter and run the program
         let (trace, boundary_values) =
-            ZCrayTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())
                 .expect("Trace generation should not fail.");
 
         // Capture the final PC before boundary_values is moved

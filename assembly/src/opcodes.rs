@@ -5,7 +5,7 @@ use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
 use crate::event::*;
 
-/// Represents the set of instructions supported by the zCrayVM.
+/// Represents the set of instructions supported by the PetraVM.
 #[derive(
     Debug,
     Display,
@@ -90,7 +90,7 @@ pub enum Opcode {
 
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
-    // Not needed for recursion program or first version of zCrayVM
+    // Not needed for recursion program or first version of PetraVM
     // Design note: Considering 32-bit word-sized memory instead of byte-addressed memory
     // LW,
     // SW,
@@ -164,13 +164,12 @@ impl Opcode {
     }
 }
 
-/// Trait implemented by each [`Event`](crate::event::Event) type.
+/// Trait implemented by each [`Event`] type.
 pub trait InstructionInfo {
     /// The unique opcode associated with this instruction.
     fn opcode() -> Opcode;
 }
 
-#[macro_export]
 macro_rules! impl_instruction_info {
     ( $( ($event_ty:ty, $opcode:path) ),* $(,)? ) => {
         $(

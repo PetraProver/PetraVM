@@ -4,10 +4,10 @@ use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use bytemuck::cast_slice;
 use generic_array::{typenum, GenericArray};
 use log::trace;
-use zcrayvm_assembly::isa::RecursionISA;
-use zcrayvm_prover::model::Trace;
-use zcrayvm_prover::prover::{verify_proof, Prover};
-use zcrayvm_prover::test_utils::generate_trace;
+use petravm_asm::isa::RecursionISA;
+use petravm_prover::model::Trace;
+use petravm_prover::prover::{verify_proof, Prover};
+use petravm_prover::test_utils::generate_trace;
 
 fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
 where

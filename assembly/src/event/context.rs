@@ -6,18 +6,18 @@ use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{MemoryError, Ram, RamValueT, VromValueT},
-    ValueRom, ZCrayTrace,
+    PetraTrace, ValueRom,
 };
 
 /// A context sufficient to generate any `Event`, update the state machine and
 /// log associated trace operations.
 ///
 /// It contains a mutable reference to the running [`Interpreter`], the
-/// [`ZCrayTrace`], and also contains the PC associated to the event to be
+/// [`PetraTrace`], and also contains the PC associated to the event to be
 /// generated.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
-    pub trace: &'a mut ZCrayTrace,
+    pub trace: &'a mut PetraTrace,
     pub field_pc: B32,
 }
 
@@ -231,7 +231,7 @@ impl DerefMut for EventContext<'_> {
 #[cfg(test)]
 impl<'a> EventContext<'a> {
     /// Constructor.
-    pub(crate) fn new(interpreter: &'a mut Interpreter, trace: &'a mut ZCrayTrace) -> Self {
+    pub(crate) fn new(interpreter: &'a mut Interpreter, trace: &'a mut PetraTrace) -> Self {
         use binius_field::Field;
 
         Self {

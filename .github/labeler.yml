@@ -1,0 +1,26 @@
+---  # Github labeler configuration file
+
+# Add 'crate: asm' label to any changes within 'assembly' folder.
+'crate: asm':
+  - changed-files:
+      - any-glob-to-any-file: assembly/**
+
+# Add 'crate: prover' label to any changes within 'prover' folder.
+'crate: prover':
+  - changed-files:
+      - any-glob-to-any-file: prover/**
+
+# Add 'crate: verifier' label to any changes within 'verifier' folder.
+'crate: verifier':
+  - changed-files:
+      - any-glob-to-any-file: verifier/**
+
+# Add 'doc: book' label to any changes within 'book' folder.
+'doc: book':
+  - changed-files:
+      - any-glob-to-any-file: book/**
+
+# Add 'ci' label to any changes within '.github' folder.
+'ci':
+  - changed-files:
+      - any-glob-to-any-file: .github/**

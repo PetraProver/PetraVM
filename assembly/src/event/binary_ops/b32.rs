@@ -2,11 +2,13 @@ use binius_field::{ExtensionField, Field, PackedField};
 use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
+use crate::macros::{
+    define_bin32_imm_op_event, define_bin32_op_event, impl_32b_immediate_binary_operation,
+};
 use crate::{
-    define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, context::EventContext, Event},
     execution::{InterpreterError, G},
-    impl_32b_immediate_binary_operation, Opcode,
+    Opcode,
 };
 
 define_bin32_op_event!(

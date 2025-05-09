@@ -1,6 +1,6 @@
-//! zCrayVM Proving System using Binius M3 Arithmetization.
+//! PetraVM Proving System using Binius M3 Arithmetization.
 //!
-//! This library implements the proving system for the zCrayVM using M3
+//! This library implements the proving system for the PetraVM using M3
 //! arithmetization. The design is modular, with each opcode
 //! instruction having its own M3 table implementation.
 
@@ -14,6 +14,7 @@ pub mod opcodes;
 pub mod prover;
 pub mod table;
 pub mod types;
+#[macro_use]
 pub mod utils;
 
 /// Publicly exported module for testing purposes only
