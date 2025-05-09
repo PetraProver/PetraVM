@@ -520,7 +520,7 @@ impl Table for MuluTable {
             ..
         } = mul_op;
 
-        // Pull the destination and source values from the VROM channel.
+        // Pull the destination value and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
@@ -659,7 +659,7 @@ impl Table for MulTable {
             ..
         } = mul_op;
 
-        // Pull the destination and source values from the VROM channel.
+        // Pull the destination value and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
@@ -824,7 +824,7 @@ impl Table for MuliTable {
             out_low, out_high, ..
         } = mul_op;
 
-        // Pull the destination and source values from the VROM channel.
+        // Pull the destination value and source values from the VROM channel.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
