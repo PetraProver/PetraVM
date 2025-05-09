@@ -1121,8 +1121,6 @@ pub struct AndiTable {
     src_abs: Col<B32>,             // Virtual
     dst_val_unpacked: Col<B1, 16>, // Virtual
     src_val_unpacked: Col<B1, 32>,
-    src_val: Col<B32>, // Virtual
-    dst_val: Col<B16>, // Virtual
     /// The lower 16 bits of src_val.
     src_val_low: Col<B1, 16>,
 }
@@ -1153,7 +1151,7 @@ impl Table for AndiTable {
         let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
         let dst_val_unpacked = table.add_computed("dst_val", src_val_low * imm);
-        let dst_val = table.add_packed("dst_val", dst_val_unpacked);
+        let dst_val: Col<B16> = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
         table.pull(channels.vrom_channel, [dst_abs, upcast_col(dst_val)]);
@@ -1166,8 +1164,6 @@ impl Table for AndiTable {
             state_cols,
             dst_abs,
             src_abs,
-            dst_val,
-            src_val,
             dst_val_unpacked,
             src_val_unpacked,
             src_val_low,

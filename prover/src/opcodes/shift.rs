@@ -42,7 +42,6 @@ macro_rules! define_logic_shift_table {
             state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>, // Destination absolute address
-            dst_val: Col<B32>, // Destination value (shift result)
             src_abs: Col<B32>, // Source absolute address
             src_val: Col<B32>, // Source value (value to be shifted)
         }
@@ -89,7 +88,6 @@ macro_rules! define_logic_shift_table {
                     state_cols,
                     shifter,
                     dst_abs,
-                    dst_val,
                     src_abs,
                     src_val,
                 }
@@ -156,7 +154,6 @@ macro_rules! define_logic_shift_table {
             state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>,                  // Destination absolute address
-            dst_val: Col<B32>,                  // Destination value (shift result)
             src_abs: Col<B32>,                  // Source absolute address
             src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
             shift_abs: Col<B32>,                // Shift vrom absolute address
@@ -221,7 +218,6 @@ macro_rules! define_logic_shift_table {
                     state_cols,
                     shifter,
                     dst_abs,
-                    dst_val,
                     src_abs,
                     src_val_unpacked,
                     shift_abs,
@@ -309,7 +305,6 @@ pub struct SraTable {
     state_cols: StateColumns<{ Opcode::Sra as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -418,7 +413,6 @@ impl Table for SraTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
@@ -537,7 +531,6 @@ pub struct SraiTable {
     state_cols: StateColumns<{ Opcode::Srai as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -629,7 +622,6 @@ impl Table for SraiTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
