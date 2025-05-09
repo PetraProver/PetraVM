@@ -8,7 +8,7 @@ PetraVM is a general-purpose virtual machine that is succinctly verifiable using
 
 The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
 
-The full machine specification can be found [here](./book/src/specification.md).
+The full machine specification can be found [here](https://petraprover.github.io/PetraVM/specification.html).
 
 ## Documentation
 
@@ -42,7 +42,7 @@ Expansion to include RAM-related instructions is kept for future work.
 
 > **Note:** In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
 
-> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/tree/main/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication
@@ -115,8 +115,8 @@ Expansion to include RAM-related instructions is kept for future work.
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
-- [Fibonacci](prover/examples/fibonacci.rs): Prove a Fibonacci number
-- [Collatz](prover/examples/collatz.rs): Prove the Collatz sequence for a given number
+- [Fibonacci](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/fibonacci.rs): Prove a Fibonacci number
+- [Collatz](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/collatz.rs): Prove the Collatz sequence for a given number
 
 ### Running Examples
 
@@ -134,16 +134,16 @@ The project is actively developed. Many instructions are already supported by th
 
 ## Crates
 
-- [`assembly`](./assembly): zkVM assembly DSL, parser and program executor
-- [`prover`](./prover): Circuit definition and proof generation
+- [`assembly`](https://github.com/PetraProver/PetraVM/tree/main/assembly): zkVM assembly DSL, parser and program executor
+- [`prover`](https://github.com/PetraProver/PetraVM/tree/main/prover): Circuit definition and proof generation
 
 ## License
 
-Licensed under Apache 2.0. See [LICENSE](LICENSE).
+Licensed under Apache 2.0. See [LICENSE](https://github.com/PetraProver/PetraVM/tree/main/LICENSE).
 
 ## Contributing
 
-The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](CONTRIBUTING.md) document for guidelines.
+The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](https://github.com/PetraProver/PetraVM/tree/main/CONTRIBUTING.md) document for guidelines.
 
 The initial development is led by [Polygon](https://polygon.technology/) and [Irreducible](https://www.irreducible.com/).
 
