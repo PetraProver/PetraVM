@@ -1099,7 +1099,7 @@ mod tests {
         let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
         let muli_result = ((src_value as i32 as i64) * (imm_value as i16 as i64)) as u64;
 
-        // Add VROM writes from LDI and ADDI events
+        // Add VROM writes from LDI ADDI MULI events
         let vrom_writes = vec![
             // LDI event
             (2, src_value, 3),
@@ -1168,7 +1168,7 @@ mod tests {
 
         let mul_result = ((src1_value as i64) * (src2_value as i64)) as u64;
 
-        // Add VROM writes from LDI and SUB events
+        // Add VROM writes from LDI and MUL events
         let vrom_writes: Vec<(u32, u32, u32)> = vec![
             // LDI events
             (2, src1_value as u32, 2),
