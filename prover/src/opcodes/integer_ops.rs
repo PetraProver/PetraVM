@@ -1,13 +1,13 @@
-use std::{any::Any, ops::Deref};
+use std::any::Any;
 
 use binius_field::{Field, PackedBinaryField32x1b};
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
-    gadgets::u32::{U32Add, U32AddFlags},
+    gadgets::add::{U32Add, U32AddFlags},
 };
-use petravm_assembly::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent};
+use petravm_asm::{opcodes::Opcode, AddEvent, AddiEvent, SubEvent};
 
 use crate::{
     channels::Channels,
@@ -129,7 +129,7 @@ impl TableFiller<ProverPackedField> for AddTable {
         let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
@@ -252,7 +252,7 @@ impl TableFiller<ProverPackedField> for SubTable {
         let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: None,
-            fp: *event.fp.deref(),
+            fp: *event.fp,
             arg0: event.dst,
             arg1: event.src1,
             arg2: event.src2,
@@ -338,7 +338,7 @@ impl Table for AddiTable {
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Pull the destination and source values from the VROM channel.
-        // Read src1
+        // Read src
         table.pull(vrom_channel, [src_abs, src_val_packed]);
 
         // Write dst
@@ -421,7 +421,7 @@ impl TableFiller<ProverPackedField> for AddiTable {
 mod tests {
     use anyhow::Result;
     use binius_field::BinaryField;
-    use petravm_assembly::isa::GenericISA;
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
 

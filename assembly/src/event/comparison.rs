@@ -1,8 +1,8 @@
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
+use crate::macros::{define_bin32_imm_op_event, define_bin32_op_event};
 use crate::{
-    define_bin32_imm_op_event, define_bin32_op_event,
     event::binary_ops::*,
     execution::{FramePointer, InterpreterError},
 };
@@ -118,7 +118,8 @@ define_bin32_imm_op_event!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{execution::Interpreter, get_last_event, Event, PetraTrace};
+    use crate::test_util::get_last_event;
+    use crate::{execution::Interpreter, Event, PetraTrace};
 
     /// Tests for Comparison operations (without immediate)
     #[test]

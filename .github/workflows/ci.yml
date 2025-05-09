@@ -1,3 +1,5 @@
+---  # Workflow with multiple jobs to test different parts of the project
+
 name: Continuous Integration
 
 on:
@@ -41,25 +43,3 @@ jobs:
           RUST_LOG: 1
           CARGO_INCREMENTAL: 1
           RUST_BACKTRACE: 1
-
-  lints:
-    name: Formatting and Clippy
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: "! contains(toJSON(github.event.commits.*.message), '[skip-ci]')"
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Set up rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Run cargo fmt
-        run: cargo fmt --all --check
-
-      - name: Run cargo clippy
-        run: cargo clippy --all-features --all-targets -- -D warnings

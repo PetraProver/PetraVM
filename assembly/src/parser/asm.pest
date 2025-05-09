@@ -55,7 +55,7 @@ BNZ_instr      = { "BNZ" }
 CALLV_instr    = { "CALLV" }
 TAILV_instr    = { "TAILV" }
 
-// Note: This does not refer to BinaryFields but instructions that takes in three operands inlcuding destination
+// Note: This does not refer to BinaryFields but instructions that takes in three operands including destination
 binary_non_imm_instrs = ${
     XOR_instr
   | B32_ADD_instr
@@ -99,7 +99,7 @@ mov_imm_instr         = ${ MVI_H_instr }
 load_imm_instr        = ${ LDI_W_instr }
 nullary_instrs        = ${ RET_instr }
 
-// Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offseted
+// Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offsetted
 // J could end up being JUMPI or JUMPV, CALL could end up being CALLI or CALLV, TAIL could end up being TAILI or TAILV
 simple_jump_instr           = ${ J_instr }
 jump_with_op_instrs_imm     = ${ CALLI_instr | TAILI_instr | BNZ_instr }

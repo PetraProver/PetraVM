@@ -7,7 +7,7 @@ use std::any::Any;
 
 use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
-use petravm_assembly::{opcodes::Opcode, RetEvent};
+use petravm_asm::{opcodes::Opcode, RetEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions};
 use crate::{

@@ -5,7 +5,7 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError, PetraTrace},
-    fire_non_jump_event,
+    macros::fire_non_jump_event,
     memory::{MemoryError, VromValueT},
     opcodes::Opcode,
 };
@@ -641,7 +641,7 @@ mod tests {
         isa::GenericISA,
         memory::Memory,
         opcodes::Opcode,
-        util::code_to_prom,
+        test_util::code_to_prom,
         ValueRom,
     };
 

@@ -4,7 +4,7 @@ use binius_m3::builder::{B16, B32};
 use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
-    fire_non_jump_event,
+    macros::fire_non_jump_event,
 };
 
 /// Event for BNZ.

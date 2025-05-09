@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use petravm_assembly::{
+use petravm_asm::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
     AssembledProgram, Assembler, Memory, PetraTrace, ValueRom,

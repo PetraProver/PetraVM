@@ -8,7 +8,7 @@ use std::any::Any;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
-use petravm_assembly::{opcodes::Opcode, LdiEvent};
+use petravm_asm::{opcodes::Opcode, LdiEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};

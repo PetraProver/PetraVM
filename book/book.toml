@@ -1,0 +1,34 @@
+[book]
+authors = ["The PetraVM Developers"]
+language = "en"
+multilingual = false
+src = "src"
+title = "The PetraVM Book"
+
+[rust]
+edition = "2021"
+
+[build]
+create-missing = true
+
+[preprocessor.index]
+
+[preprocessor.links]
+
+[preprocessor.katex]
+
+[preprocessor.bib]
+bibliography = "bibliography.bib"
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[output.html.print]
+# Disable page break
+page-break = false
+
+[output.html.search]
+limit-results = 15

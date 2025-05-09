@@ -1,8 +1,8 @@
 use binius_m3::builder::{B128, B16, B32};
 
 use super::BinaryOperation;
+use crate::macros::define_bin128_op_event;
 use crate::{
-    define_bin128_op_event,
     event::{context::EventContext, Event},
     execution::{FramePointer, InterpreterChannels, InterpreterError, G},
 };
@@ -42,7 +42,7 @@ mod tests {
         isa::GenericISA,
         memory::{Memory, ValueRom},
         opcodes::Opcode,
-        util::code_to_prom,
+        test_util::code_to_prom,
         PetraTrace,
     };
 

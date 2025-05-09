@@ -19,7 +19,7 @@ pub mod shift;
 pub use binary::*;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
-pub use comparison::{SleTable, SleiTable, SltTable, SltiTable, SltuTable};
+pub use comparison::*;
 pub use integer_ops::{
     SubTable, {AddTable, AddiTable},
 };
@@ -27,5 +27,5 @@ pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};
 pub use ret::RetTable;
-pub use shift::{SllTable, SlliTable, SrlTable, SrliTable};
+pub use shift::{SllTable, SlliTable, SraTable, SraiTable, SrlTable, SrliTable};
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;

@@ -2,11 +2,13 @@ use binius_field::{ExtensionField, Field, PackedField};
 use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
+use crate::macros::{
+    define_bin32_imm_op_event, define_bin32_op_event, impl_32b_immediate_binary_operation,
+};
 use crate::{
-    define_bin32_imm_op_event, define_bin32_op_event,
     event::{binary_ops::*, context::EventContext, Event},
     execution::{InterpreterError, G},
-    impl_32b_immediate_binary_operation, Opcode,
+    Opcode,
 };
 
 define_bin32_op_event!(
@@ -130,7 +132,7 @@ impl Event for B32MuliEvent {
         // B32_MULI spans over two rows in the PROM
         let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
 
-        if second_opcode.val() != Opcode::B32Muli.into()
+        if second_opcode.val() != Opcode::B32Muli as u16
             || third != B16::ZERO
             || fourth != B16::ZERO
         {
@@ -165,7 +167,7 @@ impl Event for B32MuliEvent {
     fn fire(&self, channels: &mut crate::execution::InterpreterChannels) {
         assert_eq!(
             self.dst_val,
-            Self::operation(B32::new(self.src_val), self.imm.into()).into()
+            Self::operation(B32::new(self.src_val), self.imm.into()).val()
         );
 
         channels
