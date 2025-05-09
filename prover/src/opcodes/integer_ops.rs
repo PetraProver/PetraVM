@@ -7,10 +7,12 @@ use binius_m3::{
     },
     gadgets::{
         add::{U32Add, U32AddFlags},
-        mul::{MulSS32, MulUU32},
+        mul::{MulSS32, MulSU32, MulUU32},
     },
 };
-use petravm_asm::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, MuluEvent, SubEvent};
+use petravm_asm::{
+    opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent,
+};
 
 use crate::{
     channels::Channels,
@@ -934,6 +936,143 @@ impl TableFiller<ProverPackedField> for MuliTable {
     }
 }
 
+/// MULSU table.
+///
+/// This table handles the MULSU instruction, which performs multiplication
+/// between a signed 32-bit element and an unsigned 32-bit element.
+/// The result is a 64-bit element.
+pub struct MulsuTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Mulsu as u16 }>,
+    dst_abs: Col<B32>,
+    dst_abs_plus_1: Col<B32>,
+    dst_val_low: Col<B32>,
+    dst_val_high: Col<B32>,
+    src1_abs: Col<B32>,
+    src1_val: Col<B32>,
+    src2_abs: Col<B32>,
+    src2_val: Col<B32>,
+    mul_op: MulSU32,
+}
+
+impl Table for MulsuTable {
+    type Event = MulsuEvent;
+
+    fn name(&self) -> &'static str {
+        "MulsuTable"
+    }
+
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("mulsu");
+
+        let Channels {
+            state_channel,
+            prom_channel,
+            vrom_channel,
+            ..
+        } = *channels;
+
+        let state_cols = StateColumns::new(
+            &mut table,
+            state_channel,
+            prom_channel,
+            StateColumnsOptions {
+                next_pc: NextPc::Increment,
+                next_fp: None,
+            },
+        );
+
+        // Carry out the multiplication.
+        let mul_op = MulSU32::new(&mut table);
+        let MulSU32 {
+            xin: src1_val,
+            yin: src2_val,
+            out_low: dst_val_low,
+            out_high: dst_val_high,
+            ..
+        } = mul_op;
+
+        // Pull the destination value and source values from the VROM channel.
+        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
+        let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
+        let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
+        let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
+
+        table.pull(vrom_channel, [src1_abs, src1_val]);
+        table.pull(vrom_channel, [src2_abs, src2_val]);
+        table.pull(vrom_channel, [dst_abs, dst_val_low]);
+        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            dst_abs_plus_1,
+            dst_val_low,
+            dst_val_high,
+            src1_abs,
+            src1_val,
+            src2_abs,
+            src2_val,
+            mul_op,
+        }
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TableFiller<ProverPackedField> for MulsuTable {
+    type Event = MulsuEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &self,
+        rows: impl Iterator<Item = &'a Self::Event> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> Result<(), anyhow::Error> {
+        {
+            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+            let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
+            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
+            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
+            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
+            let mut src1_val = witness.get_mut_as(self.src1_val)?;
+            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
+            let mut src2_val = witness.get_mut_as(self.src2_val)?;
+
+            for (i, event) in rows.clone().enumerate() {
+                dst_abs[i] = event.fp.addr(event.dst as u32);
+                dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
+                dst_val_low[i] = event.dst_val as u32;
+                dst_val_high[i] = (event.dst_val >> 32) as u32;
+                src1_abs[i] = event.fp.addr(event.src1 as u32);
+                src1_val[i] = event.src1_val;
+                src2_abs[i] = event.fp.addr(event.src2 as u32);
+                src2_val[i] = event.src2_val;
+            }
+        }
+
+        let state_rows = rows.clone().map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src1,
+            arg2: event.src2,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+
+        let x_vals = rows.clone().map(|event| event.src1_val.into());
+        let y_vals = rows.map(|event| event.src2_val.into());
+        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
@@ -1045,6 +1184,38 @@ mod tests {
         generate_trace(asm_code, None, Some(vrom_writes))
     }
 
+    /// Creates an execution trace for a simple program that uses the MULSU
+    /// instruction (signed * unsigned multiplication).
+    fn generate_mulsu_trace(src1_value: i32, src2_value: u32) -> Result<Trace> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+             _start: 
+                LDI.W @2, #{}\n\
+                LDI.W @3, #{}\n\
+                MULSU @4, @2, @3\n\
+                RET\n",
+            src1_value as u32, src2_value
+        );
+
+        // Calculate the mulsu result correctly
+        let mulsu_result = (src1_value as i64).wrapping_mul(src2_value as i64);
+
+        // Add VROM writes from LDI and MULSU events
+        let vrom_writes: Vec<(u32, u32, u32)> = vec![
+            // LDI events
+            (2, src1_value as u32, 2),
+            (3, src2_value, 2),
+            // Initial values
+            (0, 0, 1),
+            (1, 0, 1),
+            // MULSU event
+            (4, mulsu_result as u32, 1),
+            (5, (mulsu_result >> 32) as u32, 1),
+        ];
+
+        generate_trace(asm_code, None, Some(vrom_writes))
+    }
+
     fn test_imm_integer_ops_with_values(src_value: u32, imm: u16) -> Result<()> {
         let trace = generate_imm_integer_ops_trace(src_value, imm)?;
         trace.validate()?;
@@ -1065,6 +1236,13 @@ mod tests {
         let trace = generate_vrom_integer_ops_trace_signed(src1_value, src2_value)?;
         trace.validate()?;
         assert_eq!(trace.mul_events().len(), 1);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    fn test_mulsu_with_values(src1_value: i32, src2_value: u32) -> Result<()> {
+        let trace = generate_mulsu_trace(src1_value, src2_value)?;
+        trace.validate()?;
+        assert_eq!(trace.mulsu_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
@@ -1093,6 +1271,14 @@ mod tests {
             imm in any::<u16>(),
         ) {
             prop_assert!(test_imm_integer_ops_with_values(src_value, imm).is_ok());
+        }
+
+        #[test]
+        fn test_mulsu_op(
+            src1_value in any::<i32>(),
+            src2_value in any::<u32>(),
+        ) {
+            prop_assert!(test_mulsu_with_values(src1_value, src2_value).is_ok());
         }
     }
 }
