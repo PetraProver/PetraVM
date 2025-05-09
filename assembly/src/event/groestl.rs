@@ -47,7 +47,11 @@ impl Event for Groestl256CompressEvent {
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
 
-        let mut dst_val = GroestlShortImpl::state_from_bytes(src1_val.try_into().unwrap());
+        // let mut dst_val =
+        // GroestlShortImpl::state_from_bytes(src1_val.try_into().unwrap());
+        let mut dst_val = cast_slice::<u8, u64>(&src1_val.to_vec())
+            .try_into()
+            .unwrap();
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut dst_val,
             src2_val.try_into().unwrap(),
@@ -219,7 +223,10 @@ mod tests {
         trace.validate(boundary_values);
 
         // Calculate the output.
-        let mut dst_val = GroestlShortImpl::state_from_bytes(&src1_val);
+        // let mut dst_val = GroestlShortImpl::state_from_bytes(&src1_val);
+        let mut dst_val = cast_slice::<u8, u64>(&src1_val.to_vec())
+            .try_into()
+            .unwrap();
         <GroestlShortImpl as GroestlShortInternal>::compress(&mut dst_val, &src2_val);
 
         let actual_dst_vals = (0..8)

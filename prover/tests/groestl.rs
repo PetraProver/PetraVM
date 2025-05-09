@@ -1,4 +1,5 @@
 use anyhow::Result;
+use binius_hash::compression;
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use bytemuck::cast_slice;
 use generic_array::{typenum, GenericArray};
@@ -77,12 +78,17 @@ fn generate_groestl_ret_trace(
     // Compute the output of the compression step.
     let src1_bytes = cast_slice::<u32, u8>(&src1_val);
     let src2_bytes = cast_slice::<u32, u8>(&src2_val);
-    let mut compression_output = GroestlShortImpl::state_from_bytes(src1_bytes.try_into().unwrap());
+    // let mut compression_output =
+    // GroestlShortImpl::state_from_bytes(src1_bytes.try_into().unwrap());
+    let mut compression_output: [u64; 8] = cast_slice::<u32, u64>(&src1_val.to_vec())
+        .try_into()
+        .unwrap();
     <GroestlShortImpl as GroestlShortInternal>::compress(
         &mut compression_output,
         src2_bytes.try_into().unwrap(),
     );
     let compression_output = cast_slice::<u64, u32>(&compression_output);
+    println!("compression_output: {:?}", compression_output);
 
     // Compute the output of the 2-to-1 groestl compression.
     let input = cast_slice::<u32, u8>(&compression_output);
