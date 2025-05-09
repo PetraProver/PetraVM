@@ -96,7 +96,6 @@ Expansion to include RAM-related instructions is kept for future work.
     - [x] `JUMPI` - Jump to immediate address
     - [x] `JUMPV` - Jump to address in variable
 - [x] `BNZ` - Branch if not zero
-    - [x] `BZ` - Branch if zero
 
 #### Function Calls
 - [x] `CALLI` - Call function at immediate address
