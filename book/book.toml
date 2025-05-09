@@ -24,7 +24,9 @@ bibliography = "bibliography.bib"
 command = "mdbook-mermaid"
 
 [output.html]
-additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-js = ["mermaid.min.js", "mermaid-init.js"][output.html]
+# Base path on GitHub Pages
+site-url = "/PetraVM/"
 
 [output.html.print]
 # Disable page break
