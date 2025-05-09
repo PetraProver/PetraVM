@@ -8,7 +8,7 @@ PetraVM is a general-purpose virtual machine that is succinctly verifiable using
 
 The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
 
-The full machine specification can be found [here](./book/src/specification.md).
+The full machine specification can be found [here](https://petraprover.github.io/PetraVM/specification.html).
 
 ## Documentation
 
