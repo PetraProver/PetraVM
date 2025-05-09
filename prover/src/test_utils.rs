@@ -46,7 +46,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     generate_trace(asm_code, Some(init_values), None)
 }
 
-pub fn collatz(mut n: u32) -> usize {
+pub const fn collatz(mut n: u32) -> usize {
     let mut count = 0;
     while n != 1 {
         if n % 2 == 0 {
