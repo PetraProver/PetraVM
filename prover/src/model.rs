@@ -258,6 +258,8 @@ define_table_registry_and_accessors!(
     (srl, Srl),
     (sll, Sll),
     (sltu, Sltu),
-    (sltiu, Sltiu),
     (slt, Slt),
+    (slti, Slti),
+    (sle, Sle),
+    (slei, Slei),
 );

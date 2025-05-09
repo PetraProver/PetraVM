@@ -46,11 +46,11 @@ PetraVM's full instruction set is divided into five categories—Binary field, A
 
 #### Comparison Operations
 - [x] `SLT` - Set if less than (signed)
-- [ ] `SLTI` - Set if less than immediate (signed)
+- [x] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
 - [ ] `SLTIU` - Set if less than immediate (unsigned)
-- [ ] `SLE` - Set if less than or equal (signed)
-- [ ] `SLEI` - Set if less than or equal immediate (signed)
+- [x] `SLE` - Set if less than or equal (signed)
+- [x] `SLEI` - Set if less than or equal immediate (signed)
 - [ ] `SLEU` - Set if less than or equal (unsigned)
 - [ ] `SLEIU` - Set if less than or equal immediate (unsigned)
 
