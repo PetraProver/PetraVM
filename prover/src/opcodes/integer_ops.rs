@@ -598,7 +598,7 @@ impl TableFiller<ProverPackedField> for MulTable {
         self.state_cols.populate(witness, state_rows)?;
 
         let x_vals = rows.clone().map(|event| event.src1_val.into());
-        let y_vals = rows.clone().map(|event| event.src2_val.into());
+        let y_vals = rows.map(|event| event.src2_val.into());
         self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
     }
 }
@@ -785,7 +785,6 @@ impl TableFiller<ProverPackedField> for MuliTable {
 
         let x_vals = rows.clone().map(|event| event.src_val.into());
         let y_vals: Vec<B32> = rows
-            .clone()
             .map(|event| {
                 let imm_val_signed = event.imm as i16 as i32;
                 B32::new(imm_val_signed as u32)
@@ -855,7 +854,7 @@ mod tests {
             src1_value, src2_value
         );
 
-        // Add VROM writes from LDI and SUB events
+        // Add VROM writes from opcode events
         let vrom_writes = vec![
             // LDI events
             (2, src1_value, 3),
