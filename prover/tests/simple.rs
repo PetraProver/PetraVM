@@ -144,8 +144,9 @@ fn test_b128_add_b128_mul() -> Result<()> {
     )
 }
 
-fn generate_add_mulu_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
-    // Create a simple assembly program with LDI, ADD, MULU and RET
+fn generate_integer_ops_trace(src1_value: u32, src2_value: u32) -> Result<Trace> {
+    let imm = src2_value as u16;
+    // Create a simple assembly program with all integer operations.
     // Note: Format follows the grammar requirements:
     // - Program must start with a label followed by an instruction
     // - Used framesize for stack allocation
@@ -156,47 +157,36 @@ fn generate_add_mulu_ret_trace(src1_value: u32, src2_value: u32) -> Result<Trace
             LDI.W @3, #{}\n\
             ;; Skip @4 to test a gap in vrom writes
             ADD @5, @2, @3\n\
-            MULU @6, @2, @3\n\
+            ADDI @6, @2, #{}\n\
+            MULU @8, @2, @3\n\
+            MUL @10, @2, @3\n\
+            MULI @12, @2, #{}\n\
             RET\n",
-        src1_value, src2_value
+        src1_value, src2_value, imm, imm
     );
 
-    // Compute and split MULU result
-    let mulu_result_array =
-        <u64 as Divisible<u32>>::split_val(src1_value as u64 * src2_value as u64);
-
-    // Add VROM writes from LDI, ADD and MULU events
-    let vrom_writes = vec![
-        // LDI events
-        (2, src1_value, 3),
-        (3, src2_value, 3),
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // ADD event
-        (5, src1_value + src2_value, 1),
-        // MULU event
-        (6, mulu_result_array[0], 1),
-        (7, mulu_result_array[1], 1),
-    ];
-
-    generate_trace(asm_code, None, Some(vrom_writes))
+    generate_trace(asm_code, None, None)
 }
 #[test]
-fn test_ldi_add_mulu_ret() -> Result<()> {
+fn test_integer_ops() -> Result<()> {
     let mut rng = StdRng::seed_from_u64(54321);
     test_from_trace_generator(
         || {
             // Test value to load
-            let x = rng.random::<u32>();
-            let y = rng.random::<u32>();
-            generate_add_mulu_ret_trace(x, y)
+            let src1_value = rng.random::<u32>();
+            let src2_value = rng.random::<u32>();
+            generate_integer_ops_trace(src1_value, src2_value)
         },
         |trace| {
             assert_eq!(
                 trace.add_events().len(),
                 1,
                 "Should have exactly one ADD event"
+            );
+            assert_eq!(
+                trace.addi_events().len(),
+                1,
+                "Should have exactly one ADDI event"
             );
             assert_eq!(
                 trace.ldi_events().len(),
