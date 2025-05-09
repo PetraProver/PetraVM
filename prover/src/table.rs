@@ -13,6 +13,7 @@ use binius_m3::builder::ConstraintSystem;
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
 use petravm_asm::opcodes::InstructionInfo;
+use tracing::instrument;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
@@ -81,15 +82,16 @@ pub trait FillableTable {
 /// The underlying table type is a pointer to an instance implementing both
 /// [`Table`] and [`TableFiller`] traits.
 /// The entry also implements the [`FillableTable`] trait.
-pub struct TableEntry<T: TableFiller<ProverPackedField> + 'static> {
+pub struct TableEntry<T: Table + TableFiller<ProverPackedField> + 'static> {
     pub table: Box<T>,
-    pub get_events: fn(&Trace) -> &[T::Event],
+    pub get_events: fn(&Trace) -> &[<T as TableFiller<ProverPackedField>>::Event],
 }
 
 impl<T> FillableTable for TableEntry<T>
 where
-    T: TableFiller<ProverPackedField> + 'static,
+    T: Table + TableFiller<ProverPackedField> + 'static,
 {
+    #[instrument(level = "debug", skip_all, fields(table = %self.table.name()))]
     fn fill(
         &self,
         witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
