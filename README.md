@@ -57,7 +57,7 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `MUL` - Signed multiplication
 - [x] `MULI` - Signed multiplication with immediate
 - [x] `MULU` - Unsigned multiplication
-- [ ] `MULSU` - Signed × unsigned multiplication
+- [x] `MULSU` - Signed × unsigned multiplication
 
 #### Logic Operations
 - [x] `AND` - Bitwise AND
