@@ -10,6 +10,7 @@ use std::{
 
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
+use tracing::instrument;
 
 use crate::{
     assembler::LabelsFrameSizes,
@@ -208,6 +209,7 @@ impl Interpreter {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 
+    #[instrument(level = "info", skip_all)]
     pub fn run(&mut self, memory: Memory) -> Result<PetraTrace, InterpreterError> {
         let mut trace = PetraTrace::new(memory);
 

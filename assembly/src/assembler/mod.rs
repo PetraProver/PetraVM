@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use binius_field::{ExtensionField, Field, PackedField};
 use binius_m3::builder::{B16, B32};
+use tracing::instrument;
 
 use crate::parser::{parse_program, Error as ParserError, InstructionsWithLabels};
 use crate::{
@@ -75,6 +76,7 @@ impl Assembler {
         Assembler::assemble(instructions)
     }
 
+    #[instrument(level = "debug", skip_all)]
     fn assemble(
         instructions: Vec<InstructionsWithLabels>,
     ) -> Result<AssembledProgram, AssemblerError> {
