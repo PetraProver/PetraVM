@@ -82,7 +82,7 @@ impl Opcode {
         )
     )]
     pub(crate) fn generate_event(
-        &self,
+        self,
         ctx: &mut EventContext,
         arg0: B16,
         arg1: B16,

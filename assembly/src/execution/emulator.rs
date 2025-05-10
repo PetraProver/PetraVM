@@ -130,7 +130,7 @@ impl InterpreterInstruction {
     }
 
     /// Get the arguments of this instruction.
-    pub fn args(&self) -> [B16; 3] {
+    pub const fn args(&self) -> [B16; 3] {
         [
             self.instruction[1],
             self.instruction[2],

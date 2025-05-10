@@ -20,7 +20,7 @@ pub struct VromAllocator {
 
 impl VromAllocator {
     /// Get the size of the VROM.
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.pos as usize
     }
 

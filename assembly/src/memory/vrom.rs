@@ -53,7 +53,7 @@ impl ValueRom {
         }
     }
 
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.vrom_allocator.size()
     }
 

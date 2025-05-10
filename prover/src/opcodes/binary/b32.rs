@@ -4,22 +4,19 @@
 
 use std::any::Any;
 
-use binius_field::{underlier::Divisible, Field};
+use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,
     B128, B16, B32,
 };
 use petravm_asm::{
-    opcodes::Opcode, AndEvent, AndiEvent, B128AddEvent, B128MulEvent, B32MulEvent, B32MuliEvent,
-    OrEvent, OriEvent, XorEvent, XoriEvent,
+    opcodes::Opcode, AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent,
+    XoriEvent,
 };
 
 use crate::{
     channels::Channels,
-    gadgets::{
-        multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget},
-        state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
-    },
+    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
     utils::{pack_b16_into_b32, pack_instruction_one_arg},
@@ -28,8 +25,60 @@ use crate::{opcodes::G, utils::pack_instruction_with_32bits_imm_b128};
 
 // Constants for opcodes
 const B32_MUL_OPCODE: u16 = Opcode::B32Mul as u16;
-const B128_ADD_OPCODE: u16 = Opcode::B128Add as u16;
-const B128_MUL_OPCODE: u16 = Opcode::B128Mul as u16;
+const XOR_OPCODE: u16 = Opcode::Xor as u16;
+const XORI_OPCODE: u16 = Opcode::Xori as u16;
+const AND_OPCODE: u16 = Opcode::And as u16;
+const ANDI_OPCODE: u16 = Opcode::Andi as u16;
+const OR_OPCODE: u16 = Opcode::Or as u16;
+const ORI_OPCODE: u16 = Opcode::Ori as u16;
+
+/// Expands to a `TableFiller<ProverPackedField>` impl for a given B32
+/// instruction table.
+macro_rules! impl_b32_table_filler {
+    ($table_ty:ident, $event_ty:ident) => {
+        impl TableFiller<ProverPackedField> for $table_ty {
+            type Event = $event_ty;
+
+            fn id(&self) -> TableId {
+                self.id
+            }
+
+            fn fill<'a>(
+                &self,
+                rows: impl Iterator<Item = &'a Self::Event> + Clone,
+                witness: &'a mut TableWitnessSegment<ProverPackedField>,
+            ) -> Result<(), anyhow::Error> {
+                {
+                    let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
+                    let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+                    let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
+                    let mut src1_val = witness.get_scalars_mut(self.src1_val)?;
+                    let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
+                    let mut src2_val = witness.get_scalars_mut(self.src2_val)?;
+
+                    for (i, event) in rows.clone().enumerate() {
+                        dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
+                        dst_val[i] = B32::new(event.dst_val);
+                        src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
+                        src1_val[i] = B32::new(event.src1_val);
+                        src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
+                        src2_val[i] = B32::new(event.src2_val);
+                    }
+                }
+
+                let state_rows = rows.map(|event| StateGadget {
+                    pc: event.pc.into(),
+                    next_pc: None,
+                    fp: *event.fp,
+                    arg0: event.dst,
+                    arg1: event.src1,
+                    arg2: event.src2,
+                });
+                self.state_cols.populate(witness, state_rows)
+            }
+        }
+    };
+}
 
 /// B32_MUL (Binary Field Multiplication) table.
 ///
@@ -115,427 +164,13 @@ impl Table for B32MulTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for B32MulTable {
-    type Event = B32MulEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &'a self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> anyhow::Result<()> {
-        {
-            let mut src1_val_col = witness.get_scalars_mut(self.src1_val)?;
-            let mut src2_val_col = witness.get_scalars_mut(self.src2_val)?;
-            let mut dst_val_col = witness.get_scalars_mut(self.dst_val)?;
-            let mut src1_abs_addr_col = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src2_abs_addr_col = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                src1_val_col[i] = B32::new(event.src1_val);
-                src2_val_col[i] = B32::new(event.src2_val);
-                dst_val_col[i] = B32::new(event.dst_val);
-                src1_abs_addr_col[i] = B32::new(event.fp.addr(event.src1));
-                src2_abs_addr_col[i] = B32::new(event.fp.addr(event.src2));
-                dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
-            }
-        }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.val(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)
-    }
-}
-
-/// B128_ADD (Binary Field Addition) table.
-///
-/// This table handles the B128_ADD instruction, which performs addition
-/// in the binary field GF(2^128).
-pub struct B128AddTable {
-    /// Table ID
-    pub id: TableId,
-    /// State columns
-    state_cols: StateColumns<{ B128_ADD_OPCODE }>,
-    /// First source value
-    pub src1_val_unpacked: Col<B32, 4>,
-    /// Lookup for first source
-    src1_lookup: MultipleLookupColumns<4>,
-    /// Second source value
-    pub src2_val_unpacked: Col<B32, 4>,
-    /// Lookup for second source
-    src2_lookup: MultipleLookupColumns<4>,
-    /// Result value
-    pub result_val_unpacked: Col<B32, 4>, // Virtual
-    /// Lookup for result
-    result_lookup: MultipleLookupColumns<4>,
-    /// First source absolute address
-    pub src1_abs_addr: Col<B32>,
-    /// Second source absolute address
-    pub src2_abs_addr: Col<B32>,
-    /// Destination absolute address
-    pub dst_abs_addr: Col<B32>,
-}
-
-impl Table for B128AddTable {
-    type Event = B128AddEvent;
-
-    fn name(&self) -> &'static str {
-        "B128AddTable"
-    }
-
-    /// Create a new B128_ADD table with the given constraint system and
-    /// channels.
-    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("b128_add");
-
-        let state_cols = StateColumns::new(
-            &mut table,
-            channels.state_channel,
-            channels.prom_channel,
-            StateColumnsOptions {
-                next_pc: NextPc::Increment,
-                next_fp: None,
-            },
-        );
-
-        let StateColumns {
-            fp,
-            arg0: dst,
-            arg1: src1,
-            arg2: src2,
-            ..
-        } = state_cols;
-
-        let src1_val_unpacked = table.add_committed("b128_add_src1_val_unpacked");
-        let src2_val_unpacked = table.add_committed("b128_add_src2_val_unpacked");
-        let result_val_unpacked = table.add_computed(
-            "b128_add_result_val_unpacked",
-            src1_val_unpacked + src2_val_unpacked,
-        );
-
-        // Pull source values from VROM channel
-        let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
-        let src1_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            src1_abs_addr,
-            src1_val_unpacked,
-            "b128_add_src1",
-        );
-        let src2_abs_addr = table.add_computed("src2_addr", fp + upcast_expr(src2.into()));
-        let src2_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            src2_abs_addr,
-            src2_val_unpacked,
-            "b128_add_src2",
-        );
-
-        // Pull result from VROM channel
-        let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        let result_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            dst_abs_addr,
-            result_val_unpacked,
-            "b128_add_dst",
-        );
-
-        Self {
-            id: table.id(),
-            state_cols,
-            src1_val_unpacked,
-            src1_lookup,
-            src2_val_unpacked,
-            src2_lookup,
-            result_val_unpacked,
-            result_lookup,
-            src1_abs_addr,
-            src2_abs_addr,
-            dst_abs_addr,
-        }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl TableFiller<ProverPackedField> for B128AddTable {
-    type Event = B128AddEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &'a self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> anyhow::Result<()> {
-        {
-            let mut src1_val_col_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_val_col_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
-            let mut result_val_col_unpacked = witness.get_mut_as(self.result_val_unpacked)?;
-            let mut src1_abs_addr_col = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src2_abs_addr_col = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                src1_val_col_unpacked[i] = B128::new(event.src1_val);
-                src2_val_col_unpacked[i] = B128::new(event.src2_val);
-                result_val_col_unpacked[i] = B128::new(event.dst_val);
-                src1_abs_addr_col[i] = B32::new(event.fp.addr(event.src1));
-                src2_abs_addr_col[i] = B32::new(event.fp.addr(event.src2));
-                dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
-            }
-        }
-
-        let state_iter = rows.clone().map(|ev| StateGadget {
-            pc: ev.pc.val(),
-            next_pc: None,
-            fp: *ev.fp,
-            arg0: ev.dst,
-            arg1: ev.src1,
-            arg2: ev.src2,
-        });
-        self.state_cols.populate(witness, state_iter)?;
-
-        let src1_iter = rows.clone().map(|ev| {
-            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.src1_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.src1),
-                vals,
-            }
-        });
-        self.src1_lookup.populate(witness, src1_iter)?;
-
-        let src2_iter = rows.clone().map(|ev| {
-            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.src2_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.src2),
-                vals,
-            }
-        });
-        self.src2_lookup.populate(witness, src2_iter)?;
-
-        let result_iter = rows.map(|ev| {
-            let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.dst_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.dst),
-                vals,
-            }
-        });
-        self.result_lookup.populate(witness, result_iter)
-    }
-}
-
-/// B128_MUL (Binary Field Multiplication) table.
-///
-/// This table handles the B128_MUL instruction, which performs multiplication
-/// in the binary field GF(2^128).
-pub struct B128MulTable {
-    /// Table ID
-    pub id: TableId,
-    /// State columns
-    state_cols: StateColumns<{ B128_MUL_OPCODE }>,
-    /// First source value
-    pub src1_val: Col<B128>,
-    pub src1_val_unpacked: Col<B32, 4>,
-    /// Lookup for first source
-    src1_lookup: MultipleLookupColumns<4>,
-    /// Second source value
-    pub src2_val: Col<B128>,
-    pub src2_val_unpacked: Col<B32, 4>,
-    /// Lookup for second source
-    src2_lookup: MultipleLookupColumns<4>,
-    /// Result value
-    pub result_val: Col<B128>,
-    pub result_val_unpacked: Col<B32, 4>,
-    /// Lookup for result
-    result_lookup: MultipleLookupColumns<4>,
-    /// First source absolute address
-    pub src1_abs_addr: Col<B32>,
-    /// Second source absolute address
-    pub src2_abs_addr: Col<B32>,
-    /// Destination absolute address
-    pub dst_abs_addr: Col<B32>,
-}
-
-impl Table for B128MulTable {
-    type Event = B128MulEvent;
-
-    fn name(&self) -> &'static str {
-        "B128MulTable"
-    }
-
-    /// Create a new B128_MUL table with the given constraint system and
-    /// channels.
-    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("b128_mul");
-
-        let state_cols = StateColumns::new(
-            &mut table,
-            channels.state_channel,
-            channels.prom_channel,
-            StateColumnsOptions {
-                next_pc: NextPc::Increment,
-                next_fp: None,
-            },
-        );
-
-        let StateColumns {
-            fp,
-            arg0: dst,
-            arg1: src1,
-            arg2: src2,
-            ..
-        } = state_cols;
-
-        let src1_val_unpacked = table.add_committed("b128_mul_src1_val_unpacked");
-        let src1_val = table.add_packed("b128_mul_src1_val", src1_val_unpacked);
-        let src2_val_unpacked = table.add_committed("b128_mul_src2_val_unpacked");
-        let src2_val = table.add_packed("b128_mul_src2_val", src2_val_unpacked);
-        let result_val_unpacked = table.add_committed("b128_mul_result_val_unpacked");
-        let result_val = table.add_packed("b128_mul_result_val", result_val_unpacked);
-
-        // Pull source values from VROM channel
-        let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
-        let src1_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            src1_abs_addr,
-            src1_val_unpacked,
-            "b128_mul_src1",
-        );
-
-        let src2_abs_addr = table.add_computed("src2_addr", fp + upcast_expr(src2.into()));
-        let src2_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            src2_abs_addr,
-            src2_val_unpacked,
-            "b128_mul_src2",
-        );
-
-        table.assert_zero("check_b128_mul_result", src1_val * src2_val - result_val);
-
-        // Pull result from VROM channel
-        let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        let result_lookup = MultipleLookupColumns::new(
-            &mut table,
-            channels.vrom_channel,
-            dst_abs_addr,
-            result_val_unpacked,
-            "b128_mul_dst",
-        );
-
-        Self {
-            id: table.id(),
-            state_cols,
-            src1_val,
-            src1_val_unpacked,
-            src1_lookup,
-            src2_val,
-            src2_val_unpacked,
-            src2_lookup,
-            result_val,
-            result_val_unpacked,
-            result_lookup,
-            src1_abs_addr,
-            src2_abs_addr,
-            dst_abs_addr,
-        }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl TableFiller<ProverPackedField> for B128MulTable {
-    type Event = B128MulEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &'a self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> anyhow::Result<()> {
-        {
-            let mut src1_val_col_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_val_col_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
-            let mut result_val_col_unpacked = witness.get_mut_as(self.result_val_unpacked)?;
-            let mut src1_abs_addr_col = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src2_abs_addr_col = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut dst_abs_addr_col = witness.get_scalars_mut(self.dst_abs_addr)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                src1_val_col_unpacked[i] = B128::new(event.src1_val);
-                src2_val_col_unpacked[i] = B128::new(event.src2_val);
-                result_val_col_unpacked[i] = B128::new(event.dst_val);
-                src1_abs_addr_col[i] = B32::new(event.fp.addr(event.src1));
-                src2_abs_addr_col[i] = B32::new(event.fp.addr(event.src2));
-                dst_abs_addr_col[i] = B32::new(event.fp.addr(event.dst));
-            }
-        }
-
-        let state_iter = rows.clone().map(|ev| StateGadget {
-            pc: ev.pc.val(),
-            next_pc: None,
-            fp: *ev.fp,
-            arg0: ev.dst,
-            arg1: ev.src1,
-            arg2: ev.src2,
-        });
-        self.state_cols.populate(witness, state_iter)?;
-
-        let src1_iter = rows.clone().map(|ev| {
-            let vals = <u128 as Divisible<u32>>::split_val(ev.src1_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.src1),
-                vals,
-            }
-        });
-        self.src1_lookup.populate(witness, src1_iter)?;
-
-        let src2_iter = rows.clone().map(|ev| {
-            let vals = <u128 as Divisible<u32>>::split_val(ev.src2_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.src2),
-                vals,
-            }
-        });
-        self.src2_lookup.populate(witness, src2_iter)?;
-
-        let result_iter = rows.map(|ev| {
-            let vals = <u128 as Divisible<u32>>::split_val(ev.dst_val);
-            MultipleLookupGadget {
-                addr: ev.fp.addr(ev.dst),
-                vals,
-            }
-        });
-        self.result_lookup.populate(witness, result_iter)
-    }
-}
+impl_b32_table_filler!(B32MulTable, B32MulEvent);
 
 pub struct XorTable {
     /// Table ID
     id: TableId,
     /// State columns
-    state_cols: StateColumns<{ Opcode::Xor as u16 }>,
+    state_cols: StateColumns<XOR_OPCODE>,
     /// First source value
     pub src1_val: Col<B32>,
     /// Second source value
@@ -601,63 +236,19 @@ impl Table for XorTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for XorTable {
-    type Event = XorEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
-        {
-            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
-            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
-            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src1_val = witness.get_scalars_mut(self.src1_val)?;
-            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut src2_val = witness.get_scalars_mut(self.src2_val)?;
-            for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
-                dst_val[i] = B32::new(event.dst_val);
-                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
-                src1_val[i] = B32::new(event.src1_val);
-                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
-                src2_val[i] = B32::new(event.src2_val);
-            }
-        }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)
-    }
-}
+impl_b32_table_filler!(XorTable, XorEvent);
 
 pub struct AndTable {
     /// Table ID
     id: TableId,
     /// State columns
-    state_cols: StateColumns<{ Opcode::And as u16 }>,
+    state_cols: StateColumns<AND_OPCODE>,
     /// First source value
     pub src1_val: Col<B32>,
-    /// First source value, unpacked
-    src1_val_unpacked: Col<B1, 32>,
     /// Second source value
     pub src2_val: Col<B32>,
-    /// Second source value, unpacked
-    src2_val_unpacked: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
-    /// Result value, unpacked
-    dst_val_unpacked: Col<B1, 32>,
     /// PROM channel pull value
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -710,13 +301,10 @@ impl Table for AndTable {
             state_cols,
             src1_abs_addr,
             src1_val,
-            src1_val_unpacked,
             src2_abs_addr,
             src2_val,
-            src2_val_unpacked,
             dst_abs_addr,
             dst_val,
-            dst_val_unpacked,
         }
     }
 
@@ -725,63 +313,19 @@ impl Table for AndTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for AndTable {
-    type Event = AndEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
-        {
-            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
-            let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src1_val_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut src2_val_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
-            for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
-                dst_val_unpacked[i] = event.dst_val;
-                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
-                src1_val_unpacked[i] = event.src1_val;
-                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
-                src2_val_unpacked[i] = event.src2_val;
-            }
-        }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)
-    }
-}
+impl_b32_table_filler!(AndTable, AndEvent);
 
 pub struct OrTable {
     /// Table ID
     id: TableId,
     /// State columns
-    state_cols: StateColumns<{ Opcode::Or as u16 }>,
+    state_cols: StateColumns<OR_OPCODE>,
     /// First source value
     pub src1_val: Col<B32>,
-    /// First source value, unpacked
-    src1_val_unpacked: Col<B1, 32>,
     /// Second source value
     pub src2_val: Col<B32>,
-    /// Second source value, unpacked
-    src2_val_unpacked: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
-    /// Result value, unpacked
-    dst_val_unpacked: Col<B1, 32>,
     /// PROM channel pull value
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -837,13 +381,10 @@ impl Table for OrTable {
             state_cols,
             src1_abs_addr,
             src1_val,
-            src1_val_unpacked,
             src2_abs_addr,
             src2_val,
-            src2_val_unpacked,
             dst_abs_addr,
             dst_val,
-            dst_val_unpacked,
         }
     }
 
@@ -852,52 +393,13 @@ impl Table for OrTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for OrTable {
-    type Event = OrEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
-        {
-            let mut dst_abs_addr = witness.get_scalars_mut(self.dst_abs_addr)?;
-            let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
-            let mut src1_abs_addr = witness.get_scalars_mut(self.src1_abs_addr)?;
-            let mut src1_val_unpacked = witness.get_mut_as(self.src1_val_unpacked)?;
-            let mut src2_abs_addr = witness.get_scalars_mut(self.src2_abs_addr)?;
-            let mut src2_val_unpacked = witness.get_mut_as(self.src2_val_unpacked)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
-                dst_val_unpacked[i] = event.dst_val;
-                src1_abs_addr[i] = B32::new(event.fp.addr(event.src1));
-                src1_val_unpacked[i] = event.src1_val;
-                src2_abs_addr[i] = B32::new(event.fp.addr(event.src2));
-                src2_val_unpacked[i] = event.src2_val;
-            }
-        }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)
-    }
-}
+impl_b32_table_filler!(OrTable, OrEvent);
 
 pub struct OriTable {
     /// Table ID
     id: TableId,
     /// State columns
-    state_cols: StateColumns<{ Opcode::Ori as u16 }>,
+    state_cols: StateColumns<ORI_OPCODE>,
     /// Source value
     pub src_val: Col<B32>,
     /// Source value, unpacked
@@ -1025,7 +527,7 @@ impl TableFiller<ProverPackedField> for OriTable {
 
 pub struct XoriTable {
     id: TableId,
-    state_cols: StateColumns<{ Opcode::Xori as u16 }>,
+    state_cols: StateColumns<XORI_OPCODE>,
     dst_abs: Col<B32>, // Virtual
     dst_val: Col<B32>, // Virtual
     src_abs: Col<B32>, // Virtual
@@ -1116,13 +618,11 @@ impl TableFiller<ProverPackedField> for XoriTable {
 
 pub struct AndiTable {
     id: TableId,
-    state_cols: StateColumns<{ Opcode::Andi as u16 }>,
+    state_cols: StateColumns<ANDI_OPCODE>,
     dst_abs: Col<B32>,             // Virtual
     src_abs: Col<B32>,             // Virtual
     dst_val_unpacked: Col<B1, 16>, // Virtual
     src_val_unpacked: Col<B1, 32>,
-    src_val: Col<B32>, // Virtual
-    dst_val: Col<B16>, // Virtual
     /// The lower 16 bits of src_val.
     src_val_low: Col<B1, 16>,
 }
@@ -1153,7 +653,7 @@ impl Table for AndiTable {
         let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
         let dst_val_unpacked = table.add_computed("dst_val", src_val_low * imm);
-        let dst_val = table.add_packed("dst_val", dst_val_unpacked);
+        let dst_val: Col<B16> = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
         table.pull(channels.vrom_channel, [dst_abs, upcast_col(dst_val)]);
@@ -1166,8 +666,6 @@ impl Table for AndiTable {
             state_cols,
             dst_abs,
             src_abs,
-            dst_val,
-            src_val,
             dst_val_unpacked,
             src_val_unpacked,
             src_val_low,

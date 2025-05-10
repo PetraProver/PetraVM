@@ -208,7 +208,7 @@ impl PetraTrace {
         assert!(channels.state_channel.is_balanced());
     }
 
-    pub fn vrom_size(&self) -> usize {
+    pub const fn vrom_size(&self) -> usize {
         self.memory.vrom().size()
     }
 
@@ -294,7 +294,7 @@ impl PetraTrace {
     }
 
     #[cfg(test)]
-    pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
+    pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
     }
 
