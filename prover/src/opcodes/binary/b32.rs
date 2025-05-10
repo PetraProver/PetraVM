@@ -245,16 +245,10 @@ pub struct AndTable {
     state_cols: StateColumns<AND_OPCODE>,
     /// First source value
     pub src1_val: Col<B32>,
-    /// First source value, unpacked
-    src1_val_unpacked: Col<B1, 32>,
     /// Second source value
     pub src2_val: Col<B32>,
-    /// Second source value, unpacked
-    src2_val_unpacked: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
-    /// Result value, unpacked
-    dst_val_unpacked: Col<B1, 32>,
     /// PROM channel pull value
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -307,13 +301,10 @@ impl Table for AndTable {
             state_cols,
             src1_abs_addr,
             src1_val,
-            src1_val_unpacked,
             src2_abs_addr,
             src2_val,
-            src2_val_unpacked,
             dst_abs_addr,
             dst_val,
-            dst_val_unpacked,
         }
     }
 
@@ -331,16 +322,10 @@ pub struct OrTable {
     state_cols: StateColumns<OR_OPCODE>,
     /// First source value
     pub src1_val: Col<B32>,
-    /// First source value, unpacked
-    src1_val_unpacked: Col<B1, 32>,
     /// Second source value
     pub src2_val: Col<B32>,
-    /// Second source value, unpacked
-    src2_val_unpacked: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
-    /// Result value, unpacked
-    dst_val_unpacked: Col<B1, 32>,
     /// PROM channel pull value
     pub src1_abs_addr: Col<B32>,
     /// Second source absolute address
@@ -396,13 +381,10 @@ impl Table for OrTable {
             state_cols,
             src1_abs_addr,
             src1_val,
-            src1_val_unpacked,
             src2_abs_addr,
             src2_val,
-            src2_val_unpacked,
             dst_abs_addr,
             dst_val,
-            dst_val_unpacked,
         }
     }
 
