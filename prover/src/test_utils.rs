@@ -102,7 +102,7 @@ pub fn generate_trace(
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    trace!("compiled program = {:?}", compiled_program);
+    trace!("compiled program = {compiled_program:?}");
 
     // Keep a copy of the program for later
     let mut program = compiled_program.prom.clone();

@@ -286,9 +286,7 @@ mod tests {
             assert_eq!(
                 addr % padded,
                 0,
-                "Address {} is not aligned to {}",
-                addr,
-                padded
+                "Address {addr} is not aligned to {padded}"
             );
         }
 
@@ -300,10 +298,7 @@ mod tests {
             let (addr2, _) = window[1];
             assert!(
                 addr1 + requested <= addr2,
-                "Allocation {}+{} overlaps with {}",
-                addr1,
-                requested,
-                addr2
+                "Allocation {addr1}+{requested} overlaps with {addr2}"
             );
         }
 

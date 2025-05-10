@@ -223,7 +223,7 @@ impl Interpreter {
                     match error {
                         InterpreterError::Exception(_exc) => {} //TODO: handle exception
                         critical_error => {
-                            panic!("{:?}", critical_error);
+                            panic!("{critical_error:?}");
                         } //TODO: properly format error
                     }
                 }

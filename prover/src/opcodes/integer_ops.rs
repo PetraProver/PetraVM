@@ -772,7 +772,7 @@ impl Table for MuliTable {
 
         // Unpack src_val_unpacked to [Col<B1>; 32] for MulSS32::with_input
         let src_val_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
-            table.add_selected(format!("src_val_unpacked_bit_{}", i), src_val_unpacked, i)
+            table.add_selected(format!("src_val_unpacked_bit_{i}"), src_val_unpacked, i)
         });
 
         let SignExtendedImmediateOutput {
@@ -786,7 +786,7 @@ impl Table for MuliTable {
         // Unpack signed_imm_unpacked to [Col<B1>; 32] for MulSS32::with_input
         let signed_imm_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
             table.add_selected(
-                format!("signed_imm_unpacked_bit_{}", i),
+                format!("signed_imm_unpacked_bit_{i}"),
                 signed_imm_unpacked,
                 i,
             )
@@ -920,11 +920,10 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
-                LDI.W @2, #{}\n\
-                ADDI @3, @2, #{}\n\
-                MULI @4, @2, #{}\n\
-                RET\n",
-            src_value, imm_value, imm_value
+                LDI.W @2, #{src_value}\n\
+                ADDI @3, @2, #{imm_value}\n\
+                MULI @4, @2, #{imm_value}\n\
+                RET\n"
         );
 
         let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
@@ -953,13 +952,12 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
+                LDI.W @2, #{src1_value}\n\
+                LDI.W @3, #{src2_value}\n\
                 SUB @4, @2, @3\n\
                 ADD @5, @2, @3\n\
                 MULU @6, @2, @3\n\
-                RET\n",
-            src1_value, src2_value
+                RET\n"
         );
 
         let mulu_result = src1_value as u64 * src2_value as u64;

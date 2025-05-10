@@ -19,8 +19,7 @@ fn test_collatz_integration() {
         assert_eq!(
             collatz_frame.get_vrom_expected::<u32>(3),
             1,
-            "Final result should be 1 for initial value {}",
-            initial_value
+            "Final result should be 1 for initial value {initial_value}"
         );
     }
 }

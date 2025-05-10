@@ -724,15 +724,14 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
-            LDI.W @3, #{}\n\
-            SRLI @4, @2, #{}\n\
+            LDI.W @3, #{shift_amount}\n\
+            SRLI @4, @2, #{imm}\n\
             SRL  @5, @2, @3 \n\
-            SLLI @6, @2, #{}\n\
+            SLLI @6, @2, #{imm}\n\
             SLL  @7, @2, @3 \n\
-            SRAI @8, @2, #{}\n\
+            SRAI @8, @2, #{imm}\n\
             SRA  @9, @2, @3 \n\
-            RET\n",
-            shift_amount, imm, imm, imm
+            RET\n"
         );
 
         let init_values = vec![0, 0, val];

@@ -170,7 +170,7 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
         _start:\n\
-            LDI.W @3, #{}\n\
+            LDI.W @3, #{pc_val}\n\
             J @3\n\
             ;; Code that should be skipped\n\
             LDI.W @2, #998\n\
@@ -181,7 +181,6 @@ mod tests {
         jump_target:\n\
             LDI.W @2, #0  ;; Success\n\
             RET\n",
-            pc_val,
         );
 
         // Add VROM writes with appropriate access counts

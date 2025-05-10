@@ -135,8 +135,7 @@ pub fn get_prom_inst_from_inst_with_label(
         InstructionsWithLabels::Label(s, _) => {
             if labels.get(s).is_none() {
                 return Err(AssemblerError::BadError(format!(
-                    "Label {} not found in the HashMap of labels.",
-                    s
+                    "Label {s} not found in the HashMap of labels."
                 )));
             }
         }

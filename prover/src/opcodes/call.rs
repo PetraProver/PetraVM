@@ -573,7 +573,7 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
-                LDI.W @3, #{}\n\
+                LDI.W @3, #{pc_val}\n\
                 MVV.W @4[2], @2\n\
                 MVI.H @4[3], #2\n\
                 TAILV @3, @4\n\
@@ -586,8 +586,7 @@ mod tests {
                 LDI.W @4, #0\n\
                 MVV.W @5[2], @2\n\
                 MVV.W @5[3], @4\n\
-                TAILI loop, @5\n",
-            pc_val
+                TAILI loop, @5\n"
         );
 
         generate_trace(asm_code, None, None)
@@ -601,7 +600,7 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
-                LDI.W @3, #{}\n\
+                LDI.W @3, #{pc_val}\n\
                 MVV.W @4[2], @2\n\
                 MVI.H @4[3], #2\n\
                 CALLV @3, @4\n\
@@ -616,8 +615,7 @@ mod tests {
                 MVV.W @5[2], @2\n\
                 MVV.W @5[3], @4\n\
                 CALLI loop, @5\n\
-                RET\n",
-            pc_val
+                RET\n"
         );
 
         generate_trace(asm_code, None, None)

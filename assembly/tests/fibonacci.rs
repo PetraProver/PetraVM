@@ -33,24 +33,21 @@ fn test_fibonacci_integration() {
         assert_eq!(
             fib_helper_frame.get_vrom_expected::<u32>(2),
             cur_fibs[0],
-            "Incorrect 'a' value at iteration {}",
-            i
+            "Incorrect 'a' value at iteration {i}"
         );
 
         // Check current b value
         assert_eq!(
             fib_helper_frame.get_vrom_expected::<u32>(3),
             cur_fibs[1],
-            "Incorrect 'b' value at iteration {}",
-            i
+            "Incorrect 'b' value at iteration {i}"
         );
 
         // Check a + b value
         assert_eq!(
             fib_helper_frame.get_vrom_expected::<u32>(7),
             s,
-            "Incorrect 'a + b' value at iteration {}",
-            i
+            "Incorrect 'a + b' value at iteration {i}"
         );
 
         // Update fibonacci values for next iteration
