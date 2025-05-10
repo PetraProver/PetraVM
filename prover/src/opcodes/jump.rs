@@ -1,5 +1,3 @@
-
-
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };

@@ -2,7 +2,6 @@
 //!
 //! This module contains tables for binary field arithmetic operations.
 
-
 use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1,

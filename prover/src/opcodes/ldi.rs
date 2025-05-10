@@ -3,7 +3,6 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the PetraVM execution.
 
-
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };

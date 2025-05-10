@@ -1,6 +1,5 @@
 //! Function call instructions for the PetraVM M3 circuit.
 
-
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };

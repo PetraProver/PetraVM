@@ -3,7 +3,6 @@
 //! This module contains the RET table which handles return operations
 //! in the PetraVM execution.
 
-
 use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32};
 use petravm_asm::{opcodes::Opcode, RetEvent};
