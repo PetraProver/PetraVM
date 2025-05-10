@@ -20,7 +20,7 @@ pub use binary::*;
 pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
 pub use comparison::*;
-pub use integer_ops::{AddTable, AddiTable, MulTable, MuliTable, MuluTable, SubTable};
+pub use integer_ops::*;
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};
