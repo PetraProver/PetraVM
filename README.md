@@ -76,12 +76,12 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
-- [ ] `SLT` - Set if less than (signed)
-- [ ] `SLTI` - Set if less than immediate (signed)
+- [x] `SLT` - Set if less than (signed)
+- [x] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
 - [x] `SLTIU` - Set if less than immediate (unsigned)
-- [ ] `SLE` - Set if less than or equal (signed)
-- [ ] `SLEI` - Set if less than or equal immediate (signed)
+- [x] `SLE` - Set if less than or equal (signed)
+- [x] `SLEI` - Set if less than or equal immediate (signed)
 - [x] `SLEU` - Set if less than or equal (unsigned)
 - [x] `SLEIU` - Set if less than or equal immediate (unsigned)
 
