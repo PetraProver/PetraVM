@@ -72,7 +72,7 @@ pub trait Event {
 impl Opcode {
     /// Generates the appropriate event for this opcode.
     pub(crate) fn generate_event(
-        &self,
+        self,
         ctx: &mut EventContext,
         arg0: B16,
         arg1: B16,
