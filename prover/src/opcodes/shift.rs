@@ -92,10 +92,6 @@ macro_rules! define_logic_shift_table {
                     src_val,
                 }
             }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
         }
 
         impl TableFiller<ProverPackedField> for $Name {
@@ -225,10 +221,6 @@ macro_rules! define_logic_shift_table {
                     shift_vrom_val,
                     shift_vrom_val_high,
                 }
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
             }
         }
 
@@ -425,10 +417,6 @@ impl Table for SraTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -630,10 +618,6 @@ impl Table for SraiTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 

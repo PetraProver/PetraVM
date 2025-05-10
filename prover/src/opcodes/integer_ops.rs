@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use binius_field::{Field, PackedBinaryField32x1b};
 use binius_m3::{
     builder::{
@@ -148,10 +146,6 @@ impl Table for AddTable {
             add_op,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for AddTable {
@@ -270,10 +264,6 @@ impl Table for SubTable {
             add_op,
             dst_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -405,10 +395,6 @@ impl Table for AddiTable {
             ones,
             add_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -545,10 +531,6 @@ impl Table for MuluTable {
             mul_op,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for MuluTable {
@@ -683,10 +665,6 @@ impl Table for MulTable {
             src2_val,
             mul_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -845,10 +823,6 @@ impl Table for MuliTable {
             ones,
             mul_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

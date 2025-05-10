@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use binius_field::PackedField;
 use binius_m3::{
     builder::{
@@ -104,10 +102,6 @@ impl Table for SltuTable {
             src2_val,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -231,10 +225,6 @@ impl Table for SltiuTable {
             imm_32b,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -367,10 +357,6 @@ impl Table for SleuTable {
             subber,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for SleuTable {
@@ -502,10 +488,6 @@ impl Table for SleiuTable {
             imm_32b,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

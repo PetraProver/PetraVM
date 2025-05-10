@@ -1,6 +1,5 @@
 //! Function call instructions for the PetraVM M3 circuit.
 
-use std::any::Any;
 
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -96,10 +95,6 @@ impl Table for TailiTable {
             fp_plus_1,
             next_fp_plus_1,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -244,10 +239,6 @@ impl Table for TailvTable {
             next_fp_plus_1,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for TailvTable {
@@ -378,10 +369,6 @@ impl Table for CalliTable {
             next_pc_val,
             next_fp_slot_1,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -515,10 +502,6 @@ impl Table for CallvTable {
             next_pc_val,
             next_fp_slot_1,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

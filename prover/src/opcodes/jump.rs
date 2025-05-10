@@ -1,4 +1,4 @@
-use std::any::Any;
+
 
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -41,10 +41,6 @@ impl Table for JumpiTable {
             id: table.id(),
             state_cols,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -118,10 +114,6 @@ impl Table for JumpvTable {
             offset_addr,
             target_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
