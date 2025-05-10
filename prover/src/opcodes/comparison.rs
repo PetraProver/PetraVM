@@ -9,7 +9,10 @@ use petravm_asm::{opcodes::Opcode, SleiuEvent, SleuEvent, SltiuEvent, SltuEvent}
 
 use crate::{
     channels::Channels,
-    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
+    gadgets::state::{
+        state_from_binary_event, state_from_imm_event, NextPc, StateColumns, StateColumnsOptions,
+        StateGadget,
+    },
     table::Table,
     types::ProverPackedField,
 };
@@ -132,15 +135,7 @@ impl TableFiller<ProverPackedField> for SltuTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+        state_from_binary_event!(self.state_cols, witness, rows)?;
         self.subber.populate(witness)
     }
 }
@@ -253,15 +248,8 @@ impl TableFiller<ProverPackedField> for SltiuTable {
                 imm[i] = event.imm;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+
+        state_from_imm_event!(self.state_cols, witness, rows)?;
         self.subber.populate(witness)
     }
 }
@@ -388,15 +376,7 @@ impl TableFiller<ProverPackedField> for SleuTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+        state_from_binary_event!(self.state_cols, witness, rows)?;
         self.subber.populate(witness)
     }
 }
@@ -518,15 +498,8 @@ impl TableFiller<ProverPackedField> for SleiuTable {
                 imm[i] = event.imm;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+
+        state_from_imm_event!(self.state_cols, witness, rows)?;
         self.subber.populate(witness)
     }
 }

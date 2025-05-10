@@ -14,7 +14,10 @@ use petravm_asm::{
 
 use crate::{
     channels::Channels,
-    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
+    gadgets::state::{
+        state_from_binary_event, state_from_imm_event, NextPc, StateColumns, StateColumnsOptions,
+        StateGadget,
+    },
     table::Table,
     types::ProverPackedField,
     utils::{pack_b16_into_b32, pack_instruction_one_arg},
@@ -64,15 +67,7 @@ macro_rules! impl_b32_table_filler {
                     }
                 }
 
-                let state_rows = rows.map(|event| StateGadget {
-                    pc: event.pc.into(),
-                    next_pc: None,
-                    fp: *event.fp,
-                    arg0: event.dst,
-                    arg1: event.src1,
-                    arg2: event.src2,
-                });
-                self.state_cols.populate(witness, state_rows)
+                state_from_binary_event!(self.state_cols, witness, rows)
             }
         }
     };
@@ -491,15 +486,8 @@ impl TableFiller<ProverPackedField> for OriTable {
                 imm_32b_unpacked[i] = event.imm as u32;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)
+
+        state_from_imm_event!(self.state_cols, witness, rows)
     }
 }
 
@@ -578,15 +566,8 @@ impl TableFiller<ProverPackedField> for XoriTable {
                 src_val[i] = B32::new(event.src_val);
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)
+
+        state_from_imm_event!(self.state_cols, witness, rows)
     }
 }
 
@@ -673,15 +654,8 @@ impl TableFiller<ProverPackedField> for AndiTable {
                 src_val_low[i] = B16::new(event.src_val as u16);
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)
+
+        state_from_imm_event!(self.state_cols, witness, rows)
     }
 }
 

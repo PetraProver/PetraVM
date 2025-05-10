@@ -12,7 +12,7 @@ use crate::{
     channels::Channels,
     gadgets::{
         multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget},
-        state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
+        state::{state_from_binary_event, NextPc, StateColumns, StateColumnsOptions, StateGadget},
     },
     table::Table,
     types::ProverPackedField,
@@ -57,15 +57,7 @@ macro_rules! impl_b128_table_filler {
                     }
                 }
 
-                let state_iter = rows.clone().map(|ev| StateGadget {
-                    pc: ev.pc.val(),
-                    next_pc: None,
-                    fp: *ev.fp,
-                    arg0: ev.dst,
-                    arg1: ev.src1,
-                    arg2: ev.src2,
-                });
-                self.state_cols.populate(witness, state_iter)?;
+                state_from_binary_event!(self.state_cols, witness, rows.clone())?;
 
                 let src1_iter = rows.clone().map(|ev| {
                     let vals: [u32; 4] = <u128 as Divisible<u32>>::split_val(ev.src1_val);

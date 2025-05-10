@@ -12,7 +12,10 @@ use petravm_asm::{opcodes::Opcode, AddEvent, AddiEvent, MulEvent, MuliEvent, Mul
 
 use crate::{
     channels::Channels,
-    gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
+    gadgets::state::{
+        state_from_binary_event, state_from_imm_event, NextPc, StateColumns, StateColumnsOptions,
+        StateGadget,
+    },
     table::Table,
     types::ProverPackedField,
     utils::setup_mux_constraint,
@@ -175,15 +178,8 @@ impl TableFiller<ProverPackedField> for AddTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+
+        state_from_binary_event!(self.state_cols, witness, rows)?;
         self.add_op.populate(witness)
     }
 }
@@ -294,15 +290,7 @@ impl TableFiller<ProverPackedField> for SubTable {
                 src2_val[i] = event.src2_val;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+        state_from_binary_event!(self.state_cols, witness, rows)?;
         self.add_op.populate(witness)
     }
 }
@@ -438,17 +426,58 @@ impl TableFiller<ProverPackedField> for AddiTable {
                 signed_imm[i] = event.imm as i16 as i32;
             }
         }
-        let state_rows = rows.map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+
+        state_from_imm_event!(self.state_cols, witness, rows)?;
         self.add_op.populate(witness)
     }
+}
+
+/// Expands to a `TableFiller<ProverPackedField>` impl for a given MUL
+/// instruction table.
+macro_rules! impl_mul_table_filler {
+    ($table_ty:ident, $event_ty:ident) => {
+        impl TableFiller<ProverPackedField> for $table_ty {
+            type Event = $event_ty;
+
+            fn id(&self) -> TableId {
+                self.id
+            }
+
+            fn fill<'a>(
+                &self,
+                rows: impl Iterator<Item = &'a Self::Event> + Clone,
+                witness: &'a mut TableWitnessSegment<ProverPackedField>,
+            ) -> Result<(), anyhow::Error> {
+                {
+                    let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
+                    let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
+                    let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
+                    let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
+                    let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
+                    let mut src1_val = witness.get_mut_as(self.src1_val)?;
+                    let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
+                    let mut src2_val = witness.get_mut_as(self.src2_val)?;
+
+                    for (i, event) in rows.clone().enumerate() {
+                        dst_abs[i] = event.fp.addr(event.dst as u32);
+                        dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
+                        dst_val_low[i] = event.dst_val as u32;
+                        dst_val_high[i] = (event.dst_val >> 32) as u32;
+                        src1_abs[i] = event.fp.addr(event.src1 as u32);
+                        src1_val[i] = event.src1_val;
+                        src2_abs[i] = event.fp.addr(event.src2 as u32);
+                        src2_val[i] = event.src2_val;
+                    }
+                }
+
+                state_from_binary_event!(self.state_cols, witness, rows.clone())?;
+
+                let x_vals = rows.clone().map(|event| event.src1_val.into());
+                let y_vals = rows.map(|event| event.src2_val.into());
+                self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
+            }
+        }
+    };
 }
 
 /// MULU table.
@@ -533,56 +562,7 @@ impl Table for MuluTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for MuluTable {
-    type Event = MuluEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
-        {
-            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-            let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
-            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
-            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
-            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
-            let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
-            let mut src2_val = witness.get_mut_as(self.src2_val)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst as u32);
-                dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
-                dst_val_low[i] = event.dst_val as u32;
-                dst_val_high[i] = (event.dst_val >> 32) as u32;
-                src1_abs[i] = event.fp.addr(event.src1 as u32);
-                src1_val[i] = event.src1_val;
-                src2_abs[i] = event.fp.addr(event.src2 as u32);
-                src2_val[i] = event.src2_val;
-            }
-        }
-
-        let cpu_rows = rows.clone().map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-
-        self.state_cols.populate(witness, cpu_rows)?;
-
-        let x_vals = rows.clone().map(|event| event.src1_val.into());
-        let y_vals = rows.clone().map(|event| event.src2_val.into());
-        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
-    }
-}
+impl_mul_table_filler!(MuluTable, MuluEvent);
 
 /// MUL table.
 ///
@@ -668,55 +648,7 @@ impl Table for MulTable {
     }
 }
 
-impl TableFiller<ProverPackedField> for MulTable {
-    type Event = MulEvent;
-
-    fn id(&self) -> TableId {
-        self.id
-    }
-
-    fn fill<'a>(
-        &self,
-        rows: impl Iterator<Item = &'a Self::Event> + Clone,
-        witness: &'a mut TableWitnessSegment<ProverPackedField>,
-    ) -> Result<(), anyhow::Error> {
-        {
-            let mut dst_abs = witness.get_mut_as(self.dst_abs)?;
-            let mut dst_abs_plus_1 = witness.get_mut_as(self.dst_abs_plus_1)?;
-            let mut dst_val_low = witness.get_mut_as(self.dst_val_low)?;
-            let mut dst_val_high = witness.get_mut_as(self.dst_val_high)?;
-            let mut src1_abs = witness.get_mut_as(self.src1_abs)?;
-            let mut src1_val = witness.get_mut_as(self.src1_val)?;
-            let mut src2_abs = witness.get_mut_as(self.src2_abs)?;
-            let mut src2_val = witness.get_mut_as(self.src2_val)?;
-
-            for (i, event) in rows.clone().enumerate() {
-                dst_abs[i] = event.fp.addr(event.dst as u32);
-                dst_abs_plus_1[i] = event.fp.addr(event.dst as u32 + 1);
-                dst_val_low[i] = event.dst_val as u32;
-                dst_val_high[i] = (event.dst_val >> 32) as u32;
-                src1_abs[i] = event.fp.addr(event.src1 as u32);
-                src1_val[i] = event.src1_val;
-                src2_abs[i] = event.fp.addr(event.src2 as u32);
-                src2_val[i] = event.src2_val;
-            }
-        }
-
-        let state_rows = rows.clone().map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src1,
-            arg2: event.src2,
-        });
-        self.state_cols.populate(witness, state_rows)?;
-
-        let x_vals = rows.clone().map(|event| event.src1_val.into());
-        let y_vals = rows.map(|event| event.src2_val.into());
-        self.mul_op.populate_with_inputs(witness, x_vals, y_vals)
-    }
-}
+impl_mul_table_filler!(MulTable, MulEvent);
 
 /// MULI table.
 ///
@@ -880,15 +812,7 @@ impl TableFiller<ProverPackedField> for MuliTable {
             }
         }
 
-        let state_rows = rows.clone().map(|event| StateGadget {
-            pc: event.pc.into(),
-            next_pc: None,
-            fp: *event.fp,
-            arg0: event.dst,
-            arg1: event.src,
-            arg2: event.imm,
-        });
-        self.state_cols.populate(witness, state_rows)?;
+        state_from_imm_event!(self.state_cols, witness, rows.clone())?;
 
         let x_vals = rows.clone().map(|event| event.src_val.into());
         let y_vals: Vec<B32> = rows

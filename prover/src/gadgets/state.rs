@@ -49,6 +49,41 @@ pub(crate) struct StateColumns<const OPCODE: u16> {
     prom_pull: Col<B128>, // Virtual
 }
 
+/// Helper macro to easily fill and populate the [`StateColumns`] of a table
+/// with the provided binary (i.e. two source values) event.
+macro_rules! state_from_binary_event {
+    ($state_cols:expr, $witness:expr, $rows:expr) => {{
+        let state_rows = $rows.map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src1,
+            arg2: event.src2,
+        });
+        $state_cols.populate($witness, state_rows)
+    }};
+}
+
+/// Helper macro to easily fill and populate the [`StateColumns`] of a table
+/// with the provided unary (i.e. one source value and one immediate) event.
+macro_rules! state_from_imm_event {
+    ($state_cols:expr, $witness:expr, $rows:expr) => {{
+        let state_rows = $rows.map(|event| StateGadget {
+            pc: event.pc.into(),
+            next_pc: None,
+            fp: *event.fp,
+            arg0: event.dst,
+            arg1: event.src,
+            arg2: event.imm,
+        });
+        $state_cols.populate($witness, state_rows)
+    }};
+}
+
+pub(crate) use state_from_binary_event;
+pub(crate) use state_from_imm_event;
+
 #[derive(Default)]
 pub(crate) enum NextPc {
     /// `next_pc` is `current_pc * G`.
