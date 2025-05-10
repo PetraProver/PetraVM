@@ -49,7 +49,7 @@ impl Prover {
         let mut witness = self
             .circuit
             .cs
-            .build_witness::<ProverPackedField>(&allocator);
+            .build_witness::<ProverPackedField>(allocator);
 
         // Fill all table witnesses in sequence
 
