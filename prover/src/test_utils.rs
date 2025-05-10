@@ -5,6 +5,7 @@ use log::trace;
 use petravm_asm::{
     isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
+use tracing::instrument;
 
 use crate::model::Trace;
 
@@ -29,6 +30,7 @@ pub fn fibonacci(n: u32) -> u32 {
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip(res))]
 pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Read the Fibonacci assembly code from examples directory
     let asm_path = format!("{}/../examples/fib.asm", env!("CARGO_MANIFEST_DIR"));
@@ -68,6 +70,7 @@ pub fn collatz(mut n: u32) -> usize {
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip_all)]
 pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Read the Fibonacci assembly code from examples directory
     let asm_path = format!("{}/../examples/collatz.asm", env!("CARGO_MANIFEST_DIR"));

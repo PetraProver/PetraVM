@@ -11,6 +11,7 @@
 
 use binius_m3::builder::B16;
 use context::EventContext;
+use tracing::instrument;
 
 use crate::{
     execution::{InterpreterChannels, InterpreterError},
@@ -71,6 +72,15 @@ pub trait Event {
 
 impl Opcode {
     /// Generates the appropriate event for this opcode.
+    #[instrument(
+        level = "trace",
+        skip(ctx),
+        fields(
+            arg0 = %format!("0x{:x}", arg0.val()),
+            arg1 = %format!("0x{:x}", arg1.val()),
+            arg2 = %format!("0x{:x}", arg2.val()),
+        )
+    )]
     pub(crate) fn generate_event(
         &self,
         ctx: &mut EventContext,

@@ -1,5 +1,6 @@
+use tracing_forest::ForestLayer;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, EnvFilter};
+use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
 
 /// Initializes the global tracing subscriber.
 ///
@@ -7,12 +8,8 @@ use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, EnvFilter};
 pub fn init_logger() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-    let fmt_layer = tracing_subscriber::fmt::layer()
-        .with_span_events(FmtSpan::CLOSE)
-        .with_target(false);
-
     tracing_subscriber::registry()
         .with(filter)
-        .with(fmt_layer)
+        .with(ForestLayer::default())
         .init();
 }

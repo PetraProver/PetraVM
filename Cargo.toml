@@ -18,6 +18,7 @@ categories = ["cryptography", "compilers", "wasm"]
 [workspace.dependencies]
 anyhow = "1.0"
 tracing = "0.1.41"
+tracing-forest = { version = "0.1.6", features = ["ansi"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Binius dependencies

@@ -10,7 +10,6 @@ use std::{
 
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
-use tracing::trace;
 
 use crate::{
     assembler::LabelsFrameSizes,
@@ -254,14 +253,6 @@ impl Interpreter {
         if !self.isa.is_supported(opcode) {
             return Err(InterpreterError::UnsupportedOpcode(opcode));
         }
-
-        trace!(
-            "Executing {:?} with args {:?}",
-            opcode,
-            (1..1 + opcode.num_args())
-                .map(|i| instruction[i].val())
-                .collect::<Vec<_>>()
-        );
 
         let mut ctx = EventContext {
             interpreter: self,
