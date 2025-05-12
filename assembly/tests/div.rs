@@ -12,16 +12,12 @@ fn run_test(a: u32, b: u32, expected_q: u32, expected_r: u32) {
     assert_eq!(
         div_frame.get_vrom_expected::<u32>(4),
         expected_q,
-        "Quotient for div({}, {})",
-        a,
-        b
+        "Quotient for div({a}, {b})"
     );
     assert_eq!(
         div_frame.get_vrom_expected::<u32>(5),
         expected_r,
-        "Remainder for div({}, {})",
-        a,
-        b
+        "Remainder for div({a}, {b})"
     );
 }
 

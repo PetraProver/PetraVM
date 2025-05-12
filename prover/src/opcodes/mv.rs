@@ -1,7 +1,5 @@
 //! Move Value tables implementation for the PetraVM M3 circuit.
 
-use std::any::Any;
-
 use binius_field::underlier::Divisible;
 use binius_m3::builder::B128;
 use binius_m3::builder::{
@@ -99,10 +97,6 @@ impl Table for MvvwTable {
             dst_addr,
             src_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -221,10 +215,6 @@ impl Table for MvihTable {
             final_dst_addr,
             imm_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -367,10 +357,6 @@ impl Table for MvvlTable {
             dst_lookup,
             src_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+  # paste 1.0.15 is unmaintained as completed
+  # see https://users.rust-lang.org/t/paste-alternatives/126787 discussion.
+  "RUSTSEC-2024-0436",
+  # tracing-forest pulls in ansi_term 0.12.1 which is unmaintained,
+  # but has limited dependencies.
+  "RUSTSEC-2021-0139",
+]

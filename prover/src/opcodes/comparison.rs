@@ -1,4 +1,4 @@
-use std::{any::Any, ops::Deref};
+use std::ops::Deref;
 
 use binius_field::{Field, PackedField};
 use binius_m3::{
@@ -112,10 +112,6 @@ impl Table for SltuTable {
             src2_val,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -239,10 +235,6 @@ impl Table for SltiuTable {
             imm_32b,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -374,10 +366,6 @@ impl Table for SleuTable {
             src2_val,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -511,10 +499,6 @@ impl Table for SleiuTable {
             subber,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for SleiuTable {
@@ -629,10 +613,10 @@ impl Table for SltTable {
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
-        // by the src1_val sign. Therefore, the  bit is computed as (src1_sign
-        // XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
-        // final_borrow
+        // Direct comparison works whenever both signs are equal. If not, it's
+        // determined by the src1_val sign. Therefore, the  bit is computed as
+        // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign)
+        // * final_borrow
         let dst_bit = table.add_computed(
             "dst_val",
             (src1_sign + src2_sign) * src1_sign + (src1_sign + src2_sign + B1::ONE) * final_borrow,
@@ -659,10 +643,6 @@ impl Table for SltTable {
             dst_bit,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        todo!()
     }
 }
 
@@ -863,10 +843,6 @@ impl Table for SltiTable {
             dst_bit,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        todo!()
     }
 }
 
@@ -1070,10 +1046,6 @@ impl Table for SleTable {
             subber,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for SleTable {
@@ -1268,10 +1240,6 @@ impl Table for SleiTable {
             dst_bit,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

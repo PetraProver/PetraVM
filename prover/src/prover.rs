@@ -12,9 +12,10 @@ use binius_field::arch::OptimalUnderlier128b;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
-use binius_m3::builder::{Statement, TableFiller, B128};
+use binius_m3::builder::{Statement, TableFiller, WitnessIndex, B128};
 use bumpalo::Bump;
 use petravm_asm::isa::ISA;
+use tracing::instrument;
 
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
@@ -37,41 +38,18 @@ impl Prover {
         }
     }
 
-    // TODO: Split witness generation from actual proving?
-
-    /// Prove a PetraVM execution trace.
-    ///
-    /// This function:
-    /// 1. Creates a statement from the trace
-    /// 2. Compiles the constraint system
-    /// 3. Builds and fills the witness
-    /// 4. Validates the witness against the constraints (in debug mode only)
-    /// 5. Generates a proof
-    ///
-    /// # Arguments
-    /// * `trace` - The PetraVM execution trace to prove
-    ///
-    /// # Returns
-    /// * Result containing the proof, statement, and compiled constraint system
-    pub fn prove(&self, trace: &Trace) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
-        // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace)?;
-
-        // Compile the constraint system
-        let compiled_cs = self
-            .circuit
-            .cs
-            .compile(&statement)
-            .map_err(|e| anyhow!(e))?;
-
-        // Create a memory allocator for the witness
-        let allocator = Bump::new();
-
+    #[instrument(level = "info", skip_all)]
+    pub fn generate_witness<'a>(
+        &self,
+        trace: &Trace,
+        statement: &Statement,
+        allocator: &'a Bump,
+    ) -> Result<WitnessIndex<'_, 'a, ProverPackedField>> {
         // Build the witness structure
         let mut witness = self
             .circuit
             .cs
-            .build_witness::<ProverPackedField>(&allocator);
+            .build_witness::<ProverPackedField>(allocator);
 
         // Fill all table witnesses in sequence
 
@@ -102,8 +80,42 @@ impl Prover {
             table.fill(&mut witness, trace)?;
         }
 
+        Ok(witness)
+    }
+
+    /// Prove a PetraVM execution trace.
+    ///
+    /// This function:
+    /// 1. Creates a statement from the trace
+    /// 2. Compiles the constraint system
+    /// 3. Builds and fills the witness
+    /// 4. Validates the witness against the constraints (in debug mode only)
+    /// 5. Generates a proof
+    ///
+    /// # Arguments
+    /// * `trace` - The PetraVM execution trace to prove
+    ///
+    /// # Returns
+    /// * Result containing the proof, statement, and compiled constraint system
+    #[instrument(level = "info", skip_all)]
+    pub fn prove(&self, trace: &Trace) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
+        // Create a statement from the trace
+        let statement = self.circuit.create_statement(trace)?;
+
+        // Compile the constraint system
+        let compiled_cs = self
+            .circuit
+            .cs
+            .compile(&statement)
+            .map_err(|e| anyhow!(e))?;
+
+        // Create a memory allocator for the witness
+        let allocator = Bump::new();
+
         // Convert witness to multilinear extension format
-        let witness = witness.into_multilinear_extension_index();
+        let witness = self
+            .generate_witness(trace, &statement, &allocator)?
+            .into_multilinear_extension_index();
 
         // Validate the witness against the constraint system in debug mode only
         #[cfg(debug_assertions)]
@@ -142,39 +154,8 @@ impl Prover {
         // Create a memory allocator for the witness
         let allocator = Bump::new();
 
-        // Build the witness structure
-        let mut witness = self
-            .circuit
-            .cs
-            .build_witness::<ProverPackedField>(&allocator);
-
         // Fill all table witnesses in sequence
-        // 1. Fill PROM table with program instructions
-        witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
-
-        // 2. Fill VROM address space table with the full address space
-        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
-        let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
-        witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
-
-        // 3. Fill VROM write table with writes
-        witness.fill_table_sequential(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
-
-        // 4. Fill VROM skip table with skipped addresses
-        // Generate the list of skipped addresses (addresses not in vrom_writes)
-        let write_addrs: std::collections::HashSet<u32> =
-            trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
-
-        let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)
-            .filter(|addr| !write_addrs.contains(addr))
-            .collect();
-
-        witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
-
-        // 5. Fill all event tables
-        for table in &self.circuit.tables {
-            table.fill(&mut witness, trace)?;
-        }
+        let witness = self.generate_witness(trace, &statement, &allocator)?;
 
         binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier128b>(
             &self.circuit.cs,
@@ -199,6 +180,7 @@ impl Prover {
 ///
 /// # Returns
 /// * Result indicating success or error
+#[instrument(level = "info", skip_all)]
 pub fn verify_proof(
     statement: &Statement,
     compiled_cs: &ConstraintSystem<B128>,

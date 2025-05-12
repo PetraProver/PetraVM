@@ -21,8 +21,7 @@ fn test_opcodes() {
 
     assert!(
         unseen_types_remaining.is_empty(),
-        "Some existing opcodes were not present in the opcode test program: {:#?}",
-        unseen_types_remaining
+        "Some existing opcodes were not present in the opcode test program: {unseen_types_remaining:#?}"
     );
 
     // Verify the final result is 0

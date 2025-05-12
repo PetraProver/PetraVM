@@ -147,10 +147,7 @@ impl AllocatedFrame {
     }
 
     fn vrom_read_err_panic(read_size_str: &str) -> ! {
-        panic!(
-            "Reading a {} from VROM memory that is expected to be filled",
-            read_size_str
-        )
+        panic!("Reading a {read_size_str} from VROM memory that is expected to be filled")
     }
 }
 

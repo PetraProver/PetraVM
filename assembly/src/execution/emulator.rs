@@ -10,7 +10,7 @@ use std::{
 
 use binius_field::{BinaryField, PackedField};
 use binius_m3::builder::{B16, B32};
-use tracing::trace;
+use tracing::instrument;
 
 use crate::{
     assembler::LabelsFrameSizes,
@@ -130,7 +130,7 @@ impl InterpreterInstruction {
     }
 
     /// Get the arguments of this instruction.
-    pub fn args(&self) -> [B16; 3] {
+    pub const fn args(&self) -> [B16; 3] {
         [
             self.instruction[1],
             self.instruction[2],
@@ -209,6 +209,7 @@ impl Interpreter {
         self.pc == 0 // The real PC should be 0, which is outside of the
     }
 
+    #[instrument(level = "info", skip_all)]
     pub fn run(&mut self, memory: Memory) -> Result<PetraTrace, InterpreterError> {
         let mut trace = PetraTrace::new(memory);
 
@@ -222,7 +223,7 @@ impl Interpreter {
                     match error {
                         InterpreterError::Exception(_exc) => {} //TODO: handle exception
                         critical_error => {
-                            panic!("{:?}", critical_error);
+                            panic!("{critical_error:?}");
                         } //TODO: properly format error
                     }
                 }
@@ -254,14 +255,6 @@ impl Interpreter {
         if !self.isa.is_supported(opcode) {
             return Err(InterpreterError::UnsupportedOpcode(opcode));
         }
-
-        trace!(
-            "Executing {:?} with args {:?}",
-            opcode,
-            (1..1 + opcode.num_args())
-                .map(|i| instruction[i].val())
-                .collect::<Vec<_>>()
-        );
 
         let mut ctx = EventContext {
             interpreter: self,
