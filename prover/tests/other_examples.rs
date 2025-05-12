@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use anyhow::Result;
 use petravm_asm::isa::GenericISA;
 use petravm_prover::{
@@ -8,11 +6,8 @@ use petravm_prover::{
 };
 
 fn run_test(files: &[&str], init_values: Vec<u32>) -> Result<()> {
-    let start = Instant::now();
-
+    // Step 1: Generate trace
     let trace = generate_asm_trace(files, init_values).unwrap();
-    let trace_time = start.elapsed();
-    println!("Trace generation time: {:?}", trace_time);
 
     // Step 2: Validate trace
     trace.validate()?;
@@ -21,18 +16,10 @@ fn run_test(files: &[&str], init_values: Vec<u32>) -> Result<()> {
     let prover = Prover::new(Box::new(GenericISA));
 
     // Step 4: Generate proof
-    let start = Instant::now();
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
-    let proving_time = start.elapsed();
-    println!("Proof generation time: {:?}", proving_time);
 
     // Step 5: Verify proof
-    let start = Instant::now();
-    verify_proof(&statement, &compiled_cs, proof)?;
-    let verification_time = start.elapsed();
-    println!("Proof verification time: {:?}", verification_time);
-
-    Ok(())
+    verify_proof(&statement, &compiled_cs, proof)
 }
 
 #[test]
@@ -183,16 +170,6 @@ fn test_non_tail_long_div() {
 
     // Test case 5: b = 1
     run_test(&files, init_values(9, 2)).unwrap();
-}
-
-#[test]
-fn test_opcodes() {
-    let files = ["opcodes.asm"];
-    // Initialize memory with:
-    // Slot 0: Return PC = 0
-    // Slot 1: Return FP = 0
-    let init_values = vec![0, 0];
-    run_test(&files, init_values).unwrap();
 }
 
 #[test]

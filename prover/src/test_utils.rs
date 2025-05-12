@@ -1,4 +1,4 @@
-use anyhow::{Error, Result};
+use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
@@ -33,17 +33,17 @@ pub fn fibonacci(n: u32) -> u32 {
 /// * A trace containing the program execution
 pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<Trace> {
     // Read the assembly code from the specified files
-    let asm_code = files.iter().fold(
-        Ok(String::new()),
-        |acc: std::result::Result<String, Error>, &file_name| {
+    #[allow(clippy::manual_try_fold)]
+    let asm_code = files
+        .iter()
+        .fold(Ok(String::new()), |acc: Result<String>, &file_name| {
             let mut acc = acc?;
             let asm_path = format!("{}/../examples/{}", env!("CARGO_MANIFEST_DIR"), file_name);
             let asm_code = std::fs::read_to_string(asm_path)
                 .map_err(|e| anyhow::anyhow!("Failed to read {}: {}", file_name, e))?;
             acc.push_str(&asm_code);
             Ok(acc)
-        },
-    )?;
+        })?;
 
     generate_trace(asm_code, Some(init_values), None)
 }

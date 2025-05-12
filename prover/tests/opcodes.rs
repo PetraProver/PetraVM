@@ -34,7 +34,5 @@ fn test_all_opcodes() -> Result<()> {
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
 
     // Step 5: Verify proof
-    verify_proof(&statement, &compiled_cs, proof)?;
-
-    Ok(())
+    verify_proof(&statement, &compiled_cs, proof)
 }
