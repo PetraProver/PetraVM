@@ -1,10 +1,10 @@
+use binius_field::AESTowerField8b;
 use binius_hash::{
-    compression,
     groestl::{Groestl256ByteCompression, GroestlShortImpl, GroestlShortInternal},
     PseudoCompressionFunction,
 };
-use binius_m3::builder::{B16, B32};
-use bytemuck::{cast_slice, Pod};
+use binius_m3::builder::{B16, B32, B8};
+use bytemuck::cast_slice;
 use generic_array::GenericArray;
 
 use super::{context::EventContext, Event};
@@ -46,16 +46,49 @@ impl Event for Groestl256CompressEvent {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
+        let src1_val_new = src1_val
+            .iter()
+            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+            .collect::<Vec<_>>();
+        let src1_val_new = (0..8)
+            .flat_map(|i| {
+                (0..8).map({
+                    let value = src1_val_new.clone();
+                    move |j| value[j * 8 + i]
+                })
+            })
+            .collect::<Vec<_>>();
+        let src2_val_new = src2_val
+            .iter()
+            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
+            .collect::<Vec<_>>();
+        let src2_val_new = (0..8)
+            .flat_map(|i| {
+                (0..8).map({
+                    let value = src2_val_new.clone();
+                    move |j| value[j * 8 + i]
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut out_val =
+            GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
 
-        // let mut dst_val =
-        // GroestlShortImpl::state_from_bytes(src1_val.try_into().unwrap());
-        let mut dst_val = cast_slice::<u8, u64>(&src1_val.to_vec())
+        <GroestlShortImpl as GroestlShortInternal>::compress(
+            &mut out_val,
+            &src2_val_new.clone().try_into().unwrap(),
+        );
+
+        let out_state_bytes = GroestlShortImpl::state_to_bytes(&out_val);
+        let out_state_bytes =
+            out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+
+        // Transpose, since the gadgets work on the transposed version.
+        let dst_val_transposed = (0..8)
+            .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
+            .collect::<Vec<_>>();
+        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&dst_val_transposed)
             .try_into()
             .unwrap();
-        <GroestlShortImpl as GroestlShortInternal>::compress(
-            &mut dst_val,
-            src2_val.try_into().unwrap(),
-        );
 
         for i in 0..8 {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
@@ -159,15 +192,10 @@ mod tests {
     use std::collections::HashMap;
 
     use binius_field::Field;
-    use binius_hash::groestl::Groestl256;
     use generic_array::typenum;
-    use num_traits::cast;
 
     use super::*;
-    use crate::{
-        execution::Interpreter, isa::RecursionISA, test_util::code_to_prom, Memory, Opcode,
-        PetraTrace, ValueRom,
-    };
+    use crate::{isa::RecursionISA, test_util::code_to_prom, Memory, Opcode, PetraTrace, ValueRom};
 
     #[test]
     fn test_groestl_compress() {
@@ -215,9 +243,6 @@ mod tests {
         let (trace, boundary_values) =
             PetraTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
                 .expect("Trace generation should not fail.");
-
-        // Capture the final PC before boundary_values is moved
-        let final_pc = boundary_values.final_pc;
 
         // Validate the trace (this consumes boundary_values)
         trace.validate(boundary_values);
@@ -283,9 +308,6 @@ mod tests {
         let (trace, boundary_values) =
             PetraTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
                 .expect("Trace generation should not fail.");
-
-        // Capture the final PC before boundary_values is moved
-        let final_pc = boundary_values.final_pc;
 
         // Validate the trace (this consumes boundary_values)
         trace.validate(boundary_values);

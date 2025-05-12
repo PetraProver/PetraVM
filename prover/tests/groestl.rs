@@ -1,6 +1,7 @@
 use anyhow::Result;
 use binius_hash::compression;
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
+use binius_m3::builder::B8;
 use bytemuck::cast_slice;
 use generic_array::{typenum, GenericArray};
 use log::trace;
@@ -78,18 +79,49 @@ fn generate_groestl_ret_trace(
     // Compute the output of the compression step.
     let src1_bytes = cast_slice::<u32, u8>(&src1_val);
     let src2_bytes = cast_slice::<u32, u8>(&src2_val);
-    // let mut compression_output =
-    // GroestlShortImpl::state_from_bytes(src1_bytes.try_into().unwrap());
-    let mut compression_output: [u64; 8] = cast_slice::<u32, u64>(&src1_val.to_vec())
-        .try_into()
-        .unwrap();
+
+    let src1_val_new = src1_bytes
+        .iter()
+        .map(|s1| binius_field::AESTowerField8b::from(B8::from(*s1)).val())
+        .collect::<Vec<_>>();
+    let src1_val_new = (0..8)
+        .flat_map(|i| {
+            (0..8).map({
+                let value = src1_val_new.clone();
+                move |j| value[j * 8 + i]
+            })
+        })
+        .collect::<Vec<_>>();
+    let src2_val_new = src2_bytes
+        .iter()
+        .map(|s2| binius_field::AESTowerField8b::from(B8::from(*s2)).val())
+        .collect::<Vec<_>>();
+    let src2_val_new = (0..8)
+        .flat_map(|i| {
+            (0..8).map({
+                let value = src2_val_new.clone();
+                move |j| value[j * 8 + i]
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut compression_output =
+        GroestlShortImpl::state_from_bytes(&src1_val_new.try_into().unwrap());
+
     <GroestlShortImpl as GroestlShortInternal>::compress(
         &mut compression_output,
-        src2_bytes.try_into().unwrap(),
+        &src2_val_new.try_into().unwrap(),
     );
-    let compression_output = cast_slice::<u64, u32>(&compression_output);
-    println!("compression_output: {:?}", compression_output);
 
+    let out_state_bytes = GroestlShortImpl::state_to_bytes(&compression_output);
+    let out_state_bytes =
+        out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+    let dst_val_transposed = (0..8)
+        .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
+        .collect::<Vec<_>>();
+    let compression_output: [u64; 8] = cast_slice::<u8, u64>(&dst_val_transposed)
+        .try_into()
+        .unwrap();
+    let compression_output = cast_slice::<u64, u32>(&compression_output);
     // Compute the output of the 2-to-1 groestl compression.
     let input = cast_slice::<u32, u8>(&compression_output);
     let input = GroestlShortImpl::state_from_bytes(input.try_into().unwrap());
@@ -112,7 +144,7 @@ fn generate_groestl_ret_trace(
 
     // Add VROM writes from GROESTL and RET events.
     let mut vrom_writes = vec![];
-    // Write outputs.
+    // // Write outputs.
     // vrom_writes.extend(
     //     compression_output
     //         .iter()
@@ -155,19 +187,24 @@ fn generate_groestl_ret_trace(
 
 #[test]
 fn test_groestl_proving() -> Result<()> {
+    tracing_subscriber::fmt::init();
     test_from_trace_generator(
         || {
             // Test value to load
             let mut src1_val = [0; 16];
             src1_val[0] = 1;
+            // src1_val[3] = 4;
             let mut src2_val = [0; 16];
             src2_val[0] = 2;
+            // src2_val[2] = 5;
 
             let src1_offset = 16;
             let src2_offset = 32;
             let mut init_values = vec![0; 48];
             init_values[src1_offset as usize] = src1_val[0] as u32;
+            // init_values[src1_offset as usize + 3] = src1_val[3] as u32;
             init_values[src2_offset as usize] = src2_val[0] as u32;
+            // init_values[src2_offset as usize + 2] = src2_val[2] as u32;
 
             generate_groestl_ret_trace(init_values, src1_val, src2_val)
         },
