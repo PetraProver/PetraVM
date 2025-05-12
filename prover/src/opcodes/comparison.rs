@@ -631,7 +631,7 @@ impl Table for SltTable {
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
+        // Direct comparison works whenever both signs are equal. If not, it's determined
         // by the src1_val sign. Therefore, the  bit is computed as (src1_sign
         // XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
         // final_borrow
@@ -738,7 +738,7 @@ impl TableFiller<ProverPackedField> for SltTable {
 }
 /// SLTI table.
 ///
-/// This table handles the SLT instruction, which performs signed
+/// This table handles the SLTI instruction, which performs signed
 /// integer comparison (set if less than) between one 32-bit signed elements
 /// read from memory, and another 16-bit element given as an immediate.
 pub struct SltiTable {
@@ -761,13 +761,13 @@ impl Table for SltiTable {
     type Event = SltiEvent;
 
     fn name(&self) -> &'static str {
-        "SltTable"
+        "SltiTable"
     }
 
     // TODO: Consider swapping the order of src1 and src2 depending on the sign,
     // or using a U32Add gadget.
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("slt");
+        let mut table = cs.add_table("slti");
 
         let Channels {
             state_channel,
@@ -834,7 +834,7 @@ impl Table for SltiTable {
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
+        // Direct comparison works whenever both signs are equal. If not, it's determined
         // by the src_val sign. Therefore, the  bit is computed as (src_sign
         // XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
         // final_borrow
@@ -990,11 +990,11 @@ impl Table for SleTable {
     type Event = SleEvent;
 
     fn name(&self) -> &'static str {
-        "SltuTable"
+        "SleTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("sltu");
+        let mut table = cs.add_table("sle");
 
         let Channels {
             state_channel,
@@ -1040,7 +1040,7 @@ impl Table for SleTable {
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
+        // Direct comparison works whenever both signs are equal. If not, it's determined
         // by the src1_val sign. Therefore, the  bit is computed as (src1_sign
         // XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
         // final_borrow
@@ -1167,11 +1167,11 @@ impl Table for SleiTable {
     type Event = SleiEvent;
 
     fn name(&self) -> &'static str {
-        "SltuTable"
+        "SleiTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("sltu");
+        let mut table = cs.add_table("slei");
 
         let Channels {
             state_channel,
@@ -1359,8 +1359,8 @@ mod tests {
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses either t
-    /// any comparison operation
+    /// Creates an execution trace for a simple program that uses a single
+    /// comparison operation.
     fn test_comparison_with_values(opcode: Opcode, src1_val: u32, src2_val: u32) -> Result<()> {
         let asm_code = match opcode {
             Opcode::Sltu => format!(
