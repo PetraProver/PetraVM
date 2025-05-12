@@ -20,6 +20,8 @@ use crate::{
     types::ProverPackedField,
 };
 
+use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
+
 const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
 const SLTIU_OPCODE: u16 = Opcode::Sltiu as u16;
 const SLEU_OPCODE: u16 = Opcode::Sleu as u16;
@@ -716,7 +718,7 @@ impl TableFiller<ProverPackedField> for SltTable {
 }
 /// SLTI table.
 ///
-/// This table handles the SLT instruction, which performs signed
+/// This table handles the SLTI instruction, which performs signed
 /// integer comparison (set if less than) between one 32-bit signed elements
 /// read from memory, and another 16-bit element given as an immediate.
 pub struct SltiTable {
@@ -739,13 +741,13 @@ impl Table for SltiTable {
     type Event = SltiEvent;
 
     fn name(&self) -> &'static str {
-        "SltTable"
+        "SltiTable"
     }
 
     // TODO: Consider swapping the order of src1 and src2 depending on the sign,
     // or using a U32Add gadget.
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("slt");
+        let mut table = cs.add_table("slti");
 
         let Channels {
             state_channel,
@@ -774,31 +776,13 @@ impl Table for SltiTable {
         // Get the sign bits of src and imm
         let src_sign = table.add_selected("src_sign", src_val, 31);
         let imm_unpacked = state_cols.arg2_unpacked;
-        let imm_sign = table.add_selected("imm_sign", imm_unpacked, 15);
-
-        // We need to sign extend `imm`. First, get the sign bit and the necessary
-        // constants.
-        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
-        let mut constants = [B1::ONE; 32];
-        for c in constants.iter_mut().take(16) {
-            *c = B1::ZERO;
-        }
-        let ones = table.add_constant("ones", constants);
-
-        // Compute the negative case.
-        let imm_32b_negative = table.add_computed("negative", ones + imm_32b);
-
-        // We commit to the sign-extended value.
-        let signed_imm_32b = table.add_committed("signed_imm_32b");
-
-        // Check that the sign extension is correct.
-        setup_mux_constraint(
-            &mut table,
-            &signed_imm_32b,
-            &imm_32b_negative,
-            &imm_32b,
-            &imm_sign,
-        );
+        let SignExtendedImmediateOutput {
+            imm_unpacked,
+            msb,
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
+        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
 
         // Instantiate the subtractor with the appropriate flags
         let flags = U32SubFlags {
@@ -806,19 +790,19 @@ impl Table for SltiTable {
             expose_final_borrow: true, // we want the "underflow" bit out
             commit_zout: false,        // we don't need the raw subtraction result
         };
-        let subber = U32Sub::new(&mut table, src_val, signed_imm_32b, flags);
+        let subber = U32Sub::new(&mut table, src_val, signed_imm_unpacked, flags);
         // `final_borrow` is 1 exactly when src_val < imm_val
         let final_borrow: Col<B1> = subber
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
-        // by the src_val sign. Therefore, the  bit is computed as (src_sign
-        // XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
+        // Direct comparison works whenever both signs are equal. If not, it's
+        // determined by the src_val sign. Therefore, the  bit is computed as
+        // (src_sign XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
         // final_borrow
         let dst_bit = table.add_computed(
             "dst_val",
-            (src_sign + imm_sign) * src_sign + (src_sign + imm_sign + B1::ONE) * final_borrow,
+            (src_sign + msb) * src_sign + (src_sign + msb + B1::ONE) * final_borrow,
         );
         let dst_val = upcast_col(dst_bit);
 
@@ -835,10 +819,10 @@ impl Table for SltiTable {
             src_abs,
             src_val,
             src_sign,
-            imm_sign,
-            imm_32b,
-            imm_32b_negative,
-            signed_imm_32b,
+            imm_sign: msb,
+            imm_32b: imm_unpacked,
+            imm_32b_negative: negative_unpacked,
+            signed_imm_32b: signed_imm_unpacked,
             ones,
             dst_bit,
             subber,
@@ -964,11 +948,11 @@ impl Table for SleTable {
     type Event = SleEvent;
 
     fn name(&self) -> &'static str {
-        "SltuTable"
+        "SleTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("sltu");
+        let mut table = cs.add_table("sle");
 
         let Channels {
             state_channel,
@@ -1014,10 +998,10 @@ impl Table for SleTable {
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
 
-        // Direct comparison works whenever both sigs are equal. If not, it's determined
-        // by the src1_val sign. Therefore, the  bit is computed as (src1_sign
-        // XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
-        // final_borrow
+        // Direct comparison works whenever both signs are equal. If not, it's
+        // determined by the src1_val sign. Therefore, the  bit is computed as
+        // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign)
+        // * final_borrow
         let dst_bit = table.add_computed(
             "dst_val",
             (src1_sign + src2_sign) * src1_sign
@@ -1137,11 +1121,11 @@ impl Table for SleiTable {
     type Event = SleiEvent;
 
     fn name(&self) -> &'static str {
-        "SltuTable"
+        "SleiTable"
     }
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("sltu");
+        let mut table = cs.add_table("slei");
 
         let Channels {
             state_channel,
@@ -1325,8 +1309,8 @@ mod tests {
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses
-    /// any comparison operation
+    /// Creates an execution trace for a simple program that uses a single
+    /// comparison operation.
     fn test_comparison_with_values(opcode: Opcode, src1_val: u32, src2_val: u32) -> Result<()> {
         let asm_code = match opcode {
             Opcode::Sltu => format!(

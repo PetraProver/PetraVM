@@ -18,12 +18,12 @@ use crate::{
     utils::setup_mux_constraint,
 };
 
-struct SignExtendedImmediateOutput {
-    imm_unpacked: Col<B1, 32>,
-    msb: Col<B1>,
-    negative_unpacked: Col<B1, 32>,
-    signed_imm_unpacked: Col<B1, 32>,
-    ones: Col<B1, 32>,
+pub(crate) struct SignExtendedImmediateOutput {
+    pub imm_unpacked: Col<B1, 32>,
+    pub msb: Col<B1>,
+    pub negative_unpacked: Col<B1, 32>,
+    pub signed_imm_unpacked: Col<B1, 32>,
+    pub ones: Col<B1, 32>,
 }
 
 /// Set up a signed-extended immediate from a 16-bit value to a 32-bit value.
@@ -31,7 +31,7 @@ struct SignExtendedImmediateOutput {
 /// This function adds the necessary columns and constraints to handle sign
 /// extension of a 16-bit immediate value to a 32-bit value. The sign extension
 /// is based on the MSB (bit 15) of the 16-bit immediate.
-fn setup_sign_extended_immediate(
+pub(crate) fn setup_sign_extended_immediate(
     table: &mut binius_m3::builder::TableBuilder<'_>,
     imm_unpacked: Col<B1, 16>,
 ) -> SignExtendedImmediateOutput {
