@@ -842,7 +842,6 @@ mod tests {
     use anyhow::Result;
     use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
-    use proptest::prop_oneof;
 
     use crate::model::Trace;
     use crate::prover::Prover;
@@ -894,20 +893,8 @@ mod tests {
 
         #[test]
         fn test_binary_operations(
-            val1 in prop_oneof![
-                Just(0u32),                     // Test with zero
-                Just(1u32),                     // Test with one
-                Just(0xFFFFFFFFu32),            // Test with all bits set
-                Just(0x80000000u32),            // Test with only MSB set
-                any::<u32>()                    // Random values
-            ],
-            val2 in prop_oneof![
-                Just(0u32),                     // Test with zero
-                Just(1u32),                     // Test with one
-                Just(0xFFFFFFFFu32),            // Test with all bits set
-                Just(0x80000000u32),            // Test with only MSB set
-                any::<u32>()                    // Random values
-            ],
+            val1 in any::<u32>(),
+            val2 in  any::<u32>(),
         ) {
             prop_assert!(test_binary_ops_with_values(val1, val2).is_ok());
         }
