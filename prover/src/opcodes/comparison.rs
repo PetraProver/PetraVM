@@ -164,7 +164,6 @@ pub struct SltiuTable {
     id: TableId,
     state_cols: StateColumns<SLTIU_OPCODE>,
     dst_abs: Col<B32>,
-    dst_bit: Col<B1>,
     src_abs: Col<B32>,
     src_val: Col<B1, 32>,
     imm_32b: Col<B1, 32>,
@@ -231,7 +230,6 @@ impl Table for SltiuTable {
             id: table.id(),
             state_cols,
             dst_abs,
-            dst_bit,
             src_abs,
             src_val,
             imm_32b,
@@ -254,14 +252,12 @@ impl TableFiller<ProverPackedField> for SltiuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-            let mut dst_bit = witness.get_mut(self.dst_bit)?;
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                set_packed_slice(&mut dst_bit, i, B1::from(event.dst_val == 1));
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
                 imm[i] = event.imm as u32;
