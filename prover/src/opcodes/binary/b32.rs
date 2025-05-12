@@ -863,6 +863,15 @@ mod tests {
             OR @9, @2, @3\n\
             ORI @10, @2, #{imm16}\n\
             B32_MULI @11, @2, #{val2}\n\
+            ;; repeat to test witness filling
+            B32_MUL @4, @2, @3\n\
+            XOR @5, @2, @3\n\
+            XORI @6, @2, #{imm16}\n\
+            AND @7, @2, @3\n\
+            ANDI @8, @2, #{imm16}\n\
+            OR @9, @2, @3\n\
+            ORI @10, @2, #{imm16}\n\
+            B32_MULI @11, @2, #{val2}\n\
             RET\n"
         );
 
@@ -874,14 +883,14 @@ mod tests {
         trace.validate()?;
 
         // Verify we have the correct number of events
-        assert_eq!(trace.b32_mul_events().len(), 1);
-        assert_eq!(trace.xor_events().len(), 1);
-        assert_eq!(trace.xori_events().len(), 1);
-        assert_eq!(trace.and_events().len(), 1);
-        assert_eq!(trace.andi_events().len(), 1);
-        assert_eq!(trace.or_events().len(), 1);
-        assert_eq!(trace.ori_events().len(), 1);
-        assert_eq!(trace.b32_muli_events().len(), 1);
+        assert_eq!(trace.b32_mul_events().len(), 2);
+        assert_eq!(trace.xor_events().len(), 2);
+        assert_eq!(trace.xori_events().len(), 2);
+        assert_eq!(trace.and_events().len(), 2);
+        assert_eq!(trace.andi_events().len(), 2);
+        assert_eq!(trace.or_events().len(), 2);
+        assert_eq!(trace.ori_events().len(), 2);
+        assert_eq!(trace.b32_muli_events().len(), 2);
 
         // Validate the witness
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
