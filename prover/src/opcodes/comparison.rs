@@ -1,6 +1,7 @@
 use std::{any::Any, ops::Deref};
 
 use binius_field::{Field, PackedField};
+use binius_field::{Field, PackedField};
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
@@ -12,7 +13,12 @@ use petravm_asm::{
     opcodes::Opcode, SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent,
     SltuEvent,
 };
+use petravm_asm::{
+    opcodes::Opcode, SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent,
+    SltuEvent,
+};
 
+use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
 use crate::{
     channels::Channels,
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
@@ -24,6 +30,10 @@ const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
 const SLTIU_OPCODE: u16 = Opcode::Sltiu as u16;
 const SLEU_OPCODE: u16 = Opcode::Sleu as u16;
 const SLEIU_OPCODE: u16 = Opcode::Sleiu as u16;
+const SLT_OPCODE: u16 = Opcode::Slt as u16;
+const SLTI_OPCODE: u16 = Opcode::Slti as u16;
+const SLE_OPCODE: u16 = Opcode::Sle as u16;
+const SLEI_OPCODE: u16 = Opcode::Slei as u16;
 const SLT_OPCODE: u16 = Opcode::Slt as u16;
 const SLTI_OPCODE: u16 = Opcode::Slti as u16;
 const SLE_OPCODE: u16 = Opcode::Sle as u16;
@@ -112,10 +122,6 @@ impl Table for SltuTable {
             src2_val,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -239,10 +245,6 @@ impl Table for SltiuTable {
             imm_32b,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -375,10 +377,6 @@ impl Table for SleuTable {
             subber,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for SleuTable {
@@ -510,10 +508,6 @@ impl Table for SleiuTable {
             imm_32b,
             subber,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -654,6 +648,8 @@ impl Table for SltTable {
             dst_abs,
             src1_abs,
             src1_val,
+            src1_sign,
+            src2_abs,
             src1_sign,
             src2_abs,
             src2_val,
@@ -1466,6 +1462,20 @@ mod tests {
             },
             1
         );
+        assert_eq!(
+            match opcode {
+                Opcode::Sltu => trace.sltu_events().len(),
+                Opcode::Sltiu => trace.sltiu_events().len(),
+                Opcode::Sleu => trace.sleu_events().len(),
+                Opcode::Sleiu => trace.sleiu_events().len(),
+                Opcode::Slt => trace.slt_events().len(),
+                Opcode::Slti => trace.slti_events().len(),
+                Opcode::Sle => trace.sle_events().len(),
+                Opcode::Slei => trace.slei_events().len(),
+                _ => panic!("Not a comparison opcode"),
+            },
+            1
+        );
         assert_eq!(trace.ret_events().len(), 1);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
@@ -1504,6 +1514,7 @@ mod tests {
         #[test]
         fn test_sltiu_operations(
             // Test both random values and specific edge cases
+            (src_val, imm) in prop_oneof![
             (src_val, imm) in prop_oneof![
                 // Random value pairs
                 (any::<u32>(), any::<u16>()),
@@ -1557,6 +1568,7 @@ mod tests {
         fn test_sleiu_operations(
             // Test both random values and specific edge cases
             (src_val, imm) in prop_oneof![
+            (src_val, imm) in prop_oneof![
                 // Random value pairs
                 (any::<u32>(), any::<u16>()),
 
@@ -1570,6 +1582,123 @@ mod tests {
                 Just((u32::MAX, 0)),           // Max > Min
             ],
         ) {
+            prop_assert!(test_comparison_with_values(Opcode::Sleiu, src_val, imm as u32).is_ok());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_slt_operations(
+            // Test both random values and specific edge cases
+            (src1_val, src2_val) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u32>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((-1i32 as u32, 0)),          // -1 < 0
+                Just((i32::MAX as u32, i32::MAX as u32)),   // Equal at max
+                Just((i32::MIN as u32, i32::MIN as u32)),   // Equal at min
+                Just((i32::MIN as u32, i32::MAX as u32)),   // Min < Max
+                Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
+
+                // Additional interesting cases
+                Just(((i32::MAX/2 - 1) as u32, (i32::MAX/2) as u32)),  // Middle values
+                Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
+                Just((1, i32::MAX as u32)),                // 1 < MAX
+                Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
+                Just((i32::MIN as u32, (i32::MIN + 1) as u32)),      // MIN < MIN + 1
+            ],
+        ) {
+            prop_assert!(test_comparison_with_values(Opcode::Slt, src1_val, src2_val).is_ok());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_slti_operations(
+            // Test both random values and specific edge cases
+            (src_val, imm) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u16>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((-1i32 as u32, 0)),          // -1 < 0
+
+                // Additional interesting cases
+                Just((1, i16::MAX as u16)),                // 1 < MAX
+                Just(((i16::MAX - 1) as u32, i16::MAX as u16)),       // MAX-1 < MAX
+                Just((i16::MIN as u32, (i16::MIN + 1) as u16)),      // MIN < MIN + 1
+            ],
+        ) {
+            prop_assert!(test_comparison_with_values(Opcode::Slti, src_val, imm as u32).is_ok());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_sle_operations(
+            // Test both random values and specific edge cases
+            (src1_val, src2_val) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u32>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((-1i32 as u32, 0)),          // -1 < 0
+                Just((i32::MAX as u32, i32::MAX as u32)),   // Equal at max
+                Just((i32::MIN as u32, i32::MIN as u32)),   // Equal at min
+                Just((i32::MIN as u32, i32::MAX as u32)),   // Min < Max
+                Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
+
+                // Additional interesting cases
+                Just(((i32::MAX/2 - 1) as u32, (i32::MAX/2) as u32)),  // Middle values
+                Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
+                Just((1, i32::MAX as u32)),                // 1 < MAX
+                Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
+                Just((i32::MIN as u32, (i32::MIN + 1) as u32)),      // MIN < MIN + 1
+            ],
+        ) {
+            prop_assert!(test_comparison_with_values(Opcode::Sle, src1_val, src2_val).is_ok());
+        }
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_slei_operations(
+            // Test both random values and specific edge cases
+            (src_val, imm) in prop_oneof![
+                // Random value pairs
+                (any::<u32>(), any::<u16>()),
+
+                // Edge cases
+                Just((0, 0)),                  // Equal at zero
+                Just((1, 0)),                  // Greater than
+                Just((0, 1)),                  // Less than
+                Just((-1i32 as u32, 0)),          // -1 < 0
+
+                // Additional interesting cases
+                Just((1, i16::MAX as u16)),                // 1 < MAX
+                Just(((i16::MAX - 1) as u32, i16::MAX as u16)),       // MAX-1 < MAX
+                Just((i16::MIN as u32, (i16::MIN + 1) as u16)),      // MIN < MIN + 1
+            ],
+        ) {
+            prop_assert!(test_comparison_with_values(Opcode::Slei, src_val, imm as u32).is_ok());
             prop_assert!(test_comparison_with_values(Opcode::Sleiu, src_val, imm as u32).is_ok());
         }
     }

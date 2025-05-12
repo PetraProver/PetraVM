@@ -12,18 +12,14 @@ fn run_test(dividend: u32, divisor: u32, expected_quotient: u32, expected_remain
     assert_eq!(
         tail_long_div_frame.get_vrom_expected::<u32>(4),
         expected_quotient,
-        "Quotient mismatch for dividend = {}, divisor = {}",
-        dividend,
-        divisor
+        "Quotient mismatch for dividend = {dividend}, divisor = {divisor}"
     );
 
     // Verify the remainder
     assert_eq!(
         tail_long_div_frame.get_vrom_expected::<u32>(5),
         expected_remainder,
-        "Remainder mismatch for dividend = {}, divisor = {}",
-        dividend,
-        divisor
+        "Remainder mismatch for dividend = {dividend}, divisor = {divisor}"
     );
 }
 

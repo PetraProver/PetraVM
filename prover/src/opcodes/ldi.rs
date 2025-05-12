@@ -3,8 +3,6 @@
 //! This module contains the LDI table which handles loading immediate values
 //! into VROM locations in the PetraVM execution.
 
-use std::any::Any;
-
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
@@ -74,10 +72,6 @@ impl Table for LdiTable {
             vrom_abs_addr,
             imm,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

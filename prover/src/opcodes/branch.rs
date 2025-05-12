@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use binius_field::Field;
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
@@ -53,10 +51,6 @@ impl Table for BnzTable {
             cond_abs,
             cond_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -129,10 +123,6 @@ impl Table for BzTable {
             state_cols,
             cond_abs,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

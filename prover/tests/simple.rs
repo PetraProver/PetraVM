@@ -153,16 +153,15 @@ fn generate_integer_ops_trace(src1_value: u32, src2_value: u32) -> Result<Trace>
     let asm_code = format!(
         "#[framesize(0x10)]\n\
          _start: 
-            LDI.W @2, #{}\n\
-            LDI.W @3, #{}\n\
+            LDI.W @2, #{src1_value}\n\
+            LDI.W @3, #{src2_value}\n\
             ;; Skip @4 to test a gap in vrom writes
             ADD @5, @2, @3\n\
-            ADDI @6, @2, #{}\n\
+            ADDI @6, @2, #{imm}\n\
             MULU @8, @2, @3\n\
             MUL @10, @2, @3\n\
-            MULI @12, @2, #{}\n\
-            RET\n",
-        src1_value, src2_value, imm, imm
+            MULI @12, @2, #{imm}\n\
+            RET\n"
     );
 
     generate_trace(asm_code, None, None)
@@ -342,18 +341,17 @@ fn generate_all_binary_ops_trace() -> Result<Trace> {
     let asm_code = format!(
         "#[framesize(0x10)]\n\
         _start: 
-            LDI.W @2, #{}\n\
-            LDI.W @3, #{}\n\
+            LDI.W @2, #{val1}\n\
+            LDI.W @3, #{val2}\n\
             AND @4, @2, @3\n\
             OR @5, @2, @3\n\
             XOR @6, @2, @3\n\
-            ANDI @7, @2, #{}\n\
-            ORI @8, @2, #{}\n\
-            XORI @9, @2, #{}\n\
+            ANDI @7, @2, #{imm}\n\
+            ORI @8, @2, #{imm}\n\
+            XORI @9, @2, #{imm}\n\
             B32_MUL @10, @2, @3\n\
-            B32_MULI @11, @2, #{}\n\
-            RET\n",
-        val1, val2, imm, imm, imm, imm32
+            B32_MULI @11, @2, #{imm32}\n\
+            RET\n"
     );
 
     // Calculate expected results

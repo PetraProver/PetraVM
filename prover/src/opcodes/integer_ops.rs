@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use binius_field::{Field, PackedBinaryField32x1b};
 use binius_m3::{
     builder::{
@@ -22,12 +20,12 @@ use crate::{
     utils::setup_mux_constraint,
 };
 
-struct SignExtendedImmediateOutput {
-    imm_unpacked: Col<B1, 32>,
-    msb: Col<B1>,
-    negative_unpacked: Col<B1, 32>,
-    signed_imm_unpacked: Col<B1, 32>,
-    ones: Col<B1, 32>,
+pub(crate) struct SignExtendedImmediateOutput {
+    pub imm_unpacked: Col<B1, 32>,
+    pub msb: Col<B1>,
+    pub negative_unpacked: Col<B1, 32>,
+    pub signed_imm_unpacked: Col<B1, 32>,
+    pub ones: Col<B1, 32>,
 }
 
 /// Set up a signed-extended immediate from a 16-bit value to a 32-bit value.
@@ -35,7 +33,7 @@ struct SignExtendedImmediateOutput {
 /// This function adds the necessary columns and constraints to handle sign
 /// extension of a 16-bit immediate value to a 32-bit value. The sign extension
 /// is based on the MSB (bit 15) of the 16-bit immediate.
-fn setup_sign_extended_immediate(
+pub(crate) fn setup_sign_extended_immediate(
     table: &mut binius_m3::builder::TableBuilder<'_>,
     imm_unpacked: Col<B1, 16>,
 ) -> SignExtendedImmediateOutput {
@@ -149,10 +147,6 @@ impl Table for AddTable {
             src2_val,
             add_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -272,10 +266,6 @@ impl Table for SubTable {
             add_op,
             dst_val,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -407,10 +397,6 @@ impl Table for AddiTable {
             ones,
             add_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -547,10 +533,6 @@ impl Table for MuluTable {
             mul_op,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for MuluTable {
@@ -686,10 +668,6 @@ impl Table for MulTable {
             mul_op,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for MulTable {
@@ -754,8 +732,6 @@ pub struct MuliTable {
     state_cols: StateColumns<{ Opcode::Muli as u16 }>,
     dst_abs: Col<B32>,
     dst_abs_plus_1: Col<B32>,
-    dst_val_low: Col<B32>,
-    dst_val_high: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     imm_unpacked: Col<B1, 32>,
@@ -798,7 +774,7 @@ impl Table for MuliTable {
 
         // Unpack src_val_unpacked to [Col<B1>; 32] for MulSS32::with_input
         let src_val_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
-            table.add_selected(format!("src_val_unpacked_bit_{}", i), src_val_unpacked, i)
+            table.add_selected(format!("src_val_unpacked_bit_{i}"), src_val_unpacked, i)
         });
 
         let SignExtendedImmediateOutput {
@@ -812,7 +788,7 @@ impl Table for MuliTable {
         // Unpack signed_imm_unpacked to [Col<B1>; 32] for MulSS32::with_input
         let signed_imm_unpacked_bits: [Col<B1>; 32] = std::array::from_fn(|i| {
             table.add_selected(
-                format!("signed_imm_unpacked_bit_{}", i),
+                format!("signed_imm_unpacked_bit_{i}"),
                 signed_imm_unpacked,
                 i,
             )
@@ -840,8 +816,6 @@ impl Table for MuliTable {
             state_cols,
             dst_abs,
             dst_abs_plus_1,
-            dst_val_low: out_low,
-            dst_val_high: out_high,
             src_abs,
             src_val_unpacked,
             imm_unpacked,
@@ -851,10 +825,6 @@ impl Table for MuliTable {
             ones,
             mul_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -1089,11 +1059,10 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
-                LDI.W @2, #{}\n\
-                ADDI @3, @2, #{}\n\
-                MULI @4, @2, #{}\n\
-                RET\n",
-            src_value, imm_value, imm_value
+                LDI.W @2, #{src_value}\n\
+                ADDI @3, @2, #{imm_value}\n\
+                MULI @4, @2, #{imm_value}\n\
+                RET\n"
         );
 
         let addi_result = src_value.wrapping_add((imm_value as i16 as i32) as u32);
@@ -1122,13 +1091,12 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
              _start: 
-                LDI.W @2, #{}\n\
-                LDI.W @3, #{}\n\
+                LDI.W @2, #{src1_value}\n\
+                LDI.W @3, #{src2_value}\n\
                 SUB @4, @2, @3\n\
                 ADD @5, @2, @3\n\
                 MULU @6, @2, @3\n\
-                RET\n",
-            src1_value, src2_value
+                RET\n"
         );
 
         let mulu_result = src1_value as u64 * src2_value as u64;
