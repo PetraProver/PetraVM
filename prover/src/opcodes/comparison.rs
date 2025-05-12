@@ -3,8 +3,7 @@ use std::ops::Deref;
 use binius_field::{Field, PackedField};
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableBuilder, TableFiller, TableId, TableWitnessSegment,
-        B1, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::sub::{U32Sub, U32SubFlags},
 };
@@ -13,14 +12,13 @@ use petravm_asm::{
     SltuEvent,
 };
 
+use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
 use crate::{
     channels::Channels,
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
 };
-
-use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
 
 const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
 const SLTIU_OPCODE: u16 = Opcode::Sltiu as u16;
@@ -773,8 +771,10 @@ impl Table for SltiTable {
         let src_val = table.add_committed("src_val");
         let src_val_packed = table.add_packed("src_val_packed", src_val);
 
-        // Get the sign bits of src and imm
+        // Get the sign bits of src
         let src_sign = table.add_selected("src_sign", src_val, 31);
+
+        // Get the sign bit of imm and compute the sign extension
         let imm_unpacked = state_cols.arg2_unpacked;
         let SignExtendedImmediateOutput {
             imm_unpacked,
@@ -900,30 +900,6 @@ impl TableFiller<ProverPackedField> for SltiTable {
         self.state_cols.populate(witness, state_rows)?;
         self.subber.populate(witness)
     }
-}
-
-// TODO: move to utils
-// Helper function to set up the multiplexer constraint for bit selection
-fn setup_mux_constraint(
-    table: &mut TableBuilder,
-    result: &Col<B1, 32>,
-    when_true: &Col<B1, 32>,
-    when_false: &Col<B1, 32>,
-    select_bit: &Col<B1>,
-) {
-    // Create packed (32-bit) versions of columns
-    let result_packed = table.add_packed("result_packed", *result);
-    let true_packed = table.add_packed("when_true_packed", *when_true);
-    let false_packed = table.add_packed("when_false_packed", *when_false);
-
-    // Create constraint for the mux:
-    // result = select_bit ? when_true : when_false
-    table.assert_zero(
-        "mux_constraint",
-        result_packed
-            - (true_packed * upcast_col(*select_bit)
-                + false_packed * (upcast_col(*select_bit) - B32::ONE)),
-    );
 }
 
 /// SLE table.
@@ -1151,34 +1127,18 @@ impl Table for SleiTable {
         let src_val = table.add_committed("src1_val");
         let src_val_packed = table.add_packed("src1_val_packed", src_val);
 
-        // Get the sign bits of src and imm
+        // Get the sign bits of src
         let src_sign = table.add_selected("src_sign", src_val, 31);
+
+        // Get the sign bit of imm and compute the sign extension
         let imm_unpacked = state_cols.arg2_unpacked;
-        let imm_sign = table.add_selected("imm_sign", imm_unpacked, 15);
-
-        // We need to sign extend `imm`. First, get the sign bit and the necessary
-        // constants.
-        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
-        let mut constants = [B1::ONE; 32];
-        for c in constants.iter_mut().take(16) {
-            *c = B1::ZERO;
-        }
-        let ones = table.add_constant("ones", constants);
-
-        // Compute the negative case.
-        let imm_32b_negative = table.add_computed("negative", ones + imm_32b);
-
-        // We commit to the sign-extended value.
-        let signed_imm_32b = table.add_committed("signed_imm_32b");
-
-        // Check that the sign extension is correct.
-        setup_mux_constraint(
-            &mut table,
-            &signed_imm_32b,
-            &imm_32b_negative,
-            &imm_32b,
-            &imm_sign,
-        );
+        let SignExtendedImmediateOutput {
+            imm_unpacked,
+            msb,
+            negative_unpacked,
+            signed_imm_unpacked,
+            ones,
+        } = setup_sign_extended_immediate(&mut table, imm_unpacked);
 
         // Instantiate the subtractor with the appropriate flags
         let flags = U32SubFlags {
@@ -1186,7 +1146,7 @@ impl Table for SleiTable {
             expose_final_borrow: true, // we want the "underflow" bit out
             commit_zout: false,        // we don't need the raw subtraction result
         };
-        let subber = U32Sub::new(&mut table, signed_imm_32b, src_val, flags);
+        let subber = U32Sub::new(&mut table, signed_imm_unpacked, src_val, flags);
         // `final_borrow` is 1 exactly when src_val < imm_val
         let final_borrow: Col<B1> = subber
             .final_borrow
@@ -1195,11 +1155,10 @@ impl Table for SleiTable {
         // Direct comparison works whenever both sigs are equal. If not, it's determined
         // by the src_val sign. Therefore, the  bit is computed as (src_sign
         // XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
-        // final_borrow
+        // !final_borrow
         let dst_bit = table.add_computed(
             "dst_val",
-            (src_sign + imm_sign) * src_sign
-                + (src_sign + imm_sign + B1::ONE) * (final_borrow + B1::ONE),
+            (src_sign + msb) * src_sign + (src_sign + msb + B1::ONE) * (final_borrow + B1::ONE),
         );
         let dst_val = upcast_col(dst_bit);
 
@@ -1216,10 +1175,10 @@ impl Table for SleiTable {
             src_abs,
             src_val,
             src_sign,
-            imm_sign,
-            imm_32b,
-            imm_32b_negative,
-            signed_imm_32b,
+            imm_sign: msb,
+            imm_32b: imm_unpacked,
+            imm_32b_negative: negative_unpacked,
+            signed_imm_32b: signed_imm_unpacked,
             ones,
             dst_bit,
             subber,
@@ -1316,32 +1275,29 @@ mod tests {
             Opcode::Sltu => format!(
                 "#[framesize(0x10)]\n\
                     _start: 
-                        LDI.W @2, #{}\n\
-                        LDI.W @3, #{}\n\
+                        LDI.W @2, #{src1_val}\n\
+                        LDI.W @3, #{src2_val}\n\
                         SLTU @4, @2, @3\n\
                         RET\n",
-                src1_val, src2_val
             ),
             Opcode::Sltiu => {
                 let imm = src2_val as u16;
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    SLTIU @3, @2, #{}\n\
+                    LDI.W @2, #{src1_val}\n\
+                    SLTIU @3, @2, #{imm}\n\
                     RET\n",
-                    src1_val, imm
                 )
             }
             Opcode::Sleu => {
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    LDI.W @3, #{}\n\
+                    LDI.W @2, #{src1_val}\n\
+                    LDI.W @3, #{src2_val}\n\
                     SLEU @4, @2, @3\n\
-                    RET\n",
-                    src1_val, src2_val
+                    RET\n"
                 )
             }
             Opcode::Sleiu => {
@@ -1349,41 +1305,37 @@ mod tests {
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    SLEIU @3, @2, #{}\n\
-                    RET\n",
-                    src1_val, imm
+                    LDI.W @2, #{src1_val}\n\
+                    SLEIU @3, @2, #{imm}\n\
+                    RET\n"
                 )
             }
             Opcode::Slt => format!(
                 "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    LDI.W @3, #{}\n\
+                    LDI.W @2, #{src1_val}\n\
+                    LDI.W @3, #{src2_val}\n\
                     SLT @4, @2, @3\n\
-                    RET\n",
-                src1_val, src2_val
+                    RET\n"
             ),
             Opcode::Slti => {
                 let imm = src2_val as u16;
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    SLTI @3, @2, #{}\n\
-                    RET\n",
-                    src1_val, imm
+                    LDI.W @2, #{src1_val}\n\
+                    SLTI @3, @2, #{imm}\n\
+                    RET\n"
                 )
             }
             Opcode::Sle => {
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    LDI.W @3, #{}\n\
+                    LDI.W @2, #{src1_val}\n\
+                    LDI.W @3, #{src2_val}\n\
                     SLE @4, @2, @3\n\
-                    RET\n",
-                    src1_val, src2_val
+                    RET\n"
                 )
             }
             Opcode::Slei => {
@@ -1391,10 +1343,9 @@ mod tests {
                 format!(
                     "#[framesize(0x10)]\n\
                  _start: 
-                    LDI.W @2, #{}\n\
-                    SLEI @3, @2, #{}\n\
-                    RET\n",
-                    src1_val, imm
+                    LDI.W @2, #{src1_val}\n\
+                    SLEI @3, @2, #{imm}\n\
+                    RET\n"
                 )
             }
             _ => panic!("Not a comparison opcode"),
