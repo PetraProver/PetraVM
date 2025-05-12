@@ -359,18 +359,15 @@ mod test {
 
             assert_eq!(
                 result_left, expected_left,
-                "LogicalLeft failed for {}: expected 0x{:08x}, got 0x{:08x}",
-                desc, expected_left, result_left
+                "LogicalLeft failed for {desc}: expected 0x{expected_left:08x}, got 0x{result_left:08x}"
             );
             assert_eq!(
                 result_right, expected_right,
-                "LogicalRight failed for {}: expected 0x{:08x}, got 0x{:08x}",
-                desc, expected_right, result_right
+                "LogicalRight failed for {desc}: expected 0x{expected_right:08x}, got 0x{result_right:08x}"
             );
             assert_eq!(
                 result_arith, expected_arith,
-                "ArithmeticRight failed for {}: expected 0x{:08x}, got 0x{:08x}",
-                desc, expected_arith, result_arith
+                "ArithmeticRight failed for {desc}: expected 0x{expected_arith:08x}, got 0x{result_arith:08x}"
             );
         }
     }

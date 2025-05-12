@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 
+use ahash::AHashMap;
 use binius_field::{Field, PackedField};
 use binius_m3::builder::B32;
 
@@ -84,7 +85,7 @@ pub struct PetraTrace {
     memory: Memory,
     /// A map of an instruction's field PC to the number of times that
     /// instruction has been executed.
-    pub instruction_counter: HashMap<B32, u32>,
+    pub instruction_counter: AHashMap<B32, u32>,
 }
 
 pub struct BoundaryValues {
@@ -208,7 +209,7 @@ impl PetraTrace {
         assert!(channels.state_channel.is_balanced());
     }
 
-    pub fn vrom_size(&self) -> usize {
+    pub const fn vrom_size(&self) -> usize {
         self.memory.vrom().size()
     }
 
@@ -294,7 +295,7 @@ impl PetraTrace {
     }
 
     #[cfg(test)]
-    pub(crate) fn vrom_pending_updates(&self) -> &VromPendingUpdates {
+    pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
         self.memory.vrom_pending_updates()
     }
 

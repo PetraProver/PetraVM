@@ -15,7 +15,7 @@ mod test_parser {
 
     fn ensure_parser_succeeds(rule: Rule, asm: &str) {
         let parser = AsmParser::parse(rule, asm);
-        assert!(parser.is_ok(), "assembly failed to parse: {}", asm);
+        assert!(parser.is_ok(), "assembly failed to parse: {asm}");
     }
 
     fn ensure_parser_fails(rule: Rule, asm: &str) {
@@ -285,8 +285,7 @@ mod test_parser {
             let expected_inst = &expected_prom[i];
             assert_eq!(
                 *inst, *expected_inst,
-                "Value for index {:?} in PROM is {:?} but is {:?} in expected PROM",
-                i, inst, expected_inst
+                "Value for index {i:?} in PROM is {inst:?} but is {expected_inst:?} in expected PROM"
             );
         }
     }

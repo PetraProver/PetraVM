@@ -25,6 +25,7 @@ command = "mdbook-mermaid"
 
 [output.html]
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
+pretty-urls = false
 
 [output.html.print]
 # Disable page break

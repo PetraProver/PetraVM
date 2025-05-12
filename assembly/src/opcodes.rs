@@ -107,7 +107,7 @@ impl Opcode {
     }
 
     /// Returns the number of arguments expected by the given opcode.
-    pub fn num_args(&self) -> usize {
+    pub const fn num_args(&self) -> usize {
         match self {
             Opcode::Bnz => 3,     // target_low, target_high, cond
             Opcode::Bz => 0,      // non-existing instruction

@@ -5,6 +5,7 @@ use log::trace;
 use petravm_asm::{
     isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
+use tracing::instrument;
 
 use crate::model::Trace;
 
@@ -55,6 +56,7 @@ pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<Trace
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip(res))]
 pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     let n = B32::MULTIPLICATIVE_GENERATOR.pow([n as u64]).val();
     // Initialize memory with:
@@ -67,7 +69,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     generate_asm_trace(&["fib.asm"], init_values)
 }
 
-pub fn collatz(mut n: u32) -> usize {
+pub const fn collatz(mut n: u32) -> usize {
     let mut count = 0;
     while n != 1 {
         if n % 2 == 0 {
@@ -89,6 +91,7 @@ pub fn collatz(mut n: u32) -> usize {
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip_all)]
 pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Initialize memory with:
     // Slot 0: Return PC = 0
@@ -115,7 +118,7 @@ pub fn generate_trace(
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    trace!("compiled program = {:?}", compiled_program);
+    trace!("compiled program = {compiled_program:?}");
 
     // Keep a copy of the program for later
     let mut program = compiled_program.prom.clone();

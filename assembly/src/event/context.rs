@@ -71,6 +71,7 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
+        self.trace.vrom().check_alignment::<T>(addr)?;
         for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
             self.trace.vrom_write(addr + i as u32, cur_word)?;
