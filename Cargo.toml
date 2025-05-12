@@ -16,6 +16,7 @@ keywords = ["zkvm", "zero-knowledge", "binius", "rust", "snark"]
 categories = ["cryptography", "compilers", "wasm"]
 
 [workspace.dependencies]
+ahash = "0.8.12"
 anyhow = "1.0"
 tracing = "0.1.41"
 tracing-forest = { version = "0.1.6", features = ["ansi"] }

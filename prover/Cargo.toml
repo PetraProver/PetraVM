@@ -13,6 +13,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+ahash.workspace = true
 anyhow.workspace = true
 bumpalo = { version = "3.17.0", features = ["collections"] }
 bytemuck = { version = "1.23.0", features = ["derive", "min_const_generics"] }

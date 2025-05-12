@@ -66,7 +66,7 @@ impl Prover {
 
         // 4. Fill VROM skip table with skipped addresses
         // Generate the list of skipped addresses (addresses not in vrom_writes)
-        let write_addrs: std::collections::HashSet<u32> =
+        let write_addrs: ahash::AHashSet<u32> =
             trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
 
         let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)

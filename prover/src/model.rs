@@ -3,8 +3,7 @@
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
 
-use std::collections::HashMap;
-
+use ahash::AHashMap;
 use anyhow::Result;
 use binius_m3::builder::B32;
 use paste::paste;
@@ -164,7 +163,7 @@ impl Trace {
     ///
     /// # Arguments
     /// * `instructions` - An iterator of InterpreterInstructions to add
-    pub fn add_instructions<I>(&mut self, instructions: I, instruction_counter: &HashMap<B32, u32>)
+    pub fn add_instructions<I>(&mut self, instructions: I, instruction_counter: &AHashMap<B32, u32>)
     where
         I: IntoIterator<Item = InterpreterInstruction>,
     {
