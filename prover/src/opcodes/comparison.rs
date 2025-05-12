@@ -582,8 +582,6 @@ impl Table for SltTable {
         "SltTable"
     }
 
-    // TODO: Consider swapping the order of src1 and src2 depending on the sign,
-    // or using a U32Add gadget.
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("slt");
 
@@ -1359,17 +1357,17 @@ mod tests {
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses either t
+    /// Creates an execution trace for a simple program that uses
     /// any comparison operation
     fn test_comparison_with_values(opcode: Opcode, src1_val: u32, src2_val: u32) -> Result<()> {
         let asm_code = match opcode {
             Opcode::Sltu => format!(
                 "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{}\n\
-                    LDI.W @3, #{}\n\
-                    SLTU @4, @2, @3\n\
-                    RET\n",
+                    _start: 
+                        LDI.W @2, #{}\n\
+                        LDI.W @3, #{}\n\
+                        SLTU @4, @2, @3\n\
+                        RET\n",
                 src1_val, src2_val
             ),
             Opcode::Sltiu => {
