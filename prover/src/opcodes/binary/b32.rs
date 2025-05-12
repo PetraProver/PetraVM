@@ -894,7 +894,7 @@ mod tests {
         #[test]
         fn test_binary_operations(
             val1 in any::<u32>(),
-            val2 in  any::<u32>(),
+            val2 in any::<u32>(),
         ) {
             prop_assert!(test_binary_ops_with_values(val1, val2).is_ok());
         }
