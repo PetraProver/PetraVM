@@ -23,6 +23,7 @@ use crate::{opcodes::G, utils::pack_instruction_with_32bits_imm_b128};
 
 // Constants for opcodes
 const B32_MUL_OPCODE: u16 = Opcode::B32Mul as u16;
+const B32_MULI_OPCODE: u16 = Opcode::B32Muli as u16;
 const XOR_OPCODE: u16 = Opcode::Xor as u16;
 const XORI_OPCODE: u16 = Opcode::Xori as u16;
 const AND_OPCODE: u16 = Opcode::And as u16;
@@ -682,7 +683,7 @@ pub struct B32MuliTable {
     /// Table ID
     pub id: TableId,
     /// State columns for first instruction
-    state_cols: StateColumns<{ Opcode::B32Muli as u16 }>,
+    state_cols: StateColumns<B32_MULI_OPCODE>,
     /// Source value
     pub src_val: Col<B32>,
     /// Immediate value (32-bit constructed from two 16-bit values)

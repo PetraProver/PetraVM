@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use binius_field::underlier::Divisible;
-use binius_m3::builder::{B128, B32};
+use binius_m3::builder::B128;
 use log::trace;
 use petravm_asm::isa::GenericISA;
 use petravm_prover::model::Trace;
