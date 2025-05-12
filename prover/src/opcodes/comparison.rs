@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use binius_field::{Field, PackedField};
+use binius_field::{packed::set_packed_slice, Field, PackedField};
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
@@ -164,6 +164,7 @@ pub struct SltiuTable {
     id: TableId,
     state_cols: StateColumns<SLTIU_OPCODE>,
     dst_abs: Col<B32>,
+    dst_bit: Col<B1>,
     src_abs: Col<B32>,
     src_val: Col<B1, 32>,
     imm_32b: Col<B1, 32>,
@@ -215,10 +216,10 @@ impl Table for SltiuTable {
         };
         let subber = U32Sub::new(&mut table, src_val, imm_32b, flags);
         // `final_borrow` is 1 exactly when src_val < imm_val
-        let final_borrow: Col<B1> = subber
+        let dst_bit: Col<B1> = subber
             .final_borrow
             .expect("Flag `expose_final_borrow` was set to `true`");
-        let dst_val = upcast_col(final_borrow);
+        let dst_val = upcast_col(dst_bit);
 
         // Read src
         table.pull(vrom_channel, [src_abs, src_val_packed]);
@@ -230,6 +231,7 @@ impl Table for SltiuTable {
             id: table.id(),
             state_cols,
             dst_abs,
+            dst_bit,
             src_abs,
             src_val,
             imm_32b,
@@ -252,15 +254,17 @@ impl TableFiller<ProverPackedField> for SltiuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_bit = witness.get_mut(self.dst_bit)?;
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
+                set_packed_slice(&mut dst_bit, i, B1::from(event.dst_val == 1));
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
-                imm[i] = event.imm;
+                imm[i] = event.imm as u32;
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -284,7 +288,7 @@ pub struct SleuTable {
     id: TableId,
     state_cols: StateColumns<SLEU_OPCODE>,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
+    dst_bit: Col<B1>,
     src1_abs: Col<B32>,
     src1_val: Col<B1, 32>,
     src2_abs: Col<B32>,
@@ -345,8 +349,8 @@ impl Table for SleuTable {
             .expect("Flag `expose_final_borrow` was set to `true`");
 
         // flip the borrow bit
-        let dst_val = table.add_computed("dst_val", final_borrow + B1::one());
-        let dst_val = upcast_col(dst_val);
+        let dst_bit = table.add_computed("dst_bit", final_borrow + B1::one());
+        let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
         table.pull(vrom_channel, [src1_abs, src1_val_packed]);
@@ -359,7 +363,7 @@ impl Table for SleuTable {
             id: table.id(),
             state_cols,
             dst_abs,
-            dst_val,
+            dst_bit,
             src1_abs,
             src1_val,
             src2_abs,
@@ -383,7 +387,7 @@ impl TableFiller<ProverPackedField> for SleuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+            let mut dst_bit = witness.get_mut(self.dst_bit)?;
             let mut src1_abs = witness.get_scalars_mut(self.src1_abs)?;
             let mut src1_val = witness.get_mut_as(self.src1_val)?;
             let mut src2_abs = witness.get_scalars_mut(self.src2_abs)?;
@@ -391,7 +395,7 @@ impl TableFiller<ProverPackedField> for SleuTable {
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                dst_val[i] = B32::new(event.dst_val);
+                set_packed_slice(&mut dst_bit, i, B1::from(event.dst_val == 1));
                 src1_abs[i] = B32::new(event.fp.addr(event.src1));
                 src1_val[i] = event.src1_val;
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
@@ -420,7 +424,7 @@ pub struct SleiuTable {
     id: TableId,
     state_cols: StateColumns<SLEIU_OPCODE>,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
+    dst_bit: Col<B1>,
     src_abs: Col<B32>,
     src_val: Col<B1, 32>,
     imm_32b: Col<B1, 32>,
@@ -479,8 +483,8 @@ impl Table for SleiuTable {
             .expect("Flag `expose_final_borrow` was set to `true`");
 
         // flip the borrow bit
-        let dst_val = table.add_computed("dst_val", final_borrow + B1::one());
-        let dst_val = upcast_col(dst_val);
+        let dst_bit = table.add_computed("dst_bit", final_borrow + B1::one());
+        let dst_val = upcast_col(dst_bit);
 
         // Read src
         table.pull(vrom_channel, [src_abs, src_val_packed]);
@@ -492,7 +496,7 @@ impl Table for SleiuTable {
             id: table.id(),
             state_cols,
             dst_abs,
-            dst_val,
+            dst_bit,
             src_abs,
             src_val,
             imm_32b,
@@ -515,17 +519,17 @@ impl TableFiller<ProverPackedField> for SleiuTable {
     ) -> Result<(), anyhow::Error> {
         {
             let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+            let mut dst_bit = witness.get_mut(self.dst_bit)?;
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_val = witness.get_mut_as(self.src_val)?;
             let mut imm = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                dst_val[i] = B32::new(event.dst_val);
+                set_packed_slice(&mut dst_bit, i, B1::from(event.dst_val == 1));
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
-                imm[i] = event.imm;
+                imm[i] = event.imm as u32;
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -673,25 +677,17 @@ impl TableFiller<ProverPackedField> for SltTable {
                 src1_abs[i] = B32::new(event.fp.addr(event.src1));
                 src1_val[i] = event.src1_val;
                 let is_src1_negative = (event.src1_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src1_sign,
-                    i,
-                    B1::from(is_src1_negative),
-                );
+                set_packed_slice(&mut src1_sign, i, B1::from(is_src1_negative));
 
                 // Set the values of the second operand
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
                 src2_val[i] = event.src2_val;
                 let is_src2_negative = (event.src2_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src2_sign,
-                    i,
-                    B1::from(is_src2_negative),
-                );
+                set_packed_slice(&mut src2_sign, i, B1::from(is_src2_negative));
 
                 // Set the destination to
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                binius_field::packed::set_packed_slice(
+                set_packed_slice(
                     &mut dst_bit,
                     i,
                     B1::from(if is_src1_negative ^ is_src2_negative {
@@ -714,6 +710,7 @@ impl TableFiller<ProverPackedField> for SltTable {
         self.subber.populate(witness)
     }
 }
+
 /// SLTI table.
 ///
 /// This table handles the SLTI instruction, which performs signed
@@ -859,16 +856,12 @@ impl TableFiller<ProverPackedField> for SltiTable {
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
                 let is_src1_negative = (event.src_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src_sign,
-                    i,
-                    B1::from(is_src1_negative),
-                );
+                set_packed_slice(&mut src_sign, i, B1::from(is_src1_negative));
 
                 // Set the values of the second operand
                 imm_32b[i] = event.imm as u32;
                 let is_imm_negative = (event.imm >> 15) & 1 == 1;
-                binius_field::packed::set_packed_slice(&mut imm_sign, i, B1::from(is_imm_negative));
+                set_packed_slice(&mut imm_sign, i, B1::from(is_imm_negative));
 
                 // Compute the sign extension of `imm`.
                 let ones = 0b1111_1111_1111_1111u32;
@@ -878,7 +871,7 @@ impl TableFiller<ProverPackedField> for SltiTable {
 
                 // Set the destination to
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                binius_field::packed::set_packed_slice(
+                set_packed_slice(
                     &mut dst_bit,
                     i,
                     B1::from(if is_src1_negative ^ is_imm_negative {
@@ -1035,20 +1028,12 @@ impl TableFiller<ProverPackedField> for SleTable {
                 src1_abs[i] = B32::new(event.fp.addr(event.src1));
                 src1_val[i] = event.src1_val;
                 let is_src1_negative = (event.src1_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src1_sign,
-                    i,
-                    B1::from(is_src1_negative),
-                );
+                set_packed_slice(&mut src1_sign, i, B1::from(is_src1_negative));
                 src2_abs[i] = B32::new(event.fp.addr(event.src2));
                 src2_val[i] = event.src2_val;
                 let is_src2_negative = (event.src2_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src2_sign,
-                    i,
-                    B1::from(is_src2_negative),
-                );
-                binius_field::packed::set_packed_slice(
+                set_packed_slice(&mut src2_sign, i, B1::from(is_src2_negative));
+                set_packed_slice(
                     &mut dst_bit,
                     i,
                     B1::from(if is_src1_negative ^ is_src2_negative {
@@ -1215,16 +1200,12 @@ impl TableFiller<ProverPackedField> for SleiTable {
                 src_abs[i] = B32::new(event.fp.addr(event.src));
                 src_val[i] = event.src_val;
                 let is_src1_negative = (event.src_val >> 31) & 1 == 1;
-                binius_field::packed::set_packed_slice(
-                    &mut src_sign,
-                    i,
-                    B1::from(is_src1_negative),
-                );
+                set_packed_slice(&mut src_sign, i, B1::from(is_src1_negative));
 
                 // Set the values of the second operand
                 imm_32b[i] = event.imm as u32;
                 let is_imm_negative = (event.imm >> 15) & 1 == 1;
-                binius_field::packed::set_packed_slice(&mut imm_sign, i, B1::from(is_imm_negative));
+                set_packed_slice(&mut imm_sign, i, B1::from(is_imm_negative));
 
                 // Compute the sign extension of `imm`.
                 let ones = 0b1111_1111_1111_1111u32;
@@ -1234,7 +1215,7 @@ impl TableFiller<ProverPackedField> for SleiTable {
 
                 // Set the destination to
                 dst_abs[i] = B32::new(event.fp.addr(event.dst));
-                binius_field::packed::set_packed_slice(
+                set_packed_slice(
                     &mut dst_bit,
                     i,
                     B1::from(if is_src1_negative ^ is_imm_negative {
@@ -1261,113 +1242,61 @@ impl TableFiller<ProverPackedField> for SleiTable {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use petravm_asm::{isa::GenericISA, Opcode};
+    use petravm_asm::isa::GenericISA;
     use proptest::prelude::*;
     use proptest::prop_oneof;
 
     use crate::prover::Prover;
     use crate::test_utils::generate_trace;
 
-    /// Creates an execution trace for a simple program that uses a single
-    /// comparison operation.
-    fn test_comparison_with_values(opcode: Opcode, src1_val: u32, src2_val: u32) -> Result<()> {
-        let asm_code = match opcode {
-            Opcode::Sltu => format!(
-                "#[framesize(0x10)]\n\
-                    _start: 
-                        LDI.W @2, #{src1_val}\n\
-                        LDI.W @3, #{src2_val}\n\
-                        SLTU @4, @2, @3\n\
-                        RET\n",
-            ),
-            Opcode::Sltiu => {
-                let imm = src2_val as u16;
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    SLTIU @3, @2, #{imm}\n\
-                    RET\n",
-                )
-            }
-            Opcode::Sleu => {
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    LDI.W @3, #{src2_val}\n\
-                    SLEU @4, @2, @3\n\
-                    RET\n"
-                )
-            }
-            Opcode::Sleiu => {
-                let imm = src2_val as u16;
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    SLEIU @3, @2, #{imm}\n\
-                    RET\n"
-                )
-            }
-            Opcode::Slt => format!(
-                "#[framesize(0x10)]\n\
-                 _start: 
+    fn test_vrom_comparison_with_values(src1_val: u32, src2_val: u32) -> Result<()> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+                _start: 
                     LDI.W @2, #{src1_val}\n\
                     LDI.W @3, #{src2_val}\n\
                     SLT @4, @2, @3\n\
-                    RET\n"
-            ),
-            Opcode::Slti => {
-                let imm = src2_val as u16;
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    SLTI @3, @2, #{imm}\n\
-                    RET\n"
-                )
-            }
-            Opcode::Sle => {
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    LDI.W @3, #{src2_val}\n\
-                    SLE @4, @2, @3\n\
-                    RET\n"
-                )
-            }
-            Opcode::Slei => {
-                let imm = src2_val as u16;
-                format!(
-                    "#[framesize(0x10)]\n\
-                 _start: 
-                    LDI.W @2, #{src1_val}\n\
-                    SLEI @3, @2, #{imm}\n\
-                    RET\n"
-                )
-            }
-            _ => panic!("Not a comparison opcode"),
-        };
-
+                    SLTU @5, @2, @3\n\
+                    SLE @6, @2, @3\n\
+                    SLEU @7, @2, @3\n\
+                    ;; add duplicate instructions to test witness filling
+                    SLT @4, @2, @3\n\
+                    SLTU @5, @2, @3\n\
+                    SLE @6, @2, @3\n\
+                    SLEU @7, @2, @3\n\
+                    RET\n",
+        );
         let trace = generate_trace(asm_code, None, None)?;
         trace.validate()?;
-        assert_eq!(
-            match opcode {
-                Opcode::Sltu => trace.sltu_events().len(),
-                Opcode::Sltiu => trace.sltiu_events().len(),
-                Opcode::Sleu => trace.sleu_events().len(),
-                Opcode::Sleiu => trace.sleiu_events().len(),
-                Opcode::Slt => trace.slt_events().len(),
-                Opcode::Slti => trace.slti_events().len(),
-                Opcode::Sle => trace.sle_events().len(),
-                Opcode::Slei => trace.slei_events().len(),
-                _ => panic!("Not a comparison opcode"),
-            },
-            1
+        assert_eq!(trace.slt_events().len(), 2);
+        assert_eq!(trace.sltu_events().len(), 2);
+        assert_eq!(trace.sle_events().len(), 2);
+        assert_eq!(trace.sleu_events().len(), 2);
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    fn test_imm_comparison_with_values(src_val: u32, imm: u16) -> Result<()> {
+        let asm_code = format!(
+            "#[framesize(0x10)]\n\
+                _start: 
+                    LDI.W @2, #{src_val}\n\
+                    SLTI @4, @2, #{imm}\n\
+                    SLTIU @5, @2, #{imm}\n\
+                    SLEI @6, @2, #{imm}\n\
+                    SLEIU @7, @2, #{imm}\n\
+                    ;; add duplicate instructions to test witness filling
+                    SLTI @4, @2, #{imm}\n\
+                    SLTIU @5, @2, #{imm}\n\
+                    SLEI @6, @2, #{imm}\n\
+                    SLEIU @7, @2, #{imm}\n\
+                    RET\n",
         );
-        assert_eq!(trace.ret_events().len(), 1);
+        let trace = generate_trace(asm_code, None, None)?;
+        trace.validate()?;
+        assert_eq!(trace.slti_events().len(), 2);
+        assert_eq!(trace.sltiu_events().len(), 2);
+        assert_eq!(trace.slei_events().len(), 2);
+        assert_eq!(trace.sleiu_events().len(), 2);
         Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 
@@ -1375,27 +1304,12 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_sltu_operations(
+        fn test_vrom_comparison_operations(
             // Test both random values and specific edge cases
-            (src1_val, src2_val) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u32>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((u32::MAX, u32::MAX)),    // Equal at max
-                Just((0, u32::MAX)),           // Min < Max
-                Just((u32::MAX, 0)),           // Max > Min
-
-                // Additional interesting cases
-                Just((u32::MAX/2, u32::MAX/2 + 1)),  // Middle values
-                Just((1, u32::MAX)),                // 1 < MAX
-                Just((u32::MAX - 1, u32::MAX))       // MAX-1 < MAX
-            ],
+            src1_val in any::<u32>(),
+            src2_val in any::<u32>(),
         ) {
-            prop_assert!(test_comparison_with_values(Opcode::Sltu, src1_val, src2_val).is_ok());
+            prop_assert!(test_vrom_comparison_with_values(src1_val, src2_val).is_ok());
         }
     }
 
@@ -1403,191 +1317,24 @@ mod tests {
         #![proptest_config(proptest::test_runner::Config::with_cases(20))]
 
         #[test]
-        fn test_sltiu_operations(
+        fn test_imm_comparison_operations(
             // Test both random values and specific edge cases
-            (src_val, imm) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u16>()),
+            src_val in prop_oneof![
+                any::<u32>(),
 
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((u32::MAX, u16::MAX)),    // Equal at max
-                Just((1, u16::MAX)),           // 1 < MAX
-                Just((0, u16::MAX)),           // Min < Max
-                Just((u32::MAX, 0)),           // Max > Min
+                // Edge cases for signed comparison
+                Just(u32::MAX),
+                Just(0x80000000),
+            ],
+            imm in prop_oneof![
+                any::<u16>(),
+
+                // Edge cases for signed comparison
+                Just(u16::MAX),
+                Just(0x8000),
             ],
         ) {
-            prop_assert!(test_comparison_with_values(Opcode::Sltiu, src_val, imm as u32).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_sleu_operations(
-            // Test both random values and specific edge cases
-            (src1_val, src2_val) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u32>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((u32::MAX, u32::MAX)),    // Equal at max
-                Just((0, u32::MAX)),           // Min < Max
-                Just((u32::MAX, 0)),           // Max > Min
-
-                // // Additional interesting cases
-                Just((u32::MAX/2, u32::MAX/2 + 1)),  // Middle values
-                Just((1, u32::MAX)),                // 1 < MAX
-                Just((u32::MAX - 1, u32::MAX))       // MAX-1 < MAX
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Sleu, src1_val, src2_val).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_sleiu_operations(
-            // Test both random values and specific edge cases
-            (src_val, imm) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u16>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((u32::MAX, u16::MAX)),    // Equal at max
-                Just((1, u16::MAX)),           // 1 < MAX
-                Just((0, u16::MAX)),           // Min < Max
-                Just((u32::MAX, 0)),           // Max > Min
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Sleiu, src_val, imm as u32).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_slt_operations(
-            // Test both random values and specific edge cases
-            (src1_val, src2_val) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u32>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((-1i32 as u32, 0)),          // -1 < 0
-                Just((i32::MAX as u32, i32::MAX as u32)),   // Equal at max
-                Just((i32::MIN as u32, i32::MIN as u32)),   // Equal at min
-                Just((i32::MIN as u32, i32::MAX as u32)),   // Min < Max
-                Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
-
-                // Additional interesting cases
-                Just(((i32::MAX/2 - 1) as u32, (i32::MAX/2) as u32)),  // Middle values
-                Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
-                Just((1, i32::MAX as u32)),                // 1 < MAX
-                Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
-                Just((i32::MIN as u32, (i32::MIN + 1) as u32)),      // MIN < MIN + 1
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Slt, src1_val, src2_val).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_slti_operations(
-            // Test both random values and specific edge cases
-            (src_val, imm) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u16>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((-1i32 as u32, 0)),          // -1 < 0
-
-                // Additional interesting cases
-                Just((1, i16::MAX as u16)),                // 1 < MAX
-                Just(((i16::MAX - 1) as u32, i16::MAX as u16)),       // MAX-1 < MAX
-                Just((i16::MIN as u32, (i16::MIN + 1) as u16)),      // MIN < MIN + 1
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Slti, src_val, imm as u32).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_sle_operations(
-            // Test both random values and specific edge cases
-            (src1_val, src2_val) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u32>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((-1i32 as u32, 0)),          // -1 < 0
-                Just((i32::MAX as u32, i32::MAX as u32)),   // Equal at max
-                Just((i32::MIN as u32, i32::MIN as u32)),   // Equal at min
-                Just((i32::MIN as u32, i32::MAX as u32)),   // Min < Max
-                Just((i32::MAX as u32, i32::MIN as u32)),   // Max > Min
-
-                // Additional interesting cases
-                Just(((i32::MAX/2 - 1) as u32, (i32::MAX/2) as u32)),  // Middle values
-                Just(((i32::MIN/2) as u32, (i32::MIN/2 + 1) as u32)),  // Middle values
-                Just((1, i32::MAX as u32)),                // 1 < MAX
-                Just(((i32::MAX - 1) as u32, i32::MAX as u32)),       // MAX-1 < MAX
-                Just((i32::MIN as u32, (i32::MIN + 1) as u32)),      // MIN < MIN + 1
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Sle, src1_val, src2_val).is_ok());
-        }
-    }
-
-    proptest! {
-        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
-
-        #[test]
-        fn test_slei_operations(
-            // Test both random values and specific edge cases
-            (src_val, imm) in prop_oneof![
-                // Random value pairs
-                (any::<u32>(), any::<u16>()),
-
-                // Edge cases
-                Just((0, 0)),                  // Equal at zero
-                Just((1, 0)),                  // Greater than
-                Just((0, 1)),                  // Less than
-                Just((-1i32 as u32, 0)),          // -1 < 0
-
-                // Additional interesting cases
-                Just((1, i16::MAX as u16)),                // 1 < MAX
-                Just(((i16::MAX - 1) as u32, i16::MAX as u16)),       // MAX-1 < MAX
-                Just((i16::MIN as u32, (i16::MIN + 1) as u16)),      // MIN < MIN + 1
-            ],
-        ) {
-            prop_assert!(test_comparison_with_values(Opcode::Slei, src_val, imm as u32).is_ok());
+            prop_assert!(test_imm_comparison_with_values(src_val, imm).is_ok());
         }
     }
 }
