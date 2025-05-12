@@ -11,12 +11,7 @@ use petravm_asm::{
     opcodes::Opcode, SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent,
     SltuEvent,
 };
-use petravm_asm::{
-    opcodes::Opcode, SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent,
-    SltuEvent,
-};
 
-use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
 use super::integer_ops::{setup_sign_extended_immediate, SignExtendedImmediateOutput};
 use crate::{
     channels::Channels,
@@ -29,10 +24,6 @@ const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
 const SLTIU_OPCODE: u16 = Opcode::Sltiu as u16;
 const SLEU_OPCODE: u16 = Opcode::Sleu as u16;
 const SLEIU_OPCODE: u16 = Opcode::Sleiu as u16;
-const SLT_OPCODE: u16 = Opcode::Slt as u16;
-const SLTI_OPCODE: u16 = Opcode::Slti as u16;
-const SLE_OPCODE: u16 = Opcode::Sle as u16;
-const SLEI_OPCODE: u16 = Opcode::Slei as u16;
 const SLT_OPCODE: u16 = Opcode::Slt as u16;
 const SLTI_OPCODE: u16 = Opcode::Slti as u16;
 const SLE_OPCODE: u16 = Opcode::Sle as u16;
@@ -648,103 +639,7 @@ impl Table for SltTable {
             state_cols,
             dst_abs,
             src1_abs,
-/// SLT table.
-///
-/// This table handles the SLT instruction, which performs signed
-/// integer comparison (set if less than) between two 32-bit elements.
-pub struct SltTable {
-    id: TableId,
-    state_cols: StateColumns<SLT_OPCODE>,
-    dst_abs: Col<B32>,
-    src1_abs: Col<B32>,
-    src1_val: Col<B1, 32>,
-    src1_sign: Col<B1>,
-    src2_abs: Col<B32>,
-    src2_val: Col<B1, 32>,
-    src2_sign: Col<B1>,
-    dst_bit: Col<B1>,
-    subber: U32Sub,
-}
-
-impl Table for SltTable {
-    type Event = SltEvent;
-
-    fn name(&self) -> &'static str {
-        "SltTable"
-    }
-
-    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-        let mut table = cs.add_table("slt");
-
-        let Channels {
-            state_channel,
-            prom_channel,
-            vrom_channel,
-            ..
-        } = *channels;
-
-        let state_cols = StateColumns::new(
-            &mut table,
-            state_channel,
-            prom_channel,
-            StateColumnsOptions {
-                next_pc: NextPc::Increment,
-                next_fp: None,
-            },
-        );
-
-        // Pull the destination and source values from the VROM channel.
-        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
-        let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
-        let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
-
-        let src1_val = table.add_committed("src1_val");
-        let src1_val_packed = table.add_packed("src1_val_packed", src1_val);
-
-        let src2_val = table.add_committed("src2_val");
-        let src2_val_packed = table.add_packed("src2_val_packed", src2_val);
-
-        // Get the sign bits of src1 and src2
-        let src1_sign = table.add_selected("src1_sign", src1_val, 31);
-        let src2_sign = table.add_selected("src2_sign", src2_val, 31);
-
-        // Instantiate the subtractor with the appropriate flags
-        let flags = U32SubFlags {
-            borrow_in_bit: None,       // no extra borrow-in
-            expose_final_borrow: true, // we want the "underflow" bit out
-            commit_zout: false,        // we don't need the raw subtraction result
-        };
-        let subber = U32Sub::new(&mut table, src1_val, src2_val, flags);
-        // `final_borrow` is 1 exactly when src1_val < src2_val
-        let final_borrow: Col<B1> = subber
-            .final_borrow
-            .expect("Flag `expose_final_borrow` was set to `true`");
-
-        // Direct comparison works whenever both signs are equal. If not, it's
-        // determined by the src1_val sign. Therefore, the  bit is computed as
-        // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign)
-        // * final_borrow
-        let dst_bit = table.add_computed(
-            "dst_val",
-            (src1_sign + src2_sign) * src1_sign + (src1_sign + src2_sign + B1::ONE) * final_borrow,
-        );
-        let dst_val = upcast_col(dst_bit);
-
-        // Read src1 and src2
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
-
-        // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
-
-        Self {
-            id: table.id(),
-            state_cols,
-            dst_abs,
-            src1_abs,
             src1_val,
-            src1_sign,
-            src2_abs,
             src1_sign,
             src2_abs,
             src2_val,
