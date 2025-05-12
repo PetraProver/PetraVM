@@ -388,7 +388,7 @@ pub struct OriTable {
     /// Source value, unpacked
     src_val_unpacked: Col<B1, 32>,
     /// Immediate value, unpacked
-    imm_32b: Col<B1, 32>,
+    imm_32b_unpacked: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
     /// Result value, unpacked
@@ -417,8 +417,7 @@ impl Table for OriTable {
             channels.prom_channel,
             StateColumnsOptions::default(),
         );
-        let imm_unpacked = state_cols.arg2_unpacked;
-        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
+        let imm_32b_unpacked = table.add_zero_pad("imm_32b", state_cols.arg2_unpacked, 0);
 
         let dst_abs_addr =
             table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
@@ -428,7 +427,7 @@ impl Table for OriTable {
         let dst_val_unpacked = table.add_computed(
             "dst_val_unpacked",
             // DeMorgan Law: a | b == a + b + (a * b)
-            src_val_unpacked + imm_32b + (src_val_unpacked * imm_32b),
+            src_val_unpacked + imm_32b_unpacked + (src_val_unpacked * imm_32b_unpacked),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
@@ -444,7 +443,7 @@ impl Table for OriTable {
             src_abs_addr,
             src_val,
             src_val_unpacked,
-            imm_32b,
+            imm_32b_unpacked,
             dst_abs_addr,
             dst_val,
             dst_val_unpacked,
@@ -469,14 +468,14 @@ impl TableFiller<ProverPackedField> for OriTable {
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-            let mut imm_32b = witness.get_mut_as(self.imm_32b)?;
+            let mut imm_32b_unpacked = witness.get_mut_as(self.imm_32b_unpacked)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val;
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
                 src_val_unpacked[i] = event.src_val;
-                imm_32b[i] = event.imm as u32;
+                imm_32b_unpacked[i] = event.imm as u32;
             }
         }
         let state_rows = rows.map(|event| StateGadget {
