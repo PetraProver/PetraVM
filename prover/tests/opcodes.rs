@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use anyhow::Result;
 use petravm_asm::isa::GenericISA;
 use petravm_prover::model::Trace;
@@ -24,10 +22,7 @@ pub fn generate_opcodes_trace() -> Result<Trace> {
 #[test]
 fn test_all_opcodes() -> Result<()> {
     // Step 1: Generate trace
-    let start = Instant::now();
     let trace = generate_opcodes_trace()?;
-    let trace_time = start.elapsed();
-    println!("Trace generation time: {trace_time:?}");
 
     // Step 2: Validate trace
     trace.validate()?;
@@ -36,16 +31,10 @@ fn test_all_opcodes() -> Result<()> {
     let prover = Prover::new(Box::new(GenericISA));
 
     // Step 4: Generate proof
-    let start = Instant::now();
     let (proof, statement, compiled_cs) = prover.prove(&trace)?;
-    let proving_time = start.elapsed();
-    println!("Proof generation time: {proving_time:?}");
 
-    // // Step 5: Verify proof
-    let start = Instant::now();
+    // Step 5: Verify proof
     verify_proof(&statement, &compiled_cs, proof)?;
-    let verification_time = start.elapsed();
-    println!("Proof verification time: {verification_time:?}");
 
     Ok(())
 }
