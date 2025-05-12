@@ -386,13 +386,8 @@ pub struct OriTable {
     pub src_val: Col<B32>,
     /// Source value, unpacked
     src_val_unpacked: Col<B1, 32>,
-    // TODO: `imm` and `imm_32b_unpacked` should not need to be part of this table as fetched
-    // directly from the [`StateGadget`]. Revamp this once a new version of `ZeroPadding` is
-    // implemented on the binius side.
-    /// Immediate value
-    imm: Col<B1, 16>,
     /// Immediate value, unpacked
-    imm_32b_unpacked: Col<B1, 32>,
+    imm_32b: Col<B1, 32>,
     /// Result value
     pub dst_val: Col<B32>,
     /// Result value, unpacked
@@ -414,7 +409,6 @@ impl Table for OriTable {
         let mut table = cs.add_table("ori");
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val");
         let src_val = table.add_packed("src_val", src_val_unpacked);
-        let imm_32b_unpacked: Col<B1, 32> = table.add_committed("imm_32b");
 
         let state_cols = StateColumns::new(
             &mut table,
@@ -422,22 +416,18 @@ impl Table for OriTable {
             channels.prom_channel,
             StateColumnsOptions::default(),
         );
+        let imm_unpacked = state_cols.arg2_unpacked;
+        let imm_32b = table.add_zero_pad("imm_32b", imm_unpacked, 0);
 
         let dst_abs_addr =
             table.add_computed("dst_abs_addr", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs_addr =
             table.add_computed("src_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
 
-        let imm: Col<B1, 16> = table.add_selected_block("imm", imm_32b_unpacked, 0);
-        table.assert_zero("imm_check", imm - state_cols.arg2_unpacked);
-
-        let imm_high: Col<B1, 16> = table.add_selected_block("imm_high", imm_32b_unpacked, 1);
-        table.assert_zero("imm_high_check", imm_high.into());
-
         let dst_val_unpacked = table.add_computed(
             "dst_val_unpacked",
             // DeMorgan Law: a | b == a + b + (a * b)
-            src_val_unpacked + imm_32b_unpacked + (src_val_unpacked * imm_32b_unpacked),
+            src_val_unpacked + imm_32b + (src_val_unpacked * imm_32b),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
@@ -453,8 +443,7 @@ impl Table for OriTable {
             src_abs_addr,
             src_val,
             src_val_unpacked,
-            imm,
-            imm_32b_unpacked,
+            imm_32b,
             dst_abs_addr,
             dst_val,
             dst_val_unpacked,
@@ -479,16 +468,14 @@ impl TableFiller<ProverPackedField> for OriTable {
             let mut dst_val_unpacked = witness.get_mut_as(self.dst_val_unpacked)?;
             let mut src_abs_addr = witness.get_scalars_mut(self.src_abs_addr)?;
             let mut src_val_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-            let mut imm_32b_unpacked = witness.get_mut_as(self.imm_32b_unpacked)?;
-            let mut imm = witness.get_mut_as(self.imm)?;
+            let mut imm_32b = witness.get_mut_as(self.imm_32b)?;
 
             for (i, event) in rows.clone().enumerate() {
                 dst_abs_addr[i] = B32::new(event.fp.addr(event.dst));
                 dst_val_unpacked[i] = event.dst_val;
                 src_abs_addr[i] = B32::new(event.fp.addr(event.src));
                 src_val_unpacked[i] = event.src_val;
-                imm[i] = event.imm;
-                imm_32b_unpacked[i] = event.imm as u32;
+                imm_32b[i] = event.imm as u32;
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -846,5 +833,82 @@ impl TableFiller<ProverPackedField> for B32MuliTable {
         self.state_cols.populate(witness, state_rows)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use petravm_asm::isa::GenericISA;
+    use proptest::prelude::*;
+    use proptest::prop_oneof;
+
+    use crate::model::Trace;
+    use crate::prover::Prover;
+    use crate::test_utils::generate_trace;
+
+    /// Creates an execution trace for a simple program that uses various binary
+    /// field operations to test binary operations.
+    fn generate_binary_ops_trace(val1: u32, val2: u32) -> Result<Trace> {
+        let imm16 = val2 as u16;
+        let asm_code = format!(
+            "#[framesize(0x20)]\n\
+            _start:\n\
+            LDI.W @2, #{val1}\n\
+            LDI.W @3, #{val2}\n\
+            B32_MUL @4, @2, @3\n\
+            XOR @5, @2, @3\n\
+            XORI @6, @2, #{imm16}\n\
+            AND @7, @2, @3\n\
+            ANDI @8, @2, #{imm16}\n\
+            OR @9, @2, @3\n\
+            ORI @10, @2, #{imm16}\n\
+            B32_MULI @11, @2, #{val2}\n\
+            RET\n"
+        );
+
+        generate_trace(asm_code, None, None)
+    }
+
+    fn test_binary_ops_with_values(val1: u32, val2: u32) -> Result<()> {
+        let trace = generate_binary_ops_trace(val1, val2)?;
+        trace.validate()?;
+
+        // Verify we have the correct number of events
+        assert_eq!(trace.b32_mul_events().len(), 1);
+        assert_eq!(trace.xor_events().len(), 1);
+        assert_eq!(trace.xori_events().len(), 1);
+        assert_eq!(trace.and_events().len(), 1);
+        assert_eq!(trace.andi_events().len(), 1);
+        assert_eq!(trace.or_events().len(), 1);
+        assert_eq!(trace.ori_events().len(), 1);
+        assert_eq!(trace.b32_muli_events().len(), 1);
+
+        // Validate the witness
+        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_binary_operations(
+            val1 in prop_oneof![
+                Just(0u32),                     // Test with zero
+                Just(1u32),                     // Test with one
+                Just(0xFFFFFFFFu32),            // Test with all bits set
+                Just(0x80000000u32),            // Test with only MSB set
+                any::<u32>()                    // Random values
+            ],
+            val2 in prop_oneof![
+                Just(0u32),                     // Test with zero
+                Just(1u32),                     // Test with one
+                Just(0xFFFFFFFFu32),            // Test with all bits set
+                Just(0x80000000u32),            // Test with only MSB set
+                any::<u32>()                    // Random values
+            ],
+        ) {
+            prop_assert!(test_binary_ops_with_values(val1, val2).is_ok());
+        }
     }
 }
