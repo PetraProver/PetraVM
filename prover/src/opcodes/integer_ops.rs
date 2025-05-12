@@ -987,10 +987,6 @@ impl Table for MulsuTable {
             mul_op,
         }
     }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for MulsuTable {

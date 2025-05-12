@@ -146,7 +146,7 @@ impl Prover {
     }
 
     /// Validate a PetraVM execution trace.
-    // #[cfg(test)]
+    #[cfg(test)]
     pub fn validate_witness(&self, trace: &Trace) -> Result<()> {
         // Create a statement from the trace
         let statement = self.circuit.create_statement(trace)?;

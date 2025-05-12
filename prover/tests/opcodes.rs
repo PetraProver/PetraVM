@@ -22,22 +22,6 @@ pub fn generate_opcodes_trace() -> Result<Trace> {
 }
 
 #[test]
-fn test_all_opcodes_validate_trace() -> Result<()> {
-    // Step 1: Generate trace
-    let start = Instant::now();
-    let trace = generate_opcodes_trace()?;
-    let trace_time = start.elapsed();
-    println!("Trace generation time: {:?}", trace_time);
-
-    // Step 2: Validate trace
-    trace.validate()?;
-
-    // Step 3: Create prover
-    let prover = Prover::new(Box::new(GenericISA));
-    prover.validate_witness(&trace)
-}
-
-#[test]
 fn test_all_opcodes() -> Result<()> {
     // Step 1: Generate trace
     let start = Instant::now();
