@@ -27,7 +27,7 @@ impl std::str::FromStr for Slot {
 }
 
 impl Slot {
-    pub(crate) const fn get_16bfield_val(&self) -> B16 {
+    pub(crate) const fn get_16bfield_val(self) -> B16 {
         B16::new(self.0 as u16)
     }
 }
@@ -52,11 +52,11 @@ impl std::str::FromStr for SlotWithOffset {
 }
 
 impl SlotWithOffset {
-    pub(crate) const fn get_slot_16bfield_val(&self) -> B16 {
+    pub(crate) const fn get_slot_16bfield_val(self) -> B16 {
         B16::new(self.0 as u16)
     }
 
-    pub(crate) const fn get_offset_field_val(&self) -> B16 {
+    pub(crate) const fn get_offset_field_val(self) -> B16 {
         B16::new(self.1)
     }
 }
@@ -91,11 +91,11 @@ impl std::str::FromStr for Immediate {
 }
 
 impl Immediate {
-    pub(crate) const fn get_field_val(&self) -> B16 {
+    pub(crate) const fn get_field_val(self) -> B16 {
         B16::new(self.0 as u16)
     }
 
-    pub(crate) const fn get_high_field_val(&self) -> B16 {
+    pub(crate) const fn get_high_field_val(self) -> B16 {
         B16::new((self.0 >> 16) as u16)
     }
 }

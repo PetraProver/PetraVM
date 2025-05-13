@@ -42,7 +42,6 @@ macro_rules! define_logic_shift_table {
             state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>, // Destination absolute address
-            dst_val: Col<B32>, // Destination value (shift result)
             src_abs: Col<B32>, // Source absolute address
             src_val: Col<B32>, // Source value (value to be shifted)
         }
@@ -89,14 +88,9 @@ macro_rules! define_logic_shift_table {
                     state_cols,
                     shifter,
                     dst_abs,
-                    dst_val,
                     src_abs,
                     src_val,
                 }
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
             }
         }
 
@@ -156,7 +150,6 @@ macro_rules! define_logic_shift_table {
             state_cols: StateColumns<{ $OpCode as u16 }>,
             shifter: BarrelShifter,
             dst_abs: Col<B32>,                  // Destination absolute address
-            dst_val: Col<B32>,                  // Destination value (shift result)
             src_abs: Col<B32>,                  // Source absolute address
             src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
             shift_abs: Col<B32>,                // Shift vrom absolute address
@@ -221,7 +214,6 @@ macro_rules! define_logic_shift_table {
                     state_cols,
                     shifter,
                     dst_abs,
-                    dst_val,
                     src_abs,
                     src_val_unpacked,
                     shift_abs,
@@ -229,10 +221,6 @@ macro_rules! define_logic_shift_table {
                     shift_vrom_val,
                     shift_vrom_val_high,
                 }
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
             }
         }
 
@@ -309,7 +297,6 @@ pub struct SraTable {
     state_cols: StateColumns<{ Opcode::Sra as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -418,7 +405,6 @@ impl Table for SraTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
@@ -431,10 +417,6 @@ impl Table for SraTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -537,7 +519,6 @@ pub struct SraiTable {
     state_cols: StateColumns<{ Opcode::Srai as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -629,7 +610,6 @@ impl Table for SraiTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
@@ -638,10 +618,6 @@ impl Table for SraiTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -748,15 +724,14 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
-            LDI.W @3, #{}\n\
-            SRLI @4, @2, #{}\n\
+            LDI.W @3, #{shift_amount}\n\
+            SRLI @4, @2, #{imm}\n\
             SRL  @5, @2, @3 \n\
-            SLLI @6, @2, #{}\n\
+            SLLI @6, @2, #{imm}\n\
             SLL  @7, @2, @3 \n\
-            SRAI @8, @2, #{}\n\
+            SRAI @8, @2, #{imm}\n\
             SRA  @9, @2, @3 \n\
-            RET\n",
-            shift_amount, imm, imm, imm
+            RET\n"
         );
 
         let init_values = vec![0, 0, val];

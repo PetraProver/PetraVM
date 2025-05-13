@@ -216,9 +216,9 @@ impl std::fmt::Display for InstructionsWithLabels {
         match self {
             InstructionsWithLabels::Label(label, frame_size) => {
                 if let Some(size) = frame_size {
-                    write!(f, "#[framesize(0x{:x})]\n{}:", size, label)
+                    write!(f, "#[framesize(0x{size:x})]\n{label}:")
                 } else {
-                    write!(f, "{}:", label)
+                    write!(f, "{label}:")
                 }
             }
             InstructionsWithLabels::B32Mul { dst, src1, src2 } => {

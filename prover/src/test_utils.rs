@@ -5,6 +5,7 @@ use log::trace;
 use petravm_asm::{
     isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
+use tracing::instrument;
 
 use crate::model::Trace;
 
@@ -29,6 +30,7 @@ pub fn fibonacci(n: u32) -> u32 {
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip(res))]
 pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Read the Fibonacci assembly code from examples directory
     let asm_path = format!("{}/../examples/fib.asm", env!("CARGO_MANIFEST_DIR"));
@@ -46,7 +48,7 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     generate_trace(asm_code, Some(init_values), None)
 }
 
-pub fn collatz(mut n: u32) -> usize {
+pub const fn collatz(mut n: u32) -> usize {
     let mut count = 0;
     while n != 1 {
         if n % 2 == 0 {
@@ -68,6 +70,7 @@ pub fn collatz(mut n: u32) -> usize {
 ///
 /// # Returns
 /// * A trace containing the Fibonacci program execution
+#[instrument(level = "info", skip_all)]
 pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
     // Read the Fibonacci assembly code from examples directory
     let asm_path = format!("{}/../examples/collatz.asm", env!("CARGO_MANIFEST_DIR"));
@@ -99,7 +102,7 @@ pub fn generate_trace(
 ) -> Result<Trace> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
-    trace!("compiled program = {:?}", compiled_program);
+    trace!("compiled program = {compiled_program:?}");
 
     // Keep a copy of the program for later
     let mut program = compiled_program.prom.clone();
