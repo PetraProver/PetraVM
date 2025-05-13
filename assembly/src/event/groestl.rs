@@ -46,6 +46,8 @@ impl Event for Groestl256CompressEvent {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
+
+        // Transform the input to match the process in arithmetization.
         let src1_val_new = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
@@ -142,23 +144,54 @@ impl Event for Groestl256OutputEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let mut src1_val = Vec::with_capacity(16);
+        let mut src1_val = Vec::with_capacity(8);
         for i in 0..8 {
             src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
         }
         let src1_val = cast_slice::<u32, u8>(&src1_val);
-        let mut src2_val = Vec::with_capacity(16);
+        let mut src2_val = Vec::with_capacity(8);
         for i in 0..8 {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
 
-        // This actually gives the Groestl output transformation.
-        let compression = Groestl256ByteCompression::default();
-        let src1_array = GenericArray::from_slice(src1_val);
-        let src2_array = GenericArray::from_slice(src2_val);
-        let dst_val = compression.compress([*src1_array, *src2_array]);
-        let dst_val = cast_slice::<u8, u64>(&dst_val);
+        // Transform the input to match the process in arithmetization.
+        let src1_val_new = src1_val
+            .iter()
+            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+            .collect::<Vec<_>>();
+
+        let src2_val_new = src2_val
+            .iter()
+            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
+            .collect::<Vec<_>>();
+
+        let full_input_transposed: [u8; 64] =
+            [src1_val_new, src2_val_new].concat().try_into().unwrap();
+        let full_input = (0..8)
+            .flat_map(|i| {
+                (0..8).map({
+                    let value = full_input_transposed.clone();
+                    move |j| value[j * 8 + i]
+                })
+            })
+            .collect::<Vec<_>>();
+        let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
+        let mut state = state_in.clone();
+        // First, carry put the P permutation on the input.
+        GroestlShortImpl::p_perm(&mut state);
+        GroestlShortImpl::xor_state(&mut state, &state_in);
+
+        // Get the output in the correct format.
+        let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
+        let out_state_bytes =
+            out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+        let dst_val_transposed: [u8; 32] = (0..8)
+            .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
+            .collect::<Vec<_>>()[32..]
+            .try_into()
+            .unwrap();
+        let dst_val = cast_slice::<u8, u64>(&dst_val_transposed);
         for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
         }

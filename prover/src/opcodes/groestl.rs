@@ -1,5 +1,6 @@
 use std::{any::Any, array::from_fn, cell::RefMut};
 
+use binius_field::packed::set_packed_slice;
 use binius_field::AESTowerField8b;
 use binius_field::{underlier::Divisible, Field};
 use binius_hash::groestl::GroestlShortImpl;
@@ -13,7 +14,6 @@ use binius_m3::{
 use bytemuck::cast_slice;
 use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
-use crate::gadgets::state;
 use crate::{
     channels::Channels,
     gadgets::{
@@ -691,40 +691,65 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                 .map(|i| witness.get_mut_as(self.src1_addrs[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
             let mut src1_vals = (0..4)
-                .map(|i| witness.get_mut_as(self.src1_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
+                .map(|i| witness.get_mut(self.src1_vals[i]))
+                .collect::<Result<Vec<_>, _>>()?;
             let mut src2_addrs = (0..4)
                 .map(|i| witness.get_mut_as(self.src2_addrs[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
-            let mut src2_vals: Vec<RefMut<'_, [[u8; 8]]>> = (0..4)
-                .map(|i| witness.get_mut_as(self.src2_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
+            let mut src2_vals = (0..4)
+                .map(|i| witness.get_mut(self.src2_vals[i]))
+                .collect::<Result<Vec<_>, _>>()?;
 
             for (i, event) in rows.clone().enumerate() {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
                 let src1_base_addr = event.fp.addr(event.src1 as u32);
                 let src2_base_addr = event.fp.addr(event.src2 as u32);
+                println!("src1_base_addr: {:x?}", src1_base_addr);
+                println!("src2_base_addr: {:?}", src2_base_addr);
 
-                let mut p_state_bytes = [0; 64];
+                // let transposed_src1 = (0..8)
+                //     .flat_map(|j| (0..4).map(move |k| event.src1_val[k * 8 + j]))
+                //     .collect::<Vec<_>>();
+                // let transposed_src2 = (0..8)
+                //     .flat_map(|j| (0..4).map(move |k| event.src2_val[k * 8 + j]))
+                //     .collect::<Vec<_>>();
                 for j in 0..4 {
                     dst_addrs[j][i] = dst_base_addr + 2 * j as u32;
                     src1_addrs[j][i] = src1_base_addr + 2 * j as u32;
                     src2_addrs[j][i] = src2_base_addr + 2 * j as u32;
 
                     dst_vals[j][i] = event.dst_val[j];
-                    src1_vals[j][i] = event.src1_val[j * 8..(j + 1) * 8].try_into().unwrap();
-                    src2_vals[j][i] = event.src2_val[j * 8..(j + 1) * 8].try_into().unwrap();
-
-                    // Get the input to the P permutation.
-                    p_state_bytes[j * 8..(j + 1) * 8].copy_from_slice(&src1_vals[j][i]);
-                    p_state_bytes[j * 8 + 32..(j + 1) * 8 + 32].copy_from_slice(&src2_vals[j][i]);
                 }
+                for j in 0..4 {
+                    for k in 0..8 {
+                        set_packed_slice(
+                            &mut src1_vals[j],
+                            i * 8 + k,
+                            B8::from(event.src1_val[k * 4 + j]),
+                        );
+                        set_packed_slice(
+                            &mut src2_vals[j],
+                            i * 8 + k,
+                            B8::from(event.src2_val[k * 4 + j]),
+                        );
+                    }
+
+                    // = event.src1_val[j * 8..(j + 1) * 8].try_into().unwrap();
+                    // src2_vals[j][i] = transposed_src2[j * 8..(j + 1) *
+                    // 8].try_into().unwrap();
+                }
+                println!("src1_val: {:x?}", src1_vals);
+                println!("src2_val: {:x?}", src2_vals);
             }
         }
 
         let src1_lookup_iters = (0..4)
             .map(|i| {
                 rows.clone().map(move |ev| {
+                    // let transposed_src1 = (0..4)
+                    //     .flat_map(|j| (0..8).map(move |k| ev.src1_val[k * 8 + j]))
+                    //     .collect::<Vec<_>>();
+                    // let vals = transposed_src1[i * 8..(i + 1) * 8]
                     let vals = ev.src1_val[i * 8..(i + 1) * 8]
                         .chunks_exact(4)
                         .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
@@ -733,7 +758,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .unwrap();
 
                     MultipleLookupGadget {
-                        addr: ev.fp.addr(ev.src1),
+                        addr: ev.fp.addr(ev.src1) + 2 * i as u32,
                         vals,
                     }
                 })
@@ -742,6 +767,10 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
         let src2_lookup_iters = (0..4)
             .map(|i| {
                 rows.clone().map(move |ev| {
+                    // let transposed_src2 = (0..4)
+                    //     .flat_map(|j| (0..8).map(move |k| ev.src2_val[k * 8 + j]))
+                    //     .collect::<Vec<_>>();
+                    // let vals = transposed_src2[i * 8..(i + 1) * 8]
                     let vals = ev.src2_val[i * 8..(i + 1) * 8]
                         .chunks_exact(4)
                         .map(|chunk| u32::from_le_bytes(chunk.try_into().unwrap()))
@@ -750,7 +779,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .unwrap();
 
                     MultipleLookupGadget {
-                        addr: ev.fp.addr(ev.src2),
+                        addr: ev.fp.addr(ev.src2) + 2 * i as u32,
                         vals,
                     }
                 })
