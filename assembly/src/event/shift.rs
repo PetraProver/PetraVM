@@ -90,6 +90,7 @@ where
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,          // 16-bit destination VROM offset
+    pub dst_val: u32,      // 32-bit destination value
     pub src: u16,          // 16-bit source VROM offset
     pub src_val: u32,      // 32-bit source value
     pub shift: u16,        // 16-bit shift amount offset
@@ -109,6 +110,7 @@ where
         fp: FramePointer,
         timestamp: u32,
         dst: u16,
+        dst_val: u32,
         src: u16,
         src_val: u32,
         shift: u16,
@@ -119,6 +121,7 @@ where
             fp,
             timestamp,
             dst,
+            dst_val,
             src,
             src_val,
             shift,
@@ -159,11 +162,11 @@ where
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
-        let new_val = Self::calculate_result(src_val, shift_amount);
+        let dst_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.vrom_write(ctx.addr(dst.val()), new_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -171,6 +174,7 @@ where
             fp,
             timestamp,
             dst.val(),
+            dst_val,
             src.val(),
             src_val,
             0, // No shift amount offset for immediate shifts
@@ -190,11 +194,11 @@ where
     ) -> Result<Self, InterpreterError> {
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
         let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
-        let new_val = Self::calculate_result(src_val, shift_amount);
+        let dst_val = Self::calculate_result(src_val, shift_amount);
 
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        ctx.vrom_write(ctx.addr(dst.val()), new_val)?;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
         ctx.incr_pc();
 
         Ok(Self::new(
@@ -202,6 +206,7 @@ where
             fp,
             timestamp,
             dst.val(),
+            dst_val,
             src1.val(),
             src_val,
             src2.val(),

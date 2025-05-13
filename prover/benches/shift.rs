@@ -28,16 +28,16 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
         let shift_amount = rng.random_range(0..32);
         let shift_imm = shift_amount as u16;
 
-        asm_lines.push(format!("LDI.W @{}, #{}", src_pos, src_val));
-        asm_lines.push(format!("LDI.W @{}, #{}", shift_amount_pos, shift_amount));
+        asm_lines.push(format!("LDI.W @{src_pos}, #{src_val}"));
+        asm_lines.push(format!("LDI.W @{shift_amount_pos}, #{shift_amount}"));
 
         let line = match opcode {
-            "SRLI" => format!("SRLI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
-            "SRL" => format!("SRL  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
-            "SLLI" => format!("SLLI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
-            "SLL" => format!("SLL  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
-            "SRAI" => format!("SRAI @{}, @{}, #{}", dst_pos, src_pos, shift_imm),
-            "SRA" => format!("SRA  @{}, @{}, @{}", dst_pos, src_pos, shift_amount_pos),
+            "SRLI" => format!("SRLI @{dst_pos}, @{src_pos}, #{shift_imm}"),
+            "SRL" => format!("SRL  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
+            "SLLI" => format!("SLLI @{dst_pos}, @{src_pos}, #{shift_imm}"),
+            "SLL" => format!("SLL  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
+            "SRAI" => format!("SRAI @{dst_pos}, @{src_pos}, #{shift_imm}"),
+            "SRA" => format!("SRA  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
             _ => unreachable!(),
         };
         asm_lines.push(line);

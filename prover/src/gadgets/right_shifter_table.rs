@@ -63,10 +63,6 @@ impl Table for RightShifterTable {
             shift_amount,
         }
     }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
 }
 
 impl TableFiller<ProverPackedField> for RightShifterTable {
