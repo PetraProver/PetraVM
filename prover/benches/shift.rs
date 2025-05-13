@@ -13,7 +13,8 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
         "_start:".to_string(),
     ];
 
-    let shift_opcodes = ["SRLI", "SRL", "SLLI", "SLL", "SRAI", "SRA"];
+    // We only use right logical and arithmetic shifts in this benchmark
+    let shift_opcodes = ["SRLI", "SRL", "SRAI", "SRA"];
     let num_opcodes = shift_opcodes.len();
 
     for i in 0..n {
@@ -34,8 +35,6 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
         let line = match opcode {
             "SRLI" => format!("SRLI @{dst_pos}, @{src_pos}, #{shift_imm}"),
             "SRL" => format!("SRL  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
-            "SLLI" => format!("SLLI @{dst_pos}, @{src_pos}, #{shift_imm}"),
-            "SLL" => format!("SLL  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
             "SRAI" => format!("SRAI @{dst_pos}, @{src_pos}, #{shift_imm}"),
             "SRA" => format!("SRA  @{dst_pos}, @{src_pos}, @{shift_amount_pos}"),
             _ => unreachable!(),
@@ -52,8 +51,8 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
 fn bench_shifts(c: &mut Criterion) {
     let mut group = c.benchmark_group("Shift Operations");
 
-    let sizes = [48, 192, 768];
-    let sample_sizes = [100, 80, 40];
+    let sizes = [1500, 6000, 12000];
+    let sample_sizes = [30, 15, 10];
 
     for (&n, &sample_size) in sizes.iter().zip(sample_sizes.iter()) {
         let trace = generate_shift_trace(n).expect("Failed to generate shift trace");
