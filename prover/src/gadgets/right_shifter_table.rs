@@ -94,7 +94,6 @@ impl TableFiller<ProverPackedField> for RightShifterTable {
                 input_unpacked[i] = ev.input;
                 shift_unpacked[i] = ev.shift_amount;
                 shift_amount_low[i] = ev.shift_amount as u16;
-                dbg!(ev);
             }
         }
 

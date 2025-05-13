@@ -163,30 +163,28 @@ impl Trace {
 
         // Handle logical right shifts (SRLI)
         for ev in &trace.srli {
-            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
-            let result = ev.src_val >> shift_amt;
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, ev.dst_val);
         }
 
         // Handle logical right shifts (SRL)
         for ev in &trace.srl {
-            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
-            let result = ev.src_val >> shift_amt;
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, ev.dst_val);
         }
 
         // Handle arithmetic right shifts (SRAI)
         for ev in &trace.srai {
-            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
-            let result = ((ev.src_val as i32) >> shift_amt) as u32;
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
+            let sign = (ev.src_val >> 31) & 1 == 1;
+            let src = if sign { !ev.src_val } else { ev.src_val };
+            let dst = src >> (ev.shift_amount & 0x1F);
+            zkvm_trace.add_right_shift_event(src, ev.shift_amount, dst);
         }
 
         // Handle arithmetic right shifts (SRA)
         for ev in &trace.sra {
-            let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
-            let result = ((ev.src_val as i32) >> shift_amt) as u32;
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
+            let sign = (ev.src_val >> 31) & 1 == 1;
+            let src = if sign { !ev.src_val } else { ev.src_val };
+            let dst = src >> (ev.shift_amount & 0x1F);
+            zkvm_trace.add_right_shift_event(src, ev.shift_amount, dst);
         }
 
         // Set the trace after processing the shift events

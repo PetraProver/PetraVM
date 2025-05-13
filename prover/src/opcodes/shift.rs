@@ -91,7 +91,6 @@ impl TableFiller<ProverPackedField> for SrliTable {
                 dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                 src_abs[i] = B32::new(ev.fp.addr(ev.src));
                 dst_val[i] = B32::new(ev.dst_val);
-                dbg!(ev);
             }
         }
 
@@ -186,7 +185,6 @@ impl TableFiller<ProverPackedField> for SlliTable {
                 src_val[i] = B32::new(ev.src_val);
                 dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                 src_abs[i] = B32::new(ev.fp.addr(ev.src));
-                dbg!(ev);
             }
         }
 
@@ -471,8 +469,16 @@ impl Table for SraTable {
         );
 
         // Source value columns
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
         let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+
+        // Shift amount columns
+        let shift_abs =
+            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
+        let shift_val = table.add_committed("shift_val");
+        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
 
         // Get sign bit (MSB of src value)
         let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
@@ -495,13 +501,6 @@ impl Table for SraTable {
             &sign_bit,
         );
 
-        // Address calculations
-        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
-        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
-        let shift_abs =
-            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
-
-        let shift_val = table.add_committed("shift_val");
         let right_shifter_output: Col<B1, 32> = table.add_committed("right_shifter_output");
         let right_shifter_output_packed =
             table.add_packed("right_shifter_output", right_shifter_output);
@@ -527,12 +526,12 @@ impl Table for SraTable {
             &sign_bit,
         );
 
+        // Address calculations
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull memory access data from VROM channel
         table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
 
         Self {
             id: table.id(),
@@ -852,7 +851,7 @@ mod tests {
             SLLI @6, @2, #{imm}\n\
             SLL  @7, @2, @3 \n\
             SRAI @8, @2, #{imm}\n\
-            ;;SRA  @9, @2, @3 \n\
+            SRA  @9, @2, @3 \n\
             RET\n"
         );
 
@@ -893,24 +892,5 @@ mod tests {
         ) {
             prop_assert!(test_shift_with_values(val, shift_amount).is_ok());
         }
-    }
-
-    #[test]
-    fn test_shift_operations_with_values() -> Result<()> {
-        let val = 2147483648;
-        let shift_amount = 0;
-        let trace = generate_shift_trace(val, shift_amount)?;
-        trace.validate()?;
-
-        // Verify the number of events
-        // assert_eq!(trace.srli_events().len(), 1);
-        // assert_eq!(trace.slli_events().len(), 1);
-        // assert_eq!(trace.srl_events().len(), 1);
-        // assert_eq!(trace.sll_events().len(), 1);
-        // assert_eq!(trace.srai_events().len(), 1);
-        // assert_eq!(trace.sra_events().len(), 1);
-
-        // Validate the witness
-        Prover::new(Box::new(GenericISA)).validate_witness(&trace)
     }
 }
