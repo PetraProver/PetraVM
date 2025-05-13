@@ -165,6 +165,8 @@ impl Event for Groestl256OutputEvent {
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
+        println!("src1_val_new: {:x?}", src1_val_new);
+        println!("src2_val_new: {:x?}", src2_val_new);
 
         let full_input_transposed: [u8; 64] =
             [src1_val_new, src2_val_new].concat().try_into().unwrap();
@@ -176,7 +178,9 @@ impl Event for Groestl256OutputEvent {
                 })
             })
             .collect::<Vec<_>>();
+        println!("full_input: {:x?}", full_input);
         let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
+        println!("state_in: {:?}", state_in);
         let mut state = state_in.clone();
         // First, carry put the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);

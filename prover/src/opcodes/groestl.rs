@@ -152,7 +152,7 @@ impl Table for Groestl256CompressTable {
         let src2_selected: [Col<B32>; 16] = (0..16)
             .map(|i| {
                 table.add_selected(
-                    format!("src1_val_{}_selected", i),
+                    format!("src2_val_{}_selected", i),
                     src2_vals_packed[i / 2],
                     i % 2,
                 )
@@ -293,6 +293,11 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 for i in 0..64 {
                     p_state[i] = B8::from(event.src1_val[i]) + B8::from(event.src2_val[i]);
                 }
+                p_state = (0..8)
+                    .flat_map(|j| (0..8).map(move |k| p_state[k * 8 + j]))
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap();
                 p_state
             })
             .collect::<Vec<_>>();
@@ -311,8 +316,8 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 .map(|i| witness.get_mut_as(self.src1_addresses_plus_one[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
             let mut src1_vals = (0..8)
-                .map(|i| witness.get_mut_as(self.src1_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
+                .map(|i| witness.get_mut(self.src1_vals[i]))
+                .collect::<Result<Vec<_>, _>>()?;
             let mut src1_selected = (0..16)
                 .map(|i| witness.get_mut_as(self.src1_selected[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
@@ -323,8 +328,8 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 .map(|i| witness.get_mut_as(self.src2_addresses_plus_one[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
             let mut src2_vals = (0..8)
-                .map(|i| witness.get_mut_as(self.src2_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
+                .map(|i| witness.get_mut(self.src2_vals[i]))
+                .collect::<Result<Vec<_>, _>>()?;
             let mut src2_selected = (0..16)
                 .map(|i| witness.get_mut_as(self.src2_selected[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
@@ -347,24 +352,41 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
 
                     // Fill source and destination values.
                     dst_vals[j][i] = event.dst_val[j];
-                    // The inputs matrix is transposed in the gadget.
-                    src1_vals[j][i] = event.src1_val[j * 8..(j + 1) * 8].try_into().unwrap();
-                    src2_vals[j][i] = event.src2_val[j * 8..(j + 1) * 8].try_into().unwrap();
-                    let src1_u32: [u32; 16] =
-                        cast_slice::<u8, u32>(&event.src1_val).try_into().unwrap();
-                    let src2_u32: [u32; 16] =
-                        cast_slice::<u8, u32>(&event.src2_val).try_into().unwrap();
 
+                    // The permutation takes the input in row-major order.
+                    for k in 0..8 {
+                        set_packed_slice(
+                            &mut src1_vals[j],
+                            i * 8 + k,
+                            B8::from(event.src1_val[j * 8 + k]),
+                        );
+                        set_packed_slice(
+                            &mut src2_vals[j],
+                            i * 8 + k,
+                            B8::from(event.src2_val[j * 8 + k]),
+                        );
+                    }
+                }
+                let src1_u32: [u32; 16] =
+                    cast_slice::<u8, u32>(&event.src1_val).try_into().unwrap();
+                let src2_u32: [u32; 16] =
+                    cast_slice::<u8, u32>(&event.src2_val).try_into().unwrap();
+
+                println!("src2 val {:?}", event.src2_val);
+                println!("src2 u32: {:?}", src2_u32);
+                for j in 0..16 {
                     src1_selected[j][i] = src1_u32[j];
                     src2_selected[j][i] = src2_u32[j];
                 }
 
+                println!("src2_selected: [{:?}]", src2_selected);
                 // We want to get the output of the P permutation. For this, we first need to
                 // reshape the input and change its basis.
                 let p_state_bytes = p_states[i]
                     .iter()
                     .map(|&b8| AESTowerField8b::from(b8).val())
                     .collect::<Vec<_>>();
+
                 let mut p_state_bytes =
                     GroestlShortImpl::state_from_bytes(&p_state_bytes.try_into().unwrap());
                 GroestlShortImpl::p_perm(&mut p_state_bytes);
@@ -376,16 +398,18 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     .map(|j| (0..8).map(|k| p_out[k * 8 + j]).collect::<Vec<_>>())
                     .collect::<Vec<_>>();
 
+                println!("p_out: [{:?}]", p_out);
                 for j in 0..8 {
                     // Fill interm = p_out XOR src1_val.
                     interm[j][i] = p_out[j]
                         .iter()
-                        .zip(src1_vals[j][i].iter())
+                        .zip(event.src1_val[j * 8..(j + 1) * 8].iter())
                         .map(|(&a, &b)| a.val() ^ b)
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap();
                 }
+                println!("interm: [{:?}]", interm);
             }
         }
 
@@ -486,9 +510,17 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
         });
         self.state_cols.populate(witness, state_rows)?;
 
+        println!("p states {:?}", p_states);
         self.p_op.populate_state_in(witness, p_states.iter())?;
         // Populate the P permutation.
         self.p_op.populate(witness)?;
+        {
+            let p_out = self
+                .p_op
+                .state_out()
+                .map(|state_out_i| witness.get(state_out_i));
+            println!("p_out {:?}", p_out);
+        }
 
         self.q_op.populate_state_in(witness, q_states.iter())?;
         // Populate the Q permutation.
@@ -521,6 +553,7 @@ pub struct Groestl256OutputTable {
     src2_addrs: [Col<B32>; 4],
     // Last 256 bits of the input state.
     src2_vals: [Col<B8, 8>; 4],
+    src2_vals_packed: [Col<B32, 2>; 4],
     // We need to write all 4 words to the VROM channel.
     src2_lookups: [MultipleLookupColumns<2>; 4],
     // Output of the P permutation.
@@ -562,9 +595,8 @@ impl Table for Groestl256OutputTable {
             .map(|i| table.add_packed(format!("src1_val_{}", i), src1_vals[i]))
             .collect::<Vec<_>>();
         let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{}", i)));
-        let src2_vals_packed = (0..4)
-            .map(|i| table.add_packed(format!("src2_val_{}", i), src2_vals[i]))
-            .collect::<Vec<_>>();
+        let src2_vals_packed =
+            from_fn(|i| table.add_packed(format!("src2_val_{}", i), src2_vals[i]));
 
         // Get the base address for the first source value.
         let src1_base_addr = state_cols.fp + upcast_col(state_cols.arg1);
@@ -575,6 +607,7 @@ impl Table for Groestl256OutputTable {
             )
         });
 
+        println!("src1 lookups");
         // Pull the first source value from the VROM channel.
         let src1_lookups: [MultipleLookupColumns<2>; 4] = from_fn(|i| {
             MultipleLookupColumns::new(
@@ -594,6 +627,7 @@ impl Table for Groestl256OutputTable {
                 src2_base_addr.clone() + B32::from(2 * i as u32),
             )
         });
+        println!("src2 lookups");
         // Pull the second source value from the VROM channel.
         let src2_lookups: [MultipleLookupColumns<2>; 4] = from_fn(|i| {
             MultipleLookupColumns::new(
@@ -634,7 +668,7 @@ impl Table for Groestl256OutputTable {
                 dst_base_addr.clone() + B32::from(2 * i as u32),
             )
         });
-
+        println!("dst lookups");
         // Pull the destination value from the VROM channel.
         let dst_lookups = from_fn(|i| {
             MultipleLookupColumns::new(
@@ -657,6 +691,7 @@ impl Table for Groestl256OutputTable {
             src1_lookups,
             src2_addrs,
             src2_vals,
+            src2_vals_packed,
             src2_lookups,
             p_op,
             out,
@@ -680,6 +715,17 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
         rows: impl Iterator<Item = &'a Self::Event> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
+        let p_states = rows
+            .clone()
+            .map(|event| {
+                let mut p_state = [B8::ZERO; 64];
+                for i in 0..32 {
+                    p_state[i] = B8::from(event.src1_val[i]);
+                    p_state[i + 32] = B8::from(event.src2_val[i]);
+                }
+                p_state
+            })
+            .collect::<Vec<_>>();
         {
             let mut dst_addrs = (0..4)
                 .map(|i| witness.get_mut_as(self.dst_addrs[i]))
@@ -699,6 +745,9 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             let mut src2_vals = (0..4)
                 .map(|i| witness.get_mut(self.src2_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
+            let mut out = (0..4)
+                .map(|i| witness.get_scalars_mut(self.out[i]))
+                .collect::<Result<Vec<_>, _>>()?;
 
             for (i, event) in rows.clone().enumerate() {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
@@ -707,12 +756,12 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                 println!("src1_base_addr: {:x?}", src1_base_addr);
                 println!("src2_base_addr: {:?}", src2_base_addr);
 
-                // let transposed_src1 = (0..8)
-                //     .flat_map(|j| (0..4).map(move |k| event.src1_val[k * 8 + j]))
-                //     .collect::<Vec<_>>();
-                // let transposed_src2 = (0..8)
-                //     .flat_map(|j| (0..4).map(move |k| event.src2_val[k * 8 + j]))
-                //     .collect::<Vec<_>>();
+                let transposed_src1 = (0..8)
+                    .flat_map(|j| (0..4).map(move |k| event.src1_val[k * 8 + j]))
+                    .collect::<Vec<_>>();
+                let transposed_src2 = (0..8)
+                    .flat_map(|j| (0..4).map(move |k| event.src2_val[k * 8 + j]))
+                    .collect::<Vec<_>>();
                 for j in 0..4 {
                     dst_addrs[j][i] = dst_base_addr + 2 * j as u32;
                     src1_addrs[j][i] = src1_base_addr + 2 * j as u32;
@@ -725,24 +774,49 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         set_packed_slice(
                             &mut src1_vals[j],
                             i * 8 + k,
-                            B8::from(event.src1_val[k * 4 + j]),
+                            B8::from(event.src1_val[j * 8 + k]),
                         );
                         set_packed_slice(
                             &mut src2_vals[j],
                             i * 8 + k,
-                            B8::from(event.src2_val[k * 4 + j]),
+                            B8::from(event.src2_val[j * 8 + k]),
                         );
                     }
-
-                    // = event.src1_val[j * 8..(j + 1) * 8].try_into().unwrap();
-                    // src2_vals[j][i] = transposed_src2[j * 8..(j + 1) *
-                    // 8].try_into().unwrap();
                 }
                 println!("src1_val: {:x?}", src1_vals);
                 println!("src2_val: {:x?}", src2_vals);
+
+                // Compute the output of the P permutation.
+                let p_state_bytes = p_states[i]
+                    .iter()
+                    .map(|&b8| AESTowerField8b::from(b8).val())
+                    .collect::<Vec<_>>();
+                let p_state_bytes =
+                    GroestlShortImpl::state_from_bytes(&p_state_bytes.try_into().unwrap());
+                let mut state = p_state_bytes.clone();
+                GroestlShortImpl::p_perm(&mut state);
+
+                // Reshape the output to get the expected output.
+                let p_out = GroestlShortImpl::state_to_bytes(&state);
+                let p_out = p_out.map(|byte| B8::from(AESTowerField8b::new(byte)));
+                let p_out = (0..8)
+                    .map(|j| (0..8).map(|k| p_out[k * 8 + j]).collect::<Vec<_>>())
+                    .collect::<Vec<_>>();
+
+                for j in 0..4 {
+                    for k in 0..8 {
+                        // Fill interm = p_out XOR src1_val.
+                        out[j][i * 8 + k] = p_out[j][k] + B8::from(event.src1_val[j * 8 + k]);
+                    }
+                }
             }
         }
-
+        {
+            let src2_vals_packed = (0..4)
+                .map(|i| witness.get_mut(self.src2_vals_packed[i]))
+                .collect::<Result<Vec<_>, _>>()?;
+            println!("src2_vals_packed: {:?}", src2_vals_packed);
+        }
         let src1_lookup_iters = (0..4)
             .map(|i| {
                 rows.clone().map(move |ev| {
@@ -756,6 +830,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap();
+                    println!("src1 i {i}, vals: {:?}", vals);
 
                     MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src1) + 2 * i as u32,
@@ -777,6 +852,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         .collect::<Vec<_>>()
                         .try_into()
                         .unwrap();
+                    println!("i {i}, vals: {:?}", vals);
 
                     MultipleLookupGadget {
                         addr: ev.fp.addr(ev.src2) + 2 * i as u32,
@@ -814,17 +890,6 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             .collect::<Result<(), _>>()?;
 
         // First, we need to populate the P permutation state inputs.
-        let p_states = rows
-            .clone()
-            .map(|event| {
-                let mut p_state = [B8::ZERO; 64];
-                for i in 0..32 {
-                    p_state[i] = B8::from(event.src1_val[i]);
-                    p_state[32 + i] = B8::from(event.src2_val[i]);
-                }
-                p_state
-            })
-            .collect::<Vec<_>>();
         self.p_op.populate_state_in(witness, p_states.iter())?;
         // Populate the P permutation.
         self.p_op.populate(witness)?;
