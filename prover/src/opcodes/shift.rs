@@ -3,6 +3,7 @@ use binius_field::Field;
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -13,6 +14,7 @@ use crate::{
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
+    utils::setup_mux_constraint,
     utils::setup_mux_constraint,
 };
 
