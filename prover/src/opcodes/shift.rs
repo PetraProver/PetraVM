@@ -480,7 +480,6 @@ pub struct SraTable {
     state_cols: StateColumns<{ Opcode::Sra as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -589,7 +588,6 @@ impl Table for SraTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
@@ -602,10 +600,6 @@ impl Table for SraTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -708,7 +702,6 @@ pub struct SraiTable {
     state_cols: StateColumns<{ Opcode::Srai as u16 }>,
     shifter: BarrelShifter,
     dst_abs: Col<B32>,
-    dst_val: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
     sign_bit: Col<B1>,
@@ -800,7 +793,6 @@ impl Table for SraiTable {
             state_cols,
             shifter,
             dst_abs,
-            dst_val,
             src_abs,
             src_val_unpacked,
             sign_bit,
@@ -809,10 +801,6 @@ impl Table for SraiTable {
             inverted_output,
             result,
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 

@@ -8,7 +8,7 @@ PetraVM is a general-purpose virtual machine that is succinctly verifiable using
 
 The VM consists of a basic instruction set and optional instruction set extensions. The arithmetization of the machine enables the prover and verifier to only handle the ISA extensions used by an agreed-upon program.
 
-The full machine specification can be found [here](./book/src/specification.md).
+The full machine specification can be found [here](https://petraprover.github.io/PetraVM/specification.html).
 
 ## Documentation
 
@@ -42,7 +42,7 @@ Expansion to include RAM-related instructions is kept for future work.
 
 > **Note:** In PetraVM, variables refer to addresses in VROM (Value ROM, a write-once memory region). Instructions operate on values at these addresses unless specified as "immediate" operations.
 
-> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
+> **Note:** Check out our [instruction set test suite](https://github.com/PetraProver/PetraVM/tree/main/examples/opcodes.asm) for a complete overview of supported instructions and their usage.
 
 #### Binary Field Operations
 - [x] `B32_MUL` - 32-bit binary field multiplication
@@ -54,10 +54,10 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `ADD` - Integer addition
 - [x] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
-- [ ] `MUL` - Signed multiplication
-- [ ] `MULI` - Signed multiplication with immediate
-- [ ] `MULU` - Unsigned multiplication
-- [ ] `MULSU` - Signed × unsigned multiplication
+- [x] `MUL` - Signed multiplication
+- [x] `MULI` - Signed multiplication with immediate
+- [x] `MULU` - Unsigned multiplication
+- [x] `MULSU` - Signed × unsigned multiplication
 
 #### Logic Operations
 - [x] `AND` - Bitwise AND
@@ -76,12 +76,12 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
-- [ ] `SLT` - Set if less than (signed)
-- [ ] `SLTI` - Set if less than immediate (signed)
+- [x] `SLT` - Set if less than (signed)
+- [x] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
 - [x] `SLTIU` - Set if less than immediate (unsigned)
-- [ ] `SLE` - Set if less than or equal (signed)
-- [ ] `SLEI` - Set if less than or equal immediate (signed)
+- [x] `SLE` - Set if less than or equal (signed)
+- [x] `SLEI` - Set if less than or equal immediate (signed)
 - [x] `SLEU` - Set if less than or equal (unsigned)
 - [x] `SLEIU` - Set if less than or equal immediate (unsigned)
 
@@ -114,8 +114,18 @@ Expansion to include RAM-related instructions is kept for future work.
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
-- [Fibonacci](prover/tests/fibonacci.rs): Prove a Fibonacci number
-- [Collatz](prover/test/collatz.rs): Prove the Collatz sequence for a given number
+- [Fibonacci](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/fibonacci.rs): Prove a Fibonacci number
+- [Collatz](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/collatz.rs): Prove the Collatz sequence for a given number
+
+### Running Examples
+
+```bash
+# Calculate and prove the 10th Fibonacci number
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 10
+
+# Run Collatz conjecture for starting value 7
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
+```
 
 ## Development Status
 
@@ -123,16 +133,16 @@ The project is actively developed. Many instructions are already supported by th
 
 ## Crates
 
-- [`assembly`](./assembly): zkVM assembly DSL, parser and program executor
-- [`prover`](./prover): Circuit definition and proof generation
+- [`assembly`](https://github.com/PetraProver/PetraVM/tree/main/assembly): zkVM assembly DSL, parser and program executor
+- [`prover`](https://github.com/PetraProver/PetraVM/tree/main/prover): Circuit definition and proof generation
 
 ## License
 
-Licensed under Apache 2.0. See [LICENSE](LICENSE).
+Licensed under Apache 2.0. See [LICENSE](https://github.com/PetraProver/PetraVM/tree/main/LICENSE).
 
 ## Contributing
 
-The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](CONTRIBUTING.md) document for guidelines.
+The PetraVM project is a collaboration between several teams and welcomes community contributions. Please open issues or pull requests for bugs, features, or improvements. See the [CONTRIBUTING](https://github.com/PetraProver/PetraVM/tree/main/CONTRIBUTING.md) document for guidelines.
 
 The initial development is led by [Polygon](https://polygon.technology/) and [Irreducible](https://www.irreducible.com/).
 

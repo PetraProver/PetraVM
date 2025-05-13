@@ -30,10 +30,7 @@ fn test_bezout_integration() {
         assert_eq!(
             bezout_frame.get_vrom_expected::<u32>(4),
             expected_gcd,
-            "GCD of {} and {} should be {}",
-            a,
-            b,
-            expected_gcd
+            "GCD of {a} and {b} should be {expected_gcd}"
         );
 
         // TODO: Replace `u32` with `i32` once `VromValueT` is implemented for `i32`...
@@ -44,9 +41,7 @@ fn test_bezout_integration() {
         assert_eq!(
             a as i32 * x + b as i32 * y,
             expected_gcd as i32,
-            "Bezout coefficients do not satisfy the equation for a = {}, b = {}",
-            a,
-            b
+            "Bezout coefficients do not satisfy the equation for a = {a}, b = {b}"
         );
     }
 }

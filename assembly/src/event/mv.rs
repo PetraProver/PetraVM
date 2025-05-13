@@ -139,7 +139,7 @@ impl MVEventOutput {
                 );
                 trace.mvvw.push(new_event);
             }
-            o => panic!("Events for {:?} should already have been generated.", o),
+            o => panic!("Events for {o:?} should already have been generated."),
         }
     }
 }
@@ -945,7 +945,7 @@ mod tests {
         assert_eq!(traces.vrom_pending_updates().len(), pending_updates.len(),);
         for (k, pending_update) in traces.vrom_pending_updates() {
             let expected_update = pending_updates.get(k).unwrap_or_else(|| {
-                panic!("Missing expected update {:?} at addr {}", pending_update, k)
+                panic!("Missing expected update {pending_update:?} at addr {k}")
             });
             assert_eq!(*expected_update, *pending_update,);
         }
