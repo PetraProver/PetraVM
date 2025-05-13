@@ -51,7 +51,7 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
 fn bench_shifts(c: &mut Criterion) {
     let mut group = c.benchmark_group("Shift Operations");
 
-    let sizes = [1500, 6000, 12000];
+    let sizes = [2048, 8192, 16384];
     let sample_sizes = [30, 15, 10];
 
     for (&n, &sample_size) in sizes.iter().zip(sample_sizes.iter()) {
