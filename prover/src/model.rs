@@ -165,28 +165,28 @@ impl Trace {
         for ev in &trace.srli {
             let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
             let result = ev.src_val >> shift_amt;
-            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
         }
 
         // Handle logical right shifts (SRL)
         for ev in &trace.srl {
             let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
             let result = ev.src_val >> shift_amt;
-            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
         }
 
         // Handle arithmetic right shifts (SRAI)
         for ev in &trace.srai {
             let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
             let result = ((ev.src_val as i32) >> shift_amt) as u32;
-            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
         }
 
         // Handle arithmetic right shifts (SRA)
         for ev in &trace.sra {
             let shift_amt = ev.shift_amount & 0x1F; // Mask to 5 bits for 32-bit values
             let result = ((ev.src_val as i32) >> shift_amt) as u32;
-            zkvm_trace.add_right_shift_event(ev.src_val, shift_amt, result);
+            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, result);
         }
 
         // Set the trace after processing the shift events
