@@ -1,11 +1,7 @@
 use binius_field::AESTowerField8b;
-use binius_hash::{
-    groestl::{Groestl256ByteCompression, GroestlShortImpl, GroestlShortInternal},
-    PseudoCompressionFunction,
-};
+use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use binius_m3::builder::{B16, B32, B8};
 use bytemuck::cast_slice;
-use generic_array::GenericArray;
 
 use super::{context::EventContext, Event};
 use crate::{
@@ -149,25 +145,21 @@ impl Event for Groestl256OutputEvent {
             src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
         }
         let src1_val = cast_slice::<u32, u8>(&src1_val);
+
         let mut src2_val = Vec::with_capacity(8);
         for i in 0..8 {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
-
         // Transform the input to match the process in arithmetization.
         let src1_val_new = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
             .collect::<Vec<_>>();
-
         let src2_val_new = src2_val
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
-        println!("src1_val_new: {:x?}", src1_val_new);
-        println!("src2_val_new: {:x?}", src2_val_new);
-
         let full_input_transposed: [u8; 64] =
             [src1_val_new, src2_val_new].concat().try_into().unwrap();
         let full_input = (0..8)
@@ -178,9 +170,7 @@ impl Event for Groestl256OutputEvent {
                 })
             })
             .collect::<Vec<_>>();
-        println!("full_input: {:x?}", full_input);
         let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
-        println!("state_in: {:?}", state_in);
         let mut state = state_in.clone();
         // First, carry put the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);
@@ -229,7 +219,7 @@ mod tests {
     use std::collections::HashMap;
 
     use binius_field::Field;
-    use generic_array::typenum;
+    use generic_array::{typenum, GenericArray};
 
     use super::*;
     use crate::{isa::RecursionISA, test_util::code_to_prom, Memory, Opcode, PetraTrace, ValueRom};
