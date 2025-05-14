@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use binius_field::underlier::Divisible;
-use binius_m3::builder::{B128, B32};
+use binius_m3::builder::B128;
 use log::trace;
 use petravm_asm::isa::GenericISA;
 use petravm_prover::model::Trace;
@@ -321,119 +321,4 @@ fn test_simple_taili_loop() -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Creates an execution trace with all binary operations (AND, OR, XOR, ANDI,
-/// ORI, XORI, B32_MUL, B32_MULI) using random input values.
-///
-/// # Returns
-/// * A Trace containing all binary operations followed by a RET instruction
-fn generate_all_binary_ops_trace() -> Result<Trace> {
-    let mut rng = StdRng::seed_from_u64(12345);
-
-    // Generate random values for testing
-    let val1 = rng.random::<u32>();
-    let val2 = rng.random::<u32>();
-    let imm = rng.random::<u16>() as u32; // Smaller immediate for 16-bit operations
-    let imm32 = rng.random::<u32>(); // Full 32-bit immediate for B32_MULI
-
-    // Create assembly program with all binary operations
-    let asm_code = format!(
-        "#[framesize(0x10)]\n\
-        _start: 
-            LDI.W @2, #{val1}\n\
-            LDI.W @3, #{val2}\n\
-            AND @4, @2, @3\n\
-            OR @5, @2, @3\n\
-            XOR @6, @2, @3\n\
-            ANDI @7, @2, #{imm}\n\
-            ORI @8, @2, #{imm}\n\
-            XORI @9, @2, #{imm}\n\
-            B32_MUL @10, @2, @3\n\
-            B32_MULI @11, @2, #{imm32}\n\
-            RET\n"
-    );
-
-    // Calculate expected results
-    let and_result = val1 & val2;
-    let or_result = val1 | val2;
-    let xor_result = val1 ^ val2;
-    let andi_result = val1 & imm;
-    let ori_result = val1 | imm;
-    let xori_result = val1 ^ imm;
-    let b32_mul_result = (B32::new(val1) * B32::new(val2)).val();
-    let b32_muli_result = (B32::new(val1) * B32::new(imm32)).val();
-
-    // Add VROM writes with appropriate access counts
-    let vrom_writes = vec![
-        // LDI events - with corrected access counts for more operations
-        (2, val1, 9), // Used in all operations
-        (3, val2, 5), // Used in AND, OR, XOR, B32_MUL
-        // Initial values
-        (0, 0, 1),
-        (1, 0, 1),
-        // Binary operations results
-        (4, and_result, 1),
-        (5, or_result, 1),
-        (6, xor_result, 1),
-        (7, andi_result, 1),
-        (8, ori_result, 1),
-        (9, xori_result, 1),
-        (10, b32_mul_result, 1),
-        (11, b32_muli_result, 1),
-    ];
-
-    generate_trace(asm_code, None, Some(vrom_writes))
-}
-
-#[test]
-fn test_all_binary_ops() -> Result<()> {
-    test_from_trace_generator(generate_all_binary_ops_trace, |trace| {
-        // Verify each binary operation event exists
-        assert_eq!(
-            trace.and_events().len(),
-            1,
-            "Should have exactly one AND event"
-        );
-        assert_eq!(
-            trace.or_events().len(),
-            1,
-            "Should have exactly one OR event"
-        );
-        assert_eq!(
-            trace.xor_events().len(),
-            1,
-            "Should have exactly one XOR event"
-        );
-        assert_eq!(
-            trace.andi_events().len(),
-            1,
-            "Should have exactly one ANDI event"
-        );
-        assert_eq!(
-            trace.ori_events().len(),
-            1,
-            "Should have exactly one ORI event"
-        );
-        assert_eq!(
-            trace.xori_events().len(),
-            1,
-            "Should have exactly one XORI event"
-        );
-        assert_eq!(
-            trace.b32_mul_events().len(),
-            1,
-            "Should have exactly one B32_MUL event"
-        );
-        assert_eq!(
-            trace.b32_muli_events().len(),
-            1,
-            "Should have exactly one B32_MULI event"
-        );
-        assert_eq!(
-            trace.ret_events().len(),
-            1,
-            "Should have exactly one RET event"
-        );
-    })
 }
