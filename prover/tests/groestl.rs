@@ -79,8 +79,10 @@ fn generate_groestl_ret_trace(
 
     //// COMPRESSION STEP ////
     // Compute the output of the compression step.
-    let src1_bytes = cast_slice::<u32, u8>(&src1_val);
-    let src2_bytes = cast_slice::<u32, u8>(&src2_val);
+    let src1_val_vec = src1_val.to_vec();
+    let src2_val_vec = src2_val.to_vec();
+    let src1_bytes = cast_slice::<u32, u8>(&src1_val_vec);
+    let src2_bytes = cast_slice::<u32, u8>(&src2_val_vec);
 
     let src1_val_new = src1_bytes
         .iter()
@@ -103,12 +105,13 @@ fn generate_groestl_ret_trace(
     let out_state_bytes = GroestlShortImpl::state_to_bytes(&compression_output);
     let out_state_bytes =
         out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+    let out_state_vec = out_state_bytes.to_vec();
     let dst_val_transposed = (0..8)
         .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
         .collect::<Vec<_>>();
 
     // Output state that is stored as the input of the next compression step.
-    let compression_output = cast_slice::<u8, u32>(&out_state_bytes);
+    let compression_output = cast_slice::<u8, u32>(&out_state_vec);
 
     /////////////////////////////////
     //// 2-to-1 COMPRESSION STEP ////

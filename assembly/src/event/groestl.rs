@@ -67,7 +67,9 @@ impl Event for Groestl256CompressEvent {
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
-        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes).try_into().unwrap();
+        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes.to_vec())
+            .try_into()
+            .unwrap();
 
         for i in 0..8 {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
@@ -161,11 +163,10 @@ impl Event for Groestl256OutputEvent {
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-        let dst_val_transposed: [u8; 32] = (0..8)
+        let dst_val_transposed = (0..8)
             .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
             .collect::<Vec<_>>()[32..]
-            .try_into()
-            .unwrap();
+            .to_vec();
         let dst_val = cast_slice::<u8, u64>(&dst_val_transposed);
         for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;

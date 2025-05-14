@@ -501,6 +501,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
                 let src1_base_addr = event.fp.addr(event.src1 as u32);
                 let src2_base_addr = event.fp.addr(event.src2 as u32);
+                let dst_val_vec = event.dst_val.to_vec();
 
                 for j in 0..8 {
                     // Fill addresses.
@@ -512,7 +513,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     src2_addresses_plus_one[j][i] = src2_base_addr + 2 * j as u32 + 1;
 
                     // Fill source and destination values.
-                    let dst_val_u8 = cast_slice::<u64, u8>(&event.dst_val);
+                    let dst_val_u8 = cast_slice::<u64, u8>(&dst_val_vec);
                     dst_vals[j][i] = event.dst_val[j];
 
                     // The permutation takes the input in row-major order.
@@ -553,12 +554,13 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     .flat_map(|j| (0..8).map(move |k| event.src1_val[k * 8 + j]))
                     .collect::<Vec<_>>();
 
-                let src1_u32: [u32; 16] =
-                    cast_slice::<u8, u32>(&event.src1_val).try_into().unwrap();
-                let src2_u32: [u32; 16] =
-                    cast_slice::<u8, u32>(&event.src2_val).try_into().unwrap();
+                let src1_val_vec = event.src1_val.to_vec();
+                let src2_val_vec = event.src2_val.to_vec();
+
+                let src1_u32: [u32; 16] = cast_slice::<u8, u32>(&src1_val_vec).try_into().unwrap();
+                let src2_u32: [u32; 16] = cast_slice::<u8, u32>(&src2_val_vec).try_into().unwrap();
                 let dst_val_u32: [u32; 16] =
-                    cast_slice::<u64, u32>(&event.dst_val).try_into().unwrap();
+                    cast_slice::<u64, u32>(&dst_val_vec).try_into().unwrap();
 
                 for j in 0..16 {
                     src1_selected[j][i] = src1_u32[j];
