@@ -96,7 +96,12 @@ impl ValueRom {
         let read_data = &self.data[index as usize..index as usize + T::word_size()];
 
         for (i, opt_word) in read_data.iter().enumerate() {
-            let word = opt_word.ok_or(MemoryError::VromMissingValue(index))?;
+            let word = opt_word.ok_or({
+                if index == 5 {
+                    println!("auxilio");
+                }
+                MemoryError::VromMissingValue(index)
+            })?;
 
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));

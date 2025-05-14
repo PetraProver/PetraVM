@@ -26,7 +26,7 @@ pub fn fibonacci(n: u32) -> u32 {
 /// located in the `examples` directory.
 ///
 /// # Arguments
-/// * `file_name` - The name of the assembly file.
+/// * `files` - The names of the assembly files.
 /// * `init_values` - The initial values for the VROM.
 ///
 /// # Returns

@@ -23,12 +23,18 @@ tracing-forest = { version = "0.1.6", features = ["ansi"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Binius dependencies
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_core = { path = "../binius/crates/core" }
+binius_field = { path = "../binius/crates/field" }
+binius_hal = { path = "../binius/crates/hal" }
+binius_hash = { path = "../binius/crates/hash" }
+binius_m3 = { path = "../binius/crates/m3" }
+binius_utils = { path = "../binius/crates/utils" }
+# binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
+# binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
+# binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
+# binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
+# binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
+# binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
 
 [profile.release]
 lto = "fat"
