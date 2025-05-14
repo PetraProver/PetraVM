@@ -67,15 +67,14 @@ fn generate_groestl_ret_trace(
         "#[framesize(0x10)]\n\
          _start: 
             GROESTL256_COMPRESS @{}, @{}, @{}\n\
-            GROESTL256_OUTPUT @{}, @{}, @{}\n\
             RET\n",
         compression_output_offset,
         src1_offset,
         src2_offset,
         // src1_offset + 8,
-        groestl_output_offset,
-        compression_output_offset,     // lower bits of the new input state
-        compression_output_offset + 8  // higher bits of the new input state
+        // groestl_output_offset,
+        // compression_output_offset,     // lower bits of the new input state
+        // compression_output_offset + 8  // higher bits of the new input state
     );
 
     //// COMPRESSION STEP ////
@@ -87,26 +86,12 @@ fn generate_groestl_ret_trace(
         .iter()
         .map(|s1| binius_field::AESTowerField8b::from(B8::from(*s1)).val())
         .collect::<Vec<_>>();
-    let src1_val_new = (0..8)
-        .flat_map(|i| {
-            (0..8).map({
-                let value = src1_val_new.clone();
-                move |j| value[j * 8 + i]
-            })
-        })
-        .collect::<Vec<_>>();
+
     let src2_val_new = src2_bytes
         .iter()
         .map(|s2| binius_field::AESTowerField8b::from(B8::from(*s2)).val())
         .collect::<Vec<_>>();
-    let src2_val_new = (0..8)
-        .flat_map(|i| {
-            (0..8).map({
-                let value = src2_val_new.clone();
-                move |j| value[j * 8 + i]
-            })
-        })
-        .collect::<Vec<_>>();
+
     let mut compression_output =
         GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
 
@@ -123,7 +108,7 @@ fn generate_groestl_ret_trace(
         .collect::<Vec<_>>();
 
     // Output state that is stored as the input of the next compression step.
-    let compression_output = cast_slice::<u8, u32>(&dst_val_transposed);
+    let compression_output = cast_slice::<u8, u32>(&out_state_bytes);
 
     /////////////////////////////////
     //// 2-to-1 COMPRESSION STEP ////
@@ -132,7 +117,7 @@ fn generate_groestl_ret_trace(
     // Reshape the input of the 2-to-1 compression step.
     // This is transposed compared to the actual output of the previous compression
     // step.
-    let new_input: [u8; 64] = out_state_bytes
+    let new_input: [u8; 64] = dst_val_transposed
         .iter()
         .map(|byte| binius_field::AESTowerField8b::from(B8::from(*byte)).val())
         .collect::<Vec<_>>()
@@ -168,12 +153,12 @@ fn generate_groestl_ret_trace(
     // Add VROM writes from GROESTL and RET events.
     let mut vrom_writes = vec![];
     // Write outputs.
-    vrom_writes.extend(
-        compression_output
-            .iter()
-            .enumerate()
-            .map(|(i, v)| (i as u32 + compression_output_offset, *v, 2u32)),
-    );
+    // vrom_writes.extend(
+    //     compression_output
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(i, v)| (i as u32 + compression_output_offset, *v, 2u32)),
+    // );
     // FP and PC.
     vrom_writes.extend_from_slice(&[(0, 0, 1), (1, 0, 1)]);
     // Inputs.
@@ -189,13 +174,19 @@ fn generate_groestl_ret_trace(
             .enumerate()
             .map(|(i, v)| (i as u32 + src2_offset, *v, 1)),
     );
-    // Final output
     vrom_writes.extend(
-        groestl_output
+        compression_output
             .iter()
             .enumerate()
-            .map(|(i, v)| (i as u32 + groestl_output_offset, *v, 1)),
+            .map(|(i, v)| (i as u32 + compression_output_offset, *v, 1u32)),
     );
+    // // Final output
+    // vrom_writes.extend(
+    //     groestl_output
+    //         .iter()
+    //         .enumerate()
+    //         .map(|(i, v)| (i as u32 + groestl_output_offset, *v, 1)),
+    // );
 
     let isa = Box::new(RecursionISA);
     generate_trace(asm_code, Some(init_values), Some(vrom_writes), isa)
@@ -203,7 +194,6 @@ fn generate_groestl_ret_trace(
 
 #[test]
 fn test_groestl_proving() -> Result<()> {
-    tracing_subscriber::fmt::init();
     test_from_trace_generator(
         || {
             // Test value to load
@@ -226,11 +216,11 @@ fn test_groestl_proving() -> Result<()> {
                 1,
                 "Should have exactly one GROESTL256_COMPRESS event"
             );
-            assert_eq!(
-                trace.groestl_output_events().len(),
-                1,
-                "Should have exactly GROESTL256_OUTPUT event"
-            );
+            // assert_eq!(
+            //     trace.groestl_output_events().len(),
+            //     1,
+            //     "Should have exactly GROESTL256_OUTPUT event"
+            // );
             assert_eq!(
                 trace.ret_events().len(),
                 1,

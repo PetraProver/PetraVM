@@ -42,34 +42,21 @@ impl Event for Groestl256CompressEvent {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
         let src2_val = cast_slice::<u32, u8>(&src2_val);
-
         // Transform the input to match the process in arithmetization.
         let src1_val_new = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
             .collect::<Vec<_>>();
-        let src1_val_new = (0..8)
-            .flat_map(|i| {
-                (0..8).map({
-                    let value = src1_val_new.clone();
-                    move |j| value[j * 8 + i]
-                })
-            })
-            .collect::<Vec<_>>();
+
         let src2_val_new = src2_val
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
-        let src2_val_new = (0..8)
-            .flat_map(|i| {
-                (0..8).map({
-                    let value = src2_val_new.clone();
-                    move |j| value[j * 8 + i]
-                })
-            })
-            .collect::<Vec<_>>();
-        let mut out_val =
+
+        let out_val_inp =
             GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
+
+        let mut out_val = out_val_inp.clone();
 
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut out_val,
@@ -80,13 +67,7 @@ impl Event for Groestl256CompressEvent {
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
-        // Transpose, since the gadgets work on the transposed version.
-        let dst_val_transposed = (0..8)
-            .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
-            .collect::<Vec<_>>();
-        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&dst_val_transposed)
-            .try_into()
-            .unwrap();
+        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes).try_into().unwrap();
 
         for i in 0..8 {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
