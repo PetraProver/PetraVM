@@ -45,12 +45,12 @@ build_linked_list_of_ints:
     ;; Slot 2: Arg: start_val
     ;; Slot 3: Arg: list_size
     ;; Slot 4: ND Local: Next FP
-    ;; Slot 5: Return value (We actually can't implement this yet, so until we have the instruction to store addresses, this function will just return `0`.)
+    ;; Slot 5: Return value: 0 (emtpy list), > 0 pointer to the first node value
     
-    MVV.W @4[2], @2
-    MVV.W @4[3], @3
-    MVV.W @4[4], @4
-    MVV.W @4[6], @6
+    MVV.W @4[2], @2 ;; curr_val
+    MVV.W @4[3], @3 ;; list_size
+    MVV.W @4[4], @4 ;; cur_fp
+    MVV.W @4[6], @6 ;; return value
     CALLI build_linked_list_of_ints_rec, @4
 
     BNZ non_empty_list, @6
@@ -59,7 +59,7 @@ build_linked_list_of_ints:
 
 non_empty_list:
     ;; TODO: Replace instruction with one that stores addresses once available...
-    MVV.W @4[7], @5 ;; A non-zero value is always the address of the first node.
+    LDI.W @5, #23 ;; The address of the first node is next_fp + 7 = 16 + 7 = 23.
     RET
 
 #[framesize(0xc)]
@@ -79,11 +79,13 @@ build_linked_list_of_ints_rec:
     ;; Slot 11: next_val
 
     ADDI @7, @4, #9 ;; Store the address of the current value.
+    ADDI @9, @2, #0 ;; node.node_val = curr_val
     
     SLT @8, @2, @3 ;; curr_val < list_size
     BNZ add_new_node, @8
 
     LDI.W @6, #0 ;; This is the last node.
+    LDI.W @10, #0 ;; Next node is null
     RET    
 
 add_new_node:
@@ -94,9 +96,9 @@ add_new_node:
     MVV.W @5[3], @3 ;; List size
     MVV.W @5[4], @5 ;; Store the address of the next frame pointer.
     ;; Return values
-    ADDI @9, @2, #0 ;; node.node_val = curr_val
-    ;; ADDI @10, @5, #9 ;; node.next = next_fp + 9
 
     LDI.W @6, #1 ;; Indicate to caller that there is another node.
-    TAILI build_linked_list_of_ints_rec, @5
+    CALLI build_linked_list_of_ints_rec, @5
+
+    ADDI @10, @5, #7 ;; node.next = next_fp + 7
     RET

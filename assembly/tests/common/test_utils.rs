@@ -36,7 +36,7 @@ pub struct Frames {
     /// Map of frame templates names to instantiated frames of that template (in
     /// order of allocation).
     frames: HashMap<String, Vec<Rc<AllocatedFrame>>>,
-    trace: Rc<PetraTrace>,
+    pub trace: Rc<PetraTrace>,
 
     frame_templates: HashMap<String, FrameTemplate>,
 
