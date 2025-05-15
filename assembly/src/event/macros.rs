@@ -428,10 +428,6 @@ macro_rules! define_bin128_op_event {
 
                 // Store result
                 ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-                println!(
-                    "bin op vrom write: addr: {:?}, value: {dst_val}",
-                    ctx.addr(dst.val())
-                );
 
                 let (_pc, field_pc, fp, timestamp) = ctx.program_state();
                 ctx.incr_pc();

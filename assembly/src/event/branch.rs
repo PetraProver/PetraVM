@@ -40,7 +40,6 @@ impl Event for BnzEvent {
         }
 
         let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
-        tracing::debug!("BNZ: cond_val = {cond_val}, cond = {cond}, target = {target}");
 
         if cond_val != 0 {
             // We are actually branching.

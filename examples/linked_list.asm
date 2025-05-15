@@ -37,7 +37,7 @@
 ;; return sum
 ;; ------------
 
-#[framesize(0x7)]
+#[framesize(0x6)]
 build_linked_list_of_ints:
     ;; Frame:
     ;; Slot 0: Return PC
