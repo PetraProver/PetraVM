@@ -9,25 +9,14 @@ fn run_test(cur_val: u32, list_size: u32) {
     let linked_list_frame = info.frames.add_frame("build_linked_list_of_ints");
     let mut current_node_ptr = linked_list_frame.get_vrom_expected::<u32>(5);
     let mut i = 0;
-    println!(
-        "vrom  = {:?}",
-        info.frames
-            .trace
-            .vrom()
-            .data
-            .iter()
-            .enumerate()
-            .collect::<Vec<_>>()
-    );
     // Traverse the whole list
     while current_node_ptr != 0 {
-        println!("current_node_ptr = {current_node_ptr} i = {i}");
         // Assert that the current node value is correct
         let node_value = info
             .frames
             .trace
             .vrom()
-            .read::<u32>(current_node_ptr + 2)
+            .read::<u32>(current_node_ptr)
             .expect("The node value must have been set");
         assert_eq!(
             node_value,
@@ -38,14 +27,16 @@ fn run_test(cur_val: u32, list_size: u32) {
             .frames
             .trace
             .vrom()
-            .read::<u32>(current_node_ptr + 3)
+            .read::<u32>(current_node_ptr + 1)
             .expect("The next node ptr must have been set");
         i += 1;
     }
 
     assert_eq!(
-        i, list_size,
-        "Linked list size mismatch for cur_val = {cur_val}, list_size = {list_size}"
+        i,
+        list_size - cur_val,
+        "Linked list size mismatch for cur_val = {cur_val}, list_size =
+    {list_size}"
     );
 }
 
