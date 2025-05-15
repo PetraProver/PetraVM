@@ -42,21 +42,17 @@ pub struct Groestl256CompressTable {
     // We need to write all 16 words to the VROM channel.
     dst_vals: [Col<B64>; 8],
     // Base address.
-    src1_addresses: [Col<B32>; 8],
-    src1_addresses_plus_one: [Col<B32>; 8],
+    src1_addresses: [Col<B32>; 16],
     // Columns needed for transposition.
-    projected_src1_vals: [[Col<B8>; 8]; 8],
-    zero_padded_src1_vals: [[Col<B8, 8>; 8]; 8],
-    transposed_src1_vals: [Col<B8, 8>; 8],
-    src1_selected: [Col<B32>; 16],
+    projected_src1_vals: [Col<B8>; 64],
+    zero_padded_src1_vals: [Col<B8, 4>; 64],
+    transposed_src1_vals: [Col<B8, 4>; 16],
     src1_vals: [Col<B8, 8>; 8],
-    src2_addresses: [Col<B32>; 8],
-    src2_addresses_plus_one: [Col<B32>; 8],
+    src2_addresses: [Col<B32>; 16],
     // Columns needed for transposition.
-    projected_src2_vals: [[Col<B8>; 8]; 8],
-    zero_padded_src2_vals: [[Col<B8, 8>; 8]; 8],
-    transposed_src2_vals: [Col<B8, 8>; 8],
-    src2_selected: [Col<B32>; 16],
+    projected_src2_vals: [Col<B8>; 64],
+    zero_padded_src2_vals: [Col<B8, 4>; 64],
+    transposed_src2_vals: [Col<B8, 4>; 16],
     src2_vals: [Col<B8, 8>; 8],
     out: [Col<B8, 8>; 8],
     projected_out: [[Col<B8>; 8]; 8],
@@ -106,33 +102,15 @@ impl Table for Groestl256CompressTable {
             table.add_computed("src2_addr_0", state_cols.fp + upcast_col(state_cols.arg2));
 
         // Get all the addresses for the first and second source values.
-        let mut src1_addresses = [src1_abs; 8];
-        for i in 1..8 {
-            src1_addresses[i] = table.add_computed(
-                format!("src1_addr_{}", i),
-                src1_abs + B32::from(2 * i as u32),
-            );
+        let mut src1_addresses = [src1_abs; 16];
+        for i in 1..16 {
+            src1_addresses[i] =
+                table.add_computed(format!("src1_addr_{}", i), src1_abs + B32::from(i as u32));
         }
-        let mut src1_addresses_plus_one = [src1_abs; 8];
-        for i in 0..8 {
-            src1_addresses_plus_one[i] = table.add_computed(
-                format!("src1_addr_{}", i),
-                src1_abs + B32::from(2 * i as u32 + 1),
-            );
-        }
-        let mut src2_addresses = [src2_abs; 8];
-        for i in 1..8 {
-            src2_addresses[i] = table.add_computed(
-                format!("src2_addr_{}", i),
-                src2_abs + B32::from(2 * i as u32),
-            );
-        }
-        let mut src2_addresses_plus_one = [src2_abs; 8];
-        for i in 0..8 {
-            src2_addresses_plus_one[i] = table.add_computed(
-                format!("src2_addr_{}", i),
-                src2_abs + B32::from(2 * i as u32 + 1),
-            );
+        let mut src2_addresses = [src2_abs; 16];
+        for i in 1..16 {
+            src2_addresses[i] =
+                table.add_computed(format!("src2_addr_{}", i), src2_abs + B32::from(i as u32));
         }
 
         // We need to take the transpose of the source values to get the correct
@@ -158,35 +136,30 @@ impl Table for Groestl256CompressTable {
         });
 
         // Then we get the elements in the correct order.
-        let projected_src1_vals = from_fn(|i| from_fn(|j| projected_src1_vals_temp[j][i]));
-        let projected_src2_vals = from_fn(|i| from_fn(|j| projected_src2_vals_temp[j][i]));
+        let projected_src1_vals = from_fn(|i| projected_src1_vals_temp[i % 8][i / 8]);
+        let projected_src2_vals = from_fn(|i| projected_src2_vals_temp[i % 8][i / 8]);
 
-        // We zeropad the projected values to get the correct size.
+        // We zeropad the projected values to go from `Col<B8>` to `Col<B8, 8>`.
         let zero_padded_src1_vals = from_fn(|i| {
-            from_fn(|j| {
-                table.add_zero_pad::<_, 1, 8>(
-                    format!("compress_zero_padded_src1_vals_{}_{}", i, j),
-                    projected_src1_vals[i][j],
-                    j,
-                )
-            })
+            table.add_zero_pad::<_, 1, 4>(
+                format!("compress_zero_padded_src1_vals_{}", i),
+                projected_src1_vals[i],
+                i % 4,
+            )
         });
         let zero_padded_src2_vals = from_fn(|i| {
-            from_fn(|j| {
-                table.add_zero_pad::<_, 1, 8>(
-                    format!("compress_zero_padded_src2_vals_{}_{}", i, j),
-                    projected_src2_vals[i][j],
-                    j,
-                )
-            })
+            table.add_zero_pad::<_, 1, 4>(
+                format!("compress_zero_padded_src2_vals_{}", i),
+                projected_src2_vals[i],
+                i % 4,
+            )
         });
-
         // Finally, we sum each array of B8 to get the correct values.
-        let transposed_src1_vals: [Col<B8, 8>; 8] = zero_padded_src1_vals
-            .iter()
+        let transposed_src1_vals: [Col<B8, 4>; 16] = zero_padded_src1_vals
+            .chunks(4)
             .enumerate()
             .map(|(i, cols)| {
-                let expr: Expr<B8, 8> = cols
+                let expr: Expr<B8, 4> = cols
                     .into_iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
@@ -196,63 +169,33 @@ impl Table for Groestl256CompressTable {
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
-        let transposed_src2_vals: [Col<B8, 8>; 8] = zero_padded_src2_vals
-            .iter()
+        let transposed_src2_vals: [Col<B8, 4>; 16] = zero_padded_src2_vals
+            .chunks(4)
             .enumerate()
             .map(|(i, cols)| {
-                let expr: Expr<B8, 8> = cols
+                let expr: Expr<B8, 4> = cols
                     .into_iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_src2_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_src1_{}", i), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
 
-        let src1_vals_packed: Vec<Col<B32, 2>> = (0..8)
+        // We pack the src1 and src2 values so we can carry out the lookups.
+        let src1_vals_packed: Vec<Col<B32>> = (0..16)
             .map(|i| table.add_packed(format!("src1_packed_{}", i), transposed_src1_vals[i]))
             .collect::<Vec<_>>();
-        let src2_vals_packed: Vec<Col<B32, 2>> = (0..8)
+        let src2_vals_packed: Vec<Col<B32>> = (0..16)
             .map(|i| table.add_packed(format!("src2_packed_{}", i), transposed_src2_vals[i]))
             .collect::<Vec<_>>();
 
-        // Pull the first source value from the VROM channel.
-        let src1_selected: [Col<B32>; 16] = (0..16)
-            .map(|i| {
-                table.add_selected(
-                    format!("src1_val_{}_selected", i),
-                    src1_vals_packed[i / 2],
-                    i % 2,
-                )
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-        let src2_selected: [Col<B32>; 16] = (0..16)
-            .map(|i| {
-                table.add_selected_block(
-                    format!("src2_val_{}_selected", i),
-                    src2_vals_packed[i / 2],
-                    i % 2,
-                )
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap();
-
-        for i in 0..8 {
-            table.pull(vrom_channel, [src1_addresses[i], src1_selected[2 * i]]);
-            table.pull(
-                vrom_channel,
-                [src1_addresses_plus_one[i], src1_selected[2 * i + 1]],
-            );
-            table.pull(vrom_channel, [src2_addresses[i], src2_selected[2 * i]]);
-            table.pull(
-                vrom_channel,
-                [src2_addresses_plus_one[i], src2_selected[2 * i + 1]],
-            );
+        // Pull the first and second source values from the VROM channel.
+        for i in 0..16 {
+            table.pull(vrom_channel, [src1_addresses[i], src1_vals_packed[i]]);
+            table.pull(vrom_channel, [src2_addresses[i], src2_vals_packed[i]]);
         }
 
         // p_state_in = src1_val XOR src2_val.
@@ -287,8 +230,6 @@ impl Table for Groestl256CompressTable {
         let out: [Col<B8, 8>; 8] =
             from_fn(|i| table.add_computed(format!("out_{}", i), interm[i] + q_out_array[i]));
 
-        // We need to take the transpose of the source values to get the correct
-        // lookups. First, we project the source values to the internal B8s.
         let projected_out_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
@@ -372,21 +313,16 @@ impl Table for Groestl256CompressTable {
             dst_vals,
             dst_addresses_plus_one,
             dst_selected,
-            // dst_lookups,
             src1_addresses,
-            src1_addresses_plus_one,
             src1_vals,
             projected_src1_vals,
             zero_padded_src1_vals,
             transposed_src1_vals,
-            src1_selected,
             src2_addresses,
-            src2_addresses_plus_one,
             src2_vals,
             projected_src2_vals,
             zero_padded_src2_vals,
             transposed_src2_vals,
-            src2_selected,
             interm,
             out,
             projected_out,
@@ -439,50 +375,37 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 .map(|i| witness.get_mut_as(self.dst_vals[i]))
                 .collect::<Result<Vec<RefMut<'_, [u64]>>, _>>()?;
 
-            let mut src1_addresses = (0..8)
+            let mut src1_addresses = (0..16)
                 .map(|i| witness.get_mut_as(self.src1_addresses[i]))
-                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
-            let mut src1_addresses_plus_one = (0..8)
-                .map(|i| witness.get_mut_as(self.src1_addresses_plus_one[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
             let mut src1_vals = (0..8)
                 .map(|i| witness.get_mut(self.src1_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
             let mut projected_src1_vals = (0..64)
-                .map(|i| witness.get_mut_as(self.projected_src1_vals[i / 8][i % 8]))
+                .map(|i| witness.get_mut_as(self.projected_src1_vals[i]))
                 .collect::<Result<Vec<RefMut<'_, [u8]>>, _>>()?;
             let mut zero_padded_src1_vals = (0..64)
-                .map(|i| witness.get_mut_as(self.zero_padded_src1_vals[i / 8][i % 8]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
-            let mut transposed_src1_vals = (0..8)
+                .map(|i| witness.get_mut_as(self.zero_padded_src1_vals[i]))
+                .collect::<Result<Vec<RefMut<'_, [[u8; 4]]>>, _>>()?;
+            let mut transposed_src1_vals = (0..16)
                 .map(|i| witness.get_mut(self.transposed_src1_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
-            let mut src1_selected = (0..16)
-                .map(|i| witness.get_mut_as(self.src1_selected[i]))
-                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
 
-            let mut src2_addresses = (0..8)
+            let mut src2_addresses = (0..16)
                 .map(|i| witness.get_mut_as(self.src2_addresses[i]))
-                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
-            let mut src2_addresses_plus_one = (0..8)
-                .map(|i| witness.get_mut_as(self.src2_addresses_plus_one[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
             let mut src2_vals = (0..8)
                 .map(|i| witness.get_mut(self.src2_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
             let mut projected_src2_vals = (0..64)
-                .map(|i| witness.get_mut_as(self.projected_src2_vals[i / 8][i % 8]))
+                .map(|i| witness.get_mut_as(self.projected_src2_vals[i]))
                 .collect::<Result<Vec<RefMut<'_, [u8]>>, _>>()?;
             let mut zero_padded_src2_vals = (0..64)
-                .map(|i| witness.get_mut_as(self.zero_padded_src2_vals[i / 8][i % 8]))
-                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
-            let mut transposed_src2_vals = (0..8)
+                .map(|i| witness.get_mut_as(self.zero_padded_src2_vals[i]))
+                .collect::<Result<Vec<RefMut<'_, [[u8; 4]]>>, _>>()?;
+            let mut transposed_src2_vals = (0..16)
                 .map(|i| witness.get_mut(self.transposed_src2_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
-            let mut src2_selected = (0..16)
-                .map(|i| witness.get_mut_as(self.src2_selected[i]))
-                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
-
             let mut interm = (0..8)
                 .map(|i| witness.get_mut_as(self.interm[i]))
                 .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
@@ -507,10 +430,10 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     // Fill addresses.
                     dst_addresses[j][i] = dst_base_addr + 2 * j as u32;
                     dst_addresses_plus_one[j][i] = dst_base_addr + 2 * j as u32 + 1;
-                    src1_addresses[j][i] = src1_base_addr + 2 * j as u32;
-                    src1_addresses_plus_one[j][i] = src1_base_addr + 2 * j as u32 + 1;
-                    src2_addresses[j][i] = src2_base_addr + 2 * j as u32;
-                    src2_addresses_plus_one[j][i] = src2_base_addr + 2 * j as u32 + 1;
+                    src1_addresses[2 * j][i] = src1_base_addr + 2 * j as u32;
+                    src1_addresses[2 * j + 1][i] = src1_base_addr + 2 * j as u32 + 1;
+                    src2_addresses[2 * j][i] = src2_base_addr + 2 * j as u32;
+                    src2_addresses[2 * j + 1][i] = src2_base_addr + 2 * j as u32 + 1;
 
                     // Fill source and destination values.
                     let dst_val_u8 = cast_slice::<u64, u8>(&dst_val_vec);
@@ -533,20 +456,22 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                         projected_src1_vals[j * 8 + k][i] = event.src1_val[j * 8 + k];
                         projected_src2_vals[j * 8 + k][i] = event.src2_val[j * 8 + k];
                         projected_out[j * 8 + k][i] = dst_val_u8[j * 8 + k];
-
-                        zero_padded_src1_vals[j * 8 + k][i][k] = projected_src1_vals[j * 8 + k][i];
-                        zero_padded_src2_vals[j * 8 + k][i][k] = projected_src2_vals[j * 8 + k][i];
                         zero_padded_out[j * 8 + k][i][k] = projected_out[j * 8 + k][i];
-
+                    }
+                }
+                for j in 0..16 {
+                    for k in 0..4 {
+                        zero_padded_src1_vals[j * 4 + k][i][k] = projected_src1_vals[j * 4 + k][i];
+                        zero_padded_src2_vals[j * 4 + k][i][k] = projected_src2_vals[j * 4 + k][i];
                         set_packed_slice(
                             &mut transposed_src1_vals[j],
                             i * 8 + k,
-                            B8::from(event.src1_val[j * 8 + k]),
+                            B8::from(event.src1_val[j * 4 + k]),
                         );
                         set_packed_slice(
                             &mut transposed_src2_vals[j],
                             i * 8 + k,
-                            B8::from(event.src2_val[j * 8 + k]),
+                            B8::from(event.src2_val[j * 4 + k]),
                         );
                     }
                 }
@@ -554,17 +479,11 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     .flat_map(|j| (0..8).map(move |k| event.src1_val[k * 8 + j]))
                     .collect::<Vec<_>>();
 
-                let src1_val_vec = event.src1_val.to_vec();
-                let src2_val_vec = event.src2_val.to_vec();
-
-                let src1_u32: [u32; 16] = cast_slice::<u8, u32>(&src1_val_vec).try_into().unwrap();
-                let src2_u32: [u32; 16] = cast_slice::<u8, u32>(&src2_val_vec).try_into().unwrap();
                 let dst_val_u32: [u32; 16] =
                     cast_slice::<u64, u32>(&dst_val_vec).try_into().unwrap();
 
+                // Fill the source and destination 32-bit values.
                 for j in 0..16 {
-                    src1_selected[j][i] = src1_u32[j];
-                    src2_selected[j][i] = src2_u32[j];
                     dst_selected[j][i] = dst_val_u32[j];
                 }
 
@@ -615,8 +534,8 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
         // Populate the P permutation.
         self.p_op.populate(witness)?;
 
-        // We don't have to populate the input, as it is already done by populating
-        // src2_vals. Populate the Q permutation.
+        // Populate the Q permutation. We don't have to populate the input of the Q
+        // permutation, as it is already done by populating src2_vals.
         self.q_op.populate(witness)?;
 
         Ok(())

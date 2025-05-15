@@ -17,12 +17,12 @@ categories = ["cryptography", "compilers", "wasm"]
 
 [workspace.dependencies]
 anyhow = "1.0"
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
+binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
+binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
+binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", branch = "adziadziuk/fix-zero-nvars-zero-padding" }
 generic-array = "0.14.7"
 
 [profile.release]
