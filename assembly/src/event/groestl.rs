@@ -143,19 +143,11 @@ impl Event for Groestl256OutputEvent {
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
-        let full_input_transposed: [u8; 64] =
-            [src1_val_new, src2_val_new].concat().try_into().unwrap();
-        let full_input = (0..8)
-            .flat_map(|i| {
-                (0..8).map({
-                    let value = full_input_transposed.clone();
-                    move |j| value[j * 8 + i]
-                })
-            })
-            .collect::<Vec<_>>();
+        let full_input: [u8; 64] = [src1_val_new, src2_val_new].concat().try_into().unwrap();
         let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
         let mut state = state_in.clone();
-        // First, carry put the P permutation on the input.
+
+        // First, carry out the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);
         GroestlShortImpl::xor_state(&mut state, &state_in);
 
@@ -163,11 +155,9 @@ impl Event for Groestl256OutputEvent {
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-        let dst_val_transposed = (0..8)
-            .flat_map(|i| (0..8).map(move |j| out_state_bytes[j * 8 + i]))
-            .collect::<Vec<_>>()[32..]
-            .to_vec();
-        let dst_val = cast_slice::<u8, u64>(&dst_val_transposed);
+
+        let dst_val: [u8; 32] = out_state_bytes[32..].try_into().unwrap();
+        let dst_val = cast_slice::<u8, u64>(&dst_val);
         for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
         }
@@ -257,17 +247,32 @@ mod tests {
         trace.validate(boundary_values);
 
         // Calculate the output.
-        // let mut dst_val = GroestlShortImpl::state_from_bytes(&src1_val);
-        let mut dst_val = cast_slice::<u8, u64>(&src1_val.to_vec())
-            .try_into()
-            .unwrap();
-        <GroestlShortImpl as GroestlShortInternal>::compress(&mut dst_val, &src2_val);
+        let src1_val_new = src1_val
+            .iter()
+            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+            .collect::<Vec<_>>();
+        let src2_val_new = src2_val
+            .iter()
+            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
+            .collect::<Vec<_>>();
+
+        let mut state = GroestlShortImpl::state_from_bytes(&src1_val_new.try_into().unwrap());
+        <GroestlShortImpl as GroestlShortInternal>::compress(
+            &mut state,
+            &src2_val_new.try_into().unwrap(),
+        );
+
+        // Reshape the output to match the expected format.
+        let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
+        let out_state_bytes =
+            out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+        let dst_vals = cast_slice::<u8, u64>(&out_state_bytes);
 
         let actual_dst_vals = (0..8)
             .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())
             .collect::<Vec<_>>();
         for i in 0..8 {
-            assert_eq!(dst_val[i], actual_dst_vals[i]);
+            assert_eq!(dst_vals[i], actual_dst_vals[i]);
         }
     }
 
@@ -322,8 +327,17 @@ mod tests {
         trace.validate(boundary_values);
 
         // Create the input state.
-        let init =
-            GroestlShortImpl::state_from_bytes(&[src1_val, src2_val].concat().try_into().unwrap());
+        let src1_val_new = src1_val
+            .iter()
+            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+            .collect::<Vec<_>>();
+        let src2_val_new = src2_val
+            .iter()
+            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
+            .collect::<Vec<_>>();
+        let init = GroestlShortImpl::state_from_bytes(
+            &[src1_val_new, src2_val_new].concat().try_into().unwrap(),
+        );
         let mut state_in = init.clone();
         GroestlShortImpl::p_perm(&mut state_in);
 
@@ -338,6 +352,8 @@ mod tests {
 
         // Convert dst_val to a big endian representation.
         let output_state_bytes = GroestlShortImpl::state_to_bytes(&dst_val);
+        let output_state_bytes =
+            output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
         let dst_val = GenericArray::<u8, typenum::U32>::from_slice(&output_state_bytes[32..]);
         let dst_val = cast_slice::<u8, u64>(&dst_val);
 
