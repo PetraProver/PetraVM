@@ -1,4 +1,4 @@
-use std::{any::Any, array::from_fn, cell::RefMut};
+use std::{array::from_fn, cell::RefMut};
 
 use binius_field::packed::set_packed_slice;
 use binius_field::AESTowerField8b;
@@ -54,7 +54,6 @@ pub struct Groestl256CompressTable {
     out: [Col<B8, 8>; 8],
     projected_out: [[Col<B8>; 8]; 8],
     zero_padded_out: [[Col<B8, 8>; 8]; 8],
-    transposed_out: [Col<B8, 8>; 8],
     interm: [Col<B8, 8>; 8],
     // P permutation.
     p_op: Permutation,
@@ -323,14 +322,9 @@ impl Table for Groestl256CompressTable {
             out,
             projected_out,
             zero_padded_out,
-            transposed_out,
             p_op,
             q_op,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 
@@ -566,7 +560,6 @@ pub struct Groestl256OutputTable {
     out: [Col<B8, 8>; 8],
     projected_out: [[Col<B8>; 8]; 8],
     zero_padded_out: [[Col<B8, 8>; 8]; 4],
-    transposed_out: [Col<B8, 8>; 4],
     // P permutation.
     p_op: Permutation,
 }
@@ -779,14 +772,9 @@ impl Table for Groestl256OutputTable {
             transposed_state_in,
             projected_out,
             zero_padded_out,
-            transposed_out,
             p_op,
             out,
         }
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

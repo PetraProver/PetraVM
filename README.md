@@ -54,10 +54,10 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `ADD` - Integer addition
 - [x] `ADDI` - Integer addition with immediate
 - [x] `SUB` - Integer subtraction
-- [ ] `MUL` - Signed multiplication
-- [ ] `MULI` - Signed multiplication with immediate
-- [ ] `MULU` - Unsigned multiplication
-- [ ] `MULSU` - Signed × unsigned multiplication
+- [x] `MUL` - Signed multiplication
+- [x] `MULI` - Signed multiplication with immediate
+- [x] `MULU` - Unsigned multiplication
+- [x] `MULSU` - Signed × unsigned multiplication
 
 #### Logic Operations
 - [x] `AND` - Bitwise AND
@@ -76,12 +76,12 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `SRAI` - Shift right arithmetic with immediate
 
 #### Comparison Operations
-- [ ] `SLT` - Set if less than (signed)
-- [ ] `SLTI` - Set if less than immediate (signed)
+- [x] `SLT` - Set if less than (signed)
+- [x] `SLTI` - Set if less than immediate (signed)
 - [x] `SLTU` - Set if less than (unsigned)
 - [x] `SLTIU` - Set if less than immediate (unsigned)
-- [ ] `SLE` - Set if less than or equal (signed)
-- [ ] `SLEI` - Set if less than or equal immediate (signed)
+- [x] `SLE` - Set if less than or equal (signed)
+- [x] `SLEI` - Set if less than or equal immediate (signed)
 - [x] `SLEU` - Set if less than or equal (unsigned)
 - [x] `SLEIU` - Set if less than or equal immediate (unsigned)
 
@@ -114,8 +114,18 @@ Expansion to include RAM-related instructions is kept for future work.
 ## Example Programs
 The project includes several example programs that demonstrate the capabilities of PetraVM:
 
-- [Fibonacci](https://github.com/PetraProver/PetraVM/tree/main/prover/tests/fibonacci.rs): Prove a Fibonacci number
-- [Collatz](https://github.com/PetraProver/PetraVM/tree/main/prover/test/collatz.rs): Prove the Collatz sequence for a given number
+- [Fibonacci](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/fibonacci.rs): Prove a Fibonacci number
+- [Collatz](https://github.com/PetraProver/PetraVM/tree/main/prover/examples/collatz.rs): Prove the Collatz sequence for a given number
+
+### Running Examples
+
+```bash
+# Calculate and prove the 10th Fibonacci number
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 10
+
+# Run Collatz conjecture for starting value 7
+RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
+```
 
 ## Development Status
 

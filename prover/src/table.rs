@@ -6,13 +6,12 @@
 //! [`ISA`](petravm_asm::isa::ISA) interface, and are dynamically managed
 //! when building the proving circuit.
 
-use std::any::Any;
-
 use anyhow::anyhow;
 use binius_m3::builder::ConstraintSystem;
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
 use petravm_asm::opcodes::InstructionInfo;
+use tracing::instrument;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
@@ -32,7 +31,7 @@ pub trait TableInfo: InstructionInfo {
 ///
 /// The associated `Event` type defines the kind of event this table
 /// expects during witness generation.
-pub trait Table: Any {
+pub trait Table {
     /// The event type associated with this table.
     type Event: 'static;
 
@@ -48,10 +47,6 @@ pub trait Table: Any {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self
     where
         Self: Sized;
-
-    /// Helper method to downcast a [`Table`] into a concrete instruction
-    /// instance.
-    fn as_any(&self) -> &dyn Any;
 }
 
 /// Trait use for convenience to easily fill a witness from a provided
@@ -81,15 +76,16 @@ pub trait FillableTable {
 /// The underlying table type is a pointer to an instance implementing both
 /// [`Table`] and [`TableFiller`] traits.
 /// The entry also implements the [`FillableTable`] trait.
-pub struct TableEntry<T: TableFiller<ProverPackedField> + 'static> {
+pub struct TableEntry<T: Table + TableFiller<ProverPackedField> + 'static> {
     pub table: Box<T>,
-    pub get_events: fn(&Trace) -> &[T::Event],
+    pub get_events: fn(&Trace) -> &[<T as TableFiller<ProverPackedField>>::Event],
 }
 
 impl<T> FillableTable for TableEntry<T>
 where
-    T: TableFiller<ProverPackedField> + 'static,
+    T: Table + TableFiller<ProverPackedField> + 'static,
 {
+    #[instrument(level = "debug", skip_all, fields(table = %self.table.name()))]
     fn fill(
         &self,
         witness: &mut WitnessIndex<'_, '_, ProverPackedField>,

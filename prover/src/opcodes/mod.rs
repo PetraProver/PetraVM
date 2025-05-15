@@ -22,9 +22,7 @@ pub use branch::{BnzTable, BzTable};
 pub use call::{CalliTable, CallvTable, TailiTable, TailvTable};
 pub use comparison::*;
 pub use groestl::{Groestl256CompressTable, Groestl256OutputTable};
-pub use integer_ops::{
-    SubTable, {AddTable, AddiTable},
-};
+pub use integer_ops::*;
 pub use jump::{JumpiTable, JumpvTable};
 pub use ldi::LdiTable;
 pub use mv::{MvihTable, MvvlTable, MvvwTable};

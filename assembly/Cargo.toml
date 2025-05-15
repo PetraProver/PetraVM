@@ -13,6 +13,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+ahash.workspace = true
 anyhow.workspace = true
 binius_field.workspace = true
 binius_utils.workspace = true
@@ -26,8 +27,9 @@ pest_derive = "2.8.0"
 strum = "0.27.1"
 strum_macros = "0.27.1"
 thiserror = "2.0.12"
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing.workspace = true
+tracing-forest.workspace = true
+tracing-subscriber.workspace = true
 
 # Binius dependencies
 binius_m3.workspace = true

@@ -8,6 +8,7 @@ mod tests;
 
 use instruction_args::{Immediate, Slot, SlotWithOffset};
 pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels};
+use tracing::instrument;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]
@@ -437,6 +438,7 @@ fn parse_line(
     Ok(())
 }
 
+#[instrument(level = "debug", skip_all)]
 pub fn parse_program(input: &str) -> Result<Vec<InstructionsWithLabels>, Error> {
     let parser = AsmParser::parse(Rule::program, input);
     let mut instrs = Vec::<InstructionsWithLabels>::new();

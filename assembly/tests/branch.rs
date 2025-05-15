@@ -11,8 +11,7 @@ fn run_test(input: u32, expected: u32, condition: &str) {
     assert_eq!(
         branch_frame.get_vrom_expected::<u32>(3),
         expected,
-        "Condition: {}",
-        condition
+        "Condition: {condition}"
     );
 }
 

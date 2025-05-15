@@ -111,7 +111,7 @@ impl Opcode {
     }
 
     /// Returns the number of arguments expected by the given opcode.
-    pub fn num_args(&self) -> usize {
+    pub const fn num_args(&self) -> usize {
         match self {
             Opcode::Groestl256Compress => 3, // dst, src1, src2
             Opcode::Groestl256Output => 3,   // dst, src1, src2
