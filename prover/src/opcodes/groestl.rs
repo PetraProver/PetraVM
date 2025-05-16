@@ -956,3 +956,32 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Result;
+    use petravm_asm::isa::RecursionISA;
+    use proptest::prelude::*;
+
+    use crate::{prover::Prover, test_utils::generate_groestl_ret_trace};
+
+    fn test_groestl_with_values(src1_value: [u32; 16], src2_value: [u32; 16]) -> Result<()> {
+        let trace = generate_groestl_ret_trace(src1_value, src2_value)?;
+        trace.validate()?;
+        assert_eq!(trace.groestl_compress_events().len(), 1);
+        assert_eq!(trace.groestl_output_events().len(), 1);
+        Prover::new(Box::new(RecursionISA)).validate_witness(&trace)
+    }
+
+    proptest! {
+        #![proptest_config(proptest::test_runner::Config::with_cases(20))]
+
+        #[test]
+        fn test_groestl(
+            src1_value in  any::<[u32; 16]>(),
+            src2_value in  any::<[u32; 16]>(),
+        ) {
+            prop_assert!(test_groestl_with_values(src1_value, src2_value).is_ok());
+        }
+    }
+}

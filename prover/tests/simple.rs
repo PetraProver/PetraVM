@@ -7,14 +7,18 @@ use anyhow::Result;
 use binius_field::underlier::Divisible;
 use binius_m3::builder::B128;
 use log::trace;
-use petravm_asm::isa::GenericISA;
+use petravm_asm::isa::{GenericISA, RecursionISA, ISA};
 use petravm_prover::model::Trace;
 use petravm_prover::prover::{verify_proof, Prover};
-use petravm_prover::test_utils::generate_trace;
+use petravm_prover::test_utils::{generate_groestl_ret_trace, generate_trace};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
-fn test_from_trace_generator<F, G>(trace_generator: F, check_events: G) -> Result<()>
+fn test_from_trace_generator<F, G>(
+    trace_generator: F,
+    check_events: G,
+    isa: Box<dyn ISA>,
+) -> Result<()>
 where
     F: FnOnce() -> Result<Trace>,
     G: FnOnce(&Trace),
@@ -30,7 +34,7 @@ where
 
     // Step 3: Create prover
     trace!("Creating prover...");
-    let prover = Prover::new(Box::new(GenericISA));
+    let prover = Prover::new(isa);
 
     // Step 4: Generate proof
     trace!("Generating proof...");
@@ -118,6 +122,7 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
 #[test]
 fn test_b128_add_b128_mul() -> Result<()> {
     let mut rng = StdRng::seed_from_u64(54321);
+    let isa = Box::new(GenericISA);
     test_from_trace_generator(
         || {
             // Test value to load
@@ -142,6 +147,7 @@ fn test_b128_add_b128_mul() -> Result<()> {
                 "Should have exactly one B128_ADD event"
             );
         },
+        isa,
     )
 }
 
@@ -205,6 +211,7 @@ fn test_integer_ops() -> Result<()> {
                 "Should have exacly one MULU event"
             );
         },
+        Box::new(GenericISA),
     )
 }
 
@@ -320,8 +327,48 @@ fn test_simple_taili_loop() -> Result<()> {
                     "Should have exactly one BZ event"
                 );
             },
+            Box::new(GenericISA),
         )?;
     }
 
     Ok(())
+}
+
+#[test]
+fn test_groestl_proving() -> Result<()> {
+    test_from_trace_generator(
+        || {
+            // Test value to load
+            let mut rng = StdRng::seed_from_u64(54321);
+            let src1_value: [u32; 16] = std::array::from_fn(|_| rng.random());
+            let mut rng = StdRng::seed_from_u64(5926);
+            let src2_value: [u32; 16] = std::array::from_fn(|_| rng.random());
+
+            let src1_offset = 16;
+            let src2_offset = 32;
+            let mut init_values = vec![0; 48];
+            init_values[src1_offset..src1_offset + 16].copy_from_slice(&src1_value);
+            init_values[src2_offset..src2_offset + 16].copy_from_slice(&src2_value);
+
+            generate_groestl_ret_trace(src1_value, src2_value)
+        },
+        |trace| {
+            assert_eq!(
+                trace.groestl_compress_events().len(),
+                1,
+                "Should have exactly one GROESTL256_COMPRESS event"
+            );
+            assert_eq!(
+                trace.groestl_output_events().len(),
+                1,
+                "Should have exactly GROESTL256_OUTPUT event"
+            );
+            assert_eq!(
+                trace.ret_events().len(),
+                1,
+                "Should have exactly one RET event"
+            );
+        },
+        Box::new(RecursionISA),
+    )
 }
