@@ -26,6 +26,10 @@ pub struct Channels {
     /// Channel for VROM address space (verifier pushes full address space)
     /// Follows format [Address]
     pub vrom_addr_space_channel: ChannelId,
+
+    /// Channel for right logical shift operations
+    /// Follows format [Input, ShiftAmount, Output]
+    pub right_shifter_channel: ChannelId,
 }
 
 impl Channels {
@@ -36,6 +40,7 @@ impl Channels {
             prom_channel: cs.add_channel("prom_channel"),
             vrom_channel: cs.add_channel("vrom_channel"),
             vrom_addr_space_channel: cs.add_channel("vrom_addr_space_channel"),
+            right_shifter_channel: cs.add_channel("right_shifter_channel"),
         }
     }
 }

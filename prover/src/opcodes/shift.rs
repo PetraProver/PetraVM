@@ -16,274 +16,421 @@ use crate::{
     utils::setup_mux_constraint,
 };
 
-/// This macro generates table structures for shift operations.
-/// Two variants are supported:
-///   - `imm`: For immediate shift operations
-///   - `vrom`: For vrom-based shift operations (shift amount from a vrom value)
-///
-/// The macro generates:
-/// 1. A table structure with columns for the operation
-/// 2. Table implementation for accessing the table
-/// 3. TableFiller implementation for populating the table with shift events
-macro_rules! define_logic_shift_table {
-    // Immediate variant: For shift operations with immediate shift amounts
-    // Parameters:
-    //   - $Name: The name of the generated table structure
-    //   - $table_str: String identifier for the table
-    //   - Event: The event type that this table handles
-    //   - OPCODE: The opcode enum value for this operation
-    //   - VARIANT: The shift variant (logical left/right)
-    (imm: $Name:ident, $table_str:expr,
-         Event=$Event:ty,
-         OPCODE=$OpCode:expr,
-         VARIANT=$ShiftVar:expr) => {
-        pub struct $Name {
-            id: TableId,
-            state_cols: StateColumns<{ $OpCode as u16 }>,
-            shifter: BarrelShifter,
-            dst_abs: Col<B32>, // Destination absolute address
-            src_abs: Col<B32>, // Source absolute address
-            src_val: Col<B32>, // Source value (value to be shifted)
-        }
-
-        impl Table for $Name {
-            type Event = $Event;
-            fn name(&self) -> &'static str {
-                stringify!($Name)
-            }
-            fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-                let mut table = cs.add_table($table_str);
-                let state_cols = StateColumns::new(
-                    &mut table,
-                    channels.state_channel,
-                    channels.prom_channel,
-                    StateColumnsOptions::default(),
-                );
-
-                // Common unpack→packed columns for source value
-                let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
-                let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
-
-                // Absolute addresses for destination and source
-                let dst_abs =
-                    table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
-                let src_abs =
-                    table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
-
-                // Barrel shifter wired to state_cols.arg2_unpacked (immediate shift amount)
-                let shifter = BarrelShifter::new(
-                    &mut table,
-                    src_val_unpacked,
-                    state_cols.arg2_unpacked,
-                    $ShiftVar,
-                );
-                let dst_val = table.add_packed("dst_val", shifter.output);
-
-                // Pull columns from VROM channel
-                table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-                table.pull(channels.vrom_channel, [src_abs, src_val]);
-
-                Self {
-                    id: table.id(),
-                    state_cols,
-                    shifter,
-                    dst_abs,
-                    src_abs,
-                    src_val,
-                }
-            }
-        }
-
-        impl TableFiller<ProverPackedField> for $Name {
-            type Event = $Event;
-            fn id(&self) -> TableId {
-                self.id
-            }
-
-            fn fill<'a>(
-                &'a self,
-                rows: impl Iterator<Item = &'a $Event> + Clone,
-                witness: &'a mut TableWitnessSegment<ProverPackedField>,
-            ) -> anyhow::Result<()> {
-                // Fill source value, destination address, and source address
-                {
-                    let mut src_val = witness.get_scalars_mut(self.src_val)?;
-                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
-
-                    for (i, ev) in rows.clone().enumerate() {
-                        src_val[i] = B32::new(ev.src_val);
-                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
-                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
-                    }
-                }
-
-                // Populate StateGadget and shifter
-                let state_rows = rows.map(|ev| StateGadget {
-                    pc: ev.pc.val(),
-                    next_pc: None,
-                    fp: *ev.fp,
-                    arg0: ev.dst,
-                    arg1: ev.src,
-                    arg2: ev.shift_amount as u16,
-                });
-                self.state_cols.populate(witness, state_rows)?;
-                self.shifter.populate(witness)?;
-                Ok(())
-            }
-        }
-    };
-
-    // Vrom variant: For shift operations where shift amount comes from a vrom value
-    // Parameters:
-    //   - $Name: The name of the generated table structure
-    //   - $table_str: String identifier for the table
-    //   - Event: The event type that this table handles
-    //   - OPCODE: The opcode enum value for this operation
-    //   - VARIANT: The shift variant (logical left/right)
-    (vrom: $Name:ident, $table_str:expr,
-         Event=$Event:ty,
-         OPCODE=$OpCode:expr,
-         VARIANT=$ShiftVar:expr) => {
-        pub struct $Name {
-            id: TableId,
-            state_cols: StateColumns<{ $OpCode as u16 }>,
-            shifter: BarrelShifter,
-            dst_abs: Col<B32>,                  // Destination absolute address
-            src_abs: Col<B32>,                  // Source absolute address
-            src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
-            shift_abs: Col<B32>,                // Shift vrom absolute address
-            shift_amount_unpacked: Col<B1, 32>, // Shift amount in bit-unpacked form
-            shift_amount_low: Col<B1, 16>,
-        }
-
-        impl Table for $Name {
-            type Event = $Event;
-            fn name(&self) -> &'static str {
-                stringify!($Name)
-            }
-            fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
-                let mut table = cs.add_table($table_str);
-                let state_cols = StateColumns::new(
-                    &mut table,
-                    channels.state_channel,
-                    channels.prom_channel,
-                    StateColumnsOptions::default(),
-                );
-
-                // Source value columns
-                let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
-                let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
-
-                // Address calculations
-                let dst_abs =
-                    table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
-                let src_abs =
-                    table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
-                let shift_abs =
-                    table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
-
-                // Shift amount columns
-                let shift_amount_unpacked: Col<B1, 32> =
-                    table.add_committed("shift_amount_unpacked");
-                let shift_amount_packed: Col<B32> =
-                    table.add_packed("shift_amount", shift_amount_unpacked);
-                let shift_amount_low: Col<B1, 16> =
-                    table.add_selected_block("shift_amount_low", shift_amount_unpacked, 0);
-
-                // Barrel shifter for the actual shift operation
-                let shifter =
-                    BarrelShifter::new(&mut table, src_val_unpacked, shift_amount_low, $ShiftVar);
-                let dst_val = table.add_packed("dst_val", shifter.output);
-
-                // Pull memory access data from VROM channel
-                table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-                table.pull(channels.vrom_channel, [src_abs, src_val]);
-                table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
-
-                Self {
-                    id: table.id(),
-                    state_cols,
-                    shifter,
-                    dst_abs,
-                    src_abs,
-                    src_val_unpacked,
-                    shift_abs,
-                    shift_amount_unpacked,
-                    shift_amount_low,
-                }
-            }
-        }
-
-        impl TableFiller<ProverPackedField> for $Name {
-            type Event = $Event;
-
-            fn id(&self) -> TableId {
-                self.id
-            }
-
-            fn fill<'a>(
-                &'a self,
-                rows: impl Iterator<Item = &'a $Event> + Clone,
-                witness: &'a mut TableWitnessSegment<ProverPackedField>,
-            ) -> anyhow::Result<()> {
-                // Fill basic columns and shift amount data
-                {
-                    let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
-                    let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
-                    let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
-                    let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
-                    let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-                    let mut shift_low = witness.get_mut_as(self.shift_amount_low)?;
-
-                    for (i, ev) in rows.clone().enumerate() {
-                        src_unpacked[i] = ev.src_val;
-                        dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
-                        src_abs[i] = B32::new(ev.fp.addr(ev.src));
-                        shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
-                        shift_unpacked[i] = ev.shift_amount;
-                        shift_low[i] = ev.shift_amount as u16;
-                    }
-                }
-
-                // Populate StateGadget columns
-                let state_rows = rows.clone().map(|ev| StateGadget {
-                    pc: ev.pc.val(),
-                    next_pc: None,
-                    fp: *ev.fp,
-                    arg0: ev.dst,
-                    arg1: ev.src,
-                    arg2: ev.shift,
-                });
-                self.state_cols.populate(witness, state_rows)?;
-
-                // Populate barrel shifter columns
-                self.shifter.populate(witness)?;
-                Ok(())
-            }
-        }
-    };
+// Implementation of SrliTable for immediate shift right logical operations
+pub struct SrliTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Srli as u16 }>,
+    dst_abs: Col<B32>, // Destination absolute address
+    dst_val: Col<B32>, // Destination value (shift result)
+    src_abs: Col<B32>, // Source absolute address
+    src_val: Col<B32>, // Source value (value to be shifted)
 }
 
-// Define immediate shift amount tables
-define_logic_shift_table!(imm: SrliTable, "srli",
-     Event=SrliEvent, OPCODE=Opcode::Srli, VARIANT=ShiftVariant::LogicalRight);
+impl Table for SrliTable {
+    type Event = SrliEvent;
+    fn name(&self) -> &'static str {
+        "SrliTable"
+    }
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("srli");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
 
-define_logic_shift_table!(imm: SlliTable, "slli",
-     Event=SlliEvent, OPCODE=Opcode::Slli, VARIANT=ShiftVariant::LogicalLeft);
+        // Common unpack→packed columns for source value
+        let src_val: Col<B32> = table.add_committed("src_val");
+        let dst_val: Col<B32> = table.add_committed("dst_val");
+        let shift_amount: Col<B32> = upcast_col(state_cols.arg2);
 
-// Define vrom-based shift amount tables
-define_logic_shift_table!(vrom:  SrlTable,  "srl",
-     Event=SrlEvent,  OPCODE=Opcode::Srl,  VARIANT=ShiftVariant::LogicalRight);
+        // Absolute addresses for destination and source
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
-define_logic_shift_table!(vrom:  SllTable,  "sll",
-     Event=SllEvent,  OPCODE=Opcode::Sll,  VARIANT=ShiftVariant::LogicalLeft);
+        // Pull columns from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        table.pull(
+            channels.right_shifter_channel,
+            [src_val, shift_amount, dst_val],
+        );
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            dst_val,
+            src_abs,
+            src_val,
+        }
+    }
+}
+
+impl TableFiller<ProverPackedField> for SrliTable {
+    type Event = SrliEvent;
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SrliEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill source value, destination address, and source address
+        {
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_val = witness.get_scalars_mut(self.src_val)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_val[i] = B32::new(ev.src_val);
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                dst_val[i] = B32::new(ev.dst_val);
+            }
+        }
+
+        // Populate StateGadget and shifter
+        let state_rows = rows.map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift_amount as u16,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        Ok(())
+    }
+}
+
+// Implementation of SlliTable for immediate shift left logical operations
+pub struct SlliTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Slli as u16 }>,
+    shifter: BarrelShifter,
+    dst_abs: Col<B32>, // Destination absolute address
+    src_abs: Col<B32>, // Source absolute address
+    src_val: Col<B32>, // Source value (value to be shifted)
+}
+
+impl Table for SlliTable {
+    type Event = SlliEvent;
+    fn name(&self) -> &'static str {
+        "SlliTable"
+    }
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("slli");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
+
+        // Common unpack→packed columns for source value
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
+        let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+
+        // Absolute addresses for destination and source
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+
+        // Barrel shifter wired to state_cols.arg2_unpacked (immediate shift amount)
+        let shifter = BarrelShifter::new(
+            &mut table,
+            src_val_unpacked,
+            state_cols.arg2_unpacked,
+            ShiftVariant::LogicalLeft,
+        );
+        let dst_val = table.add_packed("dst_val", shifter.output);
+
+        // Pull columns from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            shifter,
+            dst_abs,
+            src_abs,
+            src_val,
+        }
+    }
+}
+
+impl TableFiller<ProverPackedField> for SlliTable {
+    type Event = SlliEvent;
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SlliEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill source value, destination address, and source address
+        {
+            let mut src_val = witness.get_scalars_mut(self.src_val)?;
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_val[i] = B32::new(ev.src_val);
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+            }
+        }
+
+        // Populate StateGadget and shifter
+        let state_rows = rows.map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift_amount as u16,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+        self.shifter.populate(witness)?;
+        Ok(())
+    }
+}
+
+// Implementation of SrlTable for vrom-based shift right logical operations
+pub struct SrlTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Srl as u16 }>,
+    dst_abs: Col<B32>,   // Destination absolute address
+    dst_val: Col<B32>,   // Destination value (shift result)
+    src_abs: Col<B32>,   // Source absolute address
+    src_val: Col<B32>,   // Source value (shift result)
+    shift_abs: Col<B32>, // Shift vrom absolute address
+    shift_val: Col<B32>, // Shift value (shift amount)
+}
+
+impl Table for SrlTable {
+    type Event = SrlEvent;
+    fn name(&self) -> &'static str {
+        "SrlTable"
+    }
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("srl");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
+
+        // Address calculations
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+        let shift_abs =
+            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
+
+        // Source value columns
+        let src_val = table.add_committed("src_val");
+        let dst_val = table.add_committed("dst_val");
+        let shift_val = table.add_committed("shift_val");
+
+        // Pull memory access data from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
+
+        // Pull shift value from ShifterChannel
+        table.pull(
+            channels.right_shifter_channel,
+            [src_val, shift_val, dst_val],
+        );
+
+        Self {
+            id: table.id(),
+            state_cols,
+            dst_abs,
+            dst_val,
+            src_abs,
+            src_val,
+            shift_abs,
+            shift_val,
+        }
+    }
+}
+
+impl TableFiller<ProverPackedField> for SrlTable {
+    type Event = SrlEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SrlEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill basic columns and shift amount data
+        {
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut dst_val = witness.get_scalars_mut(self.dst_val)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_val = witness.get_scalars_mut(self.src_val)?;
+            let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
+            let mut shift_val = witness.get_scalars_mut(self.shift_val)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_val[i] = B32::new(ev.src_val);
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                dst_val[i] = B32::new(ev.dst_val);
+                shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
+                shift_val[i] = B32::new(ev.shift_amount);
+            }
+        }
+
+        // Populate StateGadget columns
+        let state_rows = rows.clone().map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift,
+        });
+        self.state_cols.populate(witness, state_rows)
+    }
+}
+
+// Implementation of SllTable for vrom-based shift left logical operations
+pub struct SllTable {
+    id: TableId,
+    state_cols: StateColumns<{ Opcode::Sll as u16 }>,
+    shifter: BarrelShifter,
+    dst_abs: Col<B32>,                  // Destination absolute address
+    src_abs: Col<B32>,                  // Source absolute address
+    src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
+    shift_abs: Col<B32>,                // Shift vrom absolute address
+    shift_amount_unpacked: Col<B1, 32>, // Shift amount in bit-unpacked form
+    shift_amount_low: Col<B1, 16>,      // Shift amount in bit-unpacked form
+}
+
+impl Table for SllTable {
+    type Event = SllEvent;
+    fn name(&self) -> &'static str {
+        "SllTable"
+    }
+    fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+        let mut table = cs.add_table("sll");
+        let state_cols = StateColumns::new(
+            &mut table,
+            channels.state_channel,
+            channels.prom_channel,
+            StateColumnsOptions::default(),
+        );
+
+        // Source value columns
+        let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
+        let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+
+        // Address calculations
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
+        let shift_abs =
+            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
+
+        // Shift amount columns
+        let shift_amount_unpacked: Col<B1, 32> = table.add_committed("shift_amount_unpacked");
+        let shift_amount_packed: Col<B32> = table.add_packed("shift_amount", shift_amount_unpacked);
+        let shift_amount_low: Col<B1, 16> =
+            table.add_selected_block("shift_amount_low", shift_amount_unpacked, 0);
+
+        // Barrel shifter for the actual shift operation
+        let shifter = BarrelShifter::new(
+            &mut table,
+            src_val_unpacked,
+            shift_amount_low,
+            ShiftVariant::LogicalLeft,
+        );
+        let dst_val = table.add_packed("dst_val", shifter.output);
+
+        // Pull memory access data from VROM channel
+        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
+
+        Self {
+            id: table.id(),
+            state_cols,
+            shifter,
+            dst_abs,
+            src_abs,
+            src_val_unpacked,
+            shift_abs,
+            shift_amount_unpacked,
+            shift_amount_low,
+        }
+    }
+}
+
+impl TableFiller<ProverPackedField> for SllTable {
+    type Event = SllEvent;
+
+    fn id(&self) -> TableId {
+        self.id
+    }
+
+    fn fill<'a>(
+        &'a self,
+        rows: impl Iterator<Item = &'a SllEvent> + Clone,
+        witness: &'a mut TableWitnessSegment<ProverPackedField>,
+    ) -> anyhow::Result<()> {
+        // Fill basic columns and shift amount data
+        {
+            let mut dst_abs = witness.get_scalars_mut(self.dst_abs)?;
+            let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
+            let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
+            let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
+            let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
+            let mut shift_amount_low = witness.get_mut_as(self.shift_amount_low)?;
+
+            for (i, ev) in rows.clone().enumerate() {
+                src_unpacked[i] = ev.src_val;
+                dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
+                src_abs[i] = B32::new(ev.fp.addr(ev.src));
+                shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
+                shift_unpacked[i] = ev.shift_amount;
+                shift_amount_low[i] = ev.shift_amount as u16;
+            }
+        }
+
+        // Populate StateGadget columns
+        let state_rows = rows.clone().map(|ev| StateGadget {
+            pc: ev.pc.val(),
+            next_pc: None,
+            fp: *ev.fp,
+            arg0: ev.dst,
+            arg1: ev.src,
+            arg2: ev.shift,
+        });
+        self.state_cols.populate(witness, state_rows)?;
+
+        // Populate barrel shifter columns
+        self.shifter.populate(witness)?;
+        Ok(())
+    }
+}
 
 // SRA: Shift Right Arithmetic (vrom-based shift amount)
 pub struct SraTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Sra as u16 }>,
-    shifter: BarrelShifter,
     dst_abs: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
@@ -292,8 +439,8 @@ pub struct SraTable {
     shifter_input: Col<B1, 32>,  /* Selected input for shifter (original or inverted based on
                                   * sign bit) */
     shift_abs: Col<B32>,
-    shift_amount_unpacked: Col<B1, 32>,
-    shift_amount_low: Col<B1, 16>,
+    shift_val: Col<B32>,
+    right_shifter_output: Col<B1, 32>,
     inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
     result: Col<B1, 32>,          // Final result after selection
 }
@@ -314,8 +461,16 @@ impl Table for SraTable {
         );
 
         // Source value columns
+        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
         let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
+        table.pull(channels.vrom_channel, [src_abs, src_val]);
+
+        // Shift amount columns
+        let shift_abs =
+            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
+        let shift_val = table.add_committed("shift_val");
+        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
 
         // Get sign bit (MSB of src value)
         let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
@@ -327,6 +482,7 @@ impl Table for SraTable {
         // For positive numbers: original input
         // For negative numbers: inverted input (~input)
         let shifter_input = table.add_committed::<B1, 32>("shifter_input");
+        let shifter_input_packed = table.add_packed("shifter_input", shifter_input);
 
         // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
         setup_mux_constraint(
@@ -337,31 +493,17 @@ impl Table for SraTable {
             &sign_bit,
         );
 
-        // Address calculations
-        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
-        let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
-        let shift_abs =
-            table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
-
-        // Shift amount columns
-        let shift_amount_unpacked: Col<B1, 32> = table.add_committed("shift_amount_unpacked");
-        let shift_amount_packed: Col<B32> = table.add_packed("shift_amount", shift_amount_unpacked);
-        let shift_amount_low: Col<B1, 16> =
-            table.add_selected_block("shift_amount_low", shift_amount_unpacked, 0);
-
-        // Single barrel shifter using the selected input
-        // For positive numbers: input >> shift
-        // For negative numbers: (~input) >> shift
-        let shifter = BarrelShifter::new(
-            &mut table,
-            shifter_input,
-            shift_amount_low,
-            ShiftVariant::LogicalRight,
+        let right_shifter_output: Col<B1, 32> = table.add_committed("right_shifter_output");
+        let right_shifter_output_packed =
+            table.add_packed("right_shifter_output", right_shifter_output);
+        table.pull(
+            channels.right_shifter_channel,
+            [shifter_input_packed, shift_val, right_shifter_output_packed],
         );
 
         // Invert the shifter output for negative numbers: ~(shifted value)
         // This completes the invert-shift-invert pattern (~(~input >> shift))
-        let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
+        let inverted_output = table.add_computed("inverted_output", right_shifter_output + B1::ONE);
 
         // Result selector based on sign bit
         let result = table.add_committed("result");
@@ -372,21 +514,20 @@ impl Table for SraTable {
             &mut table,
             &result,
             &inverted_output,
-            &shifter.output,
+            &right_shifter_output,
             &sign_bit,
         );
 
+        // Address calculations
+        let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull memory access data from VROM channel
         table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
 
         Self {
             id: table.id(),
             state_cols,
-            shifter,
             dst_abs,
             src_abs,
             src_val_unpacked,
@@ -394,8 +535,8 @@ impl Table for SraTable {
             inverted_input,
             shifter_input,
             shift_abs,
-            shift_amount_unpacked,
-            shift_amount_low,
+            shift_val,
+            right_shifter_output,
             inverted_output,
             result,
         }
@@ -420,8 +561,8 @@ impl TableFiller<ProverPackedField> for SraTable {
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
-            let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-            let mut shift_low = witness.get_mut_as(self.shift_amount_low)?;
+            let mut shift_val = witness.get_scalars_mut(self.shift_val)?;
+            let mut right_shifter_output = witness.get_mut_as(self.right_shifter_output)?;
             let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
             let mut shifter_input = witness.get_mut_as(self.shifter_input)?;
             let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
@@ -433,8 +574,7 @@ impl TableFiller<ProverPackedField> for SraTable {
                 dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                 src_abs[i] = B32::new(ev.fp.addr(ev.src));
                 shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
-                shift_unpacked[i] = ev.shift_amount;
-                shift_low[i] = ev.shift_amount as u16;
+                shift_val[i] = B32::new(ev.shift_amount);
 
                 // Calculate sign bit
                 let is_negative = (ev.src_val >> 31) & 1 == 1;
@@ -460,6 +600,7 @@ impl TableFiller<ProverPackedField> for SraTable {
                 //   3. Invert the result (~(~input >> shift))
                 // This correctly fills 1s from the left for negative numbers
                 let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
+                right_shifter_output[i] = shift_result;
 
                 // Calculate inverted output (must be calculated with bit negation)
                 inverted_output[i] = !shift_result;
@@ -484,12 +625,7 @@ impl TableFiller<ProverPackedField> for SraTable {
             arg1: ev.src,
             arg2: ev.shift,
         });
-        self.state_cols.populate(witness, state_rows)?;
-
-        // Populate barrel shifter
-        self.shifter.populate(witness)?;
-
-        Ok(())
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
@@ -497,7 +633,6 @@ impl TableFiller<ProverPackedField> for SraTable {
 pub struct SraiTable {
     id: TableId,
     state_cols: StateColumns<{ Opcode::Srai as u16 }>,
-    shifter: BarrelShifter,
     dst_abs: Col<B32>,
     src_abs: Col<B32>,
     src_val_unpacked: Col<B1, 32>,
@@ -505,8 +640,9 @@ pub struct SraiTable {
     inverted_input: Col<B1, 32>, // ~input for negative number path
     shifter_input: Col<B1, 32>,  /* Selected input for shifter (original or inverted based on
                                   * sign bit) */
-    inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
-    result: Col<B1, 32>,          // Final result after selection
+    right_shifter_output: Col<B1, 32>, // shifter.output
+    inverted_output: Col<B1, 32>,      // ~shifter.output for negative number path
+    result: Col<B1, 32>,               // Final result after selection
 }
 
 impl Table for SraiTable {
@@ -538,6 +674,7 @@ impl Table for SraiTable {
         // For positive numbers: original input
         // For negative numbers: inverted input (~input)
         let shifter_input = table.add_committed::<B1, 32>("shifter_input");
+        let shifter_input_packed: Col<B32> = table.add_packed("shifter_input", shifter_input);
 
         // Mux to select shifter input: sign_bit ? inverted_input : src_val_unpacked
         setup_mux_constraint(
@@ -548,23 +685,22 @@ impl Table for SraiTable {
             &sign_bit,
         );
 
+        let shift_val = upcast_col(state_cols.arg2);
+        let right_shifter_output = table.add_committed("right_shifter_output");
+        let right_shifter_output_packed =
+            table.add_packed("right_shifter_output", right_shifter_output);
+        table.pull(
+            channels.right_shifter_channel,
+            [shifter_input_packed, shift_val, right_shifter_output_packed],
+        );
+
         // Absolute addresses for destination and source
         let dst_abs = table.add_computed("dst_abs", state_cols.fp + upcast_col(state_cols.arg0));
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
-        // Single barrel shifter using the selected input
-        // For positive numbers: input >> shift
-        // For negative numbers: (~input) >> shift
-        let shifter = BarrelShifter::new(
-            &mut table,
-            shifter_input,
-            state_cols.arg2_unpacked,
-            ShiftVariant::LogicalRight,
-        );
-
         // Invert the shifter output for negative numbers: ~(shifted value)
         // This completes the invert-shift-invert pattern (~(~input >> shift))
-        let inverted_output = table.add_computed("inverted_output", shifter.output + B1::ONE);
+        let inverted_output = table.add_computed("inverted_output", right_shifter_output + B1::ONE);
 
         // Result selector based on sign bit
         let result = table.add_committed("result");
@@ -575,7 +711,7 @@ impl Table for SraiTable {
             &mut table,
             &result,
             &inverted_output,
-            &shifter.output,
+            &right_shifter_output,
             &sign_bit,
         );
 
@@ -588,13 +724,13 @@ impl Table for SraiTable {
         Self {
             id: table.id(),
             state_cols,
-            shifter,
             dst_abs,
             src_abs,
             src_val_unpacked,
             sign_bit,
             inverted_input,
             shifter_input,
+            right_shifter_output,
             inverted_output,
             result,
         }
@@ -620,6 +756,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
             let mut src_abs = witness.get_scalars_mut(self.src_abs)?;
             let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
             let mut shifter_input = witness.get_mut_as(self.shifter_input)?;
+            let mut right_shifter_output = witness.get_mut_as(self.right_shifter_output)?;
             let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
             let mut result = witness.get_mut_as(self.result)?;
             let mut sign_bit = witness.get_mut(self.sign_bit)?;
@@ -653,6 +790,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
                 //   3. Invert the result (~(~input >> shift))
                 // This correctly fills 1s from the left for negative numbers
                 let shift_result = shifter_input[i] >> (ev.shift_amount & 0x1F) as usize;
+                right_shifter_output[i] = shift_result;
 
                 // Calculate inverted output (must be calculated with bit negation)
                 inverted_output[i] = !shift_result;
@@ -677,12 +815,7 @@ impl TableFiller<ProverPackedField> for SraiTable {
             arg1: ev.src,
             arg2: ev.shift_amount as u16,
         });
-        self.state_cols.populate(witness, state_rows)?;
-
-        // Populate barrel shifter
-        self.shifter.populate(witness)?;
-
-        Ok(())
+        self.state_cols.populate(witness, state_rows)
     }
 }
 
