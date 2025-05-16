@@ -157,7 +157,7 @@ fn extract_frame_templates_from_assembled_program(
 ) -> HashMap<String, FrameTemplate> {
     let mut frame_templates = HashMap::new();
 
-    for (label, pc_location) in assembled_program.labels.iter() {
+    for (label, (pc_location, _)) in assembled_program.labels.iter() {
         // If the label has a frame size, then create a template for it.
         if let Some(frame_size) = assembled_program.frame_sizes.get(pc_location) {
             let frame_temp = FrameTemplate {

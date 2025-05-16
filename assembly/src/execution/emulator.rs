@@ -116,6 +116,9 @@ pub type Instruction = [B16; 4];
 pub struct InterpreterInstruction {
     pub instruction: Instruction,
     pub field_pc: B32,
+    /// Optional advice. Used for providing the discrete logarithm in base
+    /// `B32::ONE` of a group element defined by the instruction arguments.
+    pub advice: Option<u32>,
 }
 
 impl InterpreterInstruction {
@@ -123,8 +126,18 @@ impl InterpreterInstruction {
         Self {
             instruction,
             field_pc,
+            advice: None,
         }
     }
+
+    pub const fn new_with_advice(instruction: Instruction, field_pc: B32, advice: u32) -> Self {
+        Self {
+            instruction,
+            field_pc,
+            advice: Some(advice),
+        }
+    }
+
     pub fn opcode(&self) -> Opcode {
         Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
     }
@@ -192,16 +205,25 @@ impl Interpreter {
     }
 
     #[inline(always)]
+    /// Jump to a specific target in the PROM, given as a field element
     pub(crate) fn jump_to(&mut self, target: B32) {
         if target == B32::zero() {
-            self.pc = 0;
+            self.jump_to_u32(0);
         } else {
-            self.pc = *self
-                .pc_field_to_int
-                .get(&target)
-                .expect("This target should have been parsed.");
+            self.jump_to_u32(
+                *self
+                    .pc_field_to_int
+                    .get(&target)
+                    .expect("This target should have been parsed."),
+            );
             debug_assert!(G.pow(self.pc as u64 - 1) == target);
         }
+    }
+
+    #[inline(always)]
+    /// Jump to a specific target in the PROM, given as an integer
+    pub(crate) fn jump_to_u32(&mut self, target: u32) {
+        self.pc = target;
     }
 
     #[inline(always)]
@@ -241,6 +263,7 @@ impl Interpreter {
         let InterpreterInstruction {
             instruction,
             field_pc,
+            advice,
         } = trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction;
         trace.record_instruction(field_pc);
@@ -261,6 +284,7 @@ impl Interpreter {
             interpreter: self,
             trace,
             field_pc,
+            advice,
         };
 
         opcode.generate_event(&mut ctx, arg0, arg1, arg2)
