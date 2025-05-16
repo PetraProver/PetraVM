@@ -12,9 +12,10 @@ use binius_m3::{
     },
     gadgets::hash::groestl::Permutation,
 };
-use bytemuck::cast_slice;
 use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
+use crate::utils::u64_to_bytes;
+use crate::utils::u64_to_u32;
 use crate::{
     channels::Channels,
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
@@ -414,7 +415,6 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
                 let src1_base_addr = event.fp.addr(event.src1 as u32);
                 let src2_base_addr = event.fp.addr(event.src2 as u32);
-                let dst_val_vec = event.dst_val.to_vec();
 
                 for j in 0..8 {
                     // Fill addresses.
@@ -426,7 +426,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     src2_addresses[2 * j + 1][i] = src2_base_addr + 2 * j as u32 + 1;
 
                     // Fill source and destination values.
-                    let dst_val_u8 = cast_slice::<u64, u8>(&dst_val_vec);
+                    let dst_val_u8 = u64_to_bytes(&event.dst_val);
                     dst_vals[j][i] = event.dst_val[j];
 
                     // The permutation takes the input in row-major order.
@@ -465,12 +465,12 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                         );
                     }
                 }
+
                 let transposed_src1_val = (0..8)
                     .flat_map(|j| (0..8).map(move |k| event.src1_val[k * 8 + j]))
                     .collect::<Vec<_>>();
 
-                let dst_val_u32: [u32; 16] =
-                    cast_slice::<u64, u32>(&dst_val_vec).try_into().unwrap();
+                let dst_val_u32: [u32; 16] = u64_to_u32(&event.dst_val).try_into().unwrap();
 
                 // Fill the source and destination 32-bit values.
                 for j in 0..16 {
@@ -868,7 +868,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
 
                     dst_vals[j][i] = event.dst_val[j];
 
-                    let dst_val_u8 = cast_slice::<u64, u8>(&event.dst_val);
+                    let dst_val_u8 = u64_to_bytes(&event.dst_val);
 
                     for k in 0..8 {
                         set_packed_slice(
@@ -903,8 +903,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                     }
                 }
 
-                let dst_val_u32: [u32; 8] =
-                    cast_slice::<u64, u32>(&event.dst_val).try_into().unwrap();
+                let dst_val_u32: [u32; 8] = u64_to_u32(&event.dst_val).try_into().unwrap();
 
                 // Fill the source and destination 32-bit values.
                 for j in 0..8 {

@@ -1,12 +1,12 @@
 use binius_field::AESTowerField8b;
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use binius_m3::builder::{B16, B32, B8};
-use bytemuck::cast_slice;
 
 use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     macros::fire_non_jump_event,
+    util::{bytes_to_u64, u32_to_bytes},
 };
 
 /// Event for GROESTL256_COMPRESS.
@@ -36,12 +36,12 @@ impl Event for Groestl256CompressEvent {
         for i in 0..16 {
             src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
         }
-        let src1_val = cast_slice::<u32, u8>(&src1_val);
+        let src1_val = u32_to_bytes(&src1_val);
         let mut src2_val = Vec::with_capacity(16);
         for i in 0..16 {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
-        let src2_val = cast_slice::<u32, u8>(&src2_val);
+        let src2_val = u32_to_bytes(&src2_val);
         // Transform the input to match the process in arithmetization.
         let src1_val_new = src1_val
             .iter()
@@ -67,9 +67,7 @@ impl Event for Groestl256CompressEvent {
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
-        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes.to_vec())
-            .try_into()
-            .unwrap();
+        let dst_val: [u64; 8] = bytes_to_u64(&out_state_bytes).try_into().unwrap();
 
         for i in 0..8 {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
@@ -127,13 +125,13 @@ impl Event for Groestl256OutputEvent {
         for i in 0..8 {
             src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
         }
-        let src1_val = cast_slice::<u32, u8>(&src1_val);
+        let src1_val = u32_to_bytes(&src1_val);
 
         let mut src2_val = Vec::with_capacity(8);
         for i in 0..8 {
             src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
         }
-        let src2_val = cast_slice::<u32, u8>(&src2_val);
+        let src2_val = u32_to_bytes(&src2_val);
         // Transform the input to match the process in arithmetization.
         let src1_val_new = src1_val
             .iter()
@@ -157,7 +155,7 @@ impl Event for Groestl256OutputEvent {
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
         let dst_val: [u8; 32] = out_state_bytes[32..].try_into().unwrap();
-        let dst_val = cast_slice::<u8, u64>(&dst_val);
+        let dst_val = bytes_to_u64(&dst_val);
         for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
         }
@@ -266,7 +264,7 @@ mod tests {
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-        let dst_vals = cast_slice::<u8, u64>(&out_state_bytes);
+        let dst_vals = bytes_to_u64(&out_state_bytes);
 
         let actual_dst_vals = (0..8)
             .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())
@@ -355,7 +353,7 @@ mod tests {
         let output_state_bytes =
             output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
         let dst_val = GenericArray::<u8, typenum::U32>::from_slice(&output_state_bytes[32..]);
-        let dst_val = cast_slice::<u8, u64>(&dst_val);
+        let dst_val = bytes_to_u64(&dst_val);
 
         let actual_dst_vals = (0..4)
             .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())

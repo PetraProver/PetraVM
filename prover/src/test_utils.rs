@@ -2,7 +2,6 @@ use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use binius_m3::builder::{B32, B8};
-use bytemuck::cast_slice;
 use log::trace;
 use petravm_asm::{
     isa::{GenericISA, RecursionISA, ISA},
@@ -10,7 +9,10 @@ use petravm_asm::{
 };
 use tracing::instrument;
 
-use crate::model::Trace;
+use crate::{
+    model::Trace,
+    utils::{bytes_to_u32, u32_to_bytes},
+};
 
 pub fn fibonacci(n: u32) -> u32 {
     if n <= 1 {
@@ -207,10 +209,8 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     //////////////////////////
 
     // Compute the output of the compression step.
-    let src1_val_vec = src1_val.to_vec();
-    let src2_val_vec = src2_val.to_vec();
-    let src1_bytes = cast_slice::<u32, u8>(&src1_val_vec);
-    let src2_bytes = cast_slice::<u32, u8>(&src2_val_vec);
+    let src1_bytes = u32_to_bytes(&src1_val);
+    let src2_bytes = u32_to_bytes(&src2_val);
 
     let src1_val_new = src1_bytes
         .iter()
@@ -233,10 +233,9 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     let out_state_bytes = GroestlShortImpl::state_to_bytes(&compression_output);
     let out_state_bytes =
         out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-    let out_state_vec = out_state_bytes.to_vec();
 
     // Output state that is stored as the input of the next compression step.
-    let compression_output = cast_slice::<u8, u32>(&out_state_vec);
+    let compression_output = bytes_to_u32(&out_state_bytes);
 
     /////////////////////////////////
     //// 2-to-1 COMPRESSION STEP ////
@@ -272,7 +271,7 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
         output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
     let dst_val: [u8; 32] = output_state_bytes[32..].try_into().unwrap();
-    let groestl_output = cast_slice::<u8, u32>(&dst_val);
+    let groestl_output = bytes_to_u32(&dst_val);
 
     // Add VROM writes from GROESTL and RET events.
     let mut vrom_writes = vec![];
