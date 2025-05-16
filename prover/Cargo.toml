@@ -42,3 +42,7 @@ rand = { version = "0.9.1", features = ["std"] }
 [[bench]]
 name = "shift"
 harness = false
+
+[[bench]]
+name = "opcodes"
+harness = false
