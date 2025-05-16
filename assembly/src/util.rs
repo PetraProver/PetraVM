@@ -13,3 +13,20 @@ pub fn init_logger() {
         .with(ForestLayer::default())
         .init();
 }
+
+pub(crate) fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(input.len() * 4);
+    for &value in input {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
+}
+
+pub(crate) fn bytes_to_u64(input: &[u8]) -> Vec<u64> {
+    let mut output = Vec::with_capacity(input.len() / 8);
+    for chunk in input.chunks_exact(8) {
+        let value = u64::from_le_bytes(chunk.try_into().unwrap());
+        output.push(value);
+    }
+    output
+}

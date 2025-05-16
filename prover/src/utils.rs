@@ -191,3 +191,37 @@ pub(crate) fn setup_mux_constraint(
                 + false_packed * (upcast_col(*select_bit) - B32::ONE)),
     );
 }
+
+pub(crate) fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(input.len() * 4);
+    for &value in input {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
+}
+
+pub(crate) fn bytes_to_u32(input: &[u8]) -> Vec<u32> {
+    let mut output = Vec::with_capacity(input.len() / 4);
+    for chunk in input.chunks_exact(4) {
+        let value = u32::from_le_bytes(chunk.try_into().unwrap());
+        output.push(value);
+    }
+    output
+}
+
+pub(crate) fn u64_to_u32(input: &[u64]) -> Vec<u32> {
+    let mut output = Vec::with_capacity(input.len() * 2);
+    for &value in input {
+        output.push(value as u32);
+        output.push((value >> 32) as u32);
+    }
+    output
+}
+
+pub(crate) fn u64_to_bytes(input: &[u64]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(input.len() * 8);
+    for &value in input {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
+}

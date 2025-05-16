@@ -715,7 +715,8 @@ mod tests {
         );
 
         let init_values = vec![0, 0, val];
-        generate_trace(asm_code, Some(init_values), None)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, Some(init_values), None, isa)
     }
 
     fn test_shift_with_values(val: u32, shift_amount: u32) -> Result<()> {
