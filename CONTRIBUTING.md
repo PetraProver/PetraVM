@@ -9,13 +9,6 @@ We use plenty of useful crates from the Rust ecosystem. When including a crate a
   to find an alternative.
 * Is it developed by one person or an organization?
 
-We use plenty of useful crates from the Rust ecosystem. When including a crate as a dependency, be sure to assess:
-
-* Is it widely used? You can see when it was published and total downloads on `crates.io`.
-* Is it maintained? If the documentation has an explicit deprecation notice or has not been updated in a long time, try
-  to find an alternative.
-* Is it developed by one person or an organization?
-
 ## First-time contributions
 
 The project welcomes first time contributions from developers who want to learn more about PetraVM and make an impact
