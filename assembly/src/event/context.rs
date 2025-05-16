@@ -14,11 +14,14 @@ use crate::{
 ///
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`PetraTrace`], and also contains the PC associated to the event to be
-/// generated.
+/// generated. It also contains an optional advice, used for providing the
+/// discrete logarithm in base `B32::ONE` of a group element defined by the
+/// instruction arguments.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut PetraTrace,
     pub field_pc: B32,
+    pub advice: Option<u32>,
 }
 
 impl EventContext<'_> {
@@ -239,6 +242,22 @@ impl<'a> EventContext<'a> {
             interpreter,
             trace,
             field_pc: B32::ONE,
+            advice: None,
+        }
+    }
+
+    pub(crate) fn new_with_advice(
+        interpreter: &'a mut Interpreter,
+        trace: &'a mut PetraTrace,
+        advice: u32,
+    ) -> Self {
+        use binius_field::Field;
+
+        Self {
+            interpreter,
+            trace,
+            field_pc: B32::ONE,
+            advice: Some(advice),
         }
     }
 
