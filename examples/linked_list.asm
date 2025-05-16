@@ -45,57 +45,43 @@ build_linked_list_of_ints:
     ;; Slot 2: Arg: start_val
     ;; Slot 3: Arg: list_size
     ;; Slot 4: ND Local: Next FP
-    ;; Slot 5: Return value (We actually can't implement this yet, so until we have the instruction to store addresses, this function will just return `0`.)
+    ;; Slot 5: Return value: 0 (emtpy list), > 0 pointer to the first node value
     
-    MVV.W @4[2], @2
-    MVV.W @4[3], @3
+    MVV.W @4[2], @2 ;; curr_val
+    MVV.W @4[3], @3 ;; list_size
+    MVV.W @4[4], @4 ;; cur_fp
+    MVV.W @4[6], @5 ;; return value
     CALLI build_linked_list_of_ints_rec, @4
-
-    BNZ @6, non_empty_list
-    MVI.H @5, #0 ;; `0` means an empty list.
     RET
 
-    non_empty_list:
-    ;; TODO: Replace instruction with one that stores addresses once available...
-    MVV.W @4[7], @5 ;; A non-zero value is always the address of the first node.
-    RET
-
-#[framesize(0xc)]
+#[framesize(0xb)]
 build_linked_list_of_ints_rec:
     ;; Frame:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
-    ;; Slot 2: Arg: curr_val (Also used as `node.node_val`)
+    ;; Slot 2: Arg: curr_val
     ;; Slot 3: Arg: list_size
     ;; Slot 4: Arg: cur_fp (this is the address of the current frame. We can keep track of it in the code.)
     ;; Slot 5: ND Local: Next FP.
-    ;; Slot 6: Return value, which is 0 if this is the last node or 1 if there is another node.
-    ;; Slot 7: Return value: cur_val_addr (address of the current value)
-    ;; Slot 8: Local: curr_val < list_size
-    ;; Slot 9: Local: node.node_val
-    ;; Slot 10: Local node.next
-    ;; Slot 11: next_val
-
-    ADDI @7, @4, #7 ;; Store the address of the current value.
-    
-    SLTI @8, @2, @3 ;; curr_val < list_size
-    BNZ add_new_node, @8
-
-    MVI.H @6, #0 ;; This is the last node.
+    ;; Slot 6: Return value: 0 (emtpy list), > 0 pointer to the first node value
+    ;; Slot 7: Local: curr_val < list_size
+    ;; Slot 8: Local: node.node_val
+    ;; Slot 9: Local node.next
+    ;; Slot 10: next_val    
+    SLT @7, @2, @3 ;; curr_val < list_size
+    BNZ add_new_node, @7
+    LDI.W @6, #0 ;; This is the null node
     RET    
 
 add_new_node:
-    ADDI @11, @2, #1 ;; curr_val + 1
+    ADDI @6 , @4, #8 ;; The address of the node is the address of node.node_val.
+    ADDI @8, @2, #0 ;; node.node_val = curr_val
+    ADDI @10, @2, #1 ;; curr_val + 1
     ;; Populate next frame.
     ;; Args:
-    MVV.W @5[2], @11 ;; Next value
+    MVV.W @5[2], @10 ;; Next value
     MVV.W @5[3], @3 ;; List size
     MVV.W @5[4], @5 ;; Store the address of the next frame pointer.
-    ;; Return values
-    MVV.W @5[7] @10 ;; The address of the next value is populated in the next frame. (stores local.next_node = $next_node.val).
-
-    MVV.W @9 @2 ;; node.node_val = curr_val
-
-    MVI.H @5, #1 ;; Indicate to caller that there is another node.
-    TAILI build_linked_list_of_ints_rec, @5
+    MVV.W @5[6], @9 ;; Return value: next node address
+    CALLI build_linked_list_of_ints_rec, @5
     RET
