@@ -53,10 +53,8 @@ impl Event for Groestl256CompressEvent {
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
 
-        let out_val_inp =
+        let mut out_val =
             GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
-
-        let mut out_val = out_val_inp.clone();
 
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut out_val,
@@ -142,8 +140,8 @@ impl Event for Groestl256OutputEvent {
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
         let full_input: [u8; 64] = [src1_val_new, src2_val_new].concat().try_into().unwrap();
-        let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
-        let mut state = state_in.clone();
+        let state_in = GroestlShortImpl::state_from_bytes(&full_input);
+        let mut state = state_in;
 
         // First, carry out the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);
@@ -336,7 +334,7 @@ mod tests {
         let init = GroestlShortImpl::state_from_bytes(
             &[src1_val_new, src2_val_new].concat().try_into().unwrap(),
         );
-        let mut state_in = init.clone();
+        let mut state_in = init;
         GroestlShortImpl::p_perm(&mut state_in);
 
         // Calculate the output: dst_val = P(state_in) XOR init
@@ -353,7 +351,7 @@ mod tests {
         let output_state_bytes =
             output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
         let dst_val = GenericArray::<u8, typenum::U32>::from_slice(&output_state_bytes[32..]);
-        let dst_val = bytes_to_u64(&dst_val);
+        let dst_val = bytes_to_u64(dst_val);
 
         let actual_dst_vals = (0..4)
             .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())

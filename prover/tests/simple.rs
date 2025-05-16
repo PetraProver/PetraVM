@@ -346,7 +346,7 @@ fn test_groestl_proving() -> Result<()> {
 
             let src1_offset = 16;
             let src2_offset = 32;
-            let mut init_values = vec![0; 48];
+            let mut init_values = [0; 48];
             init_values[src1_offset..src1_offset + 16].copy_from_slice(&src1_value);
             init_values[src2_offset..src2_offset + 16].copy_from_slice(&src2_value);
 

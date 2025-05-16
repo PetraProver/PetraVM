@@ -89,8 +89,8 @@ impl Table for Groestl256CompressTable {
             },
         );
         // Get destination and source values.
-        let src1_vals = from_fn(|i| table.add_committed(format!("src1_val_{}", i)));
-        let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{}", i)));
+        let src1_vals = from_fn(|i| table.add_committed(format!("src1_val_{i}")));
+        let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{i}")));
 
         // Get the base address for the first and second source values.
         let src1_abs =
@@ -100,14 +100,12 @@ impl Table for Groestl256CompressTable {
 
         // Get all the addresses for the first and second source values.
         let mut src1_addresses = [src1_abs; 16];
-        for i in 1..16 {
-            src1_addresses[i] =
-                table.add_computed(format!("src1_addr_{}", i), src1_abs + B32::from(i as u32));
+        for (i, s1) in src1_addresses.iter_mut().enumerate().skip(1) {
+            *s1 = table.add_computed(format!("src1_addr_{i}"), src1_abs + B32::from(i as u32));
         }
         let mut src2_addresses = [src2_abs; 16];
-        for i in 1..16 {
-            src2_addresses[i] =
-                table.add_computed(format!("src2_addr_{}", i), src2_abs + B32::from(i as u32));
+        for (i, s2) in src2_addresses.iter_mut().enumerate().skip(1) {
+            *s2 = table.add_computed(format!("src2_addr_{i}"), src2_abs + B32::from(i as u32));
         }
 
         // We need to take the transpose of the source values to get the correct
@@ -115,7 +113,7 @@ impl Table for Groestl256CompressTable {
         let projected_src1_vals_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
-                    format!("compress_projected_src1_vals_{}_{}", i, j),
+                    format!("compress_projected_src1_vals_{i}_{j}"),
                     src1_vals[i],
                     j,
                 )
@@ -124,7 +122,7 @@ impl Table for Groestl256CompressTable {
         let projected_src2_vals_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
-                    format!("compress_projected_src2_vals_{}_{}", i, j),
+                    format!("compress_projected_src2_vals_{i}_{j}"),
                     src2_vals[i],
                     j,
                 )
@@ -138,14 +136,14 @@ impl Table for Groestl256CompressTable {
         // We zeropad the projected values to go from `Col<B8>` to `Col<B8, 8>`.
         let zero_padded_src1_vals = from_fn(|i| {
             table.add_zero_pad::<_, 1, 4>(
-                format!("compress_zero_padded_src1_vals_{}", i),
+                format!("compress_zero_padded_src1_vals_{i}"),
                 projected_src1_vals[i],
                 i % 4,
             )
         });
         let zero_padded_src2_vals = from_fn(|i| {
             table.add_zero_pad::<_, 1, 4>(
-                format!("compress_zero_padded_src2_vals_{}", i),
+                format!("compress_zero_padded_src2_vals_{i}"),
                 projected_src2_vals[i],
                 i % 4,
             )
@@ -156,11 +154,11 @@ impl Table for Groestl256CompressTable {
             .enumerate()
             .map(|(i, cols)| {
                 let expr: Expr<B8, 4> = cols
-                    .into_iter()
+                    .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_src1_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_src1_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -170,11 +168,11 @@ impl Table for Groestl256CompressTable {
             .enumerate()
             .map(|(i, cols)| {
                 let expr: Expr<B8, 4> = cols
-                    .into_iter()
+                    .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_src1_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_src1_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -182,10 +180,10 @@ impl Table for Groestl256CompressTable {
 
         // We pack the src1 and src2 values so we can carry out the lookups.
         let src1_vals_packed: Vec<Col<B32>> = (0..16)
-            .map(|i| table.add_packed(format!("src1_packed_{}", i), transposed_src1_vals[i]))
+            .map(|i| table.add_packed(format!("src1_packed_{i}"), transposed_src1_vals[i]))
             .collect::<Vec<_>>();
         let src2_vals_packed: Vec<Col<B32>> = (0..16)
-            .map(|i| table.add_packed(format!("src2_packed_{}", i), transposed_src2_vals[i]))
+            .map(|i| table.add_packed(format!("src2_packed_{i}"), transposed_src2_vals[i]))
             .collect::<Vec<_>>();
 
         // Pull the first and second source values from the VROM channel.
@@ -219,17 +217,17 @@ impl Table for Groestl256CompressTable {
 
         // interm = p_out XOR src1_val.
         let interm: [Col<B8, 8>; 8] =
-            from_fn(|i| table.add_computed(format!("interm_{}", i), p_out_array[i] + src1_vals[i]));
+            from_fn(|i| table.add_computed(format!("interm_{i}"), p_out_array[i] + src1_vals[i]));
 
         // Compute the final output: out = Q(m) XOR P(src1_val XOR src2_val) XOR
         // out = interm XOR q_out.
         let out: [Col<B8, 8>; 8] =
-            from_fn(|i| table.add_computed(format!("out_{}", i), interm[i] + q_out_array[i]));
+            from_fn(|i| table.add_computed(format!("out_{i}"), interm[i] + q_out_array[i]));
 
         let projected_out_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
-                    format!("compress_projected_out_{}_{}", i, j),
+                    format!("compress_projected_out_{i}_{j}"),
                     out[i],
                     j,
                 )
@@ -242,7 +240,7 @@ impl Table for Groestl256CompressTable {
         let zero_padded_out = from_fn(|i| {
             from_fn(|j| {
                 table.add_zero_pad::<_, 1, 8>(
-                    format!("compress_zero_padded_out_{}_{}", i, j),
+                    format!("compress_zero_padded_out_{i}_{j}"),
                     projected_out[i][j],
                     j,
                 )
@@ -255,11 +253,11 @@ impl Table for Groestl256CompressTable {
             .enumerate()
             .map(|(i, cols)| {
                 let expr: Expr<B8, 8> = cols
-                    .into_iter()
+                    .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_out_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_out_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -271,23 +269,20 @@ impl Table for Groestl256CompressTable {
         // Get the base address for the destination value.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let mut dst_addresses = [dst_abs; 8];
-        for i in 1..8 {
-            dst_addresses[i] =
-                table.add_computed(format!("dst_addr_{}", i), dst_abs + B32::from(2 * i as u32));
+        for (i, d) in dst_addresses.iter_mut().enumerate().skip(1) {
+            *d = table.add_computed(format!("dst_addr_{i}"), dst_abs + B32::from(2 * i as u32));
         }
         let mut dst_addresses_plus_one = [dst_abs; 8];
-        for i in 0..8 {
-            dst_addresses_plus_one[i] = table.add_computed(
-                format!("dst_addr_plus_one_{}", i),
+        for (i, d_plus_one) in dst_addresses_plus_one.iter_mut().enumerate() {
+            *d_plus_one = table.add_computed(
+                format!("dst_addr_plus_one_{i}"),
                 dst_abs + B32::from(2 * i as u32 + 1),
             );
         }
 
         // Pull the first source value from the VROM channel.
         let dst_selected: [Col<B32>; 16] = (0..16)
-            .map(|i| {
-                table.add_selected(format!("dst_val_{}_selected", i), out_packed[i / 2], i % 2)
-            })
+            .map(|i| table.add_selected(format!("dst_val_{i}_selected"), out_packed[i / 2], i % 2))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
@@ -345,8 +340,8 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
             .clone()
             .map(|event| {
                 let mut p_state = [B8::ZERO; 64];
-                for i in 0..64 {
-                    p_state[i] = B8::from(event.src1_val[i]) + B8::from(event.src2_val[i]);
+                for (i, p_s) in p_state.iter_mut().enumerate() {
+                    *p_s = B8::from(event.src1_val[i]) + B8::from(event.src2_val[i]);
                 }
                 p_state
             })
@@ -592,14 +587,14 @@ impl Table for Groestl256OutputTable {
         );
 
         // Get destination and source values.
-        let src1_vals = from_fn(|i| table.add_committed(format!("src1_val_{}", i)));
-        let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{}", i)));
+        let src1_vals = from_fn(|i| table.add_committed(format!("src1_val_{i}")));
+        let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{i}")));
 
         // Get the base address for the first source value.
         let src1_base_addr = state_cols.fp + upcast_col(state_cols.arg1);
         let src1_addrs = from_fn(|i| {
             table.add_computed(
-                format!("src1_addr_{}", i),
+                format!("src1_addr_{i}"),
                 src1_base_addr.clone() + B32::from(i as u32),
             )
         });
@@ -608,7 +603,7 @@ impl Table for Groestl256OutputTable {
         let src2_base_addr = state_cols.fp + upcast_col(state_cols.arg2);
         let src2_addrs = from_fn(|i| {
             table.add_computed(
-                format!("src2_addr_{}", i),
+                format!("src2_addr_{i}"),
                 src2_base_addr.clone() + B32::from(i as u32),
             )
         });
@@ -620,7 +615,7 @@ impl Table for Groestl256OutputTable {
         let projected_state_in_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
-                    format!("output_projected_state_in_{}_{}", i, j),
+                    format!("output_projected_state_in_{i}_{j}"),
                     state_in[i],
                     j,
                 )
@@ -633,7 +628,7 @@ impl Table for Groestl256OutputTable {
         // We zeropad the projected values to go from `Col<B8>` to `Col<B8, 8>`.
         let zero_padded_state_in = from_fn(|i| {
             table.add_zero_pad::<_, 1, 4>(
-                format!("output_zero_padded_state_in_{}", i),
+                format!("output_zero_padded_state_in_{i}"),
                 projected_state_in[i],
                 i % 4,
             )
@@ -645,11 +640,11 @@ impl Table for Groestl256OutputTable {
             .enumerate()
             .map(|(i, cols)| {
                 let expr: Expr<B8, 4> = cols
-                    .into_iter()
+                    .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_src1_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_src1_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -657,7 +652,7 @@ impl Table for Groestl256OutputTable {
 
         // We pack the src1 and src2 values so we can carry out the lookups.
         let state_in_packed: Vec<Col<B32>> = (0..16)
-            .map(|i| table.add_packed(format!("src1_packed_{}", i), transposed_state_in[i]))
+            .map(|i| table.add_packed(format!("src1_packed_{i}"), transposed_state_in[i]))
             .collect::<Vec<_>>();
 
         // Pull the first and second source values from the VROM channel.
@@ -670,7 +665,7 @@ impl Table for Groestl256OutputTable {
         let p_op = Permutation::new(
             &mut table,
             binius_m3::gadgets::hash::groestl::PermutationVariant::P,
-            state_in.clone(),
+            state_in,
         );
 
         // p_out = P(p_state_in)
@@ -678,12 +673,12 @@ impl Table for Groestl256OutputTable {
 
         // XOR with state_in and only return the lower 256 bits (so the first 32 bytes).
         let out: [Col<B8, 8>; 8] =
-            from_fn(|i| table.add_computed(format!("out_{}", i), p_out_array[i] + state_in[i]));
+            from_fn(|i| table.add_computed(format!("out_{i}"), p_out_array[i] + state_in[i]));
 
         let projected_out_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
             from_fn(|j| {
                 table.add_selected_block::<_, 8, 1>(
-                    format!("output_projected_out_{}_{}", i, j),
+                    format!("output_projected_out_{i}_{j}"),
                     out[i],
                     j,
                 )
@@ -696,7 +691,7 @@ impl Table for Groestl256OutputTable {
         let zero_padded_out = from_fn(|i| {
             from_fn(|j| {
                 table.add_zero_pad::<_, 1, 8>(
-                    format!("output_zero_padded_out_{}_{}", i, j),
+                    format!("output_zero_padded_out_{i}_{j}"),
                     projected_out[4 + i][j],
                     j,
                 )
@@ -709,11 +704,11 @@ impl Table for Groestl256OutputTable {
             .enumerate()
             .map(|(i, cols)| {
                 let expr: Expr<B8, 8> = cols
-                    .into_iter()
+                    .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
                     .unwrap();
-                table.add_computed(format!("zero_padded_sums_out_{}", i), expr)
+                table.add_computed(format!("zero_padded_sums_out_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
@@ -725,23 +720,20 @@ impl Table for Groestl256OutputTable {
         // Get the base address for the destination value.
         let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
         let mut dst_addrs = [dst_abs; 4];
-        for i in 1..4 {
-            dst_addrs[i] =
-                table.add_computed(format!("dst_addr_{}", i), dst_abs + B32::from(2 * i as u32));
+        for (i, d) in dst_addrs.iter_mut().enumerate().skip(1) {
+            *d = table.add_computed(format!("dst_addr_{i}"), dst_abs + B32::from(2 * i as u32));
         }
         let mut dst_addrs_plus_one = [dst_abs; 4];
-        for i in 0..4 {
-            dst_addrs_plus_one[i] = table.add_computed(
-                format!("dst_addr_plus_one_{}", i),
+        for (i, d_plus_one) in dst_addrs_plus_one.iter_mut().enumerate() {
+            *d_plus_one = table.add_computed(
+                format!("dst_addr_plus_one_{i}"),
                 dst_abs + B32::from(2 * i as u32 + 1),
             );
         }
 
         // Pull the first source value from the VROM channel.
         let dst_selected: [Col<B32>; 8] = (0..8)
-            .map(|i| {
-                table.add_selected(format!("dst_val_{}_selected", i), out_packed[i / 2], i % 2)
-            })
+            .map(|i| table.add_selected(format!("dst_val_{i}_selected"), out_packed[i / 2], i % 2))
             .collect::<Vec<_>>()
             .try_into()
             .unwrap();
@@ -917,7 +909,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                     .collect::<Vec<_>>();
                 let p_state_bytes =
                     GroestlShortImpl::state_from_bytes(&p_state_bytes.try_into().unwrap());
-                let mut state = p_state_bytes.clone();
+                let mut state = p_state_bytes;
                 GroestlShortImpl::p_perm(&mut state);
 
                 // Reshape the output to get the expected output.

@@ -253,7 +253,7 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
 
     // Compute the output of the 2-to-1 groestl compression.
     let input = GroestlShortImpl::state_from_bytes(&new_input);
-    let mut state = input.clone();
+    let mut state = input;
     GroestlShortImpl::p_perm(&mut state);
 
     // Calculate the output: dst_val = P(state_in) XOR init
