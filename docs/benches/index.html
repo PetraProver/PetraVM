@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PetraVM Opcode Benchmarks</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #ffffff;
+      color: #333333;
+      font-size: 16px;
+    }
+    h1 {
+      font-size: 30px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls button {
+      background: #EC9A8A;
+      border: none;
+      color: #ffffff;
+      padding: 10px 18px;
+      margin: 0 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 16px;
+      transition: background 0.2s ease;
+    }
+    .controls button:hover {
+      opacity: 0.8;
+    }
+    #chart {
+      width: 100%;
+      height: 600px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Proving Time per 1 Million Instructions</h1>
+  <div class="controls">
+    <button id="sort-asc">Sort ↑</button>
+    <button id="sort-desc">Sort ↓</button>
+  </div>
+  <div id="chart"></div>
+
+  <script>
+    // New scientific palette
+    const categoryColors = {
+      'Binary-Field':   '#EC9A8A',
+      'Shift':          '#A3C9B3',
+      'Multiplication': '#CEE3BC',
+      'Logic':          '#D9C78C',
+      'Comparison':     '#F1F2A3',
+      'Arithmetic':     '#8B8459',
+      'Other':          '#C1BCB3'
+    };
+
+    let ops = [];
+
+    function fetchData() {
+      fetch('benchmarks.json')
+        .then(r => r.json())
+        .then(data => {
+          ops = data
+            .filter(d => d.reason === 'benchmark-complete')
+            .map(d => {
+              const name = d.id.split('/').pop();
+              let category;
+              if (['Xor','Xori','And','Andi','Or','Ori'].includes(name)) category = 'Logic';
+              else if (['B32Mul','B32Muli','B128Add','B128Mul'].includes(name)) category = 'Binary-Field';
+              else if (['Sll','Slli','Srl','Srli','Sra','Srai'].includes(name)) category = 'Shift';
+              else if (['Mul','Muli','Mulu','Mulsu'].includes(name)) category = 'Multiplication';
+              else if (['Add','Addi','Sub'].includes(name)) category = 'Arithmetic';
+              else if (['Slt','Slti','Sltu','Sltiu','Sle','Slei','Sleu','Sleiu'].includes(name)) category = 'Comparison';
+              else category = 'Other';
+              return {
+                opcode: name,
+                mean: d.mean.estimate * 1e-6 * 2,
+                stddev: d.median_abs_dev.estimate * 1e-6 * 2,
+                category
+              };
+            });
+          drawChart();
+        });
+    }
+
+    function drawChart(dataOps = ops) {
+      const cats = [...new Set(dataOps.map(o => o.category))];
+      const traces = cats.map(cat => {
+        const group = dataOps.filter(o => o.category === cat);
+        return {
+          x: group.map(o => o.opcode),
+          y: group.map(o => o.mean),
+          error_y: { type: 'data', array: group.map(o => o.stddev), visible: true },
+          name: cat,
+          type: 'bar',
+          marker: { color: categoryColors[cat] },
+          hovertemplate: `<b>%{x}</b><br>Mean: %{y:.2f} ms<br>StdDev: %{error_y.array:.2f} ms<extra></extra>`
+        };
+      });
+
+      const layout = {
+        template: 'plotly_white',
+        font: { family: 'Segoe UI', size: 16, color: '#333333' },
+        legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.1, font: { size: 16 } },
+        barmode: 'group',
+        bargap: 0.15,
+        bargroupgap: 0.1,
+        margin: { l: 60, r: 30, t: 60, b: 150 },
+        xaxis: { tickangle: -45, automargin: true, tickfont: { size: 16 } },
+        yaxis: { title: 'Time per 1M Instructions (ms)', titlefont: { size: 16 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
+      };
+
+      Plotly.newPlot('chart', traces, layout, { responsive: true });
+    }
+
+    document.getElementById('sort-asc').onclick = () => drawChart(ops.slice().sort((a,b) => a.mean - b.mean));
+    document.getElementById('sort-desc').onclick = () => drawChart(ops.slice().sort((a,b) => b.mean - a.mean));
+
+    fetchData();
+  </script>
+</body>
+</html>

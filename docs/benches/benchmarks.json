@@ -1,0 +1,2861 @@
+[
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Xor",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Xor",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      364984875.0,
+      365784083.0,
+      366413833.0,
+      366617291.0,
+      367978292.0,
+      368788875.0,
+      399542791.0,
+      366307584.0,
+      369582000.0,
+      367910709.0,
+      365362333.0,
+      367864625.0,
+      370399500.0,
+      367202875.0,
+      368618333.0,
+      367266667.0,
+      366580625.0,
+      366549709.0,
+      366937666.0,
+      369528583.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184505531.225,
+      "lower_bound": 183465149.0,
+      "upper_bound": 186250221.825,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184505531.225,
+      "lower_bound": 183465149.0,
+      "upper_bound": 186250221.825,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183617385.5,
+      "lower_bound": 183282583.5,
+      "upper_bound": 184149156.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 647942.5197467208,
+      "lower_bound": 331839.6032586694,
+      "upper_bound": 1259731.0978353024,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.0722139641728,
+        "lower_bound": 14.947411767277897,
+        "upper_bound": 15.258623301282686,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.070875179747745,
+        "lower_bound": 14.889112887045114,
+        "upper_bound": 15.152431916933587,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Xori",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Xori",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365272625.0,
+      366019209.0,
+      365720208.0,
+      364777917.0,
+      365272667.0,
+      365243584.0,
+      367655875.0,
+      370660750.0,
+      366217917.0,
+      364776250.0,
+      367385333.0,
+      365884625.0,
+      364519458.0,
+      365498833.0,
+      367107500.0,
+      367664833.0,
+      367205625.0,
+      367964875.0,
+      368941042.0,
+      367086208.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183271883.35,
+      "lower_bound": 182953995.231875,
+      "upper_bound": 183624348.975,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183271883.35,
+      "lower_bound": 182953995.231875,
+      "upper_bound": 183624348.975,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183059281.5,
+      "lower_bound": 182692875.0,
+      "upper_bound": 183647739.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 769469.0156891942,
+      "lower_bound": 333770.3190743923,
+      "upper_bound": 1186388.7303873897,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.97218625485486,
+        "lower_bound": 14.764901931766765,
+        "upper_bound": 15.130765178682733,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.128261458593368,
+        "lower_bound": 14.963181462450391,
+        "upper_bound": 15.225011713441923,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/B32Mul",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B32Mul",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365701958.0,
+      368803167.0,
+      369668667.0,
+      395369542.0,
+      367999875.0,
+      370207083.0,
+      368348833.0,
+      368198250.0,
+      365050417.0,
+      365338834.0,
+      367890583.0,
+      372065667.0,
+      367964917.0,
+      369289875.0,
+      366344750.0,
+      364749583.0,
+      365263333.0,
+      365090459.0,
+      365247625.0,
+      368543584.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184428425.05,
+      "lower_bound": 183396226.056875,
+      "upper_bound": 186032149.88500002,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184428425.05,
+      "lower_bound": 183396226.056875,
+      "upper_bound": 186032149.88500002,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183991198.0,
+      "lower_bound": 182760198.0,
+      "upper_bound": 184336687.75,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1449596.5569645166,
+      "lower_bound": 336797.04692065716,
+      "upper_bound": 2079963.965973258,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.114631668578827,
+        "lower_bound": 14.940325142400031,
+        "upper_bound": 15.306355861929518,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.192995316588881,
+        "lower_bound": 14.999483242452385,
+        "upper_bound": 15.306593724091565,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/B32Muli",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B32Muli",
+    "iteration_count": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "measured_values": [
+      360019833.0,
+      361622458.0,
+      361513667.0,
+      361871333.0,
+      362591500.0,
+      361130042.0,
+      360754917.0,
+      361197666.0,
+      362343125.0,
+      362665625.0,
+      367165083.0,
+      361717500.0,
+      360716292.0,
+      360766875.0,
+      359866125.0,
+      366154459.0,
+      367672375.0,
+      366138292.0,
+      365862083.0,
+      371210000.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 363148962.5,
+      "lower_bound": 361911355.68125,
+      "upper_bound": 364550115.07125,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 363148962.5,
+      "lower_bound": 361911355.68125,
+      "upper_bound": 364550115.07125,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 361794416.5,
+      "lower_bound": 361163854.0,
+      "upper_bound": 364263854.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1532297.466096282,
+      "lower_bound": 713685.079729557,
+      "upper_bound": 4150538.6263132095,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.054746786094352,
+        "lower_bound": 14.897948130926578,
+        "upper_bound": 15.186871023897384,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.127002363601974,
+        "lower_bound": 14.98349867416174,
+        "upper_bound": 15.255644917607171,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/B128Add",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B128Add",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      364944834.0,
+      363917917.0,
+      365473250.0,
+      367233167.0,
+      369318708.0,
+      365139208.0,
+      366697834.0,
+      368173042.0,
+      365494542.0,
+      366124250.0,
+      366582250.0,
+      364221834.0,
+      370836000.0,
+      367395292.0,
+      365850166.0,
+      364297250.0,
+      364805000.0,
+      365791959.0,
+      366548792.0,
+      369203792.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183201227.175,
+      "lower_bound": 182823470.600625,
+      "upper_bound": 183614151.545625,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183201227.175,
+      "lower_bound": 182823470.600625,
+      "upper_bound": 183614151.545625,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 182993604.0,
+      "lower_bound": 182653114.5,
+      "upper_bound": 183482750.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 824541.3036614656,
+      "lower_bound": 403683.80343317986,
+      "upper_bound": 1410122.3326653242,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.13444828946465,
+        "lower_bound": 15.077265662776908,
+        "upper_bound": 15.191139055357997,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.125751469288584,
+        "lower_bound": 15.087486726815342,
+        "upper_bound": 15.180097479053053,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/B128Mul",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B128Mul",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      368709292.0,
+      368521667.0,
+      365036167.0,
+      365239458.0,
+      367997500.0,
+      370539125.0,
+      364787959.0,
+      399687500.0,
+      361717583.0,
+      367435000.0,
+      364549375.0,
+      366169792.0,
+      368439291.0,
+      369938375.0,
+      366695917.0,
+      369651417.0,
+      367850584.0,
+      399102667.0,
+      368147000.0,
+      369429708.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 185241134.425,
+      "lower_bound": 183430806.19187498,
+      "upper_bound": 187703711.88187498,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 185241134.425,
+      "lower_bound": 183430806.19187498,
+      "upper_bound": 187703711.88187498,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184036125.0,
+      "lower_bound": 183216427.25,
+      "upper_bound": 184534750.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1276997.4571287632,
+      "lower_bound": 472316.3214147091,
+      "upper_bound": 2092597.2003489733,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.325363182346866,
+        "lower_bound": 15.128171987731381,
+        "upper_bound": 15.55861773581146,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.302731291306046,
+        "lower_bound": 15.202559889246109,
+        "upper_bound": 15.364885724710863,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Add",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Add",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      370697875.0,
+      370677750.0,
+      369730875.0,
+      368687125.0,
+      371095833.0,
+      370026833.0,
+      370167375.0,
+      366308917.0,
+      366969584.0,
+      364813958.0,
+      366492334.0,
+      365350125.0,
+      367038333.0,
+      364651458.0,
+      365544917.0,
+      363907958.0,
+      363870959.0,
+      364474250.0,
+      366758041.0,
+      362349583.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183490352.075,
+      "lower_bound": 182917948.05937502,
+      "upper_bound": 184068303.875,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183490352.075,
+      "lower_bound": 182917948.05937502,
+      "upper_bound": 184068303.875,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183312593.75,
+      "lower_bound": 182541020.75,
+      "upper_bound": 184604500.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1561502.0910277963,
+      "lower_bound": 649286.125972867,
+      "upper_bound": 2240856.8270668387,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.21244131307337,
+        "lower_bound": 15.145268904655838,
+        "upper_bound": 15.271407105346787,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.22047077003963,
+        "lower_bound": 15.150056576561525,
+        "upper_bound": 15.317828225843087,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Addi",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Addi",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365957959.0,
+      369417250.0,
+      366595416.0,
+      366064209.0,
+      369208500.0,
+      367608917.0,
+      368791750.0,
+      369027458.0,
+      366755417.0,
+      371335458.0,
+      369179083.0,
+      370348709.0,
+      367980375.0,
+      387572209.0,
+      366514334.0,
+      366690125.0,
+      365967375.0,
+      366850667.0,
+      367534958.0,
+      365769708.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184379246.925,
+      "lower_bound": 183625834.42374998,
+      "upper_bound": 185535483.8425,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184379246.925,
+      "lower_bound": 183625834.42374998,
+      "upper_bound": 185535483.8425,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183785968.75,
+      "lower_bound": 183321385.25,
+      "upper_bound": 184551635.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1098328.2223507762,
+      "lower_bound": 429675.2635717392,
+      "upper_bound": 1588049.8968064785,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.311763369097868,
+        "lower_bound": 15.223423786582584,
+        "upper_bound": 15.428122146270598,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.288229623761072,
+        "lower_bound": 15.24495698838874,
+        "upper_bound": 15.367713314066513,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sub",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sub",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365048791.0,
+      366710875.0,
+      366919042.0,
+      367499750.0,
+      371155458.0,
+      369350625.0,
+      365497583.0,
+      371280375.0,
+      420851083.0,
+      372242708.0,
+      370109916.0,
+      370698834.0,
+      373550625.0,
+      367805750.0,
+      369285375.0,
+      367024625.0,
+      372837375.0,
+      366318000.0,
+      372143500.0,
+      371884167.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 185955361.425,
+      "lower_bound": 184234224.60999998,
+      "upper_bound": 188794702.0325,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 185955361.425,
+      "lower_bound": 184234224.60999998,
+      "upper_bound": 188794702.0325,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184865135.25,
+      "lower_bound": 183631093.75,
+      "upper_bound": 185791135.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1825698.4411373734,
+      "lower_bound": 759677.9254630208,
+      "upper_bound": 2302246.102876961,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.36797516283583,
+        "lower_bound": 15.200731102980303,
+        "upper_bound": 15.601280349223265,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.285579598844912,
+        "lower_bound": 15.170166855665247,
+        "upper_bound": 15.37457842965988,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/And",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/And",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      373080542.0,
+      366901875.0,
+      370396875.0,
+      371988250.0,
+      371530041.0,
+      369385250.0,
+      370223500.0,
+      369338458.0,
+      369119625.0,
+      369321583.0,
+      369624625.0,
+      367035416.0,
+      367881875.0,
+      368727041.0,
+      368391750.0,
+      368983750.0,
+      367120625.0,
+      366802375.0,
+      367773791.0,
+      367930750.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184538949.925,
+      "lower_bound": 184184018.625,
+      "upper_bound": 184922804.41437498,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184538949.925,
+      "lower_bound": 184184018.625,
+      "upper_bound": 184922804.41437498,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184525843.75,
+      "lower_bound": 183953156.25,
+      "upper_bound": 184752468.75,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 867923.2908412814,
+      "lower_bound": 332689.5036935806,
+      "upper_bound": 1392254.0377825499,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.208691581412886,
+        "lower_bound": 15.140304347889266,
+        "upper_bound": 15.272827556984268,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.253783951839722,
+        "lower_bound": 15.186456471326249,
+        "upper_bound": 15.300954653209324,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Andi",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Andi",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      366189792.0,
+      366463334.0,
+      367488959.0,
+      368677333.0,
+      368474958.0,
+      368862792.0,
+      367137958.0,
+      368306042.0,
+      367489500.0,
+      367635791.0,
+      367408625.0,
+      367100666.0,
+      367382959.0,
+      368521750.0,
+      368931875.0,
+      369571084.0,
+      370711542.0,
+      368818500.0,
+      370071292.0,
+      369397125.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184116046.925,
+      "lower_bound": 183865683.4,
+      "upper_bound": 184373308.63250002,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184116046.925,
+      "lower_bound": 183865683.4,
+      "upper_bound": 184373308.63250002,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184195250.0,
+      "lower_bound": 183724396.0,
+      "upper_bound": 184420323.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 698088.1280064583,
+      "lower_bound": 228290.00264704227,
+      "upper_bound": 922007.0552811027,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.065037733665118,
+        "lower_bound": 14.888988753922623,
+        "upper_bound": 15.197239431272841,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.216074835399898,
+        "lower_bound": 15.103218548052837,
+        "upper_bound": 15.251993852573861,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Or",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Or",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      366580542.0,
+      365906833.0,
+      367286833.0,
+      366946458.0,
+      367118667.0,
+      368473750.0,
+      366633250.0,
+      367064125.0,
+      367590250.0,
+      366339458.0,
+      367175250.0,
+      367953666.0,
+      367033875.0,
+      366210666.0,
+      367004917.0,
+      372416292.0,
+      367201209.0,
+      367439208.0,
+      366454458.0,
+      367735375.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183664127.05,
+      "lower_bound": 183430184.27374998,
+      "upper_bound": 183990975.369375,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183664127.05,
+      "lower_bound": 183430184.27374998,
+      "upper_bound": 183990975.369375,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183545698.0,
+      "lower_bound": 183394927.0,
+      "upper_bound": 183681510.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 354712.0437026024,
+      "lower_bound": 94423.45647364855,
+      "upper_bound": 517396.6268643737,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.025345017525275,
+        "lower_bound": 14.912666452885915,
+        "upper_bound": 15.130740027128287,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.150177086188467,
+        "lower_bound": 14.90121672560251,
+        "upper_bound": 15.186614623970257,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Ori",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Ori",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      369062792.0,
+      364619459.0,
+      365764250.0,
+      366545167.0,
+      366526917.0,
+      366542959.0,
+      366924792.0,
+      367479042.0,
+      366820791.0,
+      365659708.0,
+      365530000.0,
+      365716292.0,
+      367224667.0,
+      365966125.0,
+      366416833.0,
+      367083583.0,
+      367862125.0,
+      366446708.0,
+      367343625.0,
+      368019833.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183338891.7,
+      "lower_bound": 183125463.180625,
+      "upper_bound": 183559078.164375,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183338891.7,
+      "lower_bound": 183125463.180625,
+      "upper_bound": 183559078.164375,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183272031.5,
+      "lower_bound": 183095739.5,
+      "upper_bound": 183577062.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 541303.5514399409,
+      "lower_bound": 211084.42995250225,
+      "upper_bound": 722056.9511309266,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.048542286489802,
+        "lower_bound": 14.956182576109267,
+        "upper_bound": 15.12120767944365,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.103612883407486,
+        "lower_bound": 15.04078303534305,
+        "upper_bound": 15.148691857214047,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sll",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sll",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      373690792.0,
+      366205916.0,
+      367951917.0,
+      367674000.0,
+      365582167.0,
+      367359208.0,
+      368172417.0,
+      366903500.0,
+      366736750.0,
+      366386250.0,
+      367342500.0,
+      367242750.0,
+      367782125.0,
+      366719834.0,
+      363764833.0,
+      364180916.0,
+      370396291.0,
+      367213750.0,
+      377461792.0,
+      366154208.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183873047.9,
+      "lower_bound": 183289228.41875002,
+      "upper_bound": 184592826.57125002,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183873047.9,
+      "lower_bound": 183289228.41875002,
+      "upper_bound": 184592826.57125002,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183614125.0,
+      "lower_bound": 183276521.0,
+      "upper_bound": 183864031.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 580314.4632473588,
+      "lower_bound": 285585.8199298382,
+      "upper_bound": 1164536.3187253475,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.673233742577649,
+        "lower_bound": 14.317294947207198,
+        "upper_bound": 14.96255797601037,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.889404912948356,
+        "lower_bound": 14.732777870597006,
+        "upper_bound": 15.069783690226668,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Slli",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slli",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      368212083.0,
+      384278250.0,
+      365668875.0,
+      365971334.0,
+      366154583.0,
+      366271833.0,
+      366491375.0,
+      366087041.0,
+      366474583.0,
+      367573917.0,
+      366995041.0,
+      367689125.0,
+      365691875.0,
+      363103584.0,
+      367046291.0,
+      363820125.0,
+      364810208.0,
+      365143667.0,
+      364857125.0,
+      364139250.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183412004.125,
+      "lower_bound": 182733012.088125,
+      "upper_bound": 184467547.70874998,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183412004.125,
+      "lower_bound": 182733012.088125,
+      "upper_bound": 184467547.70874998,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183060406.0,
+      "lower_bound": 182703135.5,
+      "upper_bound": 183371604.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 705207.5730800629,
+      "lower_bound": 296334.66973900795,
+      "upper_bound": 1123872.307947278,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 13.078825818674629,
+        "lower_bound": 12.20247834012436,
+        "upper_bound": 13.923287584617485,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.193773119082193,
+        "lower_bound": 12.636760200406885,
+        "upper_bound": 14.489280594785122,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Srl",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srl",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      366036458.0,
+      365028916.0,
+      373667167.0,
+      366035875.0,
+      366280000.0,
+      365067000.0,
+      366502542.0,
+      366035709.0,
+      366803875.0,
+      364897958.0,
+      364588041.0,
+      365650500.0,
+      365483500.0,
+      365215000.0,
+      365670167.0,
+      365841083.0,
+      366398208.0,
+      365467708.0,
+      365371041.0,
+      369094083.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183128370.775,
+      "lower_bound": 182786034.09125,
+      "upper_bound": 183613297.935,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183128370.775,
+      "lower_bound": 182786034.09125,
+      "upper_bound": 183613297.935,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 182877812.5,
+      "lower_bound": 182709687.25,
+      "upper_bound": 183079114.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 394742.2429919243,
+      "lower_bound": 203100.99974423647,
+      "upper_bound": 588916.508294642,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.76281665155627,
+        "lower_bound": 14.48178376633957,
+        "upper_bound": 14.992080962889021,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.920435469724778,
+        "lower_bound": 14.59691859764711,
+        "upper_bound": 15.129889331540507,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Srli",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srli",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      364665875.0,
+      365264250.0,
+      365132083.0,
+      375393916.0,
+      364469917.0,
+      365035416.0,
+      365872167.0,
+      364947875.0,
+      364875542.0,
+      365958625.0,
+      366428417.0,
+      364983250.0,
+      367263000.0,
+      364982833.0,
+      368950500.0,
+      365936500.0,
+      367088042.0,
+      366310833.0,
+      365606541.0,
+      366622125.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183144692.675,
+      "lower_bound": 182730720.65125,
+      "upper_bound": 183732910.395,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183144692.675,
+      "lower_bound": 182730720.65125,
+      "upper_bound": 183732910.395,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 182869677.0,
+      "lower_bound": 182504666.5,
+      "upper_bound": 183184812.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 560654.4462963939,
+      "lower_bound": 153140.34583121538,
+      "upper_bound": 844989.3224984407,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.226196887510056,
+        "lower_bound": 15.162060028843248,
+        "upper_bound": 15.291334403255263,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.23101027882775,
+        "lower_bound": 15.192418717619507,
+        "upper_bound": 15.260318834467828,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sra",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sra",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      372998583.0,
+      384301959.0,
+      377137875.0,
+      377767792.0,
+      381067917.0,
+      383316709.0,
+      366314958.0,
+      366337666.0,
+      364340416.0,
+      365273167.0,
+      366555250.0,
+      367388791.0,
+      367448083.0,
+      369239833.0,
+      369645958.0,
+      368446041.0,
+      368258834.0,
+      368067709.0,
+      368036000.0,
+      368923125.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 185521666.65,
+      "lower_bound": 184287333.3925,
+      "upper_bound": 186907863.16375002,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 185521666.65,
+      "lower_bound": 184287333.3925,
+      "upper_bound": 186907863.16375002,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184176218.75,
+      "lower_bound": 183709218.5,
+      "upper_bound": 185661135.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1412902.578265965,
+      "lower_bound": 568700.887003541,
+      "upper_bound": 3942310.7958599925,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.263392127303234,
+        "lower_bound": 15.142506623479493,
+        "upper_bound": 15.389023268375462,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.179379999532255,
+        "lower_bound": 15.119443589069391,
+        "upper_bound": 15.30302387813991,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Srai",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srai",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365401750.0,
+      365373500.0,
+      365311208.0,
+      368606125.0,
+      368523417.0,
+      372433250.0,
+      367749417.0,
+      368150875.0,
+      365699375.0,
+      367224625.0,
+      368866667.0,
+      368121042.0,
+      368636542.0,
+      368047125.0,
+      368250708.0,
+      366602125.0,
+      368968667.0,
+      366736459.0,
+      367135000.0,
+      367856875.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183842368.8,
+      "lower_bound": 183506050.633125,
+      "upper_bound": 184209498.61937502,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183842368.8,
+      "lower_bound": 183506050.633125,
+      "upper_bound": 184209498.61937502,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183976000.0,
+      "lower_bound": 183467864.75,
+      "upper_bound": 184193531.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 572422.5835874677,
+      "lower_bound": 265308.3000898361,
+      "upper_bound": 1077386.8683725595,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.05113548812107,
+        "lower_bound": 14.923849864296631,
+        "upper_bound": 15.165581740918094,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.196175586736707,
+        "lower_bound": 14.954578416276359,
+        "upper_bound": 15.238475097490756,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Mul",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mul",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      367673375.0,
+      369100125.0,
+      367166416.0,
+      367242458.0,
+      366607000.0,
+      370662000.0,
+      368263250.0,
+      365469166.0,
+      365112334.0,
+      365128583.0,
+      366252000.0,
+      364969500.0,
+      362774958.0,
+      364432500.0,
+      365782875.0,
+      383340959.0,
+      365425417.0,
+      366015166.0,
+      364841500.0,
+      366115667.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183559381.225,
+      "lower_bound": 182845342.18312502,
+      "upper_bound": 184588388.5275,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183559381.225,
+      "lower_bound": 182845342.18312502,
+      "upper_bound": 184588388.5275,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183032708.25,
+      "lower_bound": 182638500.0,
+      "upper_bound": 183602218.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 814286.9009435177,
+      "lower_bound": 354186.83266192675,
+      "upper_bound": 1362030.496019125,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.668650998241786,
+        "lower_bound": 14.585832064428795,
+        "upper_bound": 14.78244024510991,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.64319474365324,
+        "lower_bound": 14.606205560550276,
+        "upper_bound": 14.69830710132336,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Muli",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Muli",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      364789625.0,
+      367762041.0,
+      368203958.0,
+      368841292.0,
+      368217042.0,
+      366273916.0,
+      370455791.0,
+      370007292.0,
+      367870708.0,
+      367868917.0,
+      366246250.0,
+      366677333.0,
+      368183666.0,
+      368452792.0,
+      367369333.0,
+      367287417.0,
+      368301208.0,
+      368427500.0,
+      366737333.0,
+      366666958.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183866009.3,
+      "lower_bound": 183587814.92625,
+      "upper_bound": 184144643.04125,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183866009.3,
+      "lower_bound": 183587814.92625,
+      "upper_bound": 184144643.04125,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183934906.25,
+      "lower_bound": 183506187.5,
+      "upper_bound": 184129562.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 431946.2360814214,
+      "lower_bound": 203131.7636936903,
+      "upper_bound": 967890.5592665076,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.718680869956101,
+        "lower_bound": 14.655819338221267,
+        "upper_bound": 14.771393144818457,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.755205075391816,
+        "lower_bound": 14.706037488189237,
+        "upper_bound": 14.79456461814757,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Mulu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mulu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      368396250.0,
+      370647416.0,
+      368447167.0,
+      369717875.0,
+      369178417.0,
+      366909708.0,
+      367591167.0,
+      375348500.0,
+      369128666.0,
+      368569625.0,
+      367576000.0,
+      367072417.0,
+      368693791.0,
+      368892625.0,
+      367969709.0,
+      367720375.0,
+      368140208.0,
+      367634875.0,
+      367967500.0,
+      367642084.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184331109.375,
+      "lower_bound": 184008043.80749997,
+      "upper_bound": 184770885.025625,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184331109.375,
+      "lower_bound": 184008043.80749997,
+      "upper_bound": 184770885.025625,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184134114.5,
+      "lower_bound": 183840614.75,
+      "upper_bound": 184396604.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 466833.29606205225,
+      "lower_bound": 198622.06522375345,
+      "upper_bound": 740373.3618557453,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.998342261260257,
+        "lower_bound": 14.900265655268694,
+        "upper_bound": 15.094360820233035,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.068029546555078,
+        "lower_bound": 14.891650866717146,
+        "upper_bound": 15.109154098793269,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Mulsu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mulsu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365642417.0,
+      363719250.0,
+      366212875.0,
+      366535959.0,
+      366917250.0,
+      365103833.0,
+      366536666.0,
+      369256792.0,
+      372817041.0,
+      365205208.0,
+      369516333.0,
+      368742500.0,
+      369093666.0,
+      369687167.0,
+      370274209.0,
+      369020542.0,
+      367444958.0,
+      365935875.0,
+      366688667.0,
+      365853084.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183755107.3,
+      "lower_bound": 183297496.53875,
+      "upper_bound": 184241499.28875,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183755107.3,
+      "lower_bound": 183297496.53875,
+      "upper_bound": 184241499.28875,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183401479.25,
+      "lower_bound": 183037187.5,
+      "upper_bound": 184528552.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1221987.0677053928,
+      "lower_bound": 422880.5078923702,
+      "upper_bound": 1700233.7890148163,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 14.81250789544746,
+        "lower_bound": 14.716280398047815,
+        "upper_bound": 14.897666099452824,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 14.800367923044433,
+        "lower_bound": 14.765445657992053,
+        "upper_bound": 14.924738229716919,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Slt",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slt",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      365510209.0,
+      366835041.0,
+      366623875.0,
+      366153167.0,
+      366148292.0,
+      366541666.0,
+      369597292.0,
+      368014083.0,
+      373521083.0,
+      371646791.0,
+      371083084.0,
+      368385959.0,
+      368308084.0,
+      368556250.0,
+      367442000.0,
+      369644250.0,
+      369745542.0,
+      368781834.0,
+      367629292.0,
+      368253292.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184210527.15,
+      "lower_bound": 183797256.425,
+      "upper_bound": 184664430.766875,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184210527.15,
+      "lower_bound": 183797256.425,
+      "upper_bound": 184664430.766875,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184140344.0,
+      "lower_bound": 183569260.25,
+      "upper_bound": 184594781.5,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 1041233.2973644137,
+      "lower_bound": 412996.7551678419,
+      "upper_bound": 1489085.9779134393,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.159298790042154,
+        "lower_bound": 15.080082606605803,
+        "upper_bound": 15.231102831700273,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.200350031722937,
+        "lower_bound": 15.108750660494529,
+        "upper_bound": 15.251697153792268,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Slti",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slti",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      367635417.0,
+      366429500.0,
+      367716959.0,
+      368079375.0,
+      368508917.0,
+      369455000.0,
+      368691500.0,
+      369379000.0,
+      370185917.0,
+      373001250.0,
+      375531125.0,
+      369543167.0,
+      368631750.0,
+      370177542.0,
+      369126250.0,
+      369174750.0,
+      368391959.0,
+      369233292.0,
+      367719042.0,
+      367350625.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184599058.425,
+      "lower_bound": 184212884.434375,
+      "upper_bound": 185070716.800625,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184599058.425,
+      "lower_bound": 184212884.434375,
+      "upper_bound": 185070716.800625,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 184454437.5,
+      "lower_bound": 184117833.5,
+      "upper_bound": 184708500.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 542554.4951677322,
+      "lower_bound": 291084.0419322252,
+      "upper_bound": 940462.8304034472,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.217055867285062,
+        "lower_bound": 15.141241918941319,
+        "upper_bound": 15.286313146422126,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.258617372074816,
+        "lower_bound": 15.184760169041052,
+        "upper_bound": 15.300571433951433,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sltu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sltu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      366075583.0,
+      368570834.0,
+      367205250.0,
+      366941750.0,
+      366373375.0,
+      367876625.0,
+      366511667.0,
+      369952250.0,
+      366345000.0,
+      366834375.0,
+      371121208.0,
+      369669292.0,
+      369296541.0,
+      368952209.0,
+      365965292.0,
+      363335708.0,
+      364900584.0,
+      366324375.0,
+      368281666.0,
+      366686292.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183680496.9,
+      "lower_bound": 183286119.210625,
+      "upper_bound": 184078780.8225,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183680496.9,
+      "lower_bound": 183286119.210625,
+      "upper_bound": 184078780.8225,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183444031.25,
+      "lower_bound": 183179593.75,
+      "upper_bound": 184213125.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 708435.5638727546,
+      "lower_bound": 258451.27521157265,
+      "upper_bound": 1360378.1383484602,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.165021188968975,
+        "lower_bound": 15.07513234640672,
+        "upper_bound": 15.235134135937496,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.193172364301532,
+        "lower_bound": 15.151131461209758,
+        "upper_bound": 15.268164921740443,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sltiu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sltiu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      366398292.0,
+      368247167.0,
+      366776625.0,
+      366703042.0,
+      367932458.0,
+      367364750.0,
+      366739875.0,
+      368566333.0,
+      367789416.0,
+      366274250.0,
+      368252166.0,
+      369248041.0,
+      371386958.0,
+      383328875.0,
+      367864292.0,
+      365976500.0,
+      366808792.0,
+      366367625.0,
+      368240333.0,
+      367087834.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 184183840.6,
+      "lower_bound": 183590211.446875,
+      "upper_bound": 185110065.09625,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 184183840.6,
+      "lower_bound": 183590211.446875,
+      "upper_bound": 185110065.09625,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183788541.5,
+      "lower_bound": 183379125.0,
+      "upper_bound": 184121875.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 607000.89212358,
+      "lower_bound": 266836.86066269875,
+      "upper_bound": 975241.6605859995,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.236210965314552,
+        "lower_bound": 15.144998446546632,
+        "upper_bound": 15.336530486292062,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.25346492412731,
+        "lower_bound": 15.21530462727808,
+        "upper_bound": 15.284177835113777,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sle",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sle",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      367347792.0,
+      365889958.0,
+      366137458.0,
+      366572250.0,
+      366947708.0,
+      368367541.0,
+      366780500.0,
+      367176833.0,
+      366832500.0,
+      366443791.0,
+      367402208.0,
+      367048125.0,
+      370404625.0,
+      371463000.0,
+      366838042.0,
+      367296292.0,
+      367454917.0,
+      367029375.0,
+      366365292.0,
+      368152167.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183698759.35,
+      "lower_bound": 183441413.135625,
+      "upper_bound": 184016628.50750002,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183698759.35,
+      "lower_bound": 183441413.135625,
+      "upper_bound": 184016628.50750002,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183519375.0,
+      "lower_bound": 183403250.0,
+      "upper_bound": 183687500.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 288968.00111979246,
+      "lower_bound": 146900.82384198904,
+      "upper_bound": 634460.1262360811,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.0837320589233,
+        "lower_bound": 14.936406003555748,
+        "upper_bound": 15.201044874936997,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.192887695249158,
+        "lower_bound": 15.124254464259074,
+        "upper_bound": 15.234673769578318,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Slei",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slei",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      370859291.0,
+      364513959.0,
+      365654875.0,
+      364136875.0,
+      365784500.0,
+      366368000.0,
+      366849875.0,
+      367474083.0,
+      365997000.0,
+      365596083.0,
+      366585209.0,
+      365646834.0,
+      366837334.0,
+      369130416.0,
+      374476416.0,
+      365021917.0,
+      366829250.0,
+      365457708.0,
+      366765500.0,
+      365610542.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183389891.675,
+      "lower_bound": 182947852.650625,
+      "upper_bound": 183949552.133125,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183389891.675,
+      "lower_bound": 182947852.650625,
+      "upper_bound": 183949552.133125,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183091250.0,
+      "lower_bound": 182814344.0,
+      "upper_bound": 183416646.0,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 482432.1010351181,
+      "lower_bound": 191548.5807493329,
+      "upper_bound": 960076.1454552412,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.144292677248941,
+        "lower_bound": 15.071343795473485,
+        "upper_bound": 15.213193557312033,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.155427152484126,
+        "lower_bound": 15.07668259279466,
+        "upper_bound": 15.205481683995416,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sleu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sleu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      368767125.0,
+      368035166.0,
+      367261833.0,
+      367207083.0,
+      366288167.0,
+      369249292.0,
+      367279583.0,
+      367980250.0,
+      367844875.0,
+      367407833.0,
+      368234875.0,
+      369324833.0,
+      366255375.0,
+      366970667.0,
+      368568666.0,
+      371153583.0,
+      367834959.0,
+      366097833.0,
+      366922667.0,
+      366268209.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183873821.85,
+      "lower_bound": 183619458.830625,
+      "upper_bound": 184155547.50312498,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183873821.85,
+      "lower_bound": 183619458.830625,
+      "upper_bound": 184155547.50312498,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183810698.0,
+      "lower_bound": 183544437.5,
+      "upper_bound": 184067510.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 500176.5988200903,
+      "lower_bound": 286635.87136119604,
+      "upper_bound": 918825.7663875818,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.150531850451262,
+        "lower_bound": 15.073614283186666,
+        "upper_bound": 15.208930466849795,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.191051450105558,
+        "lower_bound": 15.148707855528531,
+        "upper_bound": 15.220274891454974,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "benchmark-complete",
+    "id": "opcode_proving/prove/Sleiu",
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sleiu",
+    "iteration_count": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "measured_values": [
+      364591875.0,
+      368164875.0,
+      364876792.0,
+      366883292.0,
+      366895500.0,
+      368552167.0,
+      367567875.0,
+      367064042.0,
+      367951709.0,
+      368521458.0,
+      369849875.0,
+      367806625.0,
+      367070750.0,
+      367992208.0,
+      367252000.0,
+      367488666.0,
+      373085167.0,
+      367873459.0,
+      367551000.0,
+      367005250.0
+    ],
+    "unit": "ns",
+    "throughput": [],
+    "typical": {
+      "estimate": 183851114.625,
+      "lower_bound": 183505517.55,
+      "upper_bound": 184244111.694375,
+      "unit": "ns"
+    },
+    "mean": {
+      "estimate": 183851114.625,
+      "lower_bound": 183505517.55,
+      "upper_bound": 184244111.694375,
+      "unit": "ns"
+    },
+    "median": {
+      "estimate": 183779718.75,
+      "lower_bound": 183533698.0,
+      "upper_bound": 183985979.25,
+      "unit": "ns"
+    },
+    "median_abs_dev": {
+      "estimate": 389027.9320433736,
+      "lower_bound": 202282.23390877247,
+      "upper_bound": 668065.8491894603,
+      "unit": "ns"
+    },
+    "slope": null,
+    "change": {
+      "mean": {
+        "estimate": 15.12399407025545,
+        "lower_bound": 15.018991162306467,
+        "upper_bound": 15.212256218600023,
+        "unit": "%"
+      },
+      "median": {
+        "estimate": 15.21030719616924,
+        "lower_bound": 15.131707087988705,
+        "upper_bound": 15.23758013506233,
+        "unit": "%"
+      },
+      "change": "Regressed"
+    }
+  },
+  {
+    "reason": "group-complete",
+    "group_name": "opcode_proving",
+    "benchmarks": [
+      "opcode_proving/prove/Xor",
+      "opcode_proving/prove/Xori",
+      "opcode_proving/prove/B32Mul",
+      "opcode_proving/prove/B32Muli",
+      "opcode_proving/prove/B128Add",
+      "opcode_proving/prove/B128Mul",
+      "opcode_proving/prove/Add",
+      "opcode_proving/prove/Addi",
+      "opcode_proving/prove/Sub",
+      "opcode_proving/prove/And",
+      "opcode_proving/prove/Andi",
+      "opcode_proving/prove/Or",
+      "opcode_proving/prove/Ori",
+      "opcode_proving/prove/Sll",
+      "opcode_proving/prove/Slli",
+      "opcode_proving/prove/Srl",
+      "opcode_proving/prove/Srli",
+      "opcode_proving/prove/Sra",
+      "opcode_proving/prove/Srai",
+      "opcode_proving/prove/Mul",
+      "opcode_proving/prove/Muli",
+      "opcode_proving/prove/Mulu",
+      "opcode_proving/prove/Mulsu",
+      "opcode_proving/prove/Slt",
+      "opcode_proving/prove/Slti",
+      "opcode_proving/prove/Sltu",
+      "opcode_proving/prove/Sltiu",
+      "opcode_proving/prove/Sle",
+      "opcode_proving/prove/Slei",
+      "opcode_proving/prove/Sleu",
+      "opcode_proving/prove/Sleiu"
+    ],
+    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving"
+  }
+]
