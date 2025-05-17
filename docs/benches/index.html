@@ -9,15 +9,19 @@
     body {
       margin: 0;
       padding: 20px;
-      font-family: 'Segoe UI', Tahoma, sans-serif;
+      font-family: Georgia, 'Times New Roman', Times, serif;
       background: #ffffff;
       color: #333333;
       font-size: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
     }
     h1 {
-      font-size: 30px;
+      font-size: 32px;
       text-align: center;
       margin-bottom: 20px;
+      font-weight: 700;
+      font-family: Georgia, 'Times New Roman', Times, serif;
     }
     .controls {
       text-align: center;
@@ -38,13 +42,20 @@
       opacity: 0.8;
     }
     #chart {
-      width: 100%;
+      width: 1200px;
       height: 600px;
+      margin: 0 auto;
     }
   </style>
 </head>
 <body>
   <h1>Proving Time per 1 Million Instructions</h1>
+  <div id="benchmark-info" class="benchmark-info" style="text-align: center; margin-bottom: 20px; font-style: italic; color: #555;">
+    Benchmarked on MacBook Pro M3 18GB<br>
+    <a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574" style="color: #666; text-decoration: underline;">
+      Commit 89f29cf
+    </a>
+  </div>
   <div class="controls">
     <button id="sort-asc">Sort ↑</button>
     <button id="sort-desc">Sort ↓</button>
@@ -67,24 +78,47 @@
 
     function fetchData() {
       fetch('benchmarks.json')
-        .then(r => r.json())
+        .then(response => {
+          // Get the last modified date from the response headers
+          const lastModified = response.headers.get('last-modified');
+          if (lastModified) {
+            const benchmarkDate = new Date(lastModified);
+            const formattedDate = benchmarkDate.toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            });
+            
+            // Update the benchmark info with the file's last modified date
+            const infoElement = document.getElementById('benchmark-info');
+            const hardwareInfo = infoElement.innerHTML.split('<br>')[0];
+            infoElement.innerHTML = `${hardwareInfo}<br>Benchmark date: ${formattedDate}<br><a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574" style="color: #666; text-decoration: underline;">Commit 89f29cf</a>`;
+          }
+          return response.json();
+        })
         .then(data => {
           ops = data
             .filter(d => d.reason === 'benchmark-complete')
             .map(d => {
               const name = d.id.split('/').pop();
               let category;
-              if (['XOR','XORI','AND','ANDI','OR','ORI'].includes(name)) category = 'Logic';
-              else if (['B32_MUL','B32_MULI','B128_ADD','B128_MUL'].includes(name)) category = 'Binary-Field';
-              else if (['SLL','SLLI','SRL','SRLI','SRA','SRAI'].includes(name)) category = 'Shift';
-              else if (['MUL','MULI','MULU','MULSU'].includes(name)) category = 'Multiplication';
-              else if (['ADD','ADDI','SUB'].includes(name)) category = 'Arithmetic';
-              else if (['SLT','SLTI','SLTU','SLTIU','SLE','SLEI','SLEU','SLEIU'].includes(name)) category = 'Comparison';
+              if (['Xor','Xori','And','Andi','Or','Ori'].includes(name)) category = 'Logic';
+              else if (['B32Mul','B32Muli','B128Add','B128Mul'].includes(name)) category = 'Binary-Field';
+              else if (['Sll','Slli','Srl','Srli','Sra','Srai'].includes(name)) category = 'Shift';
+              else if (['Mul','Muli','Mulu','Mulsu'].includes(name)) category = 'Multiplication';
+              else if (['Add','Addi','Sub'].includes(name)) category = 'Arithmetic';
+              else if (['Slt','Slti','Sltu','Sltiu','Sle','Slei','Sleu','Sleiu'].includes(name)) category = 'Comparison';
               else category = 'Other';
+              
+              // Convert ns to ms (*1e-6) and scale to per 1M instructions (*2)
+              const meanValue = d.mean.estimate * 1e-6 * 2;
+              // Using median absolute deviation (MAD) for error bars
+              const madValue = d.median_abs_dev.estimate * 1e-6 * 2;
+              
               return {
-                opcode: name,
-                mean: d.mean.estimate * 1e-6 * 2,
-                stddev: d.median_abs_dev.estimate * 1e-6 * 2,
+                opcode: name.toUpperCase(),
+                mean: meanValue,
+                stddev: madValue,
                 category
               };
             });
@@ -103,20 +137,20 @@
           name: cat,
           type: 'bar',
           marker: { color: categoryColors[cat] },
-          hovertemplate: `<b>%{x}</b><br>Mean: %{y:.2f} ms<br>StdDev: %{error_y.array:.2f} ms<extra></extra>`
+          hovertemplate: `<b>%{x}</b><br>Mean: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<extra></extra>`
         };
       });
 
       const layout = {
         template: 'plotly_white',
-        font: { family: 'Segoe UI', size: 16, color: '#333333' },
+        font: { family: 'Georgia, Times New Roman, Times, serif', size: 16, color: '#333333' },
         legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.1, font: { size: 16 } },
         barmode: 'group',
         bargap: 0.15,
         bargroupgap: 0.1,
         margin: { l: 60, r: 30, t: 60, b: 150 },
         xaxis: { tickangle: -45, automargin: true, tickfont: { size: 16 } },
-        yaxis: { title: 'Time per 1M Instructions (ms)', titlefont: { size: 16 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
+        yaxis: { title: 'Time per 1M Instructions (ms)', titlefont: { size: 18 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
       };
 
       Plotly.newPlot('chart', traces, layout, { responsive: true });
@@ -127,5 +161,11 @@
 
     fetchData();
   </script>
+  
+  <div style="margin-top: 30px; font-size: 14px; color: #666; text-align: center; font-style: italic;">
+    <p>Note: Error bars represent Median Absolute Deviation (MAD), a robust measure of statistical dispersion.<br>
+    Data is scaled to represent time required to process 1 million VM instructions, including necessary LDI, RET, and loop handling instructions.
+    These additional instructions are consistent across all benchmarks, ensuring fair comparison.</p>
+  </div>
 </body>
 </html>
