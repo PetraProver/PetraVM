@@ -1,101 +1,142 @@
-
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use petravm_asm::isa::GenericISA;
 use petravm_asm::opcodes::Opcode;
 use petravm_prover::model::Trace;
 use petravm_prover::prover::Prover;
 use petravm_prover::test_utils::generate_trace;
-use rand::Rng;
+use rand::{rng, Rng};
 
-// ========== Trace Generation Functions ==========
+const TRACE_LEN: usize = 1 << 15; // 32768 instructions per trace
+const SAMPLE_SIZE: usize = 20; // Number of benchmark runs per opcode
 
-/// Generate a trace for a specific opcode
-fn generate_opcode_trace(opcode: Opcode, n: usize) -> Result<Trace, anyhow::Error> {
-    let mut rng = rand::rng();
-    let src_val = rng.random::<u32>();
-    let src2_val = rng.random::<u32>();
-    let imm_val = rng.random::<u16>();
+/// Generate a random VROM trace for the given opcode
+fn generate_trace_for(opcode: Opcode, length: usize) -> Trace {
+    let mut rng = rng();
+    let imm = rng.random::<u16>();
+    let mut asm = Vec::with_capacity(length + 12);
 
-    let mut asm_lines = vec![
-        "#[framesize(0x10)]".to_string(),
-        "_start:".to_string(),
-        format!("LDI.W @4, #{}", src_val),
-        format!("LDI.W @8, #{}", src2_val),
-    ];
+    asm.push("#[framesize(0x10)]".to_owned());
+    asm.push("_start:".to_owned());
 
-    for _ in 0..n {
-        asm_lines.push(generate_instruction(opcode, 12, 4, 8, imm_val));
+    // Initialize registers @4 through @11 with random values
+    for reg in 4..=11 {
+        let val = rng.random::<u32>();
+        asm.push(format!("LDI.W @{reg}, #{val}"));
     }
 
-    asm_lines.push("RET".to_string());
-    let asm_code = asm_lines.join("\n");
+    // Emit `length` instructions of the target opcode
+    for _ in 0..length {
+        asm.push(format_instruction(opcode, 12, 4, 8, imm));
+    }
 
-    generate_trace(asm_code, None, None)
+    asm.push("RET".to_owned());
+    let program = asm.join("\n");
+    generate_trace(program, None, None).expect("Trace generation failed")
 }
 
-/// Generates the assembly instruction for an opcode
-fn generate_instruction(opcode: Opcode, dst: usize, src1: usize, src2: usize, imm: u16) -> String {
+/// Format a single instruction for benchmarking
+fn format_instruction(opcode: Opcode, dst: usize, src1: usize, src2: usize, imm: u16) -> String {
+    use Opcode::*;
     match opcode {
-        // Shift right operations
-        Opcode::Srli => format!("SRLI @{dst}, @{src1}, #{}", imm % 32),
-        Opcode::Srl => format!("SRL  @{dst}, @{src1}, @{src2}"),
-        Opcode::Srai => format!("SRAI @{dst}, @{src1}, #{}", imm % 32),
-        Opcode::Sra => format!("SRA  @{dst}, @{src1}, @{src2}"),
+        // Binary field operations
+        Xor => format!("XOR    @{dst}, @{src1}, @{src2}"),
+        Xori => format!("XORI   @{dst}, @{src1}, #{imm}"),
+        B32Mul => format!("B32_MUL @{dst}, @{src1}, @{src2}"),
+        B32Muli => format!("B32_MULI @{dst}, @{src1}, #{imm}G"),
+        B128Add => format!("B128_ADD @{dst}, @{src1}, @{src2}"),
+        B128Mul => format!("B128_MUL @{dst}, @{src1}, @{src2}"),
 
-        // Shift left operations
-        Opcode::Slli => format!("SLLI @{dst}, @{src1}, #{}", imm % 32),
-        Opcode::Sll => format!("SLL  @{dst}, @{src1}, @{src2}"),
+        // Integer arithmetic
+        Add => format!("ADD    @{dst}, @{src1}, @{src2}"),
+        Addi => format!("ADDI   @{dst}, @{src1}, #{imm}"),
+        Sub => format!("SUB    @{dst}, @{src1}, @{src2}"),
 
-        // Arithmetic operations
-        Opcode::Add => format!("ADD  @{dst}, @{src1}, @{src2}"),
-        Opcode::Addi => format!("ADDI @{dst}, @{src1}, #{imm}"),
-        _ => panic!("Unsupported opcode for benchmarking: {opcode:?}"),
+        // Bitwise logic
+        And => format!("AND    @{dst}, @{src1}, @{src2}"),
+        Andi => format!("ANDI   @{dst}, @{src1}, #{imm}"),
+        Or => format!("OR     @{dst}, @{src1}, @{src2}"),
+        Ori => format!("ORI    @{dst}, @{src1}, #{imm}"),
+
+        // Shift operations
+        Sll => format!("SLL    @{dst}, @{src1}, @{src2}"),
+        Slli => format!("SLLI   @{dst}, @{src1}, #{imm}"),
+        Srl => format!("SRL    @{dst}, @{src1}, @{src2}"),
+        Srli => format!("SRLI   @{dst}, @{src1}, #{imm}"),
+        Sra => format!("SRA    @{dst}, @{src1}, @{src2}"),
+        Srai => format!("SRAI   @{dst}, @{src1}, #{imm}"),
+
+        // Multiplication
+        Mul => format!("MUL    @{dst}, @{src1}, @{src2}"),
+        Muli => format!("MULI   @{dst}, @{src1}, #{imm}"),
+        Mulu => format!("MULU   @{dst}, @{src1}, @{src2}"),
+        Mulsu => format!("MULSU  @{dst}, @{src1}, @{src2}"),
+
+        // Comparisons
+        Slt => format!("SLT    @{dst}, @{src1}, @{src2}"),
+        Slti => format!("SLTI   @{dst}, @{src1}, #{imm}"),
+        Sltu => format!("SLTU   @{dst}, @{src1}, @{src2}"),
+        Sltiu => format!("SLTIU  @{dst}, @{src1}, #{imm}"),
+        Sle => format!("SLE    @{dst}, @{src1}, @{src2}"),
+        Slei => format!("SLEI   @{dst}, @{src1}, #{imm}"),
+        Sleu => format!("SLEU   @{dst}, @{src1}, @{src2}"),
+        Sleiu => format!("SLEIU  @{dst}, @{src1}, #{imm}"),
+
+        _ => panic!("Unhandled opcode: {opcode:?}"),
     }
 }
 
-/// Returns all opcodes to benchmark
-fn opcodes_to_benchmark() -> Vec<Opcode> {
-    vec![
-        // Shift operations
-        Opcode::Srli,
-        Opcode::Srl,
-        Opcode::Srai,
-        Opcode::Sra,
-        Opcode::Slli,
-        Opcode::Sll,
-        // Arithmetic operations
+/// List of all opcodes to benchmark
+fn all_opcodes() -> &'static [Opcode] {
+    &[
+        Opcode::Xor,
+        Opcode::Xori,
+        Opcode::B32Mul,
+        Opcode::B32Muli,
+        Opcode::B128Add,
+        Opcode::B128Mul,
         Opcode::Add,
         Opcode::Addi,
+        Opcode::Sub,
+        Opcode::And,
+        Opcode::Andi,
+        Opcode::Or,
+        Opcode::Ori,
+        Opcode::Sll,
+        Opcode::Slli,
+        Opcode::Srl,
+        Opcode::Srli,
+        Opcode::Sra,
+        Opcode::Srai,
+        Opcode::Mul,
+        Opcode::Muli,
+        Opcode::Mulu,
+        Opcode::Mulsu,
+        Opcode::Slt,
+        Opcode::Slti,
+        Opcode::Sltu,
+        Opcode::Sltiu,
+        Opcode::Sle,
+        Opcode::Slei,
+        Opcode::Sleu,
+        Opcode::Sleiu,
     ]
 }
 
-// ========== Benchmark Function ==========
-
-/// Benchmark a specific opcode
-fn bench_opcode(c: &mut Criterion, opcode: Opcode) {
-    // Use a smaller n for benchmarking to keep run times reasonable
-    let n = 300;
-    let trace = generate_opcode_trace(opcode, n)
-        .unwrap_or_else(|_| panic!("Failed to generate {opcode:?} trace"));
+/// Benchmark all opcodes' proving performance
+fn bench_all(c: &mut Criterion) {
     let prover = Prover::new(Box::new(GenericISA));
+    let mut group = c.benchmark_group("opcode_proving");
+    group.sample_size(SAMPLE_SIZE);
 
-    let mut group = c.benchmark_group(format!("{opcode:?}"));
-    group.sample_size(10);
-
-    // Only benchmark proving, not verification as per requirements
-    group.bench_function("prove", |b| b.iter(|| prover.prove(&trace)));
+    for &opc in all_opcodes() {
+        let trace = generate_trace_for(opc, TRACE_LEN);
+        group.bench_with_input(BenchmarkId::new("prove", opc), &trace, |b, t| {
+            b.iter(|| prover.prove(t))
+        });
+    }
 
     group.finish();
 }
 
-/// Add all opcodes to the benchmark
-fn bench_all_opcodes(c: &mut Criterion) {
-    for opcode in opcodes_to_benchmark() {
-        bench_opcode(c, opcode);
-    }
-}
-
-// ========== Criterion Configuration ==========
-
-criterion_group!(benches, bench_all_opcodes);
+criterion_group!(benches, bench_all);
 criterion_main!(benches);
