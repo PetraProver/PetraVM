@@ -74,12 +74,12 @@
             .map(d => {
               const name = d.id.split('/').pop();
               let category;
-              if (['Xor','Xori','And','Andi','Or','Ori'].includes(name)) category = 'Logic';
-              else if (['B32Mul','B32Muli','B128Add','B128Mul'].includes(name)) category = 'Binary-Field';
-              else if (['Sll','Slli','Srl','Srli','Sra','Srai'].includes(name)) category = 'Shift';
-              else if (['Mul','Muli','Mulu','Mulsu'].includes(name)) category = 'Multiplication';
-              else if (['Add','Addi','Sub'].includes(name)) category = 'Arithmetic';
-              else if (['Slt','Slti','Sltu','Sltiu','Sle','Slei','Sleu','Sleiu'].includes(name)) category = 'Comparison';
+              if (['XOR','XORI','AND','ANDI','OR','ORI'].includes(name)) category = 'Logic';
+              else if (['B32_MUL','B32_MULI','B128_ADD','B128_MUL'].includes(name)) category = 'Binary-Field';
+              else if (['SLL','SLLI','SRL','SRLI','SRA','SRAI'].includes(name)) category = 'Shift';
+              else if (['MUL','MULI','MULU','MULSU'].includes(name)) category = 'Multiplication';
+              else if (['ADD','ADDI','SUB'].includes(name)) category = 'Arithmetic';
+              else if (['SLT','SLTI','SLTU','SLTIU','SLE','SLEI','SLEU','SLEIU'].includes(name)) category = 'Comparison';
               else category = 'Other';
               return {
                 opcode: name,

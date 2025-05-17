@@ -759,7 +759,7 @@ impl Table for B32MuliTable {
             &mut table,
             "second_instruction_packed",
             second_instruction_pc,
-            Opcode::B32Muli as u16,
+            B32_MULI_OPCODE,
             imm_high,
         );
         table.pull(channels.prom_channel, [second_instruction_packed]);

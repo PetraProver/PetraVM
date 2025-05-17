@@ -6,7 +6,7 @@ use petravm_prover::prover::Prover;
 use petravm_prover::test_utils::generate_trace;
 use rand::{rng, Rng};
 
-const TRACE_LEN: usize = 1 << 20; // 1M instructions per trace
+const TRACE_LEN: usize = 1_000_000; // 1M instructions per trace
 const SAMPLE_SIZE: usize = 20; // Number of benchmark runs per opcode
 
 /// Generate a random VROM trace for the given opcode
