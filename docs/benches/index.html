@@ -6,6 +6,7 @@
   <title>PetraVM Opcode Benchmarks</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <style>
+    /* Base Styles */
     body {
       margin: 0;
       padding: 20px;
@@ -16,6 +17,8 @@
       max-width: 1200px;
       margin: 0 auto;
     }
+    
+    /* Typography */
     h1 {
       font-size: 32px;
       text-align: center;
@@ -23,6 +26,8 @@
       font-weight: 700;
       font-family: Georgia, 'Times New Roman', Times, serif;
     }
+    
+    /* Controls */
     .controls {
       text-align: center;
       margin-bottom: 20px;
@@ -41,29 +46,55 @@
     .controls button:hover {
       opacity: 0.8;
     }
+    
+    /* Chart and Info Sections */
     #chart {
       width: 1200px;
       height: 600px;
       margin: 0 auto;
     }
+    .benchmark-info {
+      text-align: center;
+      margin-bottom: 20px;
+      font-style: italic;
+      color: #555;
+    }
+    .footnote {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
   <h1>Proving Time per 1 Million Instructions</h1>
-  <div id="benchmark-info" class="benchmark-info" style="text-align: center; margin-bottom: 20px; font-style: italic; color: #555;">
+  
+  <div id="benchmark-info" class="benchmark-info">
     Benchmarked on MacBook Pro M3 18GB<br>
     <a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574" style="color: #666; text-decoration: underline;">
       Commit 89f29cf
     </a>
   </div>
+  
   <div class="controls">
     <button id="sort-asc">Sort ↑</button>
     <button id="sort-desc">Sort ↓</button>
   </div>
+  
   <div id="chart"></div>
+  
+  <div class="footnote">
+    <p>
+      Note: Data is scaled to represent time required to process 1 million VM instructions, 
+      including necessary LDI and RET instructions. These additional instructions are
+      consistent across all benchmarks, ensuring fair comparison.
+    </p>
+  </div>
 
   <script>
-    // New scientific palette
+    // Color palette by category
     const categoryColors = {
       'Binary-Field':   '#EC9A8A',
       'Shift':          '#A3C9B3',
@@ -74,8 +105,10 @@
       'Other':          '#C1BCB3'
     };
 
+    // Data storage
     let ops = [];
 
+    // Fetch and process benchmark data
     function fetchData() {
       fetch('benchmarks.json')
         .then(response => {
@@ -102,6 +135,8 @@
             .map(d => {
               const name = d.id.split('/').pop();
               let category;
+              
+              // Categorize opcodes
               if (['Xor','Xori','And','Andi','Or','Ori'].includes(name)) category = 'Logic';
               else if (['B32Mul','B32Muli','B128Add','B128Mul'].includes(name)) category = 'Binary-Field';
               else if (['Sll','Slli','Srl','Srli','Sra','Srai'].includes(name)) category = 'Shift';
@@ -126,6 +161,7 @@
         });
     }
 
+    // Draw the chart with provided data
     function drawChart(dataOps = ops) {
       const cats = [...new Set(dataOps.map(o => o.category))];
       const traces = cats.map(cat => {
@@ -156,16 +192,12 @@
       Plotly.newPlot('chart', traces, layout, { responsive: true });
     }
 
+    // Event handlers for sorting
     document.getElementById('sort-asc').onclick = () => drawChart(ops.slice().sort((a,b) => a.mean - b.mean));
     document.getElementById('sort-desc').onclick = () => drawChart(ops.slice().sort((a,b) => b.mean - a.mean));
 
+    // Initialize
     fetchData();
   </script>
-  
-  <div style="margin-top: 30px; font-size: 14px; color: #666; text-align: center; font-style: italic;">
-    <p>Note: Error bars represent Median Absolute Deviation (MAD), a robust measure of statistical dispersion.<br>
-    Data is scaled to represent time required to process 1 million VM instructions, including necessary LDI, RET, and loop handling instructions.
-    These additional instructions are consistent across all benchmarks, ensuring fair comparison.</p>
-  </div>
 </body>
 </html>
