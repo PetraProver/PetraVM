@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +18,7 @@
       max-width: 1200px;
       margin: 0 auto;
     }
-    
+
     /* Typography */
     h1 {
       font-size: 32px;
@@ -26,12 +27,13 @@
       font-weight: 700;
       font-family: Georgia, 'Times New Roman', Times, serif;
     }
-    
+
     /* Controls */
     .controls {
       text-align: center;
       margin-bottom: 20px;
     }
+
     .controls button {
       background: #EC9A8A;
       border: none;
@@ -43,66 +45,151 @@
       font-size: 16px;
       transition: background 0.2s ease;
     }
+
     .controls button:hover {
       opacity: 0.8;
     }
-    
+
     /* Chart and Info Sections */
     #chart {
-      width: 1200px;
+      width: 100%;
       height: 600px;
       margin: 0 auto;
+      max-width: 1200px;
     }
+
     .benchmark-info {
       text-align: center;
       margin-bottom: 20px;
       font-style: italic;
       color: #555;
     }
+
+    .benchmark-info a {
+      color: #666;
+      text-decoration: underline;
+      transition: color 0.2s ease;
+    }
+
+    .benchmark-info a:hover {
+      color: #EC9A8A;
+    }
+
     .footnote {
       margin-top: 30px;
       font-size: 14px;
       color: #666;
-      text-align: center;
       font-style: italic;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 0 20px;
+    }
+
+    .footnote p {
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    .footnote ul {
+      text-align: left;
+      padding-left: 20px;
+      line-height: 1.5;
+    }
+
+    .footnote ul li {
+      margin-bottom: 8px;
+    }
+
+    .footnote ul ul {
+      margin-top: 5px;
+      margin-bottom: 5px;
+    }
+
+    .footnote code {
+      background-color: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: Consolas, Monaco, 'Andale Mono', monospace;
+      font-style: normal;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      #chart {
+        height: 500px;
+      }
+
+      .controls button {
+        padding: 8px 12px;
+        margin: 0 4px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
     }
   </style>
 </head>
+
 <body>
-  <h1>Proving Time per 1 Million Instructions</h1>
-  
+  <h1>Proving Time per 8k Target Instructions</h1>
+
   <div id="benchmark-info" class="benchmark-info">
     Benchmarked on MacBook Pro M3 18GB<br>
-    <a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574" style="color: #666; text-decoration: underline;">
+    <a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574">
       Commit 89f29cf
     </a>
   </div>
-  
+
   <div class="controls">
     <button id="sort-asc">Sort ↑</button>
     <button id="sort-desc">Sort ↓</button>
   </div>
-  
+
   <div id="chart"></div>
-  
+
   <div class="footnote">
     <p>
-      Note: Data is scaled to represent time required to process 1 million VM instructions, 
-      including necessary LDI and RET instructions. These additional instructions are
-      consistent across all benchmarks, ensuring fair comparison.
+      Note: All measurements reflect the time required to prove a trace of <strong>8,000</strong>
+      target instructions. Each trace uses an in-VM tail-call loop that includes:
+    </p>
+    <ul>
+      <li><code>LDI.W</code>, <code>MVV.W</code>, <code>TAILI</code> (3 boot instructions)</li>
+      <li>Per-iteration (15 instructions):
+        <ul>
+          <li>Helper: <code>LDI.W</code>, <code>XOR</code>, <code>BNZ</code> (3)</li>
+          <li>Body: <code>B32_MULI</code>, eight <code>LDI.W</code>, one target opcode, <code>MVV.W</code>,
+            <code>TAILI</code> (12)
+          </li>
+        </ul>
+      </li>
+      <li><code>LDI.W</code>, <code>XOR</code>, <code>BNZ</code> (not taken), <code>RET</code> (4 final helper
+        instructions)</li>
+    </ul>
+    <p>
+      This fixed overhead (boot, per-iteration loop, teardown) is identical for every opcode, ensuring that the only
+      variable cost is the single opcode under test—so comparisons are fair.
+    </p>
+    <p>
+      Note: The total number of instructions executed is approximately 8,000 × 15 = 120,000.
     </p>
   </div>
 
   <script>
     // Color palette by category
     const categoryColors = {
-      'Binary-Field':   '#EC9A8A',
-      'Shift':          '#A3C9B3',
+      'Binary-Field': '#EC9A8A',
+      'Shift': '#A3C9B3',
       'Multiplication': '#CEE3BC',
-      'Logic':          '#D9C78C',
-      'Comparison':     '#F1F2A3',
-      'Arithmetic':     '#8B8459',
-      'Other':          '#C1BCB3'
+      'Logic': '#D9C78C',
+      'Comparison': '#F1F2A3',
+      'Arithmetic': '#8B8459',
+      'Other': '#C1BCB3'
     };
 
     // Data storage
@@ -116,16 +203,16 @@
           const lastModified = response.headers.get('last-modified');
           if (lastModified) {
             const benchmarkDate = new Date(lastModified);
-            const formattedDate = benchmarkDate.toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            const formattedDate = benchmarkDate.toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             });
-            
+
             // Update the benchmark info with the file's last modified date
             const infoElement = document.getElementById('benchmark-info');
             const hardwareInfo = infoElement.innerHTML.split('<br>')[0];
-            infoElement.innerHTML = `${hardwareInfo}<br>Benchmark date: ${formattedDate}<br><a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574" style="color: #666; text-decoration: underline;">Commit 89f29cf</a>`;
+            infoElement.innerHTML = `${hardwareInfo}<br>Benchmark date: ${formattedDate}<br><a href="https://github.com/PetraProver/PetraVM/commit/89f29cf50c4a4fb5690f0da834065737a2da1574">Commit 89f29cf</a>`;
           }
           return response.json();
         })
@@ -135,21 +222,21 @@
             .map(d => {
               const name = d.id.split('/').pop();
               let category;
-              
+
               // Categorize opcodes
-              if (['Xor','Xori','And','Andi','Or','Ori'].includes(name)) category = 'Logic';
-              else if (['B32Mul','B32Muli','B128Add','B128Mul'].includes(name)) category = 'Binary-Field';
-              else if (['Sll','Slli','Srl','Srli','Sra','Srai'].includes(name)) category = 'Shift';
-              else if (['Mul','Muli','Mulu','Mulsu'].includes(name)) category = 'Multiplication';
-              else if (['Add','Addi','Sub'].includes(name)) category = 'Arithmetic';
-              else if (['Slt','Slti','Sltu','Sltiu','Sle','Slei','Sleu','Sleiu'].includes(name)) category = 'Comparison';
+              if (['Xor', 'Xori', 'And', 'Andi', 'Or', 'Ori'].includes(name)) category = 'Logic';
+              else if (['B32Mul', 'B32Muli', 'B128Add', 'B128Mul'].includes(name)) category = 'Binary-Field';
+              else if (['Sll', 'Slli', 'Srl', 'Srli', 'Sra', 'Srai'].includes(name)) category = 'Shift';
+              else if (['Mul', 'Muli', 'Mulu', 'Mulsu'].includes(name)) category = 'Multiplication';
+              else if (['Add', 'Addi', 'Sub'].includes(name)) category = 'Arithmetic';
+              else if (['Slt', 'Slti', 'Sltu', 'Sltiu', 'Sle', 'Slei', 'Sleu', 'Sleiu'].includes(name)) category = 'Comparison';
               else category = 'Other';
-              
-              // Convert ns to ms (*1e-6) and scale to per 1M instructions (*2)
-              const meanValue = d.mean.estimate * 1e-6 * 2;
+
+              // Convert ns to ms (*1e-6)
+              const meanValue = d.mean.estimate * 1e-6;
               // Using median absolute deviation (MAD) for error bars
-              const madValue = d.median_abs_dev.estimate * 1e-6 * 2;
-              
+              const madValue = d.median_abs_dev.estimate * 1e-6;
+
               return {
                 opcode: name.toUpperCase(),
                 mean: meanValue,
@@ -186,18 +273,19 @@
         bargroupgap: 0.1,
         margin: { l: 60, r: 30, t: 60, b: 150 },
         xaxis: { tickangle: -45, automargin: true, tickfont: { size: 16 } },
-        yaxis: { title: 'Time per 1M Instructions (ms)', titlefont: { size: 18 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
+        yaxis: { title: 'Time per 8k Target Instructions (ms)', titlefont: { size: 18 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
       };
 
       Plotly.newPlot('chart', traces, layout, { responsive: true });
     }
 
     // Event handlers for sorting
-    document.getElementById('sort-asc').onclick = () => drawChart(ops.slice().sort((a,b) => a.mean - b.mean));
-    document.getElementById('sort-desc').onclick = () => drawChart(ops.slice().sort((a,b) => b.mean - a.mean));
+    document.getElementById('sort-asc').onclick = () => drawChart(ops.slice().sort((a, b) => a.mean - b.mean));
+    document.getElementById('sort-desc').onclick = () => drawChart(ops.slice().sort((a, b) => b.mean - a.mean));
 
     // Initialize
     fetchData();
   </script>
 </body>
+
 </html>
