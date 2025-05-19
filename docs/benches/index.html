@@ -239,9 +239,11 @@
 
               // Calculate previous value from change data if available
               let previousValue = null;
+              let changeEstimate = null; // Initialize changeEstimate
               if (d.change && d.change.mean && d.change.mean.estimate !== undefined) {
+                changeEstimate = d.change.mean.estimate; // Store the estimate
                 // If change is negative, previous was higher; if positive, previous was lower
-                previousValue = meanValue / (1 + d.change.mean.estimate);
+                previousValue = meanValue / (1 + changeEstimate);
               }
 
               return {
@@ -249,7 +251,8 @@
                 mean: meanValue,
                 stddev: madValue,
                 category,
-                previous: previousValue
+                previous: previousValue,
+                changeEstimate: changeEstimate
               };
             });
           drawChart();
@@ -263,6 +266,9 @@
       const currentY = dataOps.map(o => o.mean);
       const errorY = dataOps.map(o => o.stddev);
       const prevY = dataOps.map(o => o.previous);
+      // Calculate saving percentage: saving is -changeEstimate.
+      // Format as percentage (e.g., 0.1 -> 10%) later using hovertemplate formatting.
+      const savingPercentages = dataOps.map(o => o.changeEstimate !== null ? -o.changeEstimate : null);
 
       // build a colour array, one entry per bar
       const colours = dataOps.map(o => categoryColors[o.category] || categoryColors.Other);
@@ -274,7 +280,8 @@
         name: 'Current',
         type: 'bar',
         marker: { color: colours },
-        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<extra></extra>`,
+        customdata: savingPercentages, // Pass saving percentages to customdata
+        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<br>Saving: %{customdata:.2%}<extra></extra>`, // Updated hovertemplate
       };
 
       const previousTrace = {

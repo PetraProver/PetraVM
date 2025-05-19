@@ -7,6 +7,7 @@ Bench directory will contain benchmarks.json and index.html (sourced from repo).
 import subprocess
 import os
 import json
+import argparse
 
 INDEX_SRC = 'index.html'
 
@@ -29,6 +30,11 @@ def install_cargo_criterion():
 
 
 def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Generates PetraVM opcode benchmarks JSON.')
+    parser.add_argument('--features', type=str, help='Optional features to pass to cargo criterion.')
+    args = parser.parse_args()
+
     # Determine project root relative to this script
     script_dir = os.path.abspath(os.path.dirname(__file__))
     project_root = os.path.abspath(os.path.join(script_dir, '..'))
@@ -45,12 +51,19 @@ def main():
     # Get the current environment and add RUSTFLAGS
     env = os.environ.copy()
     env["RUSTFLAGS"] = "-C target-cpu=native"
-    raw = subprocess.check_output([
+    
+    cargo_command = [
         'cargo', 'criterion',
         '--package', 'petravm-prover',
         '--bench', 'opcodes',
         '--message-format=json'
-    ], cwd=project_root, env=env)
+    ]
+
+    # Add features if provided
+    if args.features:
+        cargo_command.extend(['--features', args.features])
+
+    raw = subprocess.check_output(cargo_command, cwd=project_root, env=env)
 
     # Step 3: Parse lines into a JSON array and filter to only keep essential data
     lines = raw.decode('utf-8').splitlines()
