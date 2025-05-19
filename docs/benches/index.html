@@ -237,47 +237,80 @@
               // Using median absolute deviation (MAD) for error bars
               const madValue = d.median_abs_dev.estimate * 1e-6;
 
+              // Calculate previous value from change data if available
+              let previousValue = null;
+              if (d.change && d.change.mean && d.change.mean.estimate !== undefined) {
+                // If change is negative, previous was higher; if positive, previous was lower
+                const changePercent = d.change.mean.estimate / 100;
+                previousValue = meanValue / (1 + changePercent);
+              }
+
               return {
                 opcode: name.toUpperCase(),
                 mean: meanValue,
                 stddev: madValue,
-                category
+                category,
+                previous: previousValue
               };
             });
           drawChart();
         });
     }
 
-    // Draw the chart with provided data
     function drawChart(dataOps = ops) {
-      const cats = [...new Set(dataOps.map(o => o.category))];
-      const traces = cats.map(cat => {
-        const group = dataOps.filter(o => o.category === cat);
-        return {
-          x: group.map(o => o.opcode),
-          y: group.map(o => o.mean),
-          error_y: { type: 'data', array: group.map(o => o.stddev), visible: true },
-          name: cat,
-          type: 'bar',
-          marker: { color: categoryColors[cat] },
-          hovertemplate: `<b>%{x}</b><br>Mean: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<extra></extra>`
-        };
-      });
+      // first, sort ops into the order you want on the x-axis
+      // (here I’m assuming ops is already in the right order)
+      const xVals = dataOps.map(o => o.opcode);
+      const currentY = dataOps.map(o => o.mean);
+      const errorY = dataOps.map(o => o.stddev);
+      const prevY = dataOps.map(o => o.previous);
+
+      // build a colour array, one entry per bar
+      const colours = dataOps.map(o => categoryColors[o.category] || categoryColors.Other);
+
+      const currentTrace = {
+        x: xVals,
+        y: currentY,
+        error_y: { type: 'data', array: errorY, visible: true },
+        name: 'Current',
+        type: 'bar',
+        marker: { color: colours },
+        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<extra></extra>`,
+      };
+
+      const previousTrace = {
+        x: xVals,
+        y: prevY,
+        name: 'Previous',
+        type: 'bar',
+        marker: {
+          color: colours,
+          opacity: 0.5,
+          pattern: { shape: '/', solidity: 0.3 }
+        },
+        hovertemplate: `<b>%{x}</b><br>Previous: %{y:.2f} ms<extra></extra>`,
+      };
 
       const layout = {
         template: 'plotly_white',
-        font: { family: 'Georgia, Times New Roman, Times, serif', size: 16, color: '#333333' },
+        font: { family: 'Georgia, Times New Roman, Times, serif', size: 16 },
         legend: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.1, font: { size: 16 } },
         barmode: 'group',
         bargap: 0.15,
         bargroupgap: 0.1,
         margin: { l: 60, r: 30, t: 60, b: 150 },
         xaxis: { tickangle: -45, automargin: true, tickfont: { size: 16 } },
-        yaxis: { title: 'Time per 8k Target Instructions (ms)', titlefont: { size: 18 }, gridcolor: '#e1e5ed', tickfont: { size: 16 } }
+        yaxis: {
+          title: 'Time per 8k Target Instructions (ms)',
+          titlefont: { size: 18 },
+          gridcolor: '#e1e5ed',
+          tickfont: { size: 16 }
+        }
       };
 
-      Plotly.newPlot('chart', traces, layout, { responsive: true });
+      Plotly.newPlot('chart', [currentTrace, previousTrace], layout, { responsive: true });
     }
+
 
     // Event handlers for sorting
     document.getElementById('sort-asc').onclick = () => drawChart(ops.slice().sort((a, b) => a.mean - b.mean));

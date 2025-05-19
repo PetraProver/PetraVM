@@ -69,6 +69,10 @@ def main():
             
             if 'median_abs_dev' in obj and 'estimate' in obj['median_abs_dev']:
                 filtered_obj['median_abs_dev'] = {'estimate': obj['median_abs_dev']['estimate']}
+            
+            # Include change data for comparison
+            if 'change' in obj:
+                filtered_obj['change'] = obj['change']
                 
             filtered_objs.append(filtered_obj)
         else:
