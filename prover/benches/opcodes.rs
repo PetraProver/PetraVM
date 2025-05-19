@@ -7,7 +7,7 @@ use petravm_prover::test_utils::generate_trace;
 use rand::{rng, Rng};
 
 const TRACE_LEN: usize = 8_000; // 8K instructions per trace
-const SAMPLE_SIZE: usize = 10; // Number of benchmark runs per opcode
+const SAMPLE_SIZE: usize = 20; // Number of benchmark runs per opcode
 
 fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
     let mut rng = rng();
@@ -144,6 +144,7 @@ fn bench_all(c: &mut Criterion) {
     let prover = Prover::new(Box::new(GenericISA));
     let mut group = c.benchmark_group("opcode_proving");
     group.sample_size(SAMPLE_SIZE);
+    group.measurement_time(std::time::Duration::from_secs(20));
 
     for &opc in all_opcodes() {
         let trace = generate_trace_for_opcode(opc, TRACE_LEN);
