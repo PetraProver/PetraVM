@@ -73,7 +73,7 @@ def main():
                 filtered_obj['median_abs_dev'] = {'estimate': obj['median_abs_dev']['estimate']}
             
             # Include only the mean estimate from change data
-            if 'change' in obj and 'mean' in obj['change'] and 'estimate' in obj['change']['mean']:
+            if 'change' in obj and obj['change'] is not None and 'mean' in obj['change'] and 'estimate' in obj['change']['mean']:
                 filtered_obj['change'] = {
                     'mean': {
                         'estimate': obj['change']['mean']['estimate']

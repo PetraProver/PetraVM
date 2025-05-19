@@ -3,465 +3,310 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xor",
     "mean": {
-      "estimate": 401061911.84999996
+      "estimate": 403525245.13333327
     },
     "median_abs_dev": {
-      "estimate": 2471422.250023484
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.004857115072377849
-      }
+      "estimate": 2345956.7330509275
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xori",
     "mean": {
-      "estimate": 402809865.3
+      "estimate": 404467279.8666667
     },
     "median_abs_dev": {
-      "estimate": 2564424.263772457
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.007719106233127548
-      }
+      "estimate": 1560807.1222901344
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Mul",
     "mean": {
-      "estimate": 406959731.2666667
+      "estimate": 409271155.56666666
     },
     "median_abs_dev": {
-      "estimate": 2324232.9369366462
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.003551030515353104
-      }
+      "estimate": 2547446.5172737245
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Muli",
     "mean": {
-      "estimate": 405985675.0166667
+      "estimate": 407898507.6666667
     },
     "median_abs_dev": {
-      "estimate": 3582188.1271033743
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.02378271847162683
-      }
+      "estimate": 1846197.239023447
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Add",
     "mean": {
-      "estimate": 587204066.625
+      "estimate": 601092288.45
     },
     "median_abs_dev": {
-      "estimate": 2894606.320260465
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.0039778593683647
-      }
+      "estimate": 6373527.158497274
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Mul",
     "mean": {
-      "estimate": 600118127.125
+      "estimate": 596745934.375
     },
     "median_abs_dev": {
-      "estimate": 9079009.319615364
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.0008903338992700682
-      }
+      "estimate": 2457100.7049277425
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Add",
     "mean": {
-      "estimate": 419051786.8333333
+      "estimate": 422502251.36666673
     },
     "median_abs_dev": {
-      "estimate": 4952944.218167692
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.10577874701076939
-      }
+      "estimate": 3312951.925483346
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Addi",
     "mean": {
-      "estimate": 424371248.5833334
+      "estimate": 427244235.45
     },
     "median_abs_dev": {
-      "estimate": 1867551.1264442513
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.015710986273848482
-      }
+      "estimate": 2010353.9204090687
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sub",
     "mean": {
-      "estimate": 416783002.0666666
+      "estimate": 422281140.9499999
     },
     "median_abs_dev": {
-      "estimate": 3090469.019833222
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.007620660543126712
-      }
+      "estimate": 2421312.3477131277
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/And",
     "mean": {
-      "estimate": 423083224.29999995
+      "estimate": 426752520.15000004
     },
     "median_abs_dev": {
-      "estimate": 3993846.83579506
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.004329138862336546
-      }
+      "estimate": 2400535.4387819767
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Andi",
     "mean": {
-      "estimate": 414345265.9166666
+      "estimate": 418244055.53333336
     },
     "median_abs_dev": {
-      "estimate": 3521659.006378099
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.006847759725792546
-      }
+      "estimate": 2334528.852453813
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Or",
     "mean": {
-      "estimate": 421465954.8333334
+      "estimate": 426637868.74999994
     },
     "median_abs_dev": {
-      "estimate": 2411253.153991699
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.0021714195945807813
-      }
+      "estimate": 1866562.7264618578
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Ori",
     "mean": {
-      "estimate": 420133504.83333325
+      "estimate": 428101833.3333334
     },
     "median_abs_dev": {
-      "estimate": 1825142.5896972565
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.00044005525314161353
-      }
+      "estimate": 3802693.7385887057
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sll",
     "mean": {
-      "estimate": 417436993.0500001
+      "estimate": 422579537.5166667
     },
     "median_abs_dev": {
-      "estimate": 2634126.971834913
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.0029489018928221533
-      }
+      "estimate": 1980897.3770320415
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slli",
     "mean": {
-      "estimate": 414987867.40000004
+      "estimate": 421023694.45000005
     },
     "median_abs_dev": {
-      "estimate": 3319026.631775469
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.0006032578725603255
-      }
+      "estimate": 1798085.1401776222
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srl",
     "mean": {
-      "estimate": 419694102.76666665
+      "estimate": 424455689.6
     },
     "median_abs_dev": {
-      "estimate": 4296811.198416396
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.005735725295983984
-      }
+      "estimate": 2159375.974163398
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srli",
     "mean": {
-      "estimate": 417601939.5833333
+      "estimate": 421054122.9166666
     },
     "median_abs_dev": {
-      "estimate": 4325464.913907588
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.008390218640524694
-      }
+      "estimate": 1766034.0468466135
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sra",
     "mean": {
-      "estimate": 426763089.5833334
+      "estimate": 425069290.25000006
     },
     "median_abs_dev": {
-      "estimate": 7326720.951324731
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.005812271664100477
-      }
+      "estimate": 2270220.8314955235
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srai",
     "mean": {
-      "estimate": 418386337.46666664
+      "estimate": 425855320.81666666
     },
     "median_abs_dev": {
-      "estimate": 5522335.008358955
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.012625114122684411
-      }
+      "estimate": 2757646.0821420103
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mul",
     "mean": {
-      "estimate": 747895991.6
+      "estimate": 749370695.8
     },
     "median_abs_dev": {
-      "estimate": 5558313.632570207
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.004933799461671939
-      }
+      "estimate": 4019498.2863396406
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Muli",
     "mean": {
-      "estimate": 777659845.925
+      "estimate": 775548549.0
     },
     "median_abs_dev": {
-      "estimate": 6688780.915850401
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.0032332761571871593
-      }
+      "estimate": 5150073.42876792
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulu",
     "mean": {
-      "estimate": 653838696.85
+      "estimate": 654876094.85
     },
     "median_abs_dev": {
-      "estimate": 4338767.295071483
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.0021207588966327684
-      }
+      "estimate": 3623304.2073234916
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulsu",
     "mean": {
-      "estimate": 699654778.1
+      "estimate": 701948854.125
     },
     "median_abs_dev": {
-      "estimate": 6749397.386424243
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.015558016524829243
-      }
+      "estimate": 6507980.814260244
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slt",
     "mean": {
-      "estimate": 416065129.1666666
+      "estimate": 420636583.28333336
     },
     "median_abs_dev": {
-      "estimate": 1114987.0863050222
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.0033909015022854927
-      }
+      "estimate": 2886581.1301529114
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slti",
     "mean": {
-      "estimate": 422338303.4499999
+      "estimate": 425271052.06666666
     },
     "median_abs_dev": {
-      "estimate": 3084930.2734315395
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.003879291882168401
-      }
+      "estimate": 3026038.1901770094
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltu",
     "mean": {
-      "estimate": 425722427.05
+      "estimate": 417581652.0833333
     },
     "median_abs_dev": {
-      "estimate": 13078549.586409286
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.025233796967681466
-      }
+      "estimate": 1458569.4991052004
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltiu",
     "mean": {
-      "estimate": 421129428.45
+      "estimate": 415844516.7
     },
     "median_abs_dev": {
-      "estimate": 9606362.223053008
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.024840356683971887
-      }
+      "estimate": 2024727.2329539207
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sle",
     "mean": {
-      "estimate": 420304881.9499999
+      "estimate": 426590362.5
     },
     "median_abs_dev": {
-      "estimate": 3555645.6339746565
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.007576779266907696
-      }
+      "estimate": 6056616.348573624
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slei",
     "mean": {
-      "estimate": 422146433.31666666
+      "estimate": 429810607.65
     },
     "median_abs_dev": {
-      "estimate": 2542659.2019587164
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.00724116527841745
-      }
+      "estimate": 1342247.4232703447
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleu",
     "mean": {
-      "estimate": 441490536.1000001
+      "estimate": 443867772.9333333
     },
     "median_abs_dev": {
-      "estimate": 37450454.825821504
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.06551449686646382
-      }
+      "estimate": 4148963.3638412203
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleiu",
     "mean": {
-      "estimate": 421172398.6
+      "estimate": 424604493.76666665
     },
     "median_abs_dev": {
-      "estimate": 6473051.99438037
-    },
-    "change": {
-      "mean": {
-        "estimate": 0.027914812229314245
-      }
+      "estimate": 8150191.817805156
     }
   },
   {
