@@ -21,7 +21,9 @@ use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
 const SECURITY_BITS: usize = 100;
+#[cfg(not(feature = "disable_prom_channel"))]
 pub(crate) const PROM_MULTIPLICITY_BITS: usize = 32;
+#[cfg(not(feature = "disable_vrom_channel"))]
 pub(crate) const VROM_MULTIPLICITY_BITS: usize = 8;
 
 /// Main prover for PetraVM.

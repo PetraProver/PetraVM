@@ -13,7 +13,7 @@ use crate::{
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::setup_mux_constraint,
+    utils::{pull_vrom_channel, setup_mux_constraint},
 };
 
 /// This macro generates table structures for shift operations.
@@ -80,8 +80,8 @@ macro_rules! define_logic_shift_table {
                 let dst_val = table.add_packed("dst_val", shifter.output);
 
                 // Pull columns from VROM channel
-                table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-                table.pull(channels.vrom_channel, [src_abs, src_val]);
+                pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+                pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
                 Self {
                     id: table.id(),
@@ -197,9 +197,13 @@ macro_rules! define_logic_shift_table {
                 let dst_val = table.add_packed("dst_val", shifter.output);
 
                 // Pull memory access data from VROM channel
-                table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-                table.pull(channels.vrom_channel, [src_abs, src_val]);
-                table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
+                pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+                pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
+                pull_vrom_channel(
+                    &mut table,
+                    channels.vrom_channel,
+                    [shift_abs, shift_amount_packed],
+                );
 
                 Self {
                     id: table.id(),
@@ -379,9 +383,13 @@ impl Table for SraTable {
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull memory access data from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [shift_abs, shift_amount_packed],
+        );
 
         Self {
             id: table.id(),
@@ -582,8 +590,8 @@ impl Table for SraiTable {
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull columns from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),

@@ -4,6 +4,7 @@ use binius_m3::builder::{
 use petravm_asm::{JumpiEvent, JumpvEvent, Opcode};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for JUMPI instruction.
@@ -104,7 +105,7 @@ impl Table for JumpvTable {
             table.add_computed("offset_addr", state_cols.fp + upcast_col(state_cols.arg0));
 
         // Read target_val from VROM
-        table.pull(channels.vrom_channel, [offset_addr, target_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [offset_addr, target_val]);
 
         Self {
             id: table.id(),

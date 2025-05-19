@@ -9,7 +9,10 @@ use binius_m3::builder::{StructuredDynSize, TableWitnessSegment};
 use binius_m3::gadgets::lookup::LookupProducer;
 use binius_m3::gadgets::structured::fill_incrementing_b32;
 
-use crate::prover::{PROM_MULTIPLICITY_BITS, VROM_MULTIPLICITY_BITS};
+#[cfg(not(feature = "disable_prom_channel"))]
+use crate::prover::PROM_MULTIPLICITY_BITS;
+#[cfg(not(feature = "disable_vrom_channel"))]
+use crate::prover::VROM_MULTIPLICITY_BITS;
 use crate::{
     channels::Channels,
     model::Instruction,
@@ -39,6 +42,7 @@ pub struct PromTable {
     /// Packed instruction for PROM channel
     pub instruction: Col<B128>,
     /// To support multiple lookups, we need to create a lookup producer
+    #[cfg(not(feature = "disable_prom_channel"))]
     pub lookup_producer: LookupProducer,
 }
 
@@ -48,7 +52,7 @@ impl PromTable {
     /// # Arguments
     /// * `cs` - [`ConstraintSystem`] to add the table to
     /// * `channels` - [`Channels`] IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, _channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
         table.require_power_of_two_size();
 
@@ -63,9 +67,10 @@ impl PromTable {
         let instruction =
             pack_instruction(&mut table, "instruction", pc, opcode, [arg1, arg2, arg3]);
 
+        #[cfg(not(feature = "disable_prom_channel"))]
         let lookup_producer = LookupProducer::new(
             &mut table,
-            channels.prom_channel,
+            _channels.prom_channel,
             &[instruction],
             PROM_MULTIPLICITY_BITS,
         );
@@ -78,6 +83,7 @@ impl PromTable {
             arg2,
             arg3,
             instruction,
+            #[cfg(not(feature = "disable_prom_channel"))]
             lookup_producer,
         }
     }
@@ -123,6 +129,7 @@ impl TableFiller<ProverPackedField> for PromTable {
         }
 
         // Populate lookup producer with multiplicity iterator
+        #[cfg(not(feature = "disable_prom_channel"))]
         self.lookup_producer
             .populate(witness, rows.map(|(_, multiplicity)| *multiplicity))?;
 
@@ -145,6 +152,7 @@ pub struct VromWriteTable {
     /// Value column (from VROM channel)
     pub value: Col<B32>,
     /// To support multiple lookups, we need to create a lookup producer
+    #[cfg(not(feature = "disable_vrom_channel"))]
     pub lookup_producer: LookupProducer,
 }
 
@@ -166,6 +174,7 @@ impl VromWriteTable {
         // Pull from VROM address space channel (verifier pushes full address space)
         table.pull(channels.vrom_addr_space_channel, [addr]);
 
+        #[cfg(not(feature = "disable_vrom_channel"))]
         let lookup_producer = LookupProducer::new(
             &mut table,
             channels.vrom_channel,
@@ -177,6 +186,7 @@ impl VromWriteTable {
             id: table.id(),
             addr,
             value,
+            #[cfg(not(feature = "disable_vrom_channel"))]
             lookup_producer,
         }
     }
@@ -207,6 +217,7 @@ impl TableFiller<ProverPackedField> for VromWriteTable {
         }
 
         // Populate lookup producer with multiplicity iterator
+        #[cfg(not(feature = "disable_vrom_channel"))]
         self.lookup_producer
             .populate(witness, rows.map(|(_, _, multiplicity)| *multiplicity))?;
 

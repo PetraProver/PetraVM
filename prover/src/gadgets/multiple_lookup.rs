@@ -3,7 +3,7 @@ use std::array::from_fn;
 use binius_core::constraint_system::channel::ChannelId;
 use binius_m3::builder::{Col, TableBuilder, TableWitnessSegment, B32};
 
-use crate::types::ProverPackedField;
+use crate::{types::ProverPackedField, utils::pull_vrom_channel};
 
 /// A gadget for reading a large value in memory with multiple
 /// consecutive B32 lookups.
@@ -42,7 +42,7 @@ impl<const N: usize> MultipleLookupColumns<N> {
             table.add_selected(format!("{label}_b{}_lookup_val_{}", 32 * N, i), val, i)
         });
         for i in 0..N {
-            table.pull(channel, [addr_cols[i], val_cols[i]]);
+            pull_vrom_channel(table, channel, [addr_cols[i], val_cols[i]]);
         }
 
         Self {
