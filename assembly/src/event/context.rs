@@ -14,9 +14,9 @@ use crate::{
 ///
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`PetraTrace`], and also contains the PC associated to the event to be
-/// generated. It also contains an optional advice, used for providing the
-/// discrete logarithm in base `B32::ONE` of a group element defined by the
-/// instruction arguments.
+/// generated. It also contains an optional advice, which provides the
+/// discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a group
+/// element defined by the instruction arguments.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut PetraTrace,

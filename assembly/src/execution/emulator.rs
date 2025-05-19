@@ -112,23 +112,18 @@ impl Default for Interpreter {
 /// arguments to be used by this operation.
 pub type Instruction = [B16; 4];
 
-// impl From<Instruction> for InterpreterInstruction {
-//     fn from(instr: Instruction) -> Self {
-//         Self::new(Instruction::from(instr), instr[0])
-//     }
-// }
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct InterpreterInstruction {
     pub instruction: Instruction,
     pub field_pc: B32,
     /// Optional advice. Used for providing the discrete logarithm in base
-    /// `B32::ONE` of some group element defined by the instruction arguments.
+    /// `B32::MULTIPLICATIVE_GENERATOR` of some group element defined by the
+    /// instruction arguments.
     pub advice: Option<u32>,
 }
 
 impl InterpreterInstruction {
-    pub fn new(instruction: Instruction, field_pc: B32, advice: Option<u32>) -> Self {
+    pub const fn new(instruction: Instruction, field_pc: B32, advice: Option<u32>) -> Self {
         Self {
             instruction,
             field_pc,
