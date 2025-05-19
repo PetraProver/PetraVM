@@ -2,807 +2,466 @@
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xor",
-    "unit": "ns",
     "mean": {
-      "estimate": 404236338.1666666
+      "estimate": 401061911.84999996
     },
     "median_abs_dev": {
-      "estimate": 3393135.8740598112
+      "estimate": 2471422.250023484
     },
     "change": {
       "mean": {
-        "estimate": 0.012803344157477081,
-        "lower_bound": 0.007630592842477852,
-        "upper_bound": 0.018597738828788034,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.008591236297370575,
-        "lower_bound": 0.004648891273793643,
-        "upper_bound": 0.016392992213122515,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.004857115072377849
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xori",
-    "unit": "ns",
     "mean": {
-      "estimate": 406973666.6666667
+      "estimate": 402809865.3
     },
     "median_abs_dev": {
-      "estimate": 2296042.781037166
+      "estimate": 2564424.263772457
     },
     "change": {
       "mean": {
-        "estimate": 0.015760192008010376,
-        "lower_bound": 0.009108671739172392,
-        "upper_bound": 0.022306188546369236,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.011698897909164785,
-        "lower_bound": 0.006913704599261106,
-        "upper_bound": 0.016207236272460346,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.007719106233127548
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Mul",
-    "unit": "ns",
     "mean": {
-      "estimate": 430006038.8833334
+      "estimate": 406959731.2666667
     },
     "median_abs_dev": {
-      "estimate": 17955758.150121555
+      "estimate": 2324232.9369366462
     },
     "change": {
       "mean": {
-        "estimate": 0.06066864775958192,
-        "lower_bound": 0.03819560538321723,
-        "upper_bound": 0.09600544298738063,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.044917477383185966,
-        "lower_bound": 0.024185958304342003,
-        "upper_bound": 0.06928458083688072,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": -0.003551030515353104
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Muli",
-    "unit": "ns",
     "mean": {
-      "estimate": 419110669.4333333
+      "estimate": 405985675.0166667
     },
     "median_abs_dev": {
-      "estimate": 13711486.094072476
+      "estimate": 3582188.1271033743
     },
     "change": {
       "mean": {
-        "estimate": 0.03752885706177467,
-        "lower_bound": 0.022134273033245826,
-        "upper_bound": 0.0528010590479847,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.03321635156220415,
-        "lower_bound": 0.013900068110841879,
-        "upper_bound": 0.04670851235638995,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": -0.02378271847162683
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Add",
-    "unit": "ns",
     "mean": {
-      "estimate": 599258624.0
+      "estimate": 587204066.625
     },
     "median_abs_dev": {
-      "estimate": 11135576.746053994
+      "estimate": 2894606.320260465
     },
     "change": {
       "mean": {
-        "estimate": 0.025799656274665628,
-        "lower_bound": 0.014842833475148125,
-        "upper_bound": 0.03720913133618133,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.014179587466645271,
-        "lower_bound": 0.004597042134796947,
-        "upper_bound": 0.03732517508622846,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": -0.0039778593683647
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Mul",
-    "unit": "ns",
     "mean": {
-      "estimate": 602513773.925
+      "estimate": 600118127.125
     },
     "median_abs_dev": {
-      "estimate": 5552939.207665622
+      "estimate": 9079009.319615364
     },
     "change": {
       "mean": {
-        "estimate": 0.018329653701701698,
-        "lower_bound": 0.009248129178116205,
-        "upper_bound": 0.02764847076730331,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.004806022607577232,
-        "lower_bound": 0.0024702799855758073,
-        "upper_bound": 0.027465572300673147,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.0008903338992700682
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Add",
-    "unit": "ns",
     "mean": {
-      "estimate": 422072587.5
+      "estimate": 419051786.8333333
     },
     "median_abs_dev": {
-      "estimate": 4577300.828036696
+      "estimate": 4952944.218167692
     },
     "change": {
       "mean": {
-        "estimate": 0.0066430842706264315,
-        "lower_bound": -0.0006724283573696569,
-        "upper_bound": 0.014059204413892407,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.0059637265659744365,
-        "lower_bound": 0.00032492716901777463,
-        "upper_bound": 0.011277029836173513,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.10577874701076939
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Addi",
-    "unit": "ns",
     "mean": {
-      "estimate": 430632603.4666666
+      "estimate": 424371248.5833334
     },
     "median_abs_dev": {
-      "estimate": 5846787.433698715
+      "estimate": 1867551.1264442513
     },
     "change": {
       "mean": {
-        "estimate": 0.01506129073444984,
-        "lower_bound": 0.007071098140386933,
-        "upper_bound": 0.023972149017146265,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.007363057389876859,
-        "lower_bound": -0.0006578041162649262,
-        "upper_bound": 0.022065052339965474,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.015710986273848482
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sub",
-    "unit": "ns",
     "mean": {
-      "estimate": 425413807.00000006
+      "estimate": 416783002.0666666
     },
     "median_abs_dev": {
-      "estimate": 10661170.576426417
+      "estimate": 3090469.019833222
     },
     "change": {
       "mean": {
-        "estimate": 0.011277735930192101,
-        "lower_bound": -0.002446620856477032,
-        "upper_bound": 0.02296692982730359,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.01848077052737107,
-        "lower_bound": 0.003311801070805414,
-        "upper_bound": 0.03056601218234567,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.007620660543126712
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/And",
-    "unit": "ns",
     "mean": {
-      "estimate": 434550319.4333334
+      "estimate": 423083224.29999995
     },
     "median_abs_dev": {
-      "estimate": 11942795.969372928
+      "estimate": 3993846.83579506
     },
     "change": {
       "mean": {
-        "estimate": 0.027157760619999527,
-        "lower_bound": 0.015449446207506587,
-        "upper_bound": 0.0377986098999644,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.028474211346943168,
-        "lower_bound": 0.009682950723508998,
-        "upper_bound": 0.04458214878667155,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": 0.004329138862336546
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Andi",
-    "unit": "ns",
     "mean": {
-      "estimate": 420327143.75
+      "estimate": 414345265.9166666
     },
     "median_abs_dev": {
-      "estimate": 8828481.30576311
+      "estimate": 3521659.006378099
     },
     "change": {
       "mean": {
-        "estimate": 0.009403763022058254,
-        "lower_bound": 0.00041216041833737094,
-        "upper_bound": 0.019390136205449385,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.008083464265809859,
-        "lower_bound": -0.003110890125485155,
-        "upper_bound": 0.023390072797031092,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.006847759725792546
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Or",
-    "unit": "ns",
     "mean": {
-      "estimate": 429786578.4833334
+      "estimate": 421465954.8333334
     },
     "median_abs_dev": {
-      "estimate": 10821754.686075434
+      "estimate": 2411253.153991699
     },
     "change": {
       "mean": {
-        "estimate": 0.008712566591307036,
-        "lower_bound": -0.006190673879575219,
-        "upper_bound": 0.023035878917994967,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.010478283987175985,
-        "lower_bound": -0.0047964694263295336,
-        "upper_bound": 0.026734440328552322,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.0021714195945807813
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Ori",
-    "unit": "ns",
     "mean": {
-      "estimate": 432016138.2
+      "estimate": 420133504.83333325
     },
     "median_abs_dev": {
-      "estimate": 6977949.438616633
+      "estimate": 1825142.5896972565
     },
     "change": {
       "mean": {
-        "estimate": 0.024325142207420658,
-        "lower_bound": 0.007704783599928423,
-        "upper_bound": 0.05206219757241002,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.006982277213845922,
-        "lower_bound": 0.001305120182447217,
-        "upper_bound": 0.018214459490649926,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.00044005525314161353
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sll",
-    "unit": "ns",
     "mean": {
-      "estimate": 422260681.29999995
+      "estimate": 417436993.0500001
     },
     "median_abs_dev": {
-      "estimate": 4281964.936479853
+      "estimate": 2634126.971834913
     },
     "change": {
       "mean": {
-        "estimate": 0.00855124302033361,
-        "lower_bound": 0.0001517814595039197,
-        "upper_bound": 0.018973073781281213,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.0002098327702155789,
-        "lower_bound": -0.005580942316180892,
-        "upper_bound": 0.007820125728006833,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.0029489018928221533
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slli",
-    "unit": "ns",
     "mean": {
-      "estimate": 434761073.6
+      "estimate": 414987867.40000004
     },
     "median_abs_dev": {
-      "estimate": 11373827.720174164
+      "estimate": 3319026.631775469
     },
     "change": {
       "mean": {
-        "estimate": 0.04088666225553039,
-        "lower_bound": 0.02183862050016006,
-        "upper_bound": 0.06560846312442246,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.021502489684207315,
-        "lower_bound": 0.011279584743085325,
-        "upper_bound": 0.03692190925140948,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": 0.0006032578725603255
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srl",
-    "unit": "ns",
     "mean": {
-      "estimate": 426745440.9666666
+      "estimate": 419694102.76666665
     },
     "median_abs_dev": {
-      "estimate": 7254680.924403638
+      "estimate": 4296811.198416396
     },
     "change": {
       "mean": {
-        "estimate": 0.014881016187178187,
-        "lower_bound": 0.005553778544065536,
-        "upper_bound": 0.02435318938396971,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.0071607560227058276,
-        "lower_bound": 0.0001974729700244815,
-        "upper_bound": 0.022206231322302816,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.005735725295983984
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srli",
-    "unit": "ns",
     "mean": {
-      "estimate": 419938216.6833334
+      "estimate": 417601939.5833333
     },
     "median_abs_dev": {
-      "estimate": 4235726.102700815
+      "estimate": 4325464.913907588
     },
     "change": {
       "mean": {
-        "estimate": 0.009426453935473589,
-        "lower_bound": 0.00010856301210085416,
-        "upper_bound": 0.020744083921008523,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 7.86762545019748e-05,
-        "lower_bound": -0.006537199287748652,
-        "upper_bound": 0.00945330179110733,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.008390218640524694
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sra",
-    "unit": "ns",
     "mean": {
-      "estimate": 430564072.95
+      "estimate": 426763089.5833334
     },
     "median_abs_dev": {
-      "estimate": 2921081.9728404433
+      "estimate": 7326720.951324731
     },
     "change": {
       "mean": {
-        "estimate": 0.01208913311777482,
-        "lower_bound": -0.005029721803150454,
-        "upper_bound": 0.03768098723411825,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.00457310230001573,
-        "lower_bound": -0.007993535710606348,
-        "upper_bound": 0.00704493836891551,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.005812271664100477
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srai",
-    "unit": "ns",
     "mean": {
-      "estimate": 427832109.74999994
+      "estimate": 418386337.46666664
     },
     "median_abs_dev": {
-      "estimate": 8828892.974355832
+      "estimate": 5522335.008358955
     },
     "change": {
       "mean": {
-        "estimate": 0.017792165939228388,
-        "lower_bound": 0.010249818662406707,
-        "upper_bound": 0.026795732222389318,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.01446845749149439,
-        "lower_bound": 0.006721955224352039,
-        "upper_bound": 0.03143478835944813,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": -0.012625114122684411
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mul",
-    "unit": "ns",
     "mean": {
-      "estimate": 776302189.55
+      "estimate": 747895991.6
     },
     "median_abs_dev": {
-      "estimate": 23710063.46846223
+      "estimate": 5558313.632570207
     },
     "change": {
       "mean": {
-        "estimate": 0.04087388051285834,
-        "lower_bound": 0.02213412260772929,
-        "upper_bound": 0.06094839845937516,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.02242617829495086,
-        "lower_bound": 0.008690089415996693,
-        "upper_bound": 0.05426905832544637,
-        "unit": "%"
-      },
-      "change": "Regressed"
+        "estimate": -0.004933799461671939
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Muli",
-    "unit": "ns",
     "mean": {
-      "estimate": 785769058.375
+      "estimate": 777659845.925
     },
     "median_abs_dev": {
-      "estimate": 12608741.082850099
+      "estimate": 6688780.915850401
     },
     "change": {
       "mean": {
-        "estimate": 0.01640861996528642,
-        "lower_bound": 0.003918516524414882,
-        "upper_bound": 0.030378397945864097,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.010567829154895403,
-        "lower_bound": -0.0007463094109224633,
-        "upper_bound": 0.026393959847131,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.0032332761571871593
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulu",
-    "unit": "ns",
     "mean": {
-      "estimate": 663479652.075
+      "estimate": 653838696.85
     },
     "median_abs_dev": {
-      "estimate": 11815425.929184258
+      "estimate": 4338767.295071483
     },
     "change": {
       "mean": {
-        "estimate": 0.014970617558337507,
-        "lower_bound": 0.003088576788486991,
-        "upper_bound": 0.02907396096012304,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.005878665088774548,
-        "lower_bound": -0.0022851239390694333,
-        "upper_bound": 0.02146736672274918,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.0021207588966327684
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulsu",
-    "unit": "ns",
     "mean": {
-      "estimate": 698128263.525
+      "estimate": 699654778.1
     },
     "median_abs_dev": {
-      "estimate": 9854764.188542962
+      "estimate": 6749397.386424243
     },
     "change": {
       "mean": {
-        "estimate": 0.010803709737635225,
-        "lower_bound": 0.00267945855503556,
-        "upper_bound": 0.01879458284488485,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.012542719663494184,
-        "lower_bound": 0.0012932670384886435,
-        "upper_bound": 0.019057493412924842,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.015558016524829243
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slt",
-    "unit": "ns",
     "mean": {
-      "estimate": 421163308.3000001
+      "estimate": 416065129.1666666
     },
     "median_abs_dev": {
-      "estimate": 5004897.239345312
+      "estimate": 1114987.0863050222
     },
     "change": {
       "mean": {
-        "estimate": 0.015765546122916696,
-        "lower_bound": 0.006096149623693116,
-        "upper_bound": 0.027024385094960645,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.007151758294499544,
-        "lower_bound": 2.3388400137047682e-05,
-        "upper_bound": 0.01758397526334366,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.0033909015022854927
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slti",
-    "unit": "ns",
     "mean": {
-      "estimate": 423989568.78333336
+      "estimate": 422338303.4499999
     },
     "median_abs_dev": {
-      "estimate": 3943139.445695266
+      "estimate": 3084930.2734315395
     },
     "change": {
       "mean": {
-        "estimate": 0.006545920979864617,
-        "lower_bound": 0.001183623295357506,
-        "upper_bound": 0.01287654663977266,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.003707465818031608,
-        "lower_bound": -0.0017446952306718888,
-        "upper_bound": 0.010960357304127033,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.003879291882168401
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltu",
-    "unit": "ns",
     "mean": {
-      "estimate": 414324990.24999994
+      "estimate": 425722427.05
     },
     "median_abs_dev": {
-      "estimate": 3365481.430950746
+      "estimate": 13078549.586409286
     },
     "change": {
       "mean": {
-        "estimate": -0.00028823223717644453,
-        "lower_bound": -0.005740444588706586,
-        "upper_bound": 0.005143736318586852,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.004125099926853615,
-        "lower_bound": -0.009053632645729448,
-        "upper_bound": 0.002380854283241085,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.025233796967681466
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltiu",
-    "unit": "ns",
     "mean": {
-      "estimate": 415483263.2166667
+      "estimate": 421129428.45
     },
     "median_abs_dev": {
-      "estimate": 7068985.277700439
+      "estimate": 9606362.223053008
     },
     "change": {
       "mean": {
-        "estimate": 0.005060184286191705,
-        "lower_bound": -0.003872755174420972,
-        "upper_bound": 0.015018352835208094,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.0008535477430815508,
-        "lower_bound": -0.006751194498216151,
-        "upper_bound": 0.013165026028129745,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.024840356683971887
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sle",
-    "unit": "ns",
     "mean": {
-      "estimate": 429258871.51666665
+      "estimate": 420304881.9499999
     },
     "median_abs_dev": {
-      "estimate": 9287840.197607875
+      "estimate": 3555645.6339746565
     },
     "change": {
       "mean": {
-        "estimate": 0.020682095414969126,
-        "lower_bound": 0.0005133962551852474,
-        "upper_bound": 0.04341503011392788,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.015478826746741614,
-        "lower_bound": -0.0004303047354511369,
-        "upper_bound": 0.024764335090238676,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": -0.007576779266907696
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slei",
-    "unit": "ns",
     "mean": {
-      "estimate": 430486311.0666666
+      "estimate": 422146433.31666666
     },
     "median_abs_dev": {
-      "estimate": 15150771.66242002
+      "estimate": 2542659.2019587164
     },
     "change": {
       "mean": {
-        "estimate": -0.07746971777551637,
-        "lower_bound": -0.21176234608937797,
-        "upper_bound": 0.02139007882086716,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": 0.011037667220735514,
-        "lower_bound": -0.008362179003206238,
-        "upper_bound": 0.03841596425695859,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.00724116527841745
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleu",
-    "unit": "ns",
     "mean": {
-      "estimate": 410619579.1666667
+      "estimate": 441490536.1000001
     },
     "median_abs_dev": {
-      "estimate": 1914973.8163024483
+      "estimate": 37450454.825821504
     },
     "change": {
       "mean": {
-        "estimate": -0.016554667136495782,
-        "lower_bound": -0.039924143944092445,
-        "upper_bound": -0.0019461331422324366,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.008285808680573048,
-        "lower_bound": -0.011868437112013686,
-        "upper_bound": -0.00490199159844118,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.06551449686646382
+      }
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleiu",
-    "unit": "ns",
     "mean": {
-      "estimate": 410789106.2333333
+      "estimate": 421172398.6
     },
     "median_abs_dev": {
-      "estimate": 4036172.594043642
+      "estimate": 6473051.99438037
     },
     "change": {
       "mean": {
-        "estimate": -0.00491444021571652,
-        "lower_bound": -0.01239265380982387,
-        "upper_bound": 0.0021309823346788424,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.005951397469416753,
-        "lower_bound": -0.010423043502489016,
-        "upper_bound": 0.002685215797883611,
-        "unit": "%"
-      },
-      "change": "NoChange"
+        "estimate": 0.027914812229314245
+      }
     }
   },
   {

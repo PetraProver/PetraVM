@@ -241,8 +241,7 @@
               let previousValue = null;
               if (d.change && d.change.mean && d.change.mean.estimate !== undefined) {
                 // If change is negative, previous was higher; if positive, previous was lower
-                const changePercent = d.change.mean.estimate / 100;
-                previousValue = meanValue / (1 + changePercent);
+                previousValue = meanValue / (1 + d.change.mean.estimate);
               }
 
               return {
@@ -259,7 +258,7 @@
 
     function drawChart(dataOps = ops) {
       // first, sort ops into the order you want on the x-axis
-      // (here I’m assuming ops is already in the right order)
+      // (here I'm assuming ops is already in the right order)
       const xVals = dataOps.map(o => o.opcode);
       const currentY = dataOps.map(o => o.mean);
       const errorY = dataOps.map(o => o.stddev);
