@@ -49,13 +49,36 @@ def main():
         '--message-format=json'
     ], cwd=project_root)
 
-    # Step 3: Parse lines into a JSON array
+    # Step 3: Parse lines into a JSON array and filter to only keep essential data
     lines = raw.decode('utf-8').splitlines()
     objs = [json.loads(line) for line in lines if line.strip()]
+    
+    # Filter to keep only essential fields for visualization
+    filtered_objs = []
+    for obj in objs:
+        if obj.get('reason') == 'benchmark-complete':
+            filtered_obj = {
+                'reason': obj['reason'],
+                'id': obj['id'],
+                'unit': obj['unit']
+            }
+            
+            # Keep only the essential statistical data
+            if 'mean' in obj and 'estimate' in obj['mean']:
+                filtered_obj['mean'] = {'estimate': obj['mean']['estimate']}
+            
+            if 'median_abs_dev' in obj and 'estimate' in obj['median_abs_dev']:
+                filtered_obj['median_abs_dev'] = {'estimate': obj['median_abs_dev']['estimate']}
+                
+            filtered_objs.append(filtered_obj)
+        else:
+            # Keep non-benchmark-complete objects intact as they might be important metadata
+            filtered_objs.append(obj)
+    
     bench_json_path = os.path.join(out_dir, 'benchmarks.json')
     with open(bench_json_path, 'w') as f:
-        json.dump(objs, f, indent=2)
-    print(f'✅ Wrote JSON array to {bench_json_path}')
+        json.dump(filtered_objs, f, indent=2)
+    print(f'✅ Wrote filtered JSON array to {bench_json_path}')
 
     # Step 4: Ensure dashboard HTML exists in docs/benches
     # We assume the user places index.html directly in docs/benches/

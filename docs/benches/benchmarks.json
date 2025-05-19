@@ -2,2202 +2,342 @@
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xor",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Xor",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      812525833.0,
-      803247875.0,
-      823123125.0,
-      813305833.0,
-      810351709.0,
-      818883834.0,
-      795655000.0,
-      799343166.0,
-      790878208.0,
-      809673250.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 403849391.65,
-      "lower_bound": 400768218.75,
-      "upper_bound": 406762120.8,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 403849391.65,
-      "lower_bound": 400768218.75,
-      "upper_bound": 406762120.8,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 405006239.75,
-      "lower_bound": 399671583.0,
-      "upper_bound": 407852416.75,
-      "unit": "ns"
+      "estimate": 399126188.21666664
     },
     "median_abs_dev": {
-      "estimate": 5795468.100459874,
-      "lower_bound": 1057309.8701789975,
-      "upper_bound": 8661611.466425657,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.33585204341248787,
-        "lower_bound": -0.3503625450695219,
-        "upper_bound": -0.32291993526137025,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3247688138861238,
-        "lower_bound": -0.35167250427915975,
-        "upper_bound": -0.31679393983653936,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 1376491.034862399
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xori",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Xori",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      798926958.0,
-      808026041.0,
-      797142834.0,
-      802823667.0,
-      798382166.0,
-      790747542.0,
-      830384250.0,
-      797614958.0,
-      804374042.0,
-      815044083.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 402173327.05,
-      "lower_bound": 399211687.55,
-      "upper_bound": 405793627.05,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 402173327.05,
-      "lower_bound": 399211687.55,
-      "upper_bound": 405793627.05,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 400437656.25,
-      "lower_bound": 398807479.0,
-      "upper_bound": 404854531.25,
-      "unit": "ns"
+      "estimate": 400659200.73333335
     },
     "median_abs_dev": {
-      "estimate": 2680247.1976161003,
-      "lower_bound": 486292.79136657715,
-      "upper_bound": 8082362.62190938,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3273958498353282,
-        "lower_bound": -0.3332204733536774,
-        "upper_bound": -0.32095990967466803,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3299976198830932,
-        "lower_bound": -0.3356659953341208,
-        "upper_bound": -0.32185985755386937,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 1820046.1522877805
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Mul",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B32Mul",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      804878917.0,
-      810152209.0,
-      812811750.0,
-      803348542.0,
-      811624375.0,
-      815548292.0,
-      802699875.0,
-      812117125.0,
-      813421291.0,
-      812523791.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 404956308.35,
-      "lower_bound": 403542816.2325,
-      "upper_bound": 406221053.6375,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 404956308.35,
-      "lower_bound": 403542816.2325,
-      "upper_bound": 406221053.6375,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 405935375.0,
-      "lower_bound": 402439458.5,
-      "upper_bound": 406486270.5,
-      "unit": "ns"
+      "estimate": 405410341.6666666
     },
     "median_abs_dev": {
-      "estimate": 1211685.2217882872,
-      "lower_bound": 257462.75167912245,
-      "upper_bound": 3569869.451022148,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3337618876614916,
-        "lower_bound": -0.3416155192180794,
-        "upper_bound": -0.32758673273046074,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.32954467585788905,
-        "lower_bound": -0.3372089273158946,
-        "upper_bound": -0.32418682965902,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2185218.433004603
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Muli",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B32Muli",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      810611334.0,
-      803707666.0,
-      815691125.0,
-      802989209.0,
-      809064833.0,
-      802174000.0,
-      804241875.0,
-      806524583.0,
-      800387083.0,
-      809992625.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 403269216.65,
-      "lower_bound": 401941302.0,
-      "upper_bound": 404703437.5,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 403269216.65,
-      "lower_bound": 401941302.0,
-      "upper_bound": 404703437.5,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 402691614.5,
-      "lower_bound": 401470416.5,
-      "upper_bound": 404996312.5,
-      "unit": "ns"
+      "estimate": 403950855.5166667
     },
     "median_abs_dev": {
-      "estimate": 2554087.206105888,
-      "lower_bound": 464300.6446570158,
-      "upper_bound": 4224297.975003719,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3386313920289016,
-        "lower_bound": -0.3488885117742705,
-        "upper_bound": -0.331349558512036,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.33603525811604995,
-        "lower_bound": -0.33970701008379944,
-        "upper_bound": -0.33052817073898155,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 1404135.3468716291
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Add",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B128Add",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      585220667.0,
-      597670500.0,
-      632642542.0,
-      607080667.0,
-      582748500.0,
-      584380375.0,
-      586129708.0,
-      582948792.0,
-      591927750.0,
-      663016541.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 601376604.2,
-      "lower_bound": 587811648.1875,
-      "upper_bound": 618760037.3,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 601376604.2,
-      "lower_bound": 587811648.1875,
-      "upper_bound": 618760037.3,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 589028729.0,
-      "lower_bound": 584084729.5,
-      "upper_bound": 615156521.0,
-      "unit": "ns"
+      "estimate": 584186805.225
     },
     "median_abs_dev": {
-      "estimate": 9162590.893131495,
-      "lower_bound": 1296780.5298775434,
-      "upper_bound": 35926393.69677901,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.07473934703033092,
-        "lower_bound": -0.09735439662587708,
-        "upper_bound": -0.04324161789646508,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.08363426000989582,
-        "lower_bound": -0.11061649220843228,
-        "upper_bound": -0.039911521011248285,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 4039189.437890053
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Mul",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/B128Mul",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      608676709.0,
-      595054333.0,
-      596847958.0,
-      590402292.0,
-      592030000.0,
-      593924209.0,
-      588835875.0,
-      595935417.0,
-      597260250.0,
-      588107541.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 594707458.4,
-      "lower_bound": 591609799.8,
-      "upper_bound": 598506129.22,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 594707458.4,
-      "lower_bound": 591609799.8,
-      "upper_bound": 598506129.22,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 594489271.0,
-      "lower_bound": 590402292.0,
-      "upper_bound": 596847958.0,
-      "unit": "ns"
+      "estimate": 591668691.7
     },
     "median_abs_dev": {
-      "estimate": 3877184.2561662197,
-      "lower_bound": 982098.685464263,
-      "upper_bound": 8711448.323240876,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.0950453295140754,
-        "lower_bound": -0.10089851324744259,
-        "upper_bound": -0.08836514444327756,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.09639423840141581,
-        "lower_bound": -0.10411550305062889,
-        "upper_bound": -0.09044595661318244,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2332994.4850310683
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Add",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Add",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      864382292.0,
-      865356083.0,
-      849679208.0,
-      988830541.0,
-      874090750.0,
-      916897750.0,
-      849954458.0,
-      910771542.0,
-      875064875.0,
-      850154542.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 442259102.05,
-      "lower_bound": 431175051.16375,
-      "upper_bound": 456499375.15749997,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 442259102.05,
-      "lower_bound": 431175051.16375,
-      "upper_bound": 456499375.15749997,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 434861708.25,
-      "lower_bound": 425077271.0,
-      "upper_bound": 455385771.0,
-      "unit": "ns"
+      "estimate": 419287227.1166667
     },
     "median_abs_dev": {
-      "estimate": 14580567.542593181,
-      "lower_bound": 278203.9546608925,
-      "upper_bound": 31589989.666065574,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.2919620158447155,
-        "lower_bound": -0.31343137842438135,
-        "upper_bound": -0.2683446304712441,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.29716004462028667,
-        "lower_bound": -0.31644558913920084,
-        "upper_bound": -0.26563321259862904,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2472348.6279070526
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Addi",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Addi",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      883042834.0,
-      851898417.0,
-      860501666.0,
-      862477375.0,
-      851063458.0,
-      849419709.0,
-      846807375.0,
-      846746166.0,
-      918048041.0,
-      877791334.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 432389818.75,
-      "lower_bound": 426572872.9,
-      "upper_bound": 439692945.5925,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 432389818.75,
-      "lower_bound": 426572872.9,
-      "upper_bound": 439692945.5925,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 428100020.75,
-      "lower_bound": 424467708.25,
-      "upper_bound": 438895667.0,
-      "unit": "ns"
+      "estimate": 424242956.95
     },
     "median_abs_dev": {
-      "estimate": 5994521.972925961,
-      "lower_bound": 918733.1038892269,
-      "upper_bound": 16346715.131887794,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.31636746553734474,
-        "lower_bound": -0.33151514475426425,
-        "upper_bound": -0.30146005885803595,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3197216646172336,
-        "lower_bound": -0.3271751961084717,
-        "upper_bound": -0.30190751196818444,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2162073.5648155063
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sub",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sub",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      883109291.0,
-      938848042.0,
-      934203083.0,
-      993014250.0,
-      932261375.0,
-      917805625.0,
-      890838000.0,
-      860256333.0,
-      847761209.0,
-      838380125.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 451823866.65,
-      "lower_bound": 437986403.5925,
-      "upper_bound": 466335270.8,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 451823866.65,
-      "lower_bound": 437986403.5925,
-      "upper_bound": 466335270.8,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 452160906.25,
-      "lower_bound": 430128166.5,
-      "upper_bound": 467777354.25,
-      "unit": "ns"
+      "estimate": 420669606.2666667
     },
     "median_abs_dev": {
-      "estimate": 23872639.451175928,
-      "lower_bound": 3161042.137630284,
-      "upper_bound": 42661289.40221071,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.27407480867791734,
-        "lower_bound": -0.30181100785738213,
-        "upper_bound": -0.24906857655385398,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.270569388609445,
-        "lower_bound": -0.30773293858757855,
-        "upper_bound": -0.2453523918670768,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 3132187.900492564
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/And",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/And",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      914159875.0,
-      853080875.0,
-      858592875.0,
-      855615667.0,
-      851787042.0,
-      842476917.0,
-      896106959.0,
-      842421791.0,
-      848917625.0,
-      899047584.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 433110360.5,
-      "lower_bound": 425968057.51500005,
-      "upper_bound": 441342325.15,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 433110360.5,
-      "lower_bound": 425968057.51500005,
-      "upper_bound": 441342325.15,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 427174135.5,
-      "lower_bound": 423565989.75,
-      "upper_bound": 448053479.5,
-      "unit": "ns"
+      "estimate": 423060931.9166666
     },
     "median_abs_dev": {
-      "estimate": 6412986.186146736,
-      "lower_bound": 1419079.8310562968,
-      "upper_bound": 18949758.90107453,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3246070094438698,
-        "lower_bound": -0.3396533132641595,
-        "upper_bound": -0.3073753145881787,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.32592307116492714,
-        "lower_bound": -0.3478813133443355,
-        "upper_bound": -0.29065551500447506,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2686007.8398138285
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Andi",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Andi",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      870819916.0,
-      858408750.0,
-      853210750.0,
-      947107417.0,
-      904548667.0,
-      873093333.0,
-      867838000.0,
-      825873625.0,
-      861358750.0,
-      831386042.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 434682262.5,
-      "lower_bound": 425318668.6625,
-      "upper_bound": 445809592.49625,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 434682262.5,
-      "lower_bound": 425318668.6625,
-      "upper_bound": 445809592.49625,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 432299187.5,
-      "lower_bound": 422448698.0,
-      "upper_bound": 443842145.75,
-      "unit": "ns"
+      "estimate": 416411310.4666667
     },
     "median_abs_dev": {
-      "estimate": 7369479.25811559,
-      "lower_bound": 1947889.1418680549,
-      "upper_bound": 27613239.184767008,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3060015357952165,
-        "lower_bound": -0.3293212495611145,
-        "upper_bound": -0.28367031981559443,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.29929027275132825,
-        "lower_bound": -0.32517159707461474,
-        "upper_bound": -0.28693921149013346,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 3701506.043285161
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Or",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Or",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      852827958.0,
-      839358000.0,
-      851365333.0,
-      849740792.0,
-      899844209.0,
-      900559542.0,
-      858802333.0,
-      841638667.0,
-      945248083.0,
-      1006794625.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 442308977.1,
-      "lower_bound": 428007225.415,
-      "upper_bound": 459887365.90250003,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 442308977.1,
-      "lower_bound": 428007225.415,
-      "upper_bound": 459887365.90250003,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 427907572.75,
-      "lower_bound": 423251000.0,
-      "upper_bound": 461273073.0,
-      "unit": "ns"
+      "estimate": 426074377.1
     },
     "median_abs_dev": {
-      "estimate": 11354352.534019947,
-      "lower_bound": 1144258.0575853586,
-      "upper_bound": 39641170.98662853,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.29959205512599485,
-        "lower_bound": -0.32237777585096256,
-        "upper_bound": -0.26975372567177974,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3197920451281425,
-        "lower_bound": -0.3278397976665285,
-        "upper_bound": -0.2723905624029539,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2883471.8709081262
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Ori",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Ori",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      862461292.0,
-      873467250.0,
-      904717541.0,
-      918462792.0,
-      912721500.0,
-      941478083.0,
-      940599666.0,
-      960935209.0,
-      989181916.0,
-      913628041.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 460882664.5,
-      "lower_bound": 449786702.0,
-      "upper_bound": 472329481.37874997,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 460882664.5,
-      "lower_bound": 449786702.0,
-      "upper_bound": 472329481.37874997,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 458022708.25,
-      "lower_bound": 446547187.5,
-      "upper_bound": 475383718.75,
-      "unit": "ns"
+      "estimate": 421756843.01666677
     },
     "median_abs_dev": {
-      "estimate": 18527650.08646846,
-      "lower_bound": 2128009.842020273,
-      "upper_bound": 32419998.427779973,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.2677237711274981,
-        "lower_bound": -0.2875690609663102,
-        "upper_bound": -0.2464603656920605,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.26356115525929746,
-        "lower_bound": -0.28313373883880144,
-        "upper_bound": -0.2418472357078535,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 1724109.331890911
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sll",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sll",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      931335667.0,
-      909758417.0,
-      980124666.0,
-      965118750.0,
-      955053458.0,
-      985789750.0,
-      910471708.0,
-      872881250.0,
-      866058500.0,
-      919012958.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 464780256.2,
-      "lower_bound": 452396687.46750003,
-      "upper_bound": 476928428.67125,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 464780256.2,
-      "lower_bound": 452396687.46750003,
-      "upper_bound": 476928428.67125,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 462587156.25,
-      "lower_bound": 445838239.5,
-      "upper_bound": 483794531.0,
-      "unit": "ns"
+      "estimate": 418680443.0833334
     },
     "median_abs_dev": {
-      "estimate": 25880110.57948619,
-      "lower_bound": 3430195.5607518554,
-      "upper_bound": 36716681.01064861,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.25212185057114245,
-        "lower_bound": -0.2743141653059923,
-        "upper_bound": -0.23334183245287152,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.2547666565273615,
-        "lower_bound": -0.2791936660603803,
-        "upper_bound": -0.22053771660359478,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2339326.7930686623
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slli",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slli",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      861821959.0,
-      848352917.0,
-      842255625.0,
-      840238291.0,
-      858394792.0,
-      827581291.0,
-      833132416.0,
-      831636708.0,
-      842441708.0,
-      830922416.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 420838906.15,
-      "lower_bound": 417582818.5,
-      "upper_bound": 424401728.8725,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 420838906.15,
-      "lower_bound": 417582818.5,
-      "upper_bound": 424401728.8725,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 420623479.0,
-      "lower_bound": 415818354.0,
-      "upper_bound": 425209125.0,
-      "unit": "ns"
+      "estimate": 417683393.75000006
     },
     "median_abs_dev": {
-      "estimate": 6569694.038164616,
-      "lower_bound": 816696.4965507388,
-      "upper_bound": 9917883.658522367,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.32255740681670053,
-        "lower_bound": -0.33478964901164043,
-        "upper_bound": -0.3115843742973475,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3180763713501539,
-        "lower_bound": -0.3339717594874636,
-        "upper_bound": -0.30860049099924114,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 3002388.4966969197
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srl",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srl",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      840106625.0,
-      846812708.0,
-      833545167.0,
-      837669416.0,
-      885859625.0,
-      845954375.0,
-      847179708.0,
-      839475625.0,
-      848866125.0,
-      835970375.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 423071987.45,
-      "lower_bound": 419628349.95,
-      "upper_bound": 428048945.75,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 423071987.45,
-      "lower_bound": 419628349.95,
-      "upper_bound": 428048945.75,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 421515250.0,
-      "lower_bound": 418834708.0,
-      "upper_bound": 423919708.25,
-      "unit": "ns"
+      "estimate": 420488149.99999994
     },
     "median_abs_dev": {
-      "estimate": 3524989.6672189236,
-      "lower_bound": 454169.6683868766,
-      "upper_bound": 6961177.526414394,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3226161427411822,
-        "lower_bound": -0.3336926202393674,
-        "upper_bound": -0.3114039298068611,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3187361656422788,
-        "lower_bound": -0.3349940126952714,
-        "upper_bound": -0.31193954709400395,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2751798.460745841
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srli",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srli",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      841867167.0,
-      835989750.0,
-      880744750.0,
-      864973667.0,
-      869694583.0,
-      865979833.0,
-      936819625.0,
-      956707416.0,
-      899434167.0,
-      917890792.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 443505087.5,
-      "lower_bound": 432282754.2,
-      "upper_bound": 455630616.65,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 443505087.5,
-      "lower_bound": 432282754.2,
-      "upper_bound": 455630616.65,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 437609833.25,
-      "lower_bound": 426961750.0,
-      "upper_bound": 459063448.0,
-      "unit": "ns"
+      "estimate": 416016654.85
     },
     "median_abs_dev": {
-      "estimate": 21337208.17118883,
-      "lower_bound": 2122742.90561378,
-      "upper_bound": 33829904.30084914,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.28430165851507216,
-        "lower_bound": -0.30759614430962023,
-        "upper_bound": -0.2621603675972879,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.28833464369133577,
-        "lower_bound": -0.3096751793480492,
-        "upper_bound": -0.24955078723964452,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2124524.249482199
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sra",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sra",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      939613125.0,
-      942363125.0,
-      925216333.0,
-      924374833.0,
-      917360875.0,
-      923653541.0,
-      950670708.0,
-      922672084.0,
-      924702583.0,
-      928551625.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 464958941.6,
-      "lower_bound": 462066968.65,
-      "upper_bound": 468283266.55,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 464958941.6,
-      "lower_bound": 462066968.65,
-      "upper_bound": 468283266.55,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 462479729.0,
-      "lower_bound": 461761729.25,
-      "upper_bound": 469806562.5,
-      "unit": "ns"
+      "estimate": 425421100.6333333
     },
     "median_abs_dev": {
-      "estimate": 2179251.832960546,
-      "lower_bound": 311901.96946263313,
-      "upper_bound": 8196986.132374406,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.2531579583516763,
-        "lower_bound": -0.2634622383899166,
-        "upper_bound": -0.2443736316617648,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.25268651602712566,
-        "lower_bound": -0.26136805752931935,
-        "upper_bound": -0.2408141788978122,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 4008229.7852396965
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srai",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Srai",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      898038875.0,
-      944110584.0,
-      905660083.0,
-      836410833.0,
-      857297333.0,
-      898999042.0,
-      857902333.0,
-      841507209.0,
-      854769542.0,
-      844902792.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 436979931.3,
-      "lower_bound": 427165360.4,
-      "upper_bound": 447896314.65,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 436979931.3,
-      "lower_bound": 427165360.4,
-      "upper_bound": 447896314.65,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 428799916.5,
-      "lower_bound": 422451396.0,
-      "upper_bound": 450924739.5,
-      "unit": "ns"
+      "estimate": 420353117.3333334
     },
     "median_abs_dev": {
-      "estimate": 13818433.690273762,
-      "lower_bound": 1161168.96353513,
-      "upper_bound": 31626158.804373443,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.2958603676715895,
-        "lower_bound": -0.31524256206054097,
-        "upper_bound": -0.2747798496278653,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3021857352589822,
-        "lower_bound": -0.3171414505213108,
-        "upper_bound": -0.264983175451765,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2540960.389488906
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mul",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mul",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      765445875.0,
-      822403417.0,
-      810221250.0,
-      847444167.0,
-      776371500.0,
-      786446417.0,
-      770548084.0,
-      781973833.0,
-      782992250.0,
-      757975750.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 790182254.3,
-      "lower_bound": 774979425.1,
-      "upper_bound": 807635325.2,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 790182254.3,
-      "lower_bound": 774979425.1,
-      "upper_bound": 807635325.2,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 782483041.5,
-      "lower_bound": 770548084.0,
-      "upper_bound": 810221250.0,
-      "unit": "ns"
+      "estimate": 745817724.975
     },
     "median_abs_dev": {
-      "estimate": 21477035.139906406,
-      "lower_bound": 4070478.9690345526,
-      "upper_bound": 45217631.27222657,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.08213316840519858,
-        "lower_bound": -0.10291118489008959,
-        "upper_bound": -0.05998391658204923,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.08702247578218192,
-        "lower_bound": -0.10310890417012397,
-        "upper_bound": -0.05078421168635505,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2851240.2710303664
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Muli",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Muli",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      777244458.0,
-      786569709.0,
-      765635416.0,
-      758181000.0,
-      807511875.0,
-      764502708.0,
-      776554875.0,
-      779927042.0,
-      866401625.0,
-      771856958.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 785438566.6,
-      "lower_bound": 770438098.3974999,
-      "upper_bound": 806567233.3,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 785438566.6,
-      "lower_bound": 770438098.3974999,
-      "upper_bound": 806567233.3,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 776899666.5,
-      "lower_bound": 765635416.0,
-      "upper_bound": 793719458.5,
-      "unit": "ns"
+      "estimate": 773083819.775
     },
     "median_abs_dev": {
-      "estimate": 15518591.125389934,
-      "lower_bound": 2499787.352719903,
-      "upper_bound": 32413342.665848136,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.15963845240530294,
-        "lower_bound": -0.18323069516112062,
-        "upper_bound": -0.1341059820674846,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.15778119410327895,
-        "lower_bound": -0.19391168811892479,
-        "upper_bound": -0.14411269124609294,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 6511254.76565212
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mulu",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      659673209.0,
-      679453667.0,
-      656851708.0,
-      662761250.0,
-      653023541.0,
-      663596167.0,
-      653102833.0,
-      664792542.0,
-      682357541.0,
-      708466750.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 668407920.8,
-      "lower_bound": 659453716.7,
-      "upper_bound": 679536719.1149999,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 668407920.8,
-      "lower_bound": 659453716.7,
-      "upper_bound": 679536719.1149999,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 663178708.5,
-      "lower_bound": 656388021.0,
-      "upper_bound": 679453667.0,
-      "unit": "ns"
+      "estimate": 653693457.325
     },
     "median_abs_dev": {
-      "estimate": 12159451.762926579,
-      "lower_bound": 1505796.732866764,
-      "upper_bound": 26041867.05506444,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.09847273681015578,
-        "lower_bound": -0.11611847791591749,
-        "upper_bound": -0.08089021959046158,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.10097973167410979,
-        "lower_bound": -0.11317805087258181,
-        "upper_bound": -0.07716904916803735,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2949571.119734645
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulsu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Mulsu",
-    "iteration_count": [
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1
-    ],
-    "measured_values": [
-      719751292.0,
-      737596750.0,
-      808495708.0,
-      770237875.0,
-      835545333.0,
-      782674375.0,
-      773225959.0,
-      781651875.0,
-      740190583.0,
-      732232250.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 768160200.0,
-      "lower_bound": 747608631.33,
-      "upper_bound": 790133037.5,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 768160200.0,
-      "lower_bound": 747608631.33,
-      "upper_bound": 790133037.5,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 771731917.0,
-      "lower_bound": 736211416.5,
-      "upper_bound": 795073791.5,
-      "unit": "ns"
+      "estimate": 690666503.1
     },
     "median_abs_dev": {
-      "estimate": 48685989.32695091,
-      "lower_bound": 5899512.148162723,
-      "upper_bound": 63393318.796643615,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.027532569935923124,
-        "lower_bound": -0.05532813327429912,
-        "upper_bound": 0.00011512094713733365,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.020680868510427275,
-        "lower_bound": -0.06794500459569208,
-        "upper_bound": 0.0028125848051174795,
-        "unit": "%"
-      },
-      "change": "NoChange"
+      "estimate": 4172684.9634200335
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slt",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slt",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      909921542.0,
-      901588250.0,
-      889738166.0,
-      901935875.0,
-      930083958.0,
-      943560041.0,
-      922484583.0,
-      900416125.0,
-      917183959.0,
-      934538625.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 457572556.2,
-      "lower_bound": 452569629.15,
-      "upper_bound": 462732179.15,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 457572556.2,
-      "lower_bound": 452569629.15,
-      "upper_bound": 462732179.15,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 456776375.25,
-      "lower_bound": 450588000.0,
-      "upper_bound": 465041979.0,
-      "unit": "ns"
+      "estimate": 414626495.1666667
     },
     "median_abs_dev": {
-      "estimate": 9303732.186725736,
-      "lower_bound": 868896.247074008,
-      "upper_bound": 14771204.695008695,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.24925433649906426,
-        "lower_bound": -0.25784803234487746,
-        "upper_bound": -0.23947075603245932,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.251013246160824,
-        "lower_bound": -0.26370682071615303,
-        "upper_bound": -0.2352524803956232,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2218587.310612231
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slti",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slti",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      983907709.0,
-      933385500.0,
-      914050500.0,
-      866644750.0,
-      900950875.0,
-      924505208.0,
-      929000042.0,
-      900481250.0,
-      851328291.0,
-      856489708.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 453037191.65,
-      "lower_bound": 441487721.3275,
-      "upper_bound": 465313145.60375,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 453037191.65,
-      "lower_bound": 441487721.3275,
-      "upper_bound": 465313145.60375,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 453750343.75,
-      "lower_bound": 433322375.0,
-      "upper_bound": 464500021.0,
-      "unit": "ns"
+      "estimate": 421232215.98333323
     },
     "median_abs_dev": {
-      "estimate": 17562941.186745465,
-      "lower_bound": 3291480.171364546,
-      "upper_bound": 39077582.84563422,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.27528668739949136,
-        "lower_bound": -0.2943604606614101,
-        "upper_bound": -0.25336789321925035,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.27294053616767666,
-        "lower_bound": -0.30805084607797917,
-        "upper_bound": -0.25216371583462727,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2409801.441517487
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sltu",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      908303125.0,
-      841904167.0,
-      855798334.0,
-      833600792.0,
-      817663792.0,
-      823071833.0,
-      829774084.0,
-      820499959.0,
-      821073417.0,
-      821363250.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 418652637.65,
-      "lower_bound": 412080242.20125,
-      "upper_bound": 427792325.1,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 418652637.65,
-      "lower_bound": 412080242.20125,
-      "upper_bound": 427792325.1,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 413211479.25,
-      "lower_bound": 410465802.25,
-      "upper_bound": 422349781.5,
-      "unit": "ns"
+      "estimate": 414444446.5
     },
     "median_abs_dev": {
-      "estimate": 4855823.665241897,
-      "lower_bound": 427405.4030120373,
-      "upper_bound": 14454546.544830501,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.323849340517569,
-        "lower_bound": -0.3377451627341928,
-        "upper_bound": -0.3070251700826215,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3297939686402701,
-        "lower_bound": -0.3363457637441498,
-        "upper_bound": -0.3134021721710242,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2814098.3000396946
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltiu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sltiu",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      824872833.0,
-      813593250.0,
-      815677416.0,
-      866083750.0,
-      809690458.0,
-      821542041.0,
-      822081042.0,
-      825273375.0,
-      822298667.0,
-      815934459.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 411852364.55,
-      "lower_bound": 408278299.8,
-      "upper_bound": 417134966.6,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 411852364.55,
-      "lower_bound": 408278299.8,
-      "upper_bound": 417134966.6,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 410905770.75,
-      "lower_bound": 407381927.25,
-      "upper_bound": 412436416.5,
-      "unit": "ns"
+      "estimate": 413391426.4166667
     },
     "median_abs_dev": {
-      "estimate": 3461469.153946638,
-      "lower_bound": 280443.421921134,
-      "upper_bound": 6634944.004306197,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3323075040214972,
-        "lower_bound": -0.3439784182883063,
-        "upper_bound": -0.3206277924473572,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3291599728464293,
-        "lower_bound": -0.33878945804255456,
-        "upper_bound": -0.3257332859559884,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2646440.953016281
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sle",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sle",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      827298000.0,
-      851620708.0,
-      836612041.0,
-      866614458.0,
-      830868084.0,
-      818404250.0,
-      833314125.0,
-      833546250.0,
-      832654083.0,
-      824958125.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 417794506.2,
-      "lower_bound": 414143165.38,
-      "upper_bound": 422215450.19375,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 417794506.2,
-      "lower_bound": 414143165.38,
-      "upper_bound": 422215450.19375,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 416492052.0,
-      "lower_bound": 413649000.0,
-      "upper_bound": 421291739.5,
-      "unit": "ns"
+      "estimate": 420560793.0666667
     },
     "median_abs_dev": {
-      "estimate": 3452249.2353603244,
-      "lower_bound": 416718.822401762,
-      "upper_bound": 10894082.70804137,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.31687367658241383,
-        "lower_bound": -0.3241164655998154,
-        "upper_bound": -0.3087491167022343,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.3182396804472585,
-        "lower_bound": -0.32518442421576443,
-        "upper_bound": -0.310383020354851,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 4499721.807613984
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slei",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Slei",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      847999500.0,
-      837548000.0,
-      836134333.0,
-      836829375.0,
-      835143417.0,
-      839396959.0,
-      845063667.0,
-      881033625.0,
-      841323000.0,
-      887030166.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 424375102.1,
-      "lower_bound": 419464197.32374996,
-      "upper_bound": 430625112.78125,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 424375102.1,
-      "lower_bound": 419464197.32374996,
-      "upper_bound": 430625112.78125,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 420179989.75,
-      "lower_bound": 418414687.5,
-      "upper_bound": 431524323.0,
-      "unit": "ns"
+      "estimate": 466636509.7833334
     },
     "median_abs_dev": {
-      "estimate": 3309657.588341832,
-      "lower_bound": 624900.3216058016,
-      "upper_bound": 12244098.213873804,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.3181191447773719,
-        "lower_bound": -0.3286194590730104,
-        "upper_bound": -0.3067426129894214,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.32311145295771726,
-        "lower_bound": -0.32756594284227336,
-        "upper_bound": -0.3050262276750414,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2468024.8721837555
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sleu",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      875231458.0,
-      867014625.0,
-      902780458.0,
-      873393542.0,
-      839573333.0,
-      836908583.0,
-      899285708.0,
-      885489500.0,
-      950868000.0,
-      890664917.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 441060506.2,
-      "lower_bound": 431824410.72875,
-      "upper_bound": 451188608.31875,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 441060506.2,
-      "lower_bound": 431824410.72875,
-      "upper_bound": 451188608.31875,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 440180239.5,
-      "lower_bound": 428241718.75,
-      "upper_bound": 449642854.0,
-      "unit": "ns"
+      "estimate": 417531677.1
     },
     "median_abs_dev": {
-      "estimate": 11961276.70159489,
-      "lower_bound": 3045569.09738034,
-      "upper_bound": 28034683.79458487,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.28217149579284684,
-        "lower_bound": -0.30025860735375043,
-        "upper_bound": -0.2618705691280956,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.27768240079033557,
-        "lower_bound": -0.2944548969064249,
-        "upper_bound": -0.25949305140976875,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 1263226.5743732306
     }
   },
   {
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleiu",
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving/prove/Sleiu",
-    "iteration_count": [
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2,
-      2
-    ],
-    "measured_values": [
-      947808209.0,
-      920498958.0,
-      877450709.0,
-      859906459.0,
-      927613708.0,
-      996064208.0,
-      859091834.0,
-      848963291.0,
-      822962667.0,
-      862813666.0
-    ],
     "unit": "ns",
-    "throughput": [],
-    "typical": {
-      "estimate": 446158685.45,
-      "lower_bound": 431276379.15,
-      "upper_bound": 462610704.66249996,
-      "unit": "ns"
-    },
     "mean": {
-      "estimate": 446158685.45,
-      "lower_bound": 431276379.15,
-      "upper_bound": 462610704.66249996,
-      "unit": "ns"
-    },
-    "median": {
-      "estimate": 435066093.75,
-      "lower_bound": 427217437.5,
-      "upper_bound": 467076791.75,
-      "unit": "ns"
+      "estimate": 412817874.99999994
     },
     "median_abs_dev": {
-      "estimate": 25329633.811359107,
-      "lower_bound": 1681437.7571985126,
-      "upper_bound": 45894345.1270625,
-      "unit": "ns"
-    },
-    "slope": null,
-    "change": {
-      "mean": {
-        "estimate": -0.27372406361524426,
-        "lower_bound": -0.29836080346116456,
-        "upper_bound": -0.24415742888027267,
-        "unit": "%"
-      },
-      "median": {
-        "estimate": -0.28582771427849696,
-        "lower_bound": -0.30446599177716094,
-        "upper_bound": -0.23426104961981775,
-        "unit": "%"
-      },
-      "change": "Improved"
+      "estimate": 2908778.864058852
     }
   },
   {
