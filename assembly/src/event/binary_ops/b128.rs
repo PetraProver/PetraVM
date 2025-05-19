@@ -100,7 +100,7 @@ mod tests {
         // 1. B128_ADD @add_result, @a, @b
         // 2. B128_MUL @mul_result, @add_result, @c
         // 3. RET
-        let instructions = vec![
+        let instructions = [
             [
                 Opcode::B128Add.get_field_elt(),
                 add_result_slot,

@@ -246,21 +246,6 @@ impl<'a> EventContext<'a> {
         }
     }
 
-    pub(crate) fn new_with_advice(
-        interpreter: &'a mut Interpreter,
-        trace: &'a mut PetraTrace,
-        advice: u32,
-    ) -> Self {
-        use binius_field::Field;
-
-        Self {
-            interpreter,
-            trace,
-            field_pc: B32::ONE,
-            advice: Some(advice),
-        }
-    }
-
     /// Helper method to set a value in VROM.
     pub fn set_vrom(&mut self, slot: u16, value: u32) {
         self.vrom_write(self.addr(slot), value).unwrap();

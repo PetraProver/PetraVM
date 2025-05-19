@@ -5,6 +5,7 @@ use super::context::EventContext;
 use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError, G},
+    Opcode,
 };
 
 /// Event for TAILI.
@@ -41,16 +42,18 @@ impl Event for TailiEvent {
         let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = (B32::from_bases([target_low, target_high]))
+        let target = B32::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let target_pc = ctx.advice.expect("TAILI should have an advice");
+        let advice = ctx
+            .advice
+            .ok_or(InterpreterError::MissingAdvice(Opcode::Taili))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
         let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
 
         // Jump to the target, received as advice.
-        ctx.jump_to_u32(target_pc);
+        ctx.jump_to_u32(target, advice);
 
         ctx.vrom_write(ctx.addr(0u32), return_addr)?;
         ctx.vrom_write(ctx.addr(1u32), old_fp_val)?;
@@ -184,14 +187,16 @@ impl Event for CalliEvent {
 
         let target = B32::from_bases([target_low, target_high])
             .map_err(|_| InterpreterError::InvalidInput)?;
-        let target_pc = ctx.advice.expect("TAILI should have an advice");
+        let advice = ctx
+            .advice
+            .ok_or(InterpreterError::MissingAdvice(Opcode::Calli))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
         let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
 
         // Jump to the target, received as advice.
-        ctx.jump_to_u32(target_pc);
+        ctx.jump_to_u32(target, advice);
 
         let return_pc = (field_pc * G).val();
         ctx.vrom_write(ctx.addr(0u32), return_pc)?;

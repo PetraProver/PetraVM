@@ -106,6 +106,15 @@ impl Opcode {
         B16::new(*self as u16)
     }
 
+    /// Returns true if the opcode is a jump instruction that jumps to an
+    /// immediate.
+    pub fn jumps_to_immediate(&self) -> bool {
+        matches!(
+            self,
+            Opcode::Bnz | Opcode::Jumpi | Opcode::Calli | Opcode::Taili
+        )
+    }
+
     /// Returns the number of arguments expected by the given opcode.
     pub const fn num_args(&self) -> usize {
         match self {

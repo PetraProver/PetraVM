@@ -5,6 +5,7 @@ use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     macros::fire_non_jump_event,
+    Opcode,
 };
 
 /// Event for BNZ.
@@ -52,7 +53,10 @@ impl Event for BnzEvent {
                 target,
             };
             ctx.trace.bnz.push(event);
-            ctx.jump_to(target);
+            let advice = ctx
+                .advice
+                .ok_or(InterpreterError::MissingAdvice(Opcode::Bnz))?;
+            ctx.jump_to_u32(target, advice);
         } else {
             // We are not branching.
             let event = BzEvent {

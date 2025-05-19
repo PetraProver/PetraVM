@@ -129,7 +129,11 @@ pub fn generate_trace(
 
     for _ in program.len()..prom_size {
         max_pc *= B32::MULTIPLICATIVE_GENERATOR;
-        program.push(InterpreterInstruction::new(Instruction::default(), max_pc));
+        program.push(InterpreterInstruction::new(
+            Instruction::default(),
+            max_pc,
+            None,
+        ));
     }
 
     // Initialize memory with return PC = 0, return FP = 0 if not provided

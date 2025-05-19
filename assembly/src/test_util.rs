@@ -34,7 +34,7 @@ pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
     // `*G`.
     let mut pc = B32::ONE; // we start at PC = 1G.
     for &instruction in code.iter() {
-        let interp_inst = crate::InterpreterInstruction::new(instruction, pc);
+        let interp_inst = InterpreterInstruction::new(instruction, pc, None);
         prom.push(interp_inst);
         pc *= G;
     }
@@ -64,3 +64,5 @@ macro_rules! get_last_event {
 
 // Re-export the macro for use in tests.
 pub(crate) use get_last_event;
+
+use crate::InterpreterInstruction;
