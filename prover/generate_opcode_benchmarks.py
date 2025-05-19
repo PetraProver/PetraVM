@@ -59,8 +59,7 @@ def main():
         if obj.get('reason') == 'benchmark-complete':
             filtered_obj = {
                 'reason': obj['reason'],
-                'id': obj['id'],
-                'unit': obj['unit']
+                'id': obj['id']
             }
             
             # Keep only the essential statistical data
@@ -70,9 +69,13 @@ def main():
             if 'median_abs_dev' in obj and 'estimate' in obj['median_abs_dev']:
                 filtered_obj['median_abs_dev'] = {'estimate': obj['median_abs_dev']['estimate']}
             
-            # Include change data for comparison
-            if 'change' in obj:
-                filtered_obj['change'] = obj['change']
+            # Include only the mean estimate from change data
+            if 'change' in obj and 'mean' in obj['change'] and 'estimate' in obj['change']['mean']:
+                filtered_obj['change'] = {
+                    'mean': {
+                        'estimate': obj['change']['mean']['estimate']
+                    }
+                }
                 
             filtered_objs.append(filtered_obj)
         else:
