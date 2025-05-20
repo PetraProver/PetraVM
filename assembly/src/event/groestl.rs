@@ -6,7 +6,7 @@ use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     macros::fire_non_jump_event,
-    util::{bytes_to_u64, u32_to_bytes},
+    util::bytes_to_u64,
 };
 
 /// Event for GROESTL256_COMPRESS.
@@ -32,33 +32,37 @@ impl Event for Groestl256CompressEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let mut src1_val = Vec::with_capacity(16);
+        let mut src1_val = Vec::with_capacity(64);
         for i in 0..16 {
-            src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
+            src1_val.extend(
+                ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?
+                    .to_le_bytes(),
+            );
         }
-        let src1_val = u32_to_bytes(&src1_val);
-        let mut src2_val = Vec::with_capacity(16);
+        let mut src2_val = Vec::with_capacity(64);
         for i in 0..16 {
-            src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
+            src2_val.extend(
+                ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?
+                    .to_le_bytes(),
+            );
         }
-        let src2_val = u32_to_bytes(&src2_val);
-        // Transform the input to match the process in arithmetization.
-        let src1_val_new = src1_val
+
+        // Change the input bases to match the the one used in P/Q permutations.
+        let src1_val_aes = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
             .collect::<Vec<_>>();
-
-        let src2_val_new = src2_val
+        let src2_val_aes = src2_val
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
 
         let mut out_val =
-            GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
+            GroestlShortImpl::state_from_bytes(&src1_val_aes.clone().try_into().unwrap());
 
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut out_val,
-            &src2_val_new.clone().try_into().unwrap(),
+            &src2_val_aes.clone().try_into().unwrap(),
         );
 
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&out_val);
@@ -81,9 +85,9 @@ impl Event for Groestl256CompressEvent {
             dst: dst.val(),
             dst_val,
             src1: src1.val(),
-            src1_val: src1_val.try_into().unwrap(),
+            src1_val: src1_val.try_into().expect("src1_val should be 64 bytes"),
             src2: src2.val(),
-            src2_val: src2_val.try_into().unwrap(),
+            src2_val: src2_val.try_into().expect("src2_val should be 64 bytes"),
         };
 
         ctx.trace.groestl_compress.push(event);
@@ -97,7 +101,8 @@ impl Event for Groestl256CompressEvent {
 
 /// Event for GROESTL256_OUTPUT.
 ///
-/// Performs a Groestl compression between two 512-bit inputs.
+/// Performs the output step of a Groestl hash.
+/// It corresponds to a 2-to-1 compresssion.
 #[derive(Debug, Clone)]
 pub struct Groestl256OutputEvent {
     pub pc: B32,
@@ -119,27 +124,31 @@ impl Event for Groestl256OutputEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let mut src1_val = Vec::with_capacity(8);
+        let mut src1_val = Vec::with_capacity(32);
         for i in 0..8 {
-            src1_val.push(ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?);
+            src1_val.extend(
+                ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?
+                    .to_le_bytes(),
+            );
         }
-        let src1_val = u32_to_bytes(&src1_val);
+        let mut src2_val = Vec::with_capacity(32);
+        for i in 0..8 {
+            src2_val.extend(
+                ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?
+                    .to_le_bytes(),
+            );
+        }
 
-        let mut src2_val = Vec::with_capacity(8);
-        for i in 0..8 {
-            src2_val.push(ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?);
-        }
-        let src2_val = u32_to_bytes(&src2_val);
-        // Transform the input to match the process in arithmetization.
-        let src1_val_new = src1_val
+        // Change the input bases to match the the one used in P/Q permutations.
+        let src1_val_aes = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
             .collect::<Vec<_>>();
-        let src2_val_new = src2_val
+        let src2_val_aes = src2_val
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
-        let full_input: [u8; 64] = [src1_val_new, src2_val_new].concat().try_into().unwrap();
+        let full_input: [u8; 64] = [src1_val_aes, src2_val_aes].concat().try_into().unwrap();
         let state_in = GroestlShortImpl::state_from_bytes(&full_input);
         let mut state = state_in;
 

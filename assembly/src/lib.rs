@@ -13,7 +13,7 @@ pub mod isa;
 pub mod memory;
 pub mod opcodes;
 mod parser;
-mod util;
+pub mod util;
 
 #[cfg(test)]
 mod test_util;

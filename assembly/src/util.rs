@@ -14,7 +14,7 @@ pub fn init_logger() {
         .init();
 }
 
-pub(crate) fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
+pub fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
     let mut output = Vec::with_capacity(input.len() * 4);
     for &value in input {
         output.extend_from_slice(&value.to_le_bytes());

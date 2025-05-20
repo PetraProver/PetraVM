@@ -5,14 +5,12 @@ use binius_m3::builder::{B32, B8};
 use log::trace;
 use petravm_asm::{
     isa::{GenericISA, RecursionISA, ISA},
+    util::u32_to_bytes,
     Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
 use tracing::instrument;
 
-use crate::{
-    model::Trace,
-    utils::{bytes_to_u32, u32_to_bytes},
-};
+use crate::{model::Trace, utils::bytes_to_u32};
 
 pub fn fibonacci(n: u32) -> u32 {
     if n <= 1 {
