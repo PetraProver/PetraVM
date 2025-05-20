@@ -2,7 +2,7 @@ use binius_core::oracle::ShiftVariant;
 use binius_field::Field;
 use binius_m3::{
     builder::{
-        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B16, B32,
+        upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
     },
     gadgets::barrel_shifter::BarrelShifter,
 };
@@ -13,7 +13,7 @@ use crate::{
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::{pack_b16_into_b32, setup_mux_constraint},
+    utils::setup_mux_constraint,
 };
 
 /// This macro generates table structures for shift operations.
@@ -153,9 +153,8 @@ macro_rules! define_logic_shift_table {
             src_abs: Col<B32>,                  // Source absolute address
             src_val_unpacked: Col<B1, 32>,      // Source value in bit-unpacked form
             shift_abs: Col<B32>,                // Shift vrom absolute address
-            shift_amount_unpacked: Col<B1, 16>, // Shift amount in bit-unpacked form
-            shift_vrom_val: Col<B32>,           // Shift value (full vrom value)
-            shift_vrom_val_high: Col<B16>,      // High part of shift value
+            shift_amount_unpacked: Col<B1, 32>, // Shift amount in bit-unpacked form
+            shift_amount_low: Col<B1, 16>,
         }
 
         impl Table for $Name {
@@ -185,29 +184,22 @@ macro_rules! define_logic_shift_table {
                     table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
                 // Shift amount columns
-                let shift_amount_unpacked: Col<B1, 16> =
+                let shift_amount_unpacked: Col<B1, 32> =
                     table.add_committed("shift_amount_unpacked");
-                let shift_amount_packed: Col<B16, 1> =
+                let shift_amount_packed: Col<B32> =
                     table.add_packed("shift_amount", shift_amount_unpacked);
-                let shift_vrom_val_high = table.add_committed("shift_vrom_val_high");
-                let shift_vrom_val = table.add_computed(
-                    "shift_vrom_val",
-                    pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
-                );
+                let shift_amount_low: Col<B1, 16> =
+                    table.add_selected_block("shift_amount_low", shift_amount_unpacked, 0);
 
                 // Barrel shifter for the actual shift operation
-                let shifter = BarrelShifter::new(
-                    &mut table,
-                    src_val_unpacked,
-                    shift_amount_unpacked,
-                    $ShiftVar,
-                );
+                let shifter =
+                    BarrelShifter::new(&mut table, src_val_unpacked, shift_amount_low, $ShiftVar);
                 let dst_val = table.add_packed("dst_val", shifter.output);
 
                 // Pull memory access data from VROM channel
                 table.pull(channels.vrom_channel, [dst_abs, dst_val]);
                 table.pull(channels.vrom_channel, [src_abs, src_val]);
-                table.pull(channels.vrom_channel, [shift_abs, shift_vrom_val]);
+                table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
 
                 Self {
                     id: table.id(),
@@ -218,8 +210,7 @@ macro_rules! define_logic_shift_table {
                     src_val_unpacked,
                     shift_abs,
                     shift_amount_unpacked,
-                    shift_vrom_val,
-                    shift_vrom_val_high,
+                    shift_amount_low,
                 }
             }
         }
@@ -243,18 +234,15 @@ macro_rules! define_logic_shift_table {
                     let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
                     let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
                     let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-                    let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
-                    let mut shift_vrom_val_high =
-                        witness.get_scalars_mut(self.shift_vrom_val_high)?;
+                    let mut shift_low = witness.get_mut_as(self.shift_amount_low)?;
 
                     for (i, ev) in rows.clone().enumerate() {
                         src_unpacked[i] = ev.src_val;
                         dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                         src_abs[i] = B32::new(ev.fp.addr(ev.src));
                         shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
-                        shift_unpacked[i] = ev.shift_amount as u16;
-                        shift_vrom_val[i] = B32::new(ev.shift_amount as u32);
-                        shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
+                        shift_unpacked[i] = ev.shift_amount;
+                        shift_low[i] = ev.shift_amount as u16;
                     }
                 }
 
@@ -304,9 +292,8 @@ pub struct SraTable {
     shifter_input: Col<B1, 32>,  /* Selected input for shifter (original or inverted based on
                                   * sign bit) */
     shift_abs: Col<B32>,
-    shift_amount_unpacked: Col<B1, 16>,
-    shift_vrom_val: Col<B32>,
-    shift_vrom_val_high: Col<B16>,
+    shift_amount_unpacked: Col<B1, 32>,
+    shift_amount_low: Col<B1, 16>,
     inverted_output: Col<B1, 32>, // ~shifter.output for negative number path
     result: Col<B1, 32>,          // Final result after selection
 }
@@ -357,14 +344,10 @@ impl Table for SraTable {
             table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
         // Shift amount columns
-        let shift_amount_unpacked: Col<B1, 16> = table.add_committed("shift_amount_unpacked");
-        let shift_amount_packed: Col<B16, 1> =
-            table.add_packed("shift_amount", shift_amount_unpacked);
-        let shift_vrom_val_high = table.add_committed("shift_vrom_val_high");
-        let shift_vrom_val = table.add_computed(
-            "shift_vrom_val",
-            pack_b16_into_b32(shift_amount_packed, shift_vrom_val_high),
-        );
+        let shift_amount_unpacked: Col<B1, 32> = table.add_committed("shift_amount_unpacked");
+        let shift_amount_packed: Col<B32> = table.add_packed("shift_amount", shift_amount_unpacked);
+        let shift_amount_low: Col<B1, 16> =
+            table.add_selected_block("shift_amount_low", shift_amount_unpacked, 0);
 
         // Single barrel shifter using the selected input
         // For positive numbers: input >> shift
@@ -372,7 +355,7 @@ impl Table for SraTable {
         let shifter = BarrelShifter::new(
             &mut table,
             shifter_input,
-            shift_amount_unpacked,
+            shift_amount_low,
             ShiftVariant::LogicalRight,
         );
 
@@ -398,7 +381,7 @@ impl Table for SraTable {
         // Pull memory access data from VROM channel
         table.pull(channels.vrom_channel, [dst_abs, dst_val]);
         table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_vrom_val]);
+        table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
 
         Self {
             id: table.id(),
@@ -412,8 +395,7 @@ impl Table for SraTable {
             shifter_input,
             shift_abs,
             shift_amount_unpacked,
-            shift_vrom_val,
-            shift_vrom_val_high,
+            shift_amount_low,
             inverted_output,
             result,
         }
@@ -439,8 +421,7 @@ impl TableFiller<ProverPackedField> for SraTable {
             let mut src_unpacked = witness.get_mut_as(self.src_val_unpacked)?;
             let mut shift_abs = witness.get_scalars_mut(self.shift_abs)?;
             let mut shift_unpacked = witness.get_mut_as(self.shift_amount_unpacked)?;
-            let mut shift_vrom_val = witness.get_scalars_mut(self.shift_vrom_val)?;
-            let mut shift_vrom_val_high = witness.get_scalars_mut(self.shift_vrom_val_high)?;
+            let mut shift_low = witness.get_mut_as(self.shift_amount_low)?;
             let mut inverted_input = witness.get_mut_as(self.inverted_input)?;
             let mut shifter_input = witness.get_mut_as(self.shifter_input)?;
             let mut inverted_output = witness.get_mut_as(self.inverted_output)?;
@@ -452,9 +433,8 @@ impl TableFiller<ProverPackedField> for SraTable {
                 dst_abs[i] = B32::new(ev.fp.addr(ev.dst));
                 src_abs[i] = B32::new(ev.fp.addr(ev.src));
                 shift_abs[i] = B32::new(ev.fp.addr(ev.shift));
-                shift_unpacked[i] = ev.shift_amount as u16;
-                shift_vrom_val[i] = B32::new(ev.shift_amount);
-                shift_vrom_val_high[i] = B16::new((ev.shift_amount >> 16) as u16);
+                shift_unpacked[i] = ev.shift_amount;
+                shift_low[i] = ev.shift_amount as u16;
 
                 // Calculate sign bit
                 let is_negative = (ev.src_val >> 31) & 1 == 1;

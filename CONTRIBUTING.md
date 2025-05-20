@@ -7,13 +7,6 @@ We use plenty of useful crates from the Rust ecosystem. When including a crate a
 * Is it widely used? You can see when it was published and total downloads on `crates.io`.
 * Is it maintained? If the documentation has an explicit deprecation notice or has not been updated in a long time, try
   to find an alternative.
-* Is it developed by one person or an organization?## Dependencies
-
-We use plenty of useful crates from the Rust ecosystem. When including a crate as a dependency, be sure to assess:
-
-* Is it widely used? You can see when it was published and total downloads on `crates.io`.
-* Is it maintained? If the documentation has an explicit deprecation notice or has not been updated in a long time, try
-  to find an alternative.
 * Is it developed by one person or an organization?
 
 ## First-time contributions

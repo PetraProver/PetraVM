@@ -36,5 +36,10 @@ binius_m3.workspace = true
 
 [dev-dependencies]
 binius_m3 = { workspace = true, features = ["test_utils"] }
+criterion = "0.5.1"
 proptest = "1.6.0"
 rand = { version = "0.9.1", features = ["std"] }
+
+[[bench]]
+name = "shift"
+harness = false
