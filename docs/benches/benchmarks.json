@@ -3,14 +3,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xor",
     "mean": {
-      "estimate": 407767968.76666665
+      "estimate": 136889347.504949
     },
     "median_abs_dev": {
-      "estimate": 4804932.062095374
+      "estimate": 903759.4495500374
     },
     "change": {
       "mean": {
-        "estimate": 0.7058108693243508
+        "estimate": -0.6642959771485142
       }
     }
   },
@@ -18,14 +18,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Xori",
     "mean": {
-      "estimate": 411956734.70000005
+      "estimate": 135955388.35396028
     },
     "median_abs_dev": {
-      "estimate": 4373083.059862197
+      "estimate": 919633.8487820331
     },
     "change": {
       "mean": {
-        "estimate": 0.7303895913782668
+        "estimate": -0.6699765366065267
       }
     }
   },
@@ -33,14 +33,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Mul",
     "mean": {
-      "estimate": 410528491.66666675
+      "estimate": 136134771.0881675
     },
     "median_abs_dev": {
-      "estimate": 2905195.914122433
+      "estimate": 715955.2874059209
     },
     "change": {
       "mean": {
-        "estimate": 0.7229132245080792
+        "estimate": -0.6683914177661909
       }
     }
   },
@@ -48,14 +48,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B32Muli",
     "mean": {
-      "estimate": 411860137.4833334
+      "estimate": 138176437.38117918
     },
     "median_abs_dev": {
-      "estimate": 3721233.518534928
+      "estimate": 432315.0088543768
     },
     "change": {
       "mean": {
-        "estimate": 0.7054167701475345
+        "estimate": -0.6645064068945719
       }
     }
   },
@@ -63,14 +63,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Add",
     "mean": {
-      "estimate": 593937831.25
+      "estimate": 184017635.05546796
     },
     "median_abs_dev": {
-      "estimate": 5244975.023733079
+      "estimate": 915016.0073364623
     },
     "change": {
       "mean": {
-        "estimate": 1.0211970665145773
+        "estimate": -0.6901735747861271
       }
     }
   },
@@ -78,14 +78,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/B128Mul",
     "mean": {
-      "estimate": 602422232.3
+      "estimate": 194053988.57500002
     },
     "median_abs_dev": {
-      "estimate": 4339971.9075500965
+      "estimate": 1588199.1452038363
     },
     "change": {
       "mean": {
-        "estimate": 0.9957846958449861
+        "estimate": -0.6778771131435216
       }
     }
   },
@@ -93,14 +93,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Add",
     "mean": {
-      "estimate": 422569897.2166666
+      "estimate": 142495919.6505288
     },
     "median_abs_dev": {
-      "estimate": 2267523.48794344
+      "estimate": 684038.1689986127
     },
     "change": {
       "mean": {
-        "estimate": 0.7139927006418698
+        "estimate": -0.6627873386412424
       }
     }
   },
@@ -108,14 +108,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Addi",
     "mean": {
-      "estimate": 431103462.55
+      "estimate": 152697843.61229563
     },
     "median_abs_dev": {
-      "estimate": 2538829.152026743
+      "estimate": 787146.8909547774
     },
     "change": {
       "mean": {
-        "estimate": 0.703848196641673
+        "estimate": -0.6457976869193309
       }
     }
   },
@@ -123,14 +123,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sub",
     "mean": {
-      "estimate": 423574705.55
+      "estimate": 142228630.35644752
     },
     "median_abs_dev": {
-      "estimate": 2236224.3198991558
+      "estimate": 477105.9559396704
     },
     "change": {
       "mean": {
-        "estimate": 0.7247564898123819
+        "estimate": -0.6642183102700441
       }
     }
   },
@@ -138,14 +138,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/And",
     "mean": {
-      "estimate": 429188256.2166667
+      "estimate": 138065501.7906341
     },
     "median_abs_dev": {
-      "estimate": 2396715.767049863
+      "estimate": 1265097.501403333
     },
     "change": {
       "mean": {
-        "estimate": 0.7579163922960037
+        "estimate": -0.6783101592580981
       }
     }
   },
@@ -153,14 +153,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Andi",
     "mean": {
-      "estimate": 420311724.3333334
+      "estimate": 137708223.8528269
     },
     "median_abs_dev": {
-      "estimate": 4078807.7214866728
+      "estimate": 1195415.663877122
     },
     "change": {
       "mean": {
-        "estimate": 0.736598233739586
+        "estimate": -0.6723664464243788
       }
     }
   },
@@ -168,14 +168,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Or",
     "mean": {
-      "estimate": 430231229.1833333
+      "estimate": 137779242.21584967
     },
     "median_abs_dev": {
-      "estimate": 3068951.0580152124
+      "estimate": 1015396.1474573101
     },
     "change": {
       "mean": {
-        "estimate": 0.7622366306728876
+        "estimate": -0.6797553667190017
       }
     }
   },
@@ -183,14 +183,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Ori",
     "mean": {
-      "estimate": 428335736.7833333
+      "estimate": 138467819.20810777
     },
     "median_abs_dev": {
-      "estimate": 4622365.936836585
+      "estimate": 925041.5287618476
     },
     "change": {
       "mean": {
-        "estimate": 0.7523506643979709
+        "estimate": -0.6767306406699625
       }
     }
   },
@@ -198,14 +198,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sll",
     "mean": {
-      "estimate": 426043667.3166667
+      "estimate": 149308137.35030383
     },
     "median_abs_dev": {
-      "estimate": 2029061.366876901
+      "estimate": 525497.0390643295
     },
     "change": {
       "mean": {
-        "estimate": 0.6669893974939118
+        "estimate": -0.6495473379743323
       }
     }
   },
@@ -213,14 +213,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slli",
     "mean": {
-      "estimate": 421851898.5833333
+      "estimate": 148563730.75028118
     },
     "median_abs_dev": {
-      "estimate": 3278388.8135969196
+      "estimate": 508318.4482050991
     },
     "change": {
       "mean": {
-        "estimate": 0.6561635345614347
+        "estimate": -0.6478296500520937
       }
     }
   },
@@ -228,14 +228,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srl",
     "mean": {
-      "estimate": 427625850.7166667
+      "estimate": 148857330.48602182
     },
     "median_abs_dev": {
-      "estimate": 2940315.0009989445
+      "estimate": 474239.06028912036
     },
     "change": {
       "mean": {
-        "estimate": 0.6756124254340392
+        "estimate": -0.6518981950306586
       }
     }
   },
@@ -243,14 +243,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srli",
     "mean": {
-      "estimate": 422728488.93333334
+      "estimate": 149945155.13511437
     },
     "median_abs_dev": {
-      "estimate": 3475996.409788772
+      "estimate": 916323.4001757504
     },
     "change": {
       "mean": {
-        "estimate": 0.683957471175727
+        "estimate": -0.6452920513744661
       }
     }
   },
@@ -258,14 +258,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sra",
     "mean": {
-      "estimate": 434114870.1166666
+      "estimate": 150900763.78323692
     },
     "median_abs_dev": {
-      "estimate": 1984902.6208609343
+      "estimate": 609055.2528318006
     },
     "change": {
       "mean": {
-        "estimate": 0.7054819136795365
+        "estimate": -0.652394391045202
       }
     }
   },
@@ -273,14 +273,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Srai",
     "mean": {
-      "estimate": 425754727.13333327
+      "estimate": 151748395.12766135
     },
     "median_abs_dev": {
-      "estimate": 3883330.868557066
+      "estimate": 606930.6045297866
     },
     "change": {
       "mean": {
-        "estimate": 0.6708599094603611
+        "estimate": -0.6435778971864746
       }
     }
   },
@@ -288,14 +288,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mul",
     "mean": {
-      "estimate": 754265761.45
+      "estimate": 339658812.4833333
     },
     "median_abs_dev": {
-      "estimate": 7678370.067031682
+      "estimate": 2193012.708166168
     },
     "change": {
       "mean": {
-        "estimate": 0.674662034623974
+        "estimate": -0.549682844107396
       }
     }
   },
@@ -303,14 +303,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Muli",
     "mean": {
-      "estimate": 779431868.8
+      "estimate": 366831352.81666666
     },
     "median_abs_dev": {
-      "estimate": 6401480.469051003
+      "estimate": 3117032.516461596
     },
     "change": {
       "mean": {
-        "estimate": 0.627258119743286
+        "estimate": -0.5293605926308428
       }
     }
   },
@@ -318,14 +318,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulu",
     "mean": {
-      "estimate": 660349179.25
+      "estimate": 269362719.8125
     },
     "median_abs_dev": {
-      "estimate": 4543180.766442418
+      "estimate": 3075437.3711250722
     },
     "change": {
       "mean": {
-        "estimate": 0.7067387505244265
+        "estimate": -0.5920904753475545
       }
     }
   },
@@ -333,14 +333,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Mulsu",
     "mean": {
-      "estimate": 701630558.325
+      "estimate": 294386482.8125
     },
     "median_abs_dev": {
-      "estimate": 4755393.084324896
+      "estimate": 1662071.6656923294
     },
     "change": {
       "mean": {
-        "estimate": 0.7102448366709839
+        "estimate": -0.5804252261827254
       }
     }
   },
@@ -348,14 +348,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slt",
     "mean": {
-      "estimate": 419887620.8166667
+      "estimate": 142370190.1839715
     },
     "median_abs_dev": {
-      "estimate": 2284624.784439773
+      "estimate": 791220.5153823707
     },
     "change": {
       "mean": {
-        "estimate": 0.7113478831929074
+        "estimate": -0.6609326326242568
       }
     }
   },
@@ -363,14 +363,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slti",
     "mean": {
-      "estimate": 425379548.59999996
+      "estimate": 152187041.72328213
     },
     "median_abs_dev": {
-      "estimate": 2561088.6609316166
+      "estimate": 791348.6462581181
     },
     "change": {
       "mean": {
-        "estimate": 0.6819407440593732
+        "estimate": -0.6422323493826705
       }
     }
   },
@@ -378,14 +378,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltu",
     "mean": {
-      "estimate": 417422086.1166667
+      "estimate": 143801194.07599467
     },
     "median_abs_dev": {
-      "estimate": 2101379.628393039
+      "estimate": 1533659.1600421115
     },
     "change": {
       "mean": {
-        "estimate": 0.7053538215843518
+        "estimate": -0.6555017119151592
       }
     }
   },
@@ -393,14 +393,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sltiu",
     "mean": {
-      "estimate": 416729937.5
+      "estimate": 150427759.85061163
     },
     "median_abs_dev": {
-      "estimate": 2099670.1906233877
+      "estimate": 1293660.198652161
     },
     "change": {
       "mean": {
-        "estimate": 0.6901513621661115
+        "estimate": -0.6390281899278916
       }
     }
   },
@@ -408,14 +408,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sle",
     "mean": {
-      "estimate": 417455516.6333333
+      "estimate": 142770213.4918515
     },
     "median_abs_dev": {
-      "estimate": 1636749.3523418608
+      "estimate": 401446.9307228923
     },
     "change": {
       "mean": {
-        "estimate": 0.7047438174839953
+        "estimate": -0.6579989776078301
       }
     }
   },
@@ -423,14 +423,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Slei",
     "mean": {
-      "estimate": 424615318.7833333
+      "estimate": 149575501.57517904
     },
     "median_abs_dev": {
-      "estimate": 1387641.6692644358
+      "estimate": 612503.4295508652
     },
     "change": {
       "mean": {
-        "estimate": 0.6754190621923357
+        "estimate": -0.6477388003716787
       }
     }
   },
@@ -438,14 +438,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleu",
     "mean": {
-      "estimate": 417820369.45000005
+      "estimate": 145457604.1404806
     },
     "median_abs_dev": {
-      "estimate": 2795751.1253654663
+      "estimate": 924555.3950234764
     },
     "change": {
       "mean": {
-        "estimate": 0.7165475814752236
+        "estimate": -0.651865694504185
       }
     }
   },
@@ -453,14 +453,14 @@
     "reason": "benchmark-complete",
     "id": "opcode_proving/prove/Sleiu",
     "mean": {
-      "estimate": 416999140.98333335
+      "estimate": 144746586.58558717
     },
     "median_abs_dev": {
-      "estimate": 2930420.6229746193
+      "estimate": 1041097.8653991322
     },
     "change": {
       "mean": {
-        "estimate": 0.689483724823462
+        "estimate": -0.6528851684340222
       }
     }
   },

@@ -268,7 +268,7 @@
       const prevY = dataOps.map(o => o.previous);
       // Calculate saving percentage: saving is -changeEstimate.
       // Format as percentage (e.g., 0.1 -> 10%) later using hovertemplate formatting.
-      const savingPercentages = dataOps.map(o => o.changeEstimate !== null ? -o.changeEstimate : null);
+      const savingPercentages = dataOps.map(o => o.changeEstimate !== null ? o.changeEstimate : null);
 
       // build a colour array, one entry per bar
       const colours = dataOps.map(o => categoryColors[o.category] || categoryColors.Other);
@@ -277,17 +277,17 @@
         x: xVals,
         y: currentY,
         error_y: { type: 'data', array: errorY, visible: true },
-        name: 'Current',
+        name: 'Current (without any channels)',
         type: 'bar',
         marker: { color: colours },
         customdata: savingPercentages, // Pass saving percentages to customdata
-        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<br>Saving: %{customdata:.2%}<extra></extra>`, // Updated hovertemplate
+        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<br>Change: %{customdata:.2%}<extra></extra>`, // Updated hovertemplate
       };
 
       const previousTrace = {
         x: xVals,
         y: prevY,
-        name: 'Previous',
+        name: 'Previous (with all channels)',
         type: 'bar',
         marker: {
           color: colours,
