@@ -1,1 +1,1 @@
-pub(crate) mod right_logic_shift; 
+pub(crate) mod right_logic_shift;

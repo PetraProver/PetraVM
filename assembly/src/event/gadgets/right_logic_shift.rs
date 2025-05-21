@@ -3,7 +3,8 @@ use std::fmt;
 use crate::execution::PetraTrace;
 
 /// An event representing a right logical shift operation for gadget purposes.
-/// Unlike opcode events, this is not fired directly but is collected to generate proof gadgets.
+/// Unlike opcode events, this is not fired directly but is collected to
+/// generate proof gadgets.
 #[derive(Clone, PartialEq)]
 pub struct RightLogicShiftGadgetEvent {
     /// The input value to be shifted
@@ -43,10 +44,7 @@ pub trait RightLogicShiftExtension {
 
 impl RightLogicShiftExtension for PetraTrace {
     fn add_right_shift_event(&mut self, input: u32, shift_amount: u32, output: u32) {
-        self.right_logic_shift_gadget.push(RightLogicShiftGadgetEvent::new(
-            input,
-            shift_amount,
-            output,
-        ));
+        self.right_logic_shift_gadget
+            .push(RightLogicShiftGadgetEvent::new(input, shift_amount, output));
     }
 }

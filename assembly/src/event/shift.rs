@@ -247,15 +247,20 @@ macro_rules! impl_shift_event {
                 match stringify!($variant) {
                     "srli" | "srl" => {
                         // For logical right shifts, just use the values directly
-                        ctx.trace.add_right_shift_event(event.src_val, event.shift_amount, event.dst_val);
-                    },
+                        ctx.trace.add_right_shift_event(
+                            event.src_val,
+                            event.shift_amount,
+                            event.dst_val,
+                        );
+                    }
                     "srai" | "sra" => {
                         // For arithmetic right shifts, handle sign bit appropriately
                         let sign = (event.src_val >> 31) & 1 == 1;
                         let input = if sign { !event.src_val } else { event.src_val };
                         let output = input >> (event.shift_amount & 0x1F);
-                        ctx.trace.add_right_shift_event(input, event.shift_amount, output);
-                    },
+                        ctx.trace
+                            .add_right_shift_event(input, event.shift_amount, output);
+                    }
                     _ => {}
                 }
 
