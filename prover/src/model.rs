@@ -87,6 +87,10 @@ pub struct Instruction {
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
     pub args: Vec<u16>,
+    /// Optional advice. Used for providing the discrete logarihm in base
+    /// `B32::MULTIPLICATIVE_GENERATOR` of a group element defined by the
+    /// instruction arguments.
+    pub advice: Option<u32>,
 }
 
 impl From<InterpreterInstruction> for Instruction {
@@ -98,6 +102,7 @@ impl From<InterpreterInstruction> for Instruction {
             pc: instr.field_pc,
             opcode: instr.opcode(),
             args: args_array.iter().map(|arg| arg.val()).collect(),
+            advice: instr.advice,
         }
     }
 }
@@ -153,7 +158,9 @@ impl Trace {
         // Add the program instructions to the trace
         let mut zkvm_trace = Self::new();
         zkvm_trace.add_instructions(program, &trace.instruction_counter);
+
         zkvm_trace.trace = trace;
+
         zkvm_trace
     }
 
@@ -191,6 +198,11 @@ impl Trace {
     /// * `multiplicity` - The multiplicity of pulls of this VROM write
     pub fn add_vrom_write(&mut self, addr: u32, value: u32, multiplicity: u32) {
         self.vrom_writes.push((addr, value, multiplicity));
+    }
+
+    /// Returns a reference to the right shift events from the trace.
+    pub fn right_shift_events(&self) -> &[RightLogicShiftGadgetEvent] {
+        &self.trace.right_logic_shift_gadget
     }
 
     /// Ensures the trace has enough data for proving.

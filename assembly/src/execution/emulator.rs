@@ -116,15 +116,21 @@ pub type Instruction = [B16; 4];
 pub struct InterpreterInstruction {
     pub instruction: Instruction,
     pub field_pc: B32,
+    /// Optional advice. Used for providing the discrete logarithm in base
+    /// `B32::MULTIPLICATIVE_GENERATOR` of some group element defined by the
+    /// instruction arguments.
+    pub advice: Option<u32>,
 }
 
 impl InterpreterInstruction {
-    pub const fn new(instruction: Instruction, field_pc: B32) -> Self {
+    pub const fn new(instruction: Instruction, field_pc: B32, advice: Option<u32>) -> Self {
         Self {
             instruction,
             field_pc,
+            advice,
         }
     }
+
     pub fn opcode(&self) -> Opcode {
         Opcode::try_from(self.instruction[0].val()).unwrap_or(Opcode::Invalid)
     }
@@ -151,6 +157,8 @@ pub enum InterpreterError {
     InvalidInput,
     #[error("A memory access failed with error {0}")]
     MemoryError(MemoryError),
+    #[error("The instruction requires an advice, but none was provided.")]
+    MissingAdvice(Opcode),
     #[error("An exception occurred.")]
     Exception(InterpreterException),
 }
@@ -192,6 +200,7 @@ impl Interpreter {
     }
 
     #[inline(always)]
+    /// Jump to a specific target in the PROM, given as a field element
     pub(crate) fn jump_to(&mut self, target: B32) {
         if target == B32::zero() {
             self.pc = 0;
@@ -202,6 +211,17 @@ impl Interpreter {
                 .expect("This target should have been parsed.");
             debug_assert!(G.pow(self.pc as u64 - 1) == target);
         }
+    }
+
+    #[inline(always)]
+    /// Jump to a specific target in the PROM given as the the discrete
+    /// logarithm of the field pc.
+    pub(crate) fn jump_to_u32(&mut self, target: B32, advice: u32) {
+        debug_assert!(
+            target == B32::MULTIPLICATIVE_GENERATOR.pow((advice - 1) as u64),
+            "The advice must be the discrete logarithm of the target address in base `B32::MULTIPLICATIVE_GENERATOR`"
+        );
+        self.pc = advice;
     }
 
     #[inline(always)]
@@ -241,6 +261,7 @@ impl Interpreter {
         let InterpreterInstruction {
             instruction,
             field_pc,
+            advice,
         } = trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction;
         trace.record_instruction(field_pc);
@@ -261,6 +282,7 @@ impl Interpreter {
             interpreter: self,
             trace,
             field_pc,
+            advice,
         };
 
         opcode.generate_event(&mut ctx, arg0, arg1, arg2)
@@ -346,19 +368,16 @@ mod tests {
         init_logger();
 
         let zero = B16::zero();
-        // labels
+        // labels with their corresponding discrete logarithms
+        let collatz_advice = 1;
         let collatz = B16::ONE;
-        let case_recurse = ExtensionField::<B16>::iter_bases(&G.pow(4)).collect::<Vec<B16>>();
-        let case_odd = ExtensionField::<B16>::iter_bases(&G.pow(10)).collect::<Vec<B16>>();
-
-        // Add targets needed in the code.
-        let mut pc_field_to_int = HashMap::new();
-        // Add collatz
-        pc_field_to_int.insert(collatz.into(), 1);
-        // Add case_recurse
-        pc_field_to_int.insert(G.pow(4), 5);
-        // Add case_odd
-        pc_field_to_int.insert(G.pow(10), 11);
+        let case_recurse_advice = 5;
+        let case_recurse =
+            ExtensionField::<B16>::iter_bases(&G.pow((case_recurse_advice - 1) as u64))
+                .collect::<Vec<B16>>();
+        let case_odd_advice = 11;
+        let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
+            .collect::<Vec<B16>>();
 
         let instructions = vec![
             // collatz:
@@ -455,7 +474,16 @@ mod tests {
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
 
-        let prom = code_to_prom(&instructions);
+        let mut prom = code_to_prom(&instructions);
+        // Set the expected advice for BNZ
+        prom[1].advice = Some(case_recurse_advice);
+        // Set the expected advice for the second BNZ
+        prom[5].advice = Some(case_odd_advice);
+        // Set the expected advice for the first TAILI
+        prom[9].advice = Some(collatz_advice);
+        // Set the expected advice for the second TAILI
+        prom[14].advice = Some(collatz_advice);
+
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);
 
@@ -469,7 +497,7 @@ mod tests {
             Box::new(GenericISA),
             memory,
             frames_args_size,
-            pc_field_to_int,
+            HashMap::new(), // We only need the advice for the instructions
         )
         .expect("Trace generation should not fail.");
 

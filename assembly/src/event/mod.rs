@@ -23,6 +23,7 @@ pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod comparison;
 pub(crate) mod context;
+pub(crate) mod gadgets;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
 #[macro_use]
@@ -42,6 +43,7 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
     integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
     jump::{JumpiEvent, JumpvEvent},
     mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},

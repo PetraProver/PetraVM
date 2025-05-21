@@ -47,9 +47,10 @@ pub enum AssemblerError {
     BadError(String),
 }
 
-// Labels hold the labels in the code, with their associated binary field PCs.
-type Labels = HashMap<String, B32>;
-// Binary field PC as the key. Values are: frame size.
+/// Labels hold the labels in the code, with their associated binary field PCs
+/// together with its discrete logarithm as advice.
+type Labels = HashMap<String, (B32, u32)>;
+/// Binary field PC as the key. Values are: frame size.
 pub type LabelsFrameSizes = HashMap<B32, u16>;
 // Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
@@ -147,7 +148,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -159,7 +160,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_field_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
 
@@ -169,7 +170,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
                 B16::zero(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -181,7 +182,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -193,7 +194,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -204,7 +205,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 dst.get_offset_field_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -215,7 +216,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -226,12 +227,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Taili { label, next_fp } => {
-            if let Some(target) = labels.get(label) {
+            if let Some((target, advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Taili.get_field_elt(),
@@ -240,7 +241,11 @@ pub fn get_prom_inst_from_inst_with_label(
                     next_fp.get_16bfield_val(),
                 ];
 
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    Some(*advice),
+                ));
             } else {
                 return Err(AssemblerError::FunctionNotFound(label.to_string()));
             }
@@ -255,12 +260,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Calli { label, next_fp } => {
-            if let Some(target) = labels.get(label) {
+            if let Some((target, advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Calli.get_field_elt(),
@@ -269,7 +274,11 @@ pub fn get_prom_inst_from_inst_with_label(
                     next_fp.get_16bfield_val(),
                 ];
 
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    Some(*advice),
+                ));
             } else {
                 return Err(AssemblerError::FunctionNotFound(label.to_string()));
             }
@@ -284,12 +293,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Jumpi { label } => {
-            if let Some(target) = labels.get(label) {
+            if let Some((target, advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Jumpi.get_field_elt(),
@@ -298,7 +307,11 @@ pub fn get_prom_inst_from_inst_with_label(
                     B16::zero(),
                 ];
 
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    Some(*advice),
+                ));
             } else {
                 return Err(AssemblerError::LabelNotFound(label.to_string()));
             }
@@ -312,7 +325,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -323,7 +336,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_field_val(),
                 imm.get_high_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -334,7 +347,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -345,12 +358,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Bnz { label, src } => {
-            if let Some(target) = labels.get(label) {
+            if let Some((target, advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
@@ -359,7 +372,11 @@ pub fn get_prom_inst_from_inst_with_label(
                     src.get_16bfield_val(),
                 ];
 
-                prom.push(InterpreterInstruction::new(instruction, *field_pc));
+                prom.push(InterpreterInstruction::new(
+                    instruction,
+                    *field_pc,
+                    Some(*advice),
+                ));
             } else {
                 return Err(AssemblerError::LabelNotFound(label.to_string()));
             }
@@ -372,7 +389,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -383,7 +400,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -394,7 +411,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -405,7 +422,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -416,7 +433,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -427,7 +444,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -438,7 +455,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -449,7 +466,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -460,7 +477,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -471,7 +488,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -482,7 +499,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -493,7 +510,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -504,7 +521,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -515,7 +532,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -526,7 +543,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -537,7 +554,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -549,7 +566,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_field_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -561,7 +578,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -572,7 +589,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -583,7 +600,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -594,7 +611,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -605,7 +622,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -616,7 +633,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -627,7 +644,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -638,7 +655,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -649,7 +666,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
                 B16::zero(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -690,7 +707,7 @@ fn get_labels(
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s, frame_size) => {
-                if labels.insert(s.clone(), field_pc).is_some() {
+                if labels.insert(s.clone(), (field_pc, pc)).is_some() {
                     return Err(AssemblerError::DuplicateLabel(s.clone()));
                 }
 
@@ -721,7 +738,7 @@ fn get_labels(
     }
 
     for function in functions {
-        let as_pc = labels
+        let (as_pc, _) = labels
             .get(function)
             .ok_or(AssemblerError::FunctionNotFound(function.to_string()))?;
         if !frame_sizes.contains_key(as_pc) {
