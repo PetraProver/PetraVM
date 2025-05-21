@@ -56,6 +56,7 @@ impl Table for RightShifterTable {
 
         let output = table.add_packed("output", shifter.output);
 
+        // TODO: Check performance of pushing a packed column with 16 bits shift amount
         // Push values to the right shifter channel
         table.push(
             channels.right_shifter_channel,
