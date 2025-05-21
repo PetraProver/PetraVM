@@ -6,6 +6,7 @@
 use binius_field::Field;
 use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, B128, B16, B32};
 use binius_m3::builder::{StructuredDynSize, TableWitnessSegment};
+#[cfg(not(all(feature = "disable_prom_channel", feature = "disable_vrom_channel")))]
 use binius_m3::gadgets::lookup::LookupProducer;
 use binius_m3::gadgets::structured::fill_incrementing_b32;
 
