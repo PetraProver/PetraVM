@@ -195,7 +195,11 @@ pub(crate) fn setup_mux_constraint(
 pub(crate) fn bytes_to_u32(input: &[u8]) -> Vec<u32> {
     let mut output = Vec::with_capacity(input.len() / 4);
     for chunk in input.chunks_exact(4) {
-        let value = u32::from_le_bytes(chunk.try_into().unwrap());
+        let value = u32::from_le_bytes(
+            chunk
+                .try_into()
+                .expect("The chunk contains exactly 4 bytes"),
+        );
         output.push(value);
     }
     output

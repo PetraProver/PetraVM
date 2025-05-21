@@ -5,11 +5,21 @@ use binius_m3::builder::{Col, Expr, TableBuilder, TableWitnessSegment, B32, B8};
 
 use crate::types::ProverPackedField;
 
+/// This gadget transposes a matrix of 8x8 B8 columns. Then it reshapes the
+/// transposed matrix into a `[Col<B32>; 16]`, so that we can read the values
+/// from memory.
 pub(crate) struct TransposeColumns {
+    /// The input matrix.
     pub(crate) input: [Col<B8, 8>; 8],
+    /// The output of the transposition, reshaped so that we can easily pull the
+    /// values from the VROM.
     pub(crate) output: [Col<B32>; 16],
+    /// The projected values of the input matrix, transposed and flattened.
     pub(crate) projected: [Col<B8>; 64],
+    /// The zero-padding of the projected values, so we can sum the elements
+    /// into B32s.
     pub(crate) zero_padded: [Col<B8, 4>; 64],
+    /// The final values, before packing into B32s.
     pub(crate) transposed: [Col<B8, 4>; 16],
 }
 
@@ -24,7 +34,7 @@ impl TransposeColumns {
         // We take the projected values into the correct (transposed) order.
         let projected = from_fn(|i| projected_temp[i % 8][i / 8]);
 
-        // Now, we need to construct the B32 elements we can read in memory.
+        // Now, we need to construct the B32 elements so we can read from the VROM.
         // We zeropad the projected values to go from `Col<B8>` to `Col<B8, 4>`.
         let zero_padded = from_fn(|i| {
             table.add_zero_pad::<_, 1, 4>(format!("zero_padded_{i}"), projected[i], i % 4)
@@ -38,18 +48,18 @@ impl TransposeColumns {
                     .iter()
                     .map(|&col| col.into())
                     .reduce(|acc, item| acc + item)
-                    .unwrap();
+                    .expect("The iterator is not empty");
                 table.add_computed(format!("zero_padded_sums_{i}"), expr)
             })
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap();
+            .expect("zero_padded has exactly 16 chunks of 4 elements");
 
         let output = (0..16)
             .map(|i| table.add_packed(format!("packed_transpose_{i}"), transposed[i]))
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap();
+            .expect("output has exactly 16 elements");
 
         Self {
             input,
@@ -85,7 +95,6 @@ impl TransposeColumns {
             for j in 0..8 {
                 for k in 0..8 {
                     set_packed_slice(&mut input[j], i * 8 + k, B8::from(ev_input[k * 8 + j]));
-
                     projected[j * 8 + k][i] = ev_input[j * 8 + k];
                 }
             }

@@ -57,19 +57,26 @@ impl Event for Groestl256CompressEvent {
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
 
-        let mut out_val =
-            GroestlShortImpl::state_from_bytes(&src1_val_aes.clone().try_into().unwrap());
+        let mut out_val = GroestlShortImpl::state_from_bytes(
+            &src1_val_aes
+                .try_into()
+                .expect("src1_val_aes is exactly 64 bytes"),
+        );
 
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut out_val,
-            &src2_val_aes.clone().try_into().unwrap(),
+            &src2_val_aes
+                .try_into()
+                .expect("src2_val is exactly 64 bytes"),
         );
 
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&out_val);
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
-        let dst_val: [u64; 8] = bytes_to_u64(&out_state_bytes).try_into().unwrap();
+        let dst_val: [u64; 8] = bytes_to_u64(&out_state_bytes)
+            .try_into()
+            .expect("out_state_bytes is exactly 64 bytes");
 
         for i in 0..8 {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
@@ -148,7 +155,10 @@ impl Event for Groestl256OutputEvent {
             .iter()
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
-        let full_input: [u8; 64] = [src1_val_aes, src2_val_aes].concat().try_into().unwrap();
+        let full_input: [u8; 64] = [src1_val_aes, src2_val_aes]
+            .concat()
+            .try_into()
+            .expect("src1_val_aes and src2_val_aes are exactly 32 bytes each.");
         let state_in = GroestlShortImpl::state_from_bytes(&full_input);
         let mut state = state_in;
 
@@ -161,7 +171,9 @@ impl Event for Groestl256OutputEvent {
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
-        let dst_val: [u8; 32] = out_state_bytes[32..].try_into().unwrap();
+        let dst_val: [u8; 32] = out_state_bytes[32..]
+            .try_into()
+            .expect("out_state_bytes is 64 bytes");
         let dst_val = bytes_to_u64(&dst_val);
         for i in 0..4 {
             ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
@@ -175,11 +187,11 @@ impl Event for Groestl256OutputEvent {
             fp,
             timestamp,
             dst: dst.val(),
-            dst_val: dst_val.try_into().unwrap(),
+            dst_val: dst_val.try_into().expect("dst_val is exactly 32 bytes"),
             src1: src1.val(),
-            src1_val: src1_val.try_into().unwrap(),
+            src1_val: src1_val.try_into().expect("src1_val is exactly 32 bytes"),
             src2: src2.val(),
-            src2_val: src2_val.try_into().unwrap(),
+            src2_val: src2_val.try_into().expect("src2_val is exactly 32 bytes"),
         };
 
         ctx.trace.groestl_output.push(event);
@@ -261,10 +273,16 @@ mod tests {
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
 
-        let mut state = GroestlShortImpl::state_from_bytes(&src1_val_new.try_into().unwrap());
+        let mut state = GroestlShortImpl::state_from_bytes(
+            &src1_val_new
+                .try_into()
+                .expect("src1_val_new is exactly 64 bytes"),
+        );
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut state,
-            &src2_val_new.try_into().unwrap(),
+            &src2_val_new
+                .try_into()
+                .expect("src2_val_new is exactly 64 bytes"),
         );
 
         // Reshape the output to match the expected format.
@@ -341,7 +359,10 @@ mod tests {
             .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
             .collect::<Vec<_>>();
         let init = GroestlShortImpl::state_from_bytes(
-            &[src1_val_new, src2_val_new].concat().try_into().unwrap(),
+            &[src1_val_new, src2_val_new]
+                .concat()
+                .try_into()
+                .expect("src1_val_new and src2_val_new are exactly 32 bytes each"),
         );
         let mut state_in = init;
         GroestlShortImpl::p_perm(&mut state_in);
@@ -353,7 +374,7 @@ mod tests {
             .map(|(&x, &y)| x ^ y)
             .collect::<Vec<_>>()
             .try_into()
-            .unwrap();
+            .expect("state_in and init are exactly 64 bytes each");
 
         // Convert dst_val to a big endian representation.
         let output_state_bytes = GroestlShortImpl::state_to_bytes(&dst_val);

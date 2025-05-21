@@ -25,7 +25,11 @@ pub fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
 pub(crate) fn bytes_to_u64(input: &[u8]) -> Vec<u64> {
     let mut output = Vec::with_capacity(input.len() / 8);
     for chunk in input.chunks_exact(8) {
-        let value = u64::from_le_bytes(chunk.try_into().unwrap());
+        let value = u64::from_le_bytes(
+            chunk
+                .try_into()
+                .expect("Each chunk contains exactly 8 bytes"),
+        );
         output.push(value);
     }
     output
