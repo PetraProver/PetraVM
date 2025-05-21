@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
+use super::gadgets::right_logic_shift::RightLogicShiftExtension;
 use crate::{
     event::Event,
     execution::{FramePointer, InterpreterChannels, InterpreterError},
@@ -240,6 +241,23 @@ macro_rules! impl_shift_event {
                 } else {
                     Self::generate_vrom_event(ctx, dst, src1, src2)?
                 };
+
+                // For right shift operations, create a RightLogicShiftGadgetEvent
+                // This needs to handle both logical and arithmetic right shifts
+                match stringify!($variant) {
+                    "srli" | "srl" => {
+                        // For logical right shifts, just use the values directly
+                        ctx.trace.add_right_shift_event(event.src_val, event.shift_amount, event.dst_val);
+                    },
+                    "srai" | "sra" => {
+                        // For arithmetic right shifts, handle sign bit appropriately
+                        let sign = (event.src_val >> 31) & 1 == 1;
+                        let input = if sign { !event.src_val } else { event.src_val };
+                        let output = input >> (event.shift_amount & 0x1F);
+                        ctx.trace.add_right_shift_event(input, event.shift_amount, output);
+                    },
+                    _ => {}
+                }
 
                 ctx.trace.$variant.push(event);
                 Ok(())

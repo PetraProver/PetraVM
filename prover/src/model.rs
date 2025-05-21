@@ -9,7 +9,6 @@ use binius_m3::builder::B32;
 use paste::paste;
 use petravm_asm::{event::*, InterpreterInstruction, Opcode, PetraTrace};
 
-use crate::gadgets::right_shifter_table::RightShiftEvent;
 use crate::table::*;
 
 /// Implements the [`TableInfo`] trait that lifts
@@ -120,8 +119,6 @@ pub struct Trace {
     pub vrom_writes: Vec<(u32, u32, u32)>,
     /// Maximum VROM address in the trace
     pub max_vrom_addr: usize,
-    /// List of right logical shift events for the right shifter channel
-    pub right_shift_events: Vec<RightShiftEvent>,
 }
 
 impl Default for Trace {
@@ -138,7 +135,6 @@ impl Trace {
             program: Vec::new(),
             vrom_writes: Vec::new(),
             max_vrom_addr: 0,
-            right_shift_events: Vec::new(),
         }
     }
 
@@ -158,36 +154,6 @@ impl Trace {
         let mut zkvm_trace = Self::new();
         zkvm_trace.add_instructions(program, &trace.instruction_counter);
 
-        // Pre-process right shift events from all shift right operations
-        // before setting the trace
-
-        // Handle logical right shifts (SRLI)
-        for ev in &trace.srli {
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, ev.dst_val);
-        }
-
-        // Handle logical right shifts (SRL)
-        for ev in &trace.srl {
-            zkvm_trace.add_right_shift_event(ev.src_val, ev.shift_amount, ev.dst_val);
-        }
-
-        // Handle arithmetic right shifts (SRAI)
-        for ev in &trace.srai {
-            let sign = (ev.src_val >> 31) & 1 == 1;
-            let src = if sign { !ev.src_val } else { ev.src_val };
-            let dst = src >> (ev.shift_amount & 0x1F);
-            zkvm_trace.add_right_shift_event(src, ev.shift_amount, dst);
-        }
-
-        // Handle arithmetic right shifts (SRA)
-        for ev in &trace.sra {
-            let sign = (ev.src_val >> 31) & 1 == 1;
-            let src = if sign { !ev.src_val } else { ev.src_val };
-            let dst = src >> (ev.shift_amount & 0x1F);
-            zkvm_trace.add_right_shift_event(src, ev.shift_amount, dst);
-        }
-
-        // Set the trace after processing the shift events
         zkvm_trace.trace = trace;
 
         zkvm_trace
@@ -230,22 +196,8 @@ impl Trace {
     }
 
     /// Returns a reference to the right shift events from the trace.
-    pub fn right_shift_events(&self) -> &[RightShiftEvent] {
-        &self.right_shift_events
-    }
-
-    /// Add a right shift event.
-    ///
-    /// # Arguments
-    /// * `input` - The input value to be shifted
-    /// * `shift_amount` - The shift amount
-    /// * `output` - The result after shifting
-    pub fn add_right_shift_event(&mut self, input: u32, shift_amount: u32, output: u32) {
-        self.right_shift_events.push(RightShiftEvent {
-            input,
-            shift_amount,
-            output,
-        });
+    pub fn right_shift_events(&self) -> &[RightLogicShiftGadgetEvent] {
+        &self.trace.right_logic_shift_gadget
     }
 
     /// Ensures the trace has enough data for proving.

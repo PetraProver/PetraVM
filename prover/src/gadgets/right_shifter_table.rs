@@ -3,18 +3,11 @@ use binius_m3::builder::{
     Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B1, B32,
 };
 use binius_m3::gadgets::barrel_shifter::BarrelShifter;
+use petravm_asm::event::RightLogicShiftGadgetEvent;
 
 use crate::channels::Channels;
 use crate::table::Table;
 use crate::types::ProverPackedField;
-
-/// Event representing a right logical shift operation
-#[derive(Debug, Clone)]
-pub struct RightShiftEvent {
-    pub input: u32,        // The input value to be shifted
-    pub shift_amount: u32, // The shift amount (masked to 5 bits for 32-bit values)
-    pub output: u32,       // The result after shifting
-}
 
 /// Table that implements a right logical shifter channel
 pub struct RightShifterTable {
@@ -26,7 +19,7 @@ pub struct RightShifterTable {
 }
 
 impl Table for RightShifterTable {
-    type Event = RightShiftEvent;
+    type Event = RightLogicShiftGadgetEvent;
 
     fn name(&self) -> &'static str {
         "RightShifterTable"
@@ -74,7 +67,7 @@ impl Table for RightShifterTable {
 }
 
 impl TableFiller<ProverPackedField> for RightShifterTable {
-    type Event = RightShiftEvent;
+    type Event = RightLogicShiftGadgetEvent;
 
     fn id(&self) -> TableId {
         self.id
@@ -82,7 +75,7 @@ impl TableFiller<ProverPackedField> for RightShifterTable {
 
     fn fill<'a>(
         &'a self,
-        rows: impl Iterator<Item = &'a RightShiftEvent> + Clone,
+        rows: impl Iterator<Item = &'a RightLogicShiftGadgetEvent> + Clone,
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> anyhow::Result<()> {
         // Fill input and shift amount columns
