@@ -206,7 +206,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
@@ -218,7 +218,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc));
+            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
 
             *field_pc *= G;
         }
