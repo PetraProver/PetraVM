@@ -31,7 +31,7 @@ const GROESTL_OUTPUT_OPCODE: u16 = Opcode::Groestl256Output as u16;
 ///
 /// This table handles the GROESTL256_COMPRESS instruction, which performs the
 /// compression function described in the Groestl specs.
-/// (see Section 3.2 of https://www.groestl.info/Groestl.pdf)
+/// (see Section 3.2 of <https://www.groestl.info/Groestl.pdf>)
 ///
 /// Note that the P/Q permutation gadgets take the transposed input matrix
 /// compared to the actual Groestl specs. It is therefore necessary to transpose
@@ -281,7 +281,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
 ///
 /// This table handles the GROESTL256_OUTPUT instruction, which returns the
 /// 2-to-1 output transformation.
-/// (see Section 3.3 of https://www.groestl.info/Groestl.pdf)
+/// (see Section 3.3 of <https://www.groestl.info/Groestl.pdf>)
 ///
 /// Note that the P/Q permutation gadgets take the transposed input matrix
 /// compared to the actual Groestl specs. It is therefore necessary to transpose
