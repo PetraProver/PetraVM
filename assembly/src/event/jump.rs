@@ -2,7 +2,10 @@ use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
-use crate::execution::{FramePointer, InterpreterChannels, InterpreterError};
+use crate::{
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
+    Opcode,
+};
 
 /// Event for Jumpv.
 ///
@@ -79,8 +82,11 @@ impl Event for JumpiEvent {
 
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
+        let advice = ctx
+            .advice
+            .ok_or(InterpreterError::MissingAdvice(Opcode::Jumpi))?;
 
-        ctx.jump_to(target);
+        ctx.jump_to_u32(target, advice);
 
         let event = Self {
             pc: field_pc,
