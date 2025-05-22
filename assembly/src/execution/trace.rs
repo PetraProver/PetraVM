@@ -22,6 +22,7 @@ use crate::{
         comparison::{
             SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
         groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
         integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
@@ -89,6 +90,8 @@ pub struct PetraTrace {
     /// A map of an instruction's field PC to the number of times that
     /// instruction has been executed.
     pub instruction_counter: AHashMap<B32, u32>,
+
+    pub right_logic_shift_gadget: Vec<RightLogicShiftGadgetEvent>,
 }
 
 pub struct BoundaryValues {
