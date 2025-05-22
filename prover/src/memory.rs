@@ -53,7 +53,7 @@ impl PromTable {
     /// # Arguments
     /// * `cs` - [`ConstraintSystem`] to add the table to
     /// * `channels` - [`Channels`] IDs for communication with other tables
-    pub fn new(cs: &mut ConstraintSystem, _channels: &Channels) -> Self {
+    pub fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("prom");
         table.require_power_of_two_size();
 
@@ -71,10 +71,11 @@ impl PromTable {
         #[cfg(not(feature = "disable_prom_channel"))]
         let lookup_producer = LookupProducer::new(
             &mut table,
-            _channels.prom_channel,
+            channels.prom_channel,
             &[instruction],
             PROM_MULTIPLICITY_BITS,
         );
+        let _ = channels;
 
         Self {
             id: table.id(),
