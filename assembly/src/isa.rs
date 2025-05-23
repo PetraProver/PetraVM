@@ -68,18 +68,19 @@ macro_rules! define_isa {
 // TODO: Implement Recursion VM whenever possible.
 // Needs to implement #79.
 
-// define_isa!(
-//     /// A minimal ISA for the Petra Virtual Machine,
-//     /// tailored for efficient recursion.
-//     RecursionISA => [
-//         B32MulEvent,
-//         B32MuliEvent,
-//         B128AddEvent,
-//         B128MulEvent,
-//         GroestlCompressEvent, // TODO: name TBD
-//         GroestlOutputEvent, // TODO: name TBD
-//     ]
-// );
+define_isa!(
+    /// A minimal ISA for the Petra Virtual Machine,
+    /// tailored for efficient recursion.
+    RecursionISA => [
+        B32MulEvent,
+        B32MuliEvent,
+        B128AddEvent,
+        B128MulEvent,
+        Groestl256CompressEvent,
+        Groestl256OutputEvent,
+        RetEvent,
+    ]
+);
 
 define_isa!(
     /// The main Instruction Set Architecture (ISA) for the Petra Virtual Machine,

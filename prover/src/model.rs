@@ -282,4 +282,6 @@ define_table_registry_and_accessors!(
     (sltiu, Sltiu),
     (sleu, Sleu),
     (sleiu, Sleiu),
+    (groestl_compress, Groestl256Compress),
+    (groestl_output, Groestl256Output),
 );

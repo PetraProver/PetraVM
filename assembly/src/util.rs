@@ -24,3 +24,24 @@ pub fn init_logger() -> Option<impl Drop> {
     }
     None
 }
+
+pub fn u32_to_bytes(input: &[u32]) -> Vec<u8> {
+    let mut output = Vec::with_capacity(input.len() * 4);
+    for &value in input {
+        output.extend_from_slice(&value.to_le_bytes());
+    }
+    output
+}
+
+pub fn bytes_to_u32(input: &[u8]) -> Vec<u32> {
+    let mut output = Vec::with_capacity(input.len() / 4);
+    for chunk in input.chunks_exact(4) {
+        let value = u32::from_le_bytes(
+            chunk
+                .try_into()
+                .expect("The chunk contains exactly 4 bytes"),
+        );
+        output.push(value);
+    }
+    output
+}
