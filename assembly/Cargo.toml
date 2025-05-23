@@ -38,4 +38,4 @@ rand = "0.9.1"
 
 [features]
 tracing-profile = []
-perfetto = ["tracing-profile/perfetto"]
+perfetto = ["tracing-profile", "tracing-profile/perfetto"]

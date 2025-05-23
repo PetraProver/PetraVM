@@ -33,3 +33,6 @@ Cargo.lock
 # already existing elements were commented out
 
 #/target
+
+/*.perfetto-trace
+.last_perfetto_trace_path
