@@ -419,11 +419,8 @@ impl Table for Groestl256OutputTable {
             from_fn(|i| table.add_packed("dst_val_packed", transposed_out[i]));
 
         // Get the base address for the destination value.
-        let dst_abs = table.add_computed("dst", state_cols.fp + upcast_col(state_cols.arg0));
-        let mut dst_addrs = [dst_abs; 8];
-        for (i, d) in dst_addrs.iter_mut().enumerate().skip(1) {
-            *d = table.add_computed(format!("dst_addr_{i}"), dst_abs + B32::from(i as u32));
-        }
+        let dst_base_addr = state_cols.fp + upcast_col(state_cols.arg0);
+        let dst_addrs = get_all_addresses(&mut table, dst_base_addr, "dst_addr");
 
         for i in 0..8 {
             table.pull(vrom_channel, [dst_addrs[i], dst_vals[i]]);

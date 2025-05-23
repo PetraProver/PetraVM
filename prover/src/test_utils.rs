@@ -220,8 +220,6 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
         compression_output_offset + 8  // higher bits of the new input state
     );
 
-    let src1_offset = 16;
-    let src2_offset = 32;
     let mut init_values = vec![0; 48];
     init_values[src1_offset..src1_offset + 16].copy_from_slice(&src1_val);
     init_values[src2_offset..src2_offset + 16].copy_from_slice(&src2_val);
