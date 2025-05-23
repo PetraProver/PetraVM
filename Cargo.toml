@@ -29,7 +29,7 @@ binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
-generic-array = "0.14.7"
+generic-array = "1.2.0"
 
 [profile.release]
 lto = "fat"

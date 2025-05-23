@@ -12,11 +12,10 @@ use binius_m3::{
     },
     gadgets::hash::groestl::Permutation,
 };
+use petravm_asm::util::u32_to_bytes;
 use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
 use crate::gadgets::transpose::TransposeColumns;
-use crate::utils::u64_to_bytes;
-use crate::utils::u64_to_u32;
 use crate::{
     channels::Channels,
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
@@ -203,9 +202,9 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 .map(|i| witness.get_mut_as(self.src2_addresses[i]))
                 .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
 
-            let mut dst_vals = (0..8)
+            let mut dst_vals = (0..16)
                 .map(|i| witness.get_mut_as(self.dst_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [u64]>>, _>>()?;
+                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
 
             for (i, event) in rows.clone().enumerate() {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
@@ -245,7 +244,7 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
         let src1_rows = rows.clone().map(|event| event.src1_val);
         let src2_rows = rows.clone().map(|event| event.src2_val);
         let dst_val_rows = rows.clone().map(|event| {
-            u64_to_bytes(&event.dst_val)
+            u32_to_bytes(&event.dst_val)
                 .try_into()
                 .expect("dst_val has exactly 64 bytes")
         });
@@ -500,10 +499,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                 let src2_base_addr = event.fp.addr(event.src2 as u32);
 
                 // Get u32 and byte representations of the destination value.
-                let dst_val_u32: [u32; 8] = u64_to_u32(&event.dst_val)
-                    .try_into()
-                    .expect("The array has exactly 8 elements");
-                let dst_val_u8 = u64_to_bytes(&event.dst_val);
+                let dst_val_u8 = u32_to_bytes(&event.dst_val);
 
                 // Get the full state input for the P permutation.
                 let full_state_in: [u8; 64] = [event.src1_val, event.src2_val]
@@ -538,7 +534,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
 
                     for k in 0..8 {
                         // Fill out the destination values.
-                        dst_vals[j][i] = dst_val_u32[j];
+                        dst_vals[j][i] = event.dst_val[j];
 
                         // Fill out = p_out XOR src1_val.
                         out[j][i * 8 + k] = p_out[j][k] + B8::from(full_state_in[k * 8 + j]);

@@ -6,7 +6,7 @@ use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     macros::fire_non_jump_event,
-    util::bytes_to_u64,
+    util::bytes_to_u32,
 };
 
 /// Event for GROESTL256_COMPRESS.
@@ -18,7 +18,7 @@ pub struct Groestl256CompressEvent {
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
-    pub dst_val: [u64; 8],
+    pub dst_val: [u32; 16],
     pub src1: u16,
     pub src1_val: [u8; 64],
     pub src2: u16,
@@ -47,7 +47,7 @@ impl Event for Groestl256CompressEvent {
             );
         }
 
-        // Change the input bases to match the the one used in P/Q permutations.
+        // Change the input bases to match the one used in P/Q permutations.
         let src1_val_aes = src1_val
             .iter()
             .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
@@ -72,14 +72,14 @@ impl Event for Groestl256CompressEvent {
 
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&out_val);
         let out_state_bytes =
-            out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+            out_state_bytes.map(|byte| B8::from(AESTowerField8b::new(byte)).val());
 
-        let dst_val: [u64; 8] = bytes_to_u64(&out_state_bytes)
+        let dst_val: [u32; 16] = bytes_to_u32(&out_state_bytes)
             .try_into()
             .expect("out_state_bytes is exactly 64 bytes");
 
-        for i in 0..8 {
-            ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
+        for i in 0..16 {
+            ctx.vrom_write::<u32>(ctx.addr(dst.val() + i), dst_val[i as usize])?;
         }
 
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
@@ -116,7 +116,7 @@ pub struct Groestl256OutputEvent {
     pub fp: FramePointer,
     pub timestamp: u32,
     pub dst: u16,
-    pub dst_val: [u64; 4],
+    pub dst_val: [u32; 8],
     pub src1: u16,
     pub src1_val: [u8; 32],
     pub src2: u16,
@@ -174,9 +174,9 @@ impl Event for Groestl256OutputEvent {
         let dst_val: [u8; 32] = out_state_bytes[32..]
             .try_into()
             .expect("out_state_bytes is 64 bytes");
-        let dst_val = bytes_to_u64(&dst_val);
-        for i in 0..4 {
-            ctx.vrom_write(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
+        let dst_val = bytes_to_u32(&dst_val);
+        for i in 0..8 {
+            ctx.vrom_write(ctx.addr(dst.val() + i), dst_val[i as usize])?;
         }
 
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
@@ -236,7 +236,7 @@ mod tests {
         init_values[src2_offset as usize] = src2_val[0] as u32;
         let vrom = ValueRom::new_with_init_vals(&init_values);
 
-        // Construct a simple program with the Groestl25Compress instruction
+        // Construct a simple program with the Groestl256Compress instruction
         // 1. GROESTL256_Compress @output, @src1, @src2
         // 2. RET
         let zero = B16::ZERO;
@@ -289,12 +289,12 @@ mod tests {
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
         let out_state_bytes =
             out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-        let dst_vals = bytes_to_u64(&out_state_bytes);
+        let dst_vals = bytes_to_u32(&out_state_bytes);
 
-        let actual_dst_vals = (0..8)
-            .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())
+        let actual_dst_vals = (0..16)
+            .map(|i| trace.vrom().read::<u32>(dst_offset + i).unwrap())
             .collect::<Vec<_>>();
-        for i in 0..8 {
+        for i in 0..16 {
             assert_eq!(dst_vals[i], actual_dst_vals[i]);
         }
     }
@@ -381,12 +381,12 @@ mod tests {
         let output_state_bytes =
             output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
         let dst_val = GenericArray::<u8, typenum::U32>::from_slice(&output_state_bytes[32..]);
-        let dst_val = bytes_to_u64(dst_val);
+        let dst_val = bytes_to_u32(dst_val);
 
-        let actual_dst_vals = (0..4)
-            .map(|i| trace.vrom().read::<u64>(dst_offset + 2 * i).unwrap())
+        let actual_dst_vals = (0..8)
+            .map(|i| trace.vrom().read::<u32>(dst_offset + i).unwrap())
             .collect::<Vec<_>>();
-        for i in 0..4 {
+        for i in 0..8 {
             assert_eq!(dst_val[i], actual_dst_vals[i]);
         }
     }
