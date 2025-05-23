@@ -5,6 +5,7 @@ use binius_m3::builder::{
 use petravm_asm::{BnzEvent, BzEvent, Opcode};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
@@ -43,7 +44,11 @@ impl Table for BnzTable {
         let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
         // Read cond_val
-        table.pull(channels.vrom_channel, [upcast_col(cond_abs), cond_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [upcast_col(cond_abs), cond_val],
+        );
 
         Self {
             id: table.id(),
@@ -116,7 +121,7 @@ impl Table for BzTable {
         let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
         let zero = table.add_constant("zero", [B32::ZERO]);
 
-        table.pull(channels.vrom_channel, [cond_abs, zero]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [cond_abs, zero]);
 
         Self {
             id: table.id(),

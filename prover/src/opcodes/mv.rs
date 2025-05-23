@@ -12,6 +12,7 @@ use petravm_asm::{opcodes::Opcode, MvvwEvent};
 use crate::gadgets::multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget};
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, types::ProverPackedField};
 
 /// MVV.W (Move Value to Value) table implementation.
@@ -76,17 +77,17 @@ impl Table for MvvwTable {
         // Read the value at dst_abs_addr (this is the base address for final
         // destination)
         let dst_addr = table.add_committed("dst_addr");
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_addr]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_addr]);
 
         // Compute final destination address with offset
         let final_dst_addr =
             table.add_computed("final_dst_addr", dst_addr + upcast_expr(offset.into()));
 
         // Read source value from VROM
-        table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs_addr, src_val]);
 
         // Verify the source value is written to the final destination address
-        table.pull(channels.vrom_channel, [final_dst_addr, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [final_dst_addr, src_val]);
 
         Self {
             id: table.id(),
@@ -195,7 +196,7 @@ impl Table for MvihTable {
 
         // Pull the base pointer from VROM
         let dst_addr = table.add_committed("dst_addr");
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_addr]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_addr]);
 
         // Compute actual destination slot
         let final_dst_addr =
@@ -205,7 +206,7 @@ impl Table for MvihTable {
         let imm_val = table.add_computed("imm_val", upcast_expr(imm.into()));
 
         // Verify the immediate write into VROM
-        table.pull(channels.vrom_channel, [final_dst_addr, imm_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [final_dst_addr, imm_val]);
 
         Self {
             id: table.id(),
@@ -321,7 +322,7 @@ impl Table for MvvlTable {
 
         // Read the destination address from VROM
         let dst_addr = table.add_committed("dst_addr");
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_addr]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_addr]);
 
         // Compute final destination address with offset
         let final_dst_addr =

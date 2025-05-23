@@ -2,6 +2,7 @@ use binius_core::constraint_system::channel::ChannelId;
 use binius_m3::builder::{Col, TableBuilder, TableWitnessSegment, B1, B128, B16, B32};
 
 use crate::opcodes::G;
+use crate::utils::{pull_prom_channel, pull_state_channel, push_state_channel};
 use crate::{
     types::ProverPackedField,
     utils::{pack_b16_into_b32, pack_instruction_u128, pack_instruction_with_fixed_opcode},
@@ -83,7 +84,7 @@ impl<const OPCODE: u16> StateColumns<OPCODE> {
         // Pull the current pc and instruction to the prom channel
         let prom_pull =
             pack_instruction_with_fixed_opcode(table, "prom_pull", pc, OPCODE, [arg0, arg1, arg2]);
-        table.pull(prom_channel, [prom_pull]);
+        pull_prom_channel(table, prom_channel, [prom_pull]);
 
         // Pull/Push the current/next pc and fp from from/to the state channel
         let next_pc = match options.next_pc {
@@ -92,8 +93,8 @@ impl<const OPCODE: u16> StateColumns<OPCODE> {
             NextPc::Immediate => table.add_computed("next_pc", pack_b16_into_b32(arg0, arg1)),
         };
         let next_fp = options.next_fp.unwrap_or(fp);
-        table.pull(state_channel, [pc, fp]);
-        table.push(state_channel, [next_pc, next_fp]);
+        pull_state_channel(table, state_channel, [pc, fp]);
+        push_state_channel(table, state_channel, [next_pc, next_fp]);
 
         Self {
             pc,

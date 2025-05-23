@@ -1,6 +1,7 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
+use binius_core::constraint_system::channel::ChannelId;
 use binius_field::{ExtensionField, Field};
 use binius_m3::builder::{upcast_col, upcast_expr, Col, Expr, TableBuilder, B1, B128, B16, B32};
 
@@ -190,4 +191,60 @@ pub(crate) fn setup_mux_constraint(
             - (true_packed * upcast_col(*select_bit)
                 + false_packed * (upcast_col(*select_bit) - B32::ONE)),
     );
+}
+
+/// Pulls a value from the VROM channel.
+pub(crate) fn pull_vrom_channel(
+    table: &mut TableBuilder,
+    channel: ChannelId,
+    value: [Col<B32>; 2],
+) {
+    #[cfg(not(feature = "disable_vrom_channel"))]
+    table.pull(channel, value);
+
+    let _ = value;
+    let _ = channel;
+    let _ = table;
+}
+
+/// Pulls a value from the PROM channel.
+pub(crate) fn pull_prom_channel(
+    table: &mut TableBuilder,
+    channel: ChannelId,
+    value: [Col<B128>; 1],
+) {
+    #[cfg(not(feature = "disable_prom_channel"))]
+    table.pull(channel, value);
+
+    let _ = value;
+    let _ = channel;
+    let _ = table;
+}
+
+/// Pulls a value to the State channel.
+pub(crate) fn pull_state_channel(
+    table: &mut TableBuilder,
+    channel: ChannelId,
+    value: [Col<B32>; 2],
+) {
+    #[cfg(not(feature = "disable_state_channel"))]
+    table.pull(channel, value);
+
+    let _ = value;
+    let _ = channel;
+    let _ = table;
+}
+
+/// Pushes a value to the State channel.
+pub(crate) fn push_state_channel(
+    table: &mut TableBuilder,
+    channel: ChannelId,
+    value: [Col<B32>; 2],
+) {
+    #[cfg(not(feature = "disable_state_channel"))]
+    table.push(channel, value);
+
+    let _ = value;
+    let _ = channel;
+    let _ = table;
 }

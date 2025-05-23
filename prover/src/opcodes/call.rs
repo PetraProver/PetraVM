@@ -7,6 +7,7 @@ use petravm_asm::{opcodes::Opcode, CalliEvent, CallvEvent, TailiEvent, TailvEven
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
 use crate::table::Table;
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, opcodes::G, types::ProverPackedField};
 
 /// TAILI (Tail Call Immediate) table implementation.
@@ -65,7 +66,11 @@ impl Table for TailiTable {
             table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
 
         // Read the next frame pointer value from VROM
-        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_abs_addr, next_fp_val],
+        );
 
         // Read current frame's return address and old frame pointer
         let return_addr = table.add_committed("return_addr"); // Return address at slot 0
@@ -73,16 +78,24 @@ impl Table for TailiTable {
         let old_fp_val = table.add_committed("old_fp_val"); // Old frame pointer at slot 1
 
         // Pull values from current frame
-        table.pull(channels.vrom_channel, [cur_fp, return_addr]);
-        table.pull(channels.vrom_channel, [fp_plus_1, old_fp_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [cur_fp, return_addr]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [fp_plus_1, old_fp_val]);
 
         // Compute address of slot 1 in new frame
         let next_fp_plus_1 = table.add_computed("next_fp_plus_1", next_fp_val + B32::new(1));
 
         // Verify that return address and old frame pointer are correctly copied to new
         // frame
-        table.pull(channels.vrom_channel, [next_fp_val, return_addr]);
-        table.pull(channels.vrom_channel, [next_fp_plus_1, old_fp_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_val, return_addr],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_plus_1, old_fp_val],
+        );
 
         Self {
             id: table.id(),
@@ -215,15 +228,27 @@ impl Table for TailvTable {
         let next_fp_plus_1 = table.add_computed("next_fp_plus_1", next_fp_val + B32::new(1));
 
         // Read values from VROM
-        table.pull(channels.vrom_channel, [offset_addr, target_val]);
-        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
-        table.pull(channels.vrom_channel, [cur_fp, return_addr]);
-        table.pull(channels.vrom_channel, [fp_plus_1, old_fp_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [offset_addr, target_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_abs_addr, next_fp_val],
+        );
+        pull_vrom_channel(&mut table, channels.vrom_channel, [cur_fp, return_addr]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [fp_plus_1, old_fp_val]);
 
         // Verify that return address and old frame pointer are correctly copied to new
         // frame
-        table.pull(channels.vrom_channel, [next_fp_val, return_addr]);
-        table.pull(channels.vrom_channel, [next_fp_plus_1, old_fp_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_val, return_addr],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_plus_1, old_fp_val],
+        );
 
         Self {
             id: table.id(),
@@ -349,16 +374,24 @@ impl Table for CalliTable {
             table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
 
         // Read the next frame pointer value from VROM
-        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_abs_addr, next_fp_val],
+        );
 
         // Calculate addresses for the new frame's slots
         let next_fp_slot_1 = table.add_computed("next_fp_slot_1", next_fp_val + B32::new(1));
 
         // Verify return address (next_pc_val) is stored at slot 0 of new frame
-        table.pull(channels.vrom_channel, [next_fp_val, next_pc_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_val, next_pc_val],
+        );
 
         // Verify current frame pointer is stored at slot 1 of new frame
-        table.pull(channels.vrom_channel, [next_fp_slot_1, cur_fp]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [next_fp_slot_1, cur_fp]);
 
         Self {
             id: table.id(),
@@ -479,17 +512,29 @@ impl Table for CallvTable {
             table.add_computed("next_fp_abs_addr", cur_fp + upcast_expr(next_fp.into()));
 
         // Read values from VROM
-        table.pull(channels.vrom_channel, [offset_abs_addr, target_val]);
-        table.pull(channels.vrom_channel, [next_fp_abs_addr, next_fp_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [offset_abs_addr, target_val],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_abs_addr, next_fp_val],
+        );
 
         // Calculate addresses for the new frame's slots
         let next_fp_slot_1 = table.add_computed("next_fp_slot_1", next_fp_val + B32::new(1));
 
         // Verify return address (next_pc_val) is stored at slot 0 of new frame
-        table.pull(channels.vrom_channel, [next_fp_val, next_pc_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [next_fp_val, next_pc_val],
+        );
 
         // Verify current frame pointer is stored at slot 1 of new frame
-        table.pull(channels.vrom_channel, [next_fp_slot_1, cur_fp]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [next_fp_slot_1, cur_fp]);
 
         Self {
             id: table.id(),

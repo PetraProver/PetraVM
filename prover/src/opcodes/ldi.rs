@@ -9,6 +9,7 @@ use binius_m3::builder::{
 use petravm_asm::{opcodes::Opcode, LdiEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, table::Table, types::ProverPackedField, utils::pack_b16_into_b32};
 
 /// LDI (Load Immediate) table.
@@ -64,7 +65,7 @@ impl Table for LdiTable {
 
         // Pull value to VROM write table using absolute address
         let imm = table.add_computed("imm", pack_b16_into_b32(imm_low, imm_high));
-        table.pull(channels.vrom_channel, [vrom_abs_addr, imm]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [vrom_abs_addr, imm]);
 
         Self {
             id: table.id(),

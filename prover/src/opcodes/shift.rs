@@ -13,7 +13,7 @@ use crate::{
     gadgets::state::{StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::setup_mux_constraint,
+    utils::{pull_vrom_channel, setup_mux_constraint},
 };
 
 // Implementation of SrliTable for immediate shift right logical operations
@@ -50,8 +50,8 @@ impl Table for SrliTable {
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
 
         // Pull columns from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
         table.pull(
             channels.right_shifter_channel,
             [src_val, shift_amount, dst_val],
@@ -150,8 +150,8 @@ impl Table for SlliTable {
         let dst_val = table.add_packed("dst_val", shifter.output);
 
         // Pull columns from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),
@@ -241,9 +241,9 @@ impl Table for SrlTable {
         let shift_val = table.add_committed("shift_val");
 
         // Pull memory access data from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [shift_abs, shift_val]);
 
         // Pull shift value from ShifterChannel
         table.pull(
@@ -361,9 +361,13 @@ impl Table for SllTable {
         let dst_val = table.add_packed("dst_val", shifter.output);
 
         // Pull memory access data from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
-        table.pull(channels.vrom_channel, [shift_abs, shift_amount_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [shift_abs, shift_amount_packed],
+        );
 
         Self {
             id: table.id(),
@@ -464,13 +468,13 @@ impl Table for SraTable {
         let src_abs = table.add_computed("src_abs", state_cols.fp + upcast_col(state_cols.arg1));
         let src_val_unpacked: Col<B1, 32> = table.add_committed("src_val_unpacked");
         let src_val: Col<B32> = table.add_packed("src_val", src_val_unpacked);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         // Shift amount columns
         let shift_abs =
             table.add_computed("shift_abs", state_cols.fp + upcast_col(state_cols.arg2));
         let shift_val = table.add_committed("shift_val");
-        table.pull(channels.vrom_channel, [shift_abs, shift_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [shift_abs, shift_val]);
 
         // Get sign bit (MSB of src value)
         let sign_bit = table.add_selected("sign_bit", src_val_unpacked, 31);
@@ -523,7 +527,7 @@ impl Table for SraTable {
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull memory access data from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -718,8 +722,8 @@ impl Table for SraiTable {
         let dst_val = table.add_packed("dst_val", result);
 
         // Pull columns from VROM channel
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),
