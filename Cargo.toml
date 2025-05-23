@@ -21,6 +21,7 @@ anyhow = "1.0"
 tracing = "0.1.41"
 tracing-forest = { version = "0.1.6", features = ["ansi"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-profile = "0.10.6"
 
 # Binius dependencies
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
