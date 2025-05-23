@@ -46,6 +46,7 @@ impl Prover {
         allocator: &'a Bump,
     ) -> Result<WitnessIndex<'_, 'a, ProverPackedField>> {
         // Build the witness structure
+        #[allow(deprecated)]
         let mut witness = self
             .circuit
             .cs

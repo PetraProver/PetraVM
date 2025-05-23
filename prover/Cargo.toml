@@ -24,8 +24,8 @@ petravm-asm = { path = "../assembly" }
 thiserror = "2.0.12"
 tracing.workspace = true
 tracing-forest.workspace = true
-tracing-subscriber.workspace = true
 tracing-profile.workspace = true
+tracing-subscriber.workspace = true
 
 # Binius dependencies
 binius_core.workspace = true
