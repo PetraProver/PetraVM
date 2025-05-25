@@ -223,17 +223,21 @@ mod tests {
         // Slots 32-47: src2_val
         // Slots 48-63: dst_val
 
-        let mut src1_val = [0u8; 64];
-        src1_val[0] = 1;
-        let mut src2_val = [0u8; 64];
-        src2_val[0] = 2;
+        let src1_val = [rand::random::<u8>(); 64];
+        let src1_val_packed = bytes_to_u32(src1_val.as_slice());
+
+        let src2_val = [rand::random::<u8>(); 64];
+        let src2_val_packed = bytes_to_u32(src2_val.as_slice());
 
         let dst_offset = 48;
         let src1_offset = 16;
         let src2_offset = 32;
         let mut init_values = vec![0; 48];
-        init_values[src1_offset as usize] = src1_val[0] as u32;
-        init_values[src2_offset as usize] = src2_val[0] as u32;
+        for i in 0..16 {
+            init_values[src1_offset + i] = src1_val_packed[i];
+            init_values[src2_offset + i] = src2_val_packed[i];
+        }
+
         let vrom = ValueRom::new_with_init_vals(&init_values);
 
         // Construct a simple program with the Groestl256Compress instruction
