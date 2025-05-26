@@ -105,6 +105,11 @@ mod test_parser {
     }
 
     #[test]
+    fn test_prover_flag() {
+        parse_program(include_str!("../../../examples/bezout_deterministic.asm")).unwrap();
+    }
+
+    #[test]
     fn test_all_instructions() {
         let lines = [
             "#[framesize(0x1a)] label:",

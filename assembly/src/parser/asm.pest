@@ -54,10 +54,12 @@ TAILI_instr    = { "TAILI" }
 BNZ_instr      = { "BNZ" }
 CALLV_instr    = { "CALLV" }
 TAILV_instr    = { "TAILV" }
+ALLOCI_instr   = { "ALLOCI" }
+ALLOCV_instr   = { "ALLOCV" }
 
 // Note: This does not refer to BinaryFields but instructions that takes in three operands including destination
 binary_non_imm_instrs = ${
-    XOR_instr
+  ( XOR_instr
   | B32_ADD_instr
   | B32_MUL_instr
   | B128_ADD_instr
@@ -75,10 +77,10 @@ binary_non_imm_instrs = ${
   | SRA_instr
   | MULSU_instr
   | MULU_instr
-  | MUL_instr
+  | MUL_instr ) ~ prover_flag?
 }
 binary_imm_instrs     = ${
-    XORI_instr
+  ( XORI_instr
   | B32_ADDI_instr
   | B32_MULI_instr
   | ADDI_instr
@@ -91,12 +93,14 @@ binary_imm_instrs     = ${
   | SLLI_instr
   | SRLI_instr
   | SRAI_instr
-  | MULI_instr
+  | MULI_instr ) ~ prover_flag?
 }
-load_store_instrs     = ${ LW_instr | SW_instr | LBU_instr | LB_instr | LHU_instr | LH_instr | SB_instr | SH_instr }
-mov_non_imm_instrs    = ${ MVV_W_instr | MVV_L_instr }
-mov_imm_instr         = ${ MVI_H_instr }
-load_imm_instr        = ${ LDI_W_instr }
+load_store_instrs     = ${ (LW_instr | SW_instr | LBU_instr | LB_instr | LHU_instr | LH_instr | SB_instr | SH_instr) ~ prover_flag? }
+mov_non_imm_instrs    = ${ (MVV_W_instr | MVV_L_instr) ~ prover_flag? }
+mov_imm_instr         = ${ MVI_H_instr ~ prover_flag? }
+load_imm_instr        = ${ LDI_W_instr ~ prover_flag? }
+alloc_imm_instr       = ${ ALLOCI_instr ~ prover_flag }
+alloc_non_imm_instr   = ${ ALLOCV_instr ~ prover_flag }
 nullary_instrs        = ${ RET_instr }
 
 // Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offsetted
@@ -117,6 +121,8 @@ COMMENT = _{ ";;" ~ (!NEWLINE ~ ANY)* }
 // Currently, this allows us to specify immediates as integers as well as generator constants ending with "G"
 immediate = @{ "#" ~ "-"? ~ (ASCII_DIGIT)+ ~ ("G")? }
 
+prover_flag    = @{ "!" }
+
 slot_or_offset = @{ ASCII_DIGIT+ }
 slot           = @{ "@" ~ slot_or_offset }
 
@@ -132,6 +138,8 @@ mov_imm              = ${ mov_imm_instr ~ spaces+ ~ slot_with_offset ~ separator
 mov_non_imm          = ${ mov_non_imm_instrs ~ spaces+ ~ slot_with_offset ~ separator ~ slot }
 load_imm             = ${ load_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
 load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ separator ~ slot ~ separator ~ immediate }
+alloc_imm            = ${ alloc_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
+alloc_non_imm        = ${ alloc_non_imm_instr ~ spaces+ ~ slot ~ separator ~ slot }
 
 instruction = {
     nullary
@@ -144,6 +152,8 @@ instruction = {
   | mov_non_imm
   | load_imm
   | load_store
+  | alloc_imm
+  | alloc_non_imm
 }
 
 line = { (((frame_size_annotation? ~ label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }
