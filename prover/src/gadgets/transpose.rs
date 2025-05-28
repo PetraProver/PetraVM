@@ -26,11 +26,8 @@ pub(crate) struct TransposeColumns {
 impl TransposeColumns {
     pub(crate) fn new(table: &mut TableBuilder, input: [Col<B8, 8>; 8]) -> Self {
         // First, we project the values into independent B8 columns.
-        let projected_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
-            from_fn(|j| {
-                table.add_selected_block::<_, 8, 1>(format!("projected_{i}_{j}"), input[i], j)
-            })
-        });
+        let projected_temp: [[Col<B8>; 8]; 8] =
+            from_fn(|i| from_fn(|j| table.add_selected(format!("projected_{i}_{j}"), input[i], j)));
         // We take the projected values into the correct (transposed) order.
         let projected = from_fn(|i| projected_temp[i % 8][i / 8]);
 

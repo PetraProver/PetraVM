@@ -311,17 +311,18 @@ mod tests {
         // Slots 16-23: src2_val
         // Slots 24-31: dst_val
 
-        let mut src1_val = [0u8; 32];
-        src1_val[0] = 1;
-        let mut src2_val = [0u8; 32];
-        src2_val[0] = 2;
+        let src1_val = [rand::random::<u8>(); 32];
+        let src1_val_packed = bytes_to_u32(src1_val.as_slice());
+
+        let src2_val = [rand::random::<u8>(); 32];
+        let src2_val_packed = bytes_to_u32(src2_val.as_slice());
 
         let dst_offset = 24;
         let src1_offset = 8;
         let src2_offset = 16;
         let mut init_values = vec![0; 24];
-        init_values[src1_offset as usize] = src1_val[0] as u32;
-        init_values[src2_offset as usize] = src2_val[0] as u32;
+        init_values[src1_offset..(8 + src1_offset)].copy_from_slice(&src1_val_packed[..8]);
+        init_values[src2_offset..(8 + src2_offset)].copy_from_slice(&src2_val_packed[..8]);
         let vrom = ValueRom::new_with_init_vals(&init_values);
 
         // Construct a simple program with the Groestl256Output instruction
