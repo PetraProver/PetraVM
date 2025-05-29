@@ -301,7 +301,8 @@ impl VromAddrSpaceTable {
         table.require_power_of_two_size();
 
         // Add column for address
-        let addr = table.add_structured::<B32>("addr", StructuredDynSize::Incrementing);
+        let addr = table
+            .add_structured::<B32>("addr", StructuredDynSize::Incrementing { max_size_log: 32 });
 
         // Push to VROM address space channel
         table.push(channels.vrom_addr_space_channel, [addr]);

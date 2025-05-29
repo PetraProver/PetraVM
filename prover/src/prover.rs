@@ -46,10 +46,7 @@ impl Prover {
         allocator: &'a Bump,
     ) -> Result<WitnessIndex<'_, 'a, ProverPackedField>> {
         // Build the witness structure
-        let mut witness = self
-            .circuit
-            .cs
-            .build_witness::<ProverPackedField>(allocator);
+        let mut witness = WitnessIndex::new(&self.circuit.cs, allocator);
 
         // Fill all table witnesses in sequence
 
