@@ -58,7 +58,6 @@ fn test_div() {
 }
 
 #[test]
-#[ignore]
 fn test_bezout() {
     let files = ["bezout.asm", "div.asm"];
     // Initialize memory with:
@@ -123,7 +122,6 @@ fn test_func_call() {
 }
 
 #[test]
-#[ignore]
 fn test_linked_list() {
     let files = ["linked_list.asm"];
     // Initialize memory with:
@@ -175,7 +173,6 @@ fn test_non_tail_long_div() {
 }
 
 #[test]
-#[ignore]
 fn test_tail_long_div() {
     let files = ["tail_long_div.asm"];
     // Initialize memory with:
