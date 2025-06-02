@@ -1,4 +1,4 @@
-use binius_field::Field;
+use binius_field::{Field, PackedField};
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
@@ -16,6 +16,8 @@ pub struct BnzTable {
     state_cols: StateColumns<{ Opcode::Bnz as u16 }>,
     cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
+    // cond_inv is the precomputed inverse of cond_val.
+    cond_inv: Col<B32>,
 }
 
 impl Table for BnzTable {
@@ -28,7 +30,8 @@ impl Table for BnzTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
-        table.assert_nonzero(cond_val);
+        let cond_inv = table.add_committed("cond_inv");
+        table.assert_zero("Nonzero condition check", cond_val * cond_inv + B32::ONE);
 
         let state_cols = StateColumns::new(
             &mut table,
@@ -50,6 +53,7 @@ impl Table for BnzTable {
             state_cols,
             cond_abs,
             cond_val,
+            cond_inv,
         }
     }
 }
@@ -69,9 +73,11 @@ impl TableFiller<ProverPackedField> for BnzTable {
         {
             let mut cond_abs = witness.get_scalars_mut(self.cond_abs)?;
             let mut cond_val = witness.get_scalars_mut(self.cond_val)?;
+            let mut cond_inv = witness.get_scalars_mut(self.cond_inv)?;
             for (i, event) in rows.clone().enumerate() {
                 cond_abs[i] = B32::new(event.fp.addr(event.cond));
                 cond_val[i] = B32::new(event.cond_val);
+                cond_inv[i] = cond_val[i].invert_or_zero();
             }
         }
         let state_rows = rows.map(|event| StateGadget {
