@@ -126,6 +126,7 @@ impl Event for B32MuliEvent {
         dst: B16,
         src: B16,
         imm_low: B16,
+        prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -144,24 +145,31 @@ impl Event for B32MuliEvent {
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
-        debug_assert!(field_pc == G.pow(pc as u64 - 1));
-        let event = Self::new(
-            timestamp,
-            field_pc,
-            fp,
-            dst.val(),
-            dst_val.val(),
-            src.val(),
-            src_val,
-            imm.val(),
-        );
-        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
-        // The instruction is over two rows in the PROM.
-        ctx.incr_pc();
-        ctx.incr_pc();
+        if prover_only {
+            let index = ctx.addr(dst.val());
+            ctx.vrom_mut()
+                .write(index, dst_val.val(), false)
+                .map_err(Into::into)
+        } else {
+            debug_assert!(field_pc == G.pow(pc as u64 - 1));
+            let event = Self::new(
+                timestamp,
+                field_pc,
+                fp,
+                dst.val(),
+                dst_val.val(),
+                src.val(),
+                src_val,
+                imm.val(),
+            );
+            ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
+            // The instruction is over two rows in the PROM.
+            ctx.incr_pc();
+            ctx.incr_pc();
 
-        ctx.trace.b32_muli.push(event);
-        Ok(())
+            ctx.trace.b32_muli.push(event);
+            Ok(())
+        }
     }
 
     fn fire(&self, channels: &mut crate::execution::InterpreterChannels) {

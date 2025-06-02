@@ -39,6 +39,7 @@ impl Event for RetEvent {
         _unused0: B16,
         _unused1: B16,
         _unused2: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let ret_event = RetEvent::new(ctx)?;
 

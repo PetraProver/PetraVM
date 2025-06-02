@@ -28,6 +28,7 @@ impl Event for JumpvEvent {
         offset: B16,
         _unused0: B16,
         _unused1: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
@@ -77,6 +78,7 @@ impl Event for JumpiEvent {
         target_low: B16,
         target_high: B16,
         _unused: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 

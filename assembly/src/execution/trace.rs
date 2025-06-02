@@ -221,7 +221,7 @@ impl PetraTrace {
     ///
     /// This will also execute pending VROM updates if necessary.
     pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
+        self.vrom_mut().write(index, value, true)?;
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, mvvl_pos) =

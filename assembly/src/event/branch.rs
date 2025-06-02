@@ -31,6 +31,7 @@ impl Event for BnzEvent {
         target_low: B16,
         target_high: B16,
         cond: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -102,6 +103,7 @@ impl Event for BzEvent {
         _target_low: B16,
         _target_high: B16,
         _cond: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         unimplemented!("BzEvent generation is defined in BnzEvent::generate method");
     }

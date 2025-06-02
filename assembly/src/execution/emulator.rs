@@ -293,7 +293,7 @@ impl Interpreter {
             advice,
         };
 
-        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
+        opcode.generate_event(&mut ctx, arg0, arg1, arg2, prover_only)
     }
 
     pub(crate) fn allocate_new_frame(

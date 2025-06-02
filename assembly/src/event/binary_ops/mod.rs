@@ -48,25 +48,34 @@ pub(crate) trait ImmediateBinaryOperation:
         dst: B16,
         src: B16,
         imm: B16,
-    ) -> Result<Self, InterpreterError> {
+        prover_only: bool,
+    ) -> Result<Option<Self>, InterpreterError> {
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
-        let (_, field_pc, fp, timestamp) = ctx.program_state();
+        if prover_only {
+            let index = ctx.addr(dst.val());
+            ctx.vrom_mut()
+                .write(index, dst_val.val(), false)
+                .map(|_| None)
+                .map_err(Into::into)
+        } else {
+            let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        let event = Self::new(
-            timestamp,
-            field_pc,
-            fp,
-            dst.val(),
-            dst_val.val(),
-            src.val(),
-            src_val,
-            imm.into(),
-        );
-        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
-        ctx.incr_pc();
-        Ok(event)
+            let event = Self::new(
+                timestamp,
+                field_pc,
+                fp,
+                dst.val(),
+                dst_val.val(),
+                src.val(),
+                src_val,
+                imm.into(),
+            );
+            ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
+            ctx.incr_pc();
+            Ok(Some(event))
+        }
     }
 }
 
@@ -91,26 +100,35 @@ pub(crate) trait NonImmediateBinaryOperation:
         dst: B16,
         src1: B16,
         src2: B16,
-    ) -> Result<Self, InterpreterError> {
+        prover_only: bool,
+    ) -> Result<Option<Self>, InterpreterError> {
         let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
         let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
         let dst_val = Self::operation(B32::new(src1_val), B32::new(src2_val));
 
-        let (_, field_pc, fp, timestamp) = ctx.program_state();
+        if prover_only {
+            let index = ctx.addr(dst.val());
+            ctx.vrom_mut()
+                .write(index, dst_val.val(), false)
+                .map(|_| None)
+                .map_err(Into::into)
+        } else {
+            let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        let event = Self::new(
-            timestamp,
-            field_pc,
-            fp,
-            dst.val(),
-            dst_val.val(),
-            src1.val(),
-            src1_val,
-            src2.val(),
-            src2_val,
-        );
-        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
-        ctx.incr_pc();
-        Ok(event)
+            let event = Self::new(
+                timestamp,
+                field_pc,
+                fp,
+                dst.val(),
+                dst_val.val(),
+                src1.val(),
+                src1_val,
+                src2.val(),
+                src2_val,
+            );
+            ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
+            ctx.incr_pc();
+            Ok(Some(event))
+        }
     }
 }

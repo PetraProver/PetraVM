@@ -35,6 +35,7 @@ impl Event for TailiEvent {
         target_low: B16,
         target_high: B16,
         next_fp: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -111,6 +112,7 @@ impl Event for TailvEvent {
         offset: B16,
         next_fp: B16,
         _unused: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -182,6 +184,7 @@ impl Event for CalliEvent {
         target_low: B16,
         target_high: B16,
         next_fp: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -251,6 +254,7 @@ impl Event for CallvEvent {
         offset: B16,
         next_fp: B16,
         _unused: B16,
+        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -347,9 +351,10 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.write(0, 0u32).unwrap();
-        vrom.write(1, 0u32).unwrap();
-        vrom.write(target_addr.val() as u32, target.val()).unwrap();
+        vrom.write(0, 0u32, false).unwrap();
+        vrom.write(1, 0u32, false).unwrap();
+        vrom.write(target_addr.val() as u32, target.val(), false)
+            .unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
@@ -410,9 +415,10 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.write(0, 0u32).unwrap();
-        vrom.write(1, 0u32).unwrap();
-        vrom.write(target_addr.val() as u32, target.val()).unwrap();
+        vrom.write(0, 0u32, false).unwrap();
+        vrom.write(1, 0u32, false).unwrap();
+        vrom.write(target_addr.val() as u32, target.val(), false)
+            .unwrap();
 
         let mut pc_field_to_int = HashMap::new();
         pc_field_to_int.insert(target, ret_pc as u32);
