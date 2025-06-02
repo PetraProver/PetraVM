@@ -1045,8 +1045,34 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Alloci { .. } => unimplemented!(),
-        InstructionsWithLabels::Allocv { .. } => unimplemented!(),
+        InstructionsWithLabels::Alloci { dst, imm } => {
+            let instruction = [
+                Opcode::Alloci.get_field_elt(),
+                dst.get_16bfield_val(),
+                imm.get_field_val(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                true,
+            ));
+        }
+        InstructionsWithLabels::Allocv { src, dst } => {
+            let instruction = [
+                Opcode::Allocv.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                true,
+            ));
+        }
     }
     Ok(())
 }

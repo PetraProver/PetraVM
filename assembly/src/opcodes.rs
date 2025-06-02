@@ -84,6 +84,10 @@ pub enum Opcode {
     /// [`Opcode::Bnz`] when no branching occurs.
     Bz = 0xffff,
 
+    // Allocation instructions (prover-only)
+    Alloci = 0x2c,
+    Allocv = 0x2d,
+
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
     // Not needed for recursion program or first version of PetraVM
@@ -153,6 +157,8 @@ impl Opcode {
             Opcode::Mvvl => 3,    // dst, offset, src
             Opcode::Mvih => 3,    // dst, offset, imm
             Opcode::Ldi => 3,     // dst, imm_low, imm_high
+            Opcode::Alloci => 2,  // dst, imm
+            Opcode::Allocv => 2,  // dst, src
             Opcode::Invalid => 0, // invalid
         }
     }
@@ -222,4 +228,6 @@ impl_instruction_info!(
     (TailvEvent, Opcode::Tailv),
     (XorEvent, Opcode::Xor),
     (XoriEvent, Opcode::Xori),
+    (AllociEvent, Opcode::Alloci),
+    (AllocvEvent, Opcode::Allocv),
 );

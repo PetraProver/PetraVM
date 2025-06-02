@@ -129,5 +129,7 @@ define_isa!(
         TailvEvent,
         XorEvent,
         XoriEvent,
+        AllociEvent,
+        AllocvEvent,
     ]
 );

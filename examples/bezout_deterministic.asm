@@ -1,5 +1,5 @@
 ;; slot layout mimics the original non-deterministic bezout example
-#[framesize(0x3)]
+#[framesize(0xf)]
 entrypoint:
     ;; here we assume that entrypoint has dummy zero FP & PC frame
     ALLOCI! @2, #15
@@ -10,6 +10,7 @@ entrypoint:
     MVI.H @2[6], #1
     CALLI bezout, @2
     RET
+    #[framesize(0xf)]
 bezout:
     BNZ bezout_else, @2
     XORI @4, @3, #0
