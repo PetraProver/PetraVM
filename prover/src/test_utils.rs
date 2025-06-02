@@ -133,6 +133,7 @@ pub fn generate_trace(
             Instruction::default(),
             max_pc,
             None,
+            false,
         ));
     }
 

@@ -120,14 +120,21 @@ pub struct InterpreterInstruction {
     /// `B32::MULTIPLICATIVE_GENERATOR` of some group element defined by the
     /// instruction arguments.
     pub advice: Option<u32>,
+    pub prover_only: bool,
 }
 
 impl InterpreterInstruction {
-    pub const fn new(instruction: Instruction, field_pc: B32, advice: Option<u32>) -> Self {
+    pub const fn new(
+        instruction: Instruction,
+        field_pc: B32,
+        advice: Option<u32>,
+        prover_only: bool,
+    ) -> Self {
         Self {
             instruction,
             field_pc,
             advice,
+            prover_only,
         }
     }
 
@@ -262,6 +269,7 @@ impl Interpreter {
             instruction,
             field_pc,
             advice,
+            prover_only,
         } = trace.prom()[self.pc as usize - 1];
         let [opcode, arg0, arg1, arg2] = instruction;
         trace.record_instruction(field_pc);

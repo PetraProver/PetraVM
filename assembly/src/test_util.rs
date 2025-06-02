@@ -34,7 +34,7 @@ pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
     // `*G`.
     let mut pc = B32::ONE; // we start at PC = 1G.
     for &instruction in code.iter() {
-        let interp_inst = InterpreterInstruction::new(instruction, pc, None);
+        let interp_inst = InterpreterInstruction::new(instruction, pc, None, false);
         prom.push(interp_inst);
         pc *= G;
     }
