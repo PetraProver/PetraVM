@@ -140,7 +140,8 @@ impl Table for B32MulTable {
         table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
 
         // Compute the result
-        let dst_val = table.add_computed("b32_mul_dst_val", src1_val * src2_val);
+        let dst_val = table.add_committed("b32_mul_dst_val");
+        table.assert_zero("b32_mul_dst_val", dst_val - src1_val * src2_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
@@ -276,8 +277,11 @@ impl Table for AndTable {
         let src2_abs_addr =
             table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
-        let dst_val_unpacked =
-            table.add_computed("dst_val_unpacked", src1_val_unpacked * src2_val_unpacked);
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "and_dst_val_unpacked",
+            dst_val_unpacked - src1_val_unpacked * src2_val_unpacked,
+        );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read src1_val and src2_val
@@ -349,10 +353,14 @@ impl Table for OrTable {
         let src2_abs_addr =
             table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
-        let dst_val_unpacked = table.add_computed(
-            "dst_val_unpacked",
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "or_dst_val_unpacked",
             // DeMorgan Law: a | b == a + b + (a * b)
-            src1_val_unpacked + src2_val_unpacked + (src1_val_unpacked * src2_val_unpacked),
+            dst_val_unpacked
+                - src1_val_unpacked
+                - src2_val_unpacked
+                - (src1_val_unpacked * src2_val_unpacked),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
@@ -424,10 +432,13 @@ impl Table for OriTable {
         let src_abs_addr =
             table.add_computed("src_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
 
-        let dst_val_unpacked = table.add_computed(
-            "dst_val_unpacked",
-            // DeMorgan Law: a | b == a + b + (a * b)
-            src_val_unpacked + imm_32b_unpacked + (src_val_unpacked * imm_32b_unpacked),
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "ori_dst_val_unpacked",
+            dst_val_unpacked
+                - src_val_unpacked
+                - imm_32b_unpacked
+                - (src_val_unpacked * imm_32b_unpacked),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
@@ -613,7 +624,11 @@ impl Table for AndiTable {
 
         let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
-        let dst_val_unpacked = table.add_computed("dst_val", src_val_low * imm);
+        let dst_val_unpacked: Col<B1, 16> = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "andi_dst_val_unpacked",
+            dst_val_unpacked - src_val_low * imm,
+        );
         let dst_val: Col<B16> = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
@@ -748,7 +763,8 @@ impl Table for B32MuliTable {
         table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
 
         // Compute the result
-        let dst_val = table.add_computed("b32_muli_dst_val", src_val * imm_val);
+        let dst_val = table.add_committed("b32_muli_dst_val");
+        table.assert_zero("b32_muli_dst_val", dst_val - src_val * imm_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
