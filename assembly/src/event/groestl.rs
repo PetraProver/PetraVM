@@ -17,10 +17,19 @@ pub struct Groestl256CompressEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
+    /// dst is the offset where the output is stored.
+    /// Since we are reading 16 words from memory, it needs to be 16-word
+    /// aligned.
     pub dst: u16,
     pub dst_val: [u32; 16],
+    /// src1 is the offset where the output is stored.
+    /// Since we are reading 16 words from memory, it needs to be 16-word
+    /// aligned.
     pub src1: u16,
     pub src1_val: [u8; 64],
+    /// src2 is the offset where the output is stored.
+    /// Since we are reading 16 words from memory, it needs to be 16-word
+    /// aligned.
     pub src2: u16,
     pub src2_val: [u8; 64],
 }
@@ -32,30 +41,12 @@ impl Event for Groestl256CompressEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let mut src1_val = Vec::with_capacity(64);
-        for i in 0..16 {
-            src1_val.extend(
-                ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?
-                    .to_le_bytes(),
-            );
-        }
-        let mut src2_val = Vec::with_capacity(64);
-        for i in 0..16 {
-            src2_val.extend(
-                ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?
-                    .to_le_bytes(),
-            );
-        }
+        let src1_val = read_bytes::<16>(ctx, src1)?;
+        let src2_val = read_bytes::<16>(ctx, src2)?;
 
         // Change the input bases to match the one used in P/Q permutations.
-        let src1_val_aes = src1_val
-            .iter()
-            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
-            .collect::<Vec<_>>();
-        let src2_val_aes = src2_val
-            .iter()
-            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
-            .collect::<Vec<_>>();
+        let src1_val_aes = to_aes_basis(&src1_val);
+        let src2_val_aes = to_aes_basis(&src2_val);
 
         let mut out_val = GroestlShortImpl::state_from_bytes(
             &src1_val_aes
@@ -115,10 +106,16 @@ pub struct Groestl256OutputEvent {
     pub pc: B32,
     pub fp: FramePointer,
     pub timestamp: u32,
+    /// dst is the offset where the output is stored.
+    /// Since we are reading 8 words from memory, it needs to be 8-word aligned.
     pub dst: u16,
     pub dst_val: [u32; 8],
+    /// src1 is the offset where the first 32 bytes of the input are stored.
+    /// Since we are reading 8 words from memory, it needs to be 8-word aligned.
     pub src1: u16,
     pub src1_val: [u8; 32],
+    /// src2 is the offset where the last 32 bytes of the input are stored.
+    /// Since we are reading 8 words from memory, it needs to be 8-word aligned.
     pub src2: u16,
     pub src2_val: [u8; 32],
 }
@@ -131,30 +128,12 @@ impl Event for Groestl256OutputEvent {
         src1: B16,
         src2: B16,
     ) -> Result<(), InterpreterError> {
-        let mut src1_val = Vec::with_capacity(32);
-        for i in 0..8 {
-            src1_val.extend(
-                ctx.vrom_read::<u32>(ctx.addr(src1.val() + i))?
-                    .to_le_bytes(),
-            );
-        }
-        let mut src2_val = Vec::with_capacity(32);
-        for i in 0..8 {
-            src2_val.extend(
-                ctx.vrom_read::<u32>(ctx.addr(src2.val() + i))?
-                    .to_le_bytes(),
-            );
-        }
+        let src1_val = read_bytes::<8>(ctx, src1)?;
+        let src2_val = read_bytes::<8>(ctx, src2)?;
 
         // Change the input bases to match the the one used in P/Q permutations.
-        let src1_val_aes = src1_val
-            .iter()
-            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
-            .collect::<Vec<_>>();
-        let src2_val_aes = src2_val
-            .iter()
-            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
-            .collect::<Vec<_>>();
+        let src1_val_aes = to_aes_basis(&src1_val);
+        let src2_val_aes = to_aes_basis(&src2_val);
         let full_input: [u8; 64] = [src1_val_aes, src2_val_aes]
             .concat()
             .try_into()
@@ -201,6 +180,28 @@ impl Event for Groestl256OutputEvent {
     fn fire(&self, channels: &mut InterpreterChannels) {
         fire_non_jump_event!(self, channels);
     }
+}
+
+fn read_bytes<const N: usize>(
+    ctx: &mut EventContext,
+    src: B16,
+) -> Result<Vec<u8>, InterpreterError> {
+    let mut src_val = Vec::with_capacity(N * 4);
+    for i in 0..N {
+        src_val.extend(
+            ctx.vrom_read::<u32>(ctx.addr(src.val() + i as u16))?
+                .to_le_bytes(),
+        );
+    }
+
+    Ok(src_val)
+}
+
+fn to_aes_basis(src_val: &[u8]) -> Vec<u8> {
+    src_val
+        .iter()
+        .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+        .collect::<Vec<_>>()
 }
 
 #[cfg(test)]
