@@ -21,7 +21,9 @@ impl Event for AllociEvent {
         let ptr = ctx.vrom_mut().allocate_new_frame(imm.val() as u32);
         ctx.vrom_mut()
             .write(dst_addr, ptr, false)
-            .map_err(Into::into)
+            .map_err(Into::<InterpreterError>::into)?;
+        ctx.incr_prom_index();
+        Ok(())
     }
 
     fn fire(&self, _channels: &mut InterpreterChannels) {}
@@ -43,7 +45,9 @@ impl Event for AllocvEvent {
         let ptr = ctx.vrom_mut().allocate_new_frame(src_val);
         ctx.vrom_mut()
             .write(dst_addr, ptr, false)
-            .map_err(Into::into)
+            .map_err(Into::<InterpreterError>::into)?;
+        ctx.incr_prom_index();
+        Ok(())
     }
 
     fn fire(&self, _channels: &mut InterpreterChannels) {}

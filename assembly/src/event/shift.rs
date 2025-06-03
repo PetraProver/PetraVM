@@ -169,10 +169,12 @@ where
         if prover_only {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut().write(index, dst_val, false)?;
+            ctx.incr_prom_index();
             Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
             ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+            ctx.incr_prom_index();
             ctx.incr_pc();
 
             Ok(Some(Self::new(
@@ -207,10 +209,12 @@ where
         if prover_only {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut().write(index, dst_val, false)?;
+            ctx.incr_prom_index();
             Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
             ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+            ctx.incr_prom_index();
             ctx.incr_pc();
 
             Ok(Some(Self::new(

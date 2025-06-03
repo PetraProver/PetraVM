@@ -673,6 +673,7 @@ fn delegate_move(
 
     // This move needs to be handled later, in the CALL.
     ctx.moves_to_apply.push(new_mv_info);
+    ctx.incr_prom_index();
     ctx.incr_pc();
 }
 
@@ -682,6 +683,7 @@ fn execute_mv<T: VromValueT>(
     value: T,
 ) -> Result<(), MemoryError> {
     ctx.vrom_write(dst_addr, value)?;
+    ctx.incr_prom_index();
     ctx.incr_pc();
 
     Ok(())

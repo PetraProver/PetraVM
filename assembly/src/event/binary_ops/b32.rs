@@ -149,7 +149,11 @@ impl Event for B32MuliEvent {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val.val(), false)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            // The instruction is over two rows in the PROM.
+            ctx.incr_prom_index();
+            ctx.incr_prom_index();
+            Ok(())
         } else {
             debug_assert!(field_pc == G.pow(pc as u64 - 1));
             let event = Self::new(
@@ -164,6 +168,8 @@ impl Event for B32MuliEvent {
             );
             ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
             // The instruction is over two rows in the PROM.
+            ctx.incr_prom_index();
+            ctx.incr_prom_index();
             ctx.incr_pc();
             ctx.incr_pc();
 

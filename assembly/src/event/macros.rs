@@ -429,16 +429,19 @@ macro_rules! define_bin128_op_event {
                 let dst_bf = Self::operation(src1_bf, src2_bf);
                 let dst_val = dst_bf.val();
 
-if prover_only {
+        if prover_only {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val, false)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            ctx.incr_prom_index();
+            Ok(())
         } else {
                 // Store result
                 ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
                 let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+                ctx.incr_prom_index();
                 ctx.incr_pc();
 
                 let event = Self {

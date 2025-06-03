@@ -78,6 +78,7 @@ pub struct Interpreter {
     /// (which is not in the multiplicative group), we shift all powers by
     /// 1, and 0 can be the halting value.
     pub(crate) pc: u32,
+    pub(crate) prom_index: u32,
     pub(crate) fp: FramePointer,
     /// The system timestamp. Only RAM operations increase it.
     pub timestamp: u32,
@@ -99,6 +100,7 @@ impl Default for Interpreter {
         Self {
             isa: Box::new(GenericISA),
             pc: 1, // default starting value for PC
+            prom_index: 0,
             fp: FramePointer(0),
             timestamp: 0,
             frames: HashMap::new(),
@@ -188,6 +190,7 @@ impl Interpreter {
         Self {
             isa,
             pc: 1,
+            prom_index: 0,
             fp: FramePointer(0),
             timestamp: 0,
             frames,
@@ -204,6 +207,11 @@ impl Interpreter {
         } else {
             self.pc += 1;
         }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn incr_prom_index(&mut self) {
+        self.prom_index += 1;
     }
 
     #[inline(always)]
@@ -262,7 +270,9 @@ impl Interpreter {
     }
 
     pub fn step(&mut self, trace: &mut PetraTrace) -> Result<(), InterpreterError> {
-        if self.pc as usize - 1 > trace.prom().len() {
+        if (self.prom_index as usize >= trace.prom().len())
+            || (self.pc as usize >= trace.prom().len())
+        {
             return Err(InterpreterError::BadPc);
         }
         let InterpreterInstruction {
@@ -270,7 +280,7 @@ impl Interpreter {
             field_pc,
             advice,
             prover_only,
-        } = trace.prom()[self.pc as usize - 1];
+        } = trace.prom()[self.prom_index as usize];
         let [opcode, arg0, arg1, arg2] = instruction;
         trace.record_instruction(field_pc);
         // Special handling for B32Muli

@@ -67,11 +67,14 @@ impl Event for MuliEvent {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val, false)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            ctx.incr_prom_index();
+            Ok(())
         } else {
             ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+            ctx.incr_prom_index();
             ctx.incr_pc();
 
             let event = Self {
@@ -133,11 +136,14 @@ impl Event for MuluEvent {
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val, false)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            ctx.incr_prom_index();
+            Ok(())
         } else {
             ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+            ctx.incr_prom_index();
             ctx.incr_pc();
 
             let mulu_event = Self {
@@ -220,11 +226,14 @@ macro_rules! impl_signed_mul_event {
                     let index = ctx.addr(dst.val());
                     ctx.vrom_mut()
                         .write(index, dst_val, false)
-                        .map_err(Into::into)
+                        .map_err(Into::<InterpreterError>::into)?;
+                    ctx.incr_prom_index();
+                    Ok(())
                 } else {
                     ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
                     let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+                    ctx.incr_prom_index();
                     ctx.incr_pc();
 
                     let event = Self {

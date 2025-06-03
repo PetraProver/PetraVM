@@ -1,6 +1,7 @@
 use core::fmt::Debug;
 
 use binius_m3::builder::{B16, B32};
+use tracing::Instrument;
 
 use super::context::EventContext;
 use crate::execution::{FramePointer, InterpreterError};
@@ -57,8 +58,9 @@ pub(crate) trait ImmediateBinaryOperation:
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val.val(), false)
-                .map(|_| None)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            ctx.incr_prom_index();
+            Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -73,6 +75,7 @@ pub(crate) trait ImmediateBinaryOperation:
                 imm.into(),
             );
             ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
+            ctx.incr_prom_index();
             ctx.incr_pc();
             Ok(Some(event))
         }
@@ -110,8 +113,9 @@ pub(crate) trait NonImmediateBinaryOperation:
             let index = ctx.addr(dst.val());
             ctx.vrom_mut()
                 .write(index, dst_val.val(), false)
-                .map(|_| None)
-                .map_err(Into::into)
+                .map_err(Into::<InterpreterError>::into)?;
+            ctx.incr_prom_index();
+            Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -127,6 +131,7 @@ pub(crate) trait NonImmediateBinaryOperation:
                 src2_val,
             );
             ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
+            ctx.incr_prom_index();
             ctx.incr_pc();
             Ok(Some(event))
         }
