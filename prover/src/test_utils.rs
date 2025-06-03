@@ -232,9 +232,19 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     let src1_bytes = u32_to_bytes(&src1_val);
     let src2_bytes = u32_to_bytes(&src2_val);
 
-    let src1_val_new = src1_bytes
+    // Since the first input is supposed to come from the previous compression step,
+    // it is transposed. So we have to start by transposing it.
+    let src1_val_new_transposed = src1_bytes
         .iter()
         .map(|s1| binius_field::AESTowerField8b::from(B8::from(*s1)).val())
+        .collect::<Vec<_>>();
+
+    let src1_val_new = (0..8)
+        .flat_map(|i| {
+            (0..8)
+                .map(|j| src1_val_new_transposed[j * 8 + i])
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>();
 
     let src2_val_new = src2_bytes
@@ -250,9 +260,21 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
         &src2_val_new.clone().try_into().unwrap(),
     );
 
-    let out_state_bytes = GroestlShortImpl::state_to_bytes(&compression_output);
-    let out_state_bytes =
-        out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+    // The output of the compression gadget is transposed compared to the Groestl
+    // specs.
+    let out_state_bytes_transposed = GroestlShortImpl::state_to_bytes(&compression_output);
+    let out_state_bytes_transposed = out_state_bytes_transposed
+        .map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+
+    let out_state_bytes: [u8; 64] = (0..8)
+        .flat_map(|i| {
+            (0..8)
+                .map(|j| out_state_bytes_transposed[j * 8 + i])
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("out_state_bytes is exactly 64 bytes");
 
     // Output state that is stored as the input of the next compression step.
     let compression_output = bytes_to_u32(&out_state_bytes);
@@ -264,7 +286,10 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     // Reshape the input of the 2-to-1 compression step.
     // This is transposed compared to the actual output of the previous compression
     // step.
-    let new_input: [u8; 64] = out_state_bytes
+    let transposed = (0..8)
+        .flat_map(|i| (0..8).map(move |j| out_state_bytes[i + j * 8]))
+        .collect::<Vec<_>>();
+    let new_input: [u8; 64] = transposed
         .iter()
         .map(|byte| binius_field::AESTowerField8b::from(B8::from(*byte)).val())
         .collect::<Vec<_>>()

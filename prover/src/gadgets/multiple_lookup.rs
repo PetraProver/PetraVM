@@ -15,6 +15,7 @@ pub(crate) struct MultipleLookupGadget<const N: usize> {
 }
 
 /// The columns associated with the multiple lookup gadget.
+#[derive(Debug)]
 pub(crate) struct MultipleLookupColumns<const N: usize> {
     pub(crate) addr_cols: [Col<B32>; N], // Virtual
     pub(crate) val_cols: [Col<B32>; N],  // Virtual
