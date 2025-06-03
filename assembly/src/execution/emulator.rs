@@ -91,8 +91,8 @@ pub struct Interpreter {
     /// handles during the current call procedure.
     pub moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
-    // and their associated integer PC.
-    pc_field_to_int: HashMap<B32, u32>,
+    // and their associated PROM index and integer PC.
+    pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
 }
 
 impl Default for Interpreter {
@@ -104,7 +104,7 @@ impl Default for Interpreter {
             fp: FramePointer(0),
             timestamp: 0,
             frames: HashMap::new(),
-            pc_field_to_int: HashMap::new(),
+            pc_field_to_index_pc: HashMap::new(),
             moves_to_apply: vec![],
         }
     }
@@ -118,10 +118,10 @@ pub type Instruction = [B16; 4];
 pub struct InterpreterInstruction {
     pub instruction: Instruction,
     pub field_pc: B32,
-    /// Optional advice. Used for providing the discrete logarithm in base
-    /// `B32::MULTIPLICATIVE_GENERATOR` of some group element defined by the
-    /// instruction arguments.
-    pub advice: Option<u32>,
+    /// Optional advice. Used for providing the PROM index and the discrete
+    /// logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of some group
+    /// element defined by the instruction arguments.
+    pub advice: Option<(u32, u32)>,
     pub prover_only: bool,
 }
 
@@ -129,7 +129,7 @@ impl InterpreterInstruction {
     pub const fn new(
         instruction: Instruction,
         field_pc: B32,
-        advice: Option<u32>,
+        advice: Option<(u32, u32)>,
         prover_only: bool,
     ) -> Self {
         Self {
@@ -185,7 +185,7 @@ impl Interpreter {
     pub(crate) const fn new(
         isa: Box<dyn ISA>,
         frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<B32, u32>,
+        pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
     ) -> Self {
         Self {
             isa,
@@ -194,7 +194,7 @@ impl Interpreter {
             fp: FramePointer(0),
             timestamp: 0,
             frames,
-            pc_field_to_int,
+            pc_field_to_index_pc,
             moves_to_apply: vec![],
         }
     }
@@ -220,23 +220,27 @@ impl Interpreter {
         if target == B32::zero() {
             self.pc = 0;
         } else {
-            self.pc = *self
-                .pc_field_to_int
+            let (prom_index, pc) = *self
+                .pc_field_to_index_pc
                 .get(&target)
                 .expect("This target should have been parsed.");
             debug_assert!(G.pow(self.pc as u64 - 1) == target);
+            self.prom_index = prom_index;
+            self.pc = pc;
         }
     }
 
     #[inline(always)]
-    /// Jump to a specific target in the PROM given as the the discrete
+    /// Jump to a specific target in the PROM given as the discrete
     /// logarithm of the field pc.
-    pub(crate) fn jump_to_u32(&mut self, target: B32, advice: u32) {
+    pub(crate) fn jump_to_u32(&mut self, target: B32, advice: (u32, u32)) {
+        let (prom_index, pc) = advice;
         debug_assert!(
-            target == B32::MULTIPLICATIVE_GENERATOR.pow((advice - 1) as u64),
+            target == B32::MULTIPLICATIVE_GENERATOR.pow((pc - 1) as u64),
             "The advice must be the discrete logarithm of the target address in base `B32::MULTIPLICATIVE_GENERATOR`"
         );
-        self.pc = advice;
+        self.prom_index = prom_index;
+        self.pc = pc;
     }
 
     #[inline(always)]
@@ -494,13 +498,13 @@ mod tests {
 
         let mut prom = code_to_prom(&instructions);
         // Set the expected advice for BNZ
-        prom[1].advice = Some(case_recurse_advice);
+        prom[1].advice = Some((case_recurse_advice, case_recurse_advice));
         // Set the expected advice for the second BNZ
-        prom[5].advice = Some(case_odd_advice);
+        prom[5].advice = Some((case_odd_advice, case_odd_advice));
         // Set the expected advice for the first TAILI
-        prom[9].advice = Some(collatz_advice);
+        prom[9].advice = Some((collatz_advice, collatz_advice));
         // Set the expected advice for the second TAILI
-        prom[14].advice = Some(collatz_advice);
+        prom[14].advice = Some((collatz_advice, collatz_advice));
 
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);

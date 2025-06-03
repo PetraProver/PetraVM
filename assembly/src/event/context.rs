@@ -14,14 +14,14 @@ use crate::{
 ///
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`PetraTrace`], and also contains the PC associated to the event to be
-/// generated. It also contains an optional advice, which provides the
-/// discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a group
-/// element defined by the instruction arguments.
+/// generated. It also contains an optional advice, which provides a PROM index
+/// and the discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a
+/// group element defined by the instruction arguments.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut PetraTrace,
     pub field_pc: B32,
-    pub advice: Option<u32>,
+    pub advice: Option<(u32, u32)>,
 }
 
 impl EventContext<'_> {
@@ -143,13 +143,22 @@ impl EventContext<'_> {
         next_fp_offset: B16,
         target: B32,
     ) -> Result<u32, InterpreterError> {
-        // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = self.allocate_new_frame(target)?;
-
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
 
-        self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
+        // Check if the next frame pointer is already set.
+
+        let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
+            // If the next frame pointer is already set, we assume the frame has already
+            // been allocated.
+            self.vrom_read(next_fp_addr)?
+        } else {
+            // Allocate a frame for the call and set the value of the next frame pointer.
+            let next_fp_val = self.allocate_new_frame(target)?;
+
+            self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
+            next_fp_val
+        };
 
         // Once we have the next_fp, we know the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly

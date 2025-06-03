@@ -132,9 +132,9 @@ impl PetraTrace {
         isa: Box<dyn ISA>,
         memory: Memory,
         frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<B32, u32>,
+        pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_index_pc);
 
         let trace = interpreter.run(memory)?;
 

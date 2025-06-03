@@ -255,7 +255,7 @@ pub enum InstructionsWithLabels {
 }
 
 impl InstructionsWithLabels {
-    fn prover_only(&self) -> bool {
+    pub(crate) fn prover_only(&self) -> bool {
         use InstructionsWithLabels::*;
         match self {
             B32Mul { prover_only, .. } => *prover_only,

@@ -356,11 +356,11 @@ mod tests {
         vrom.write(target_addr.val() as u32, target.val(), false)
             .unwrap();
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, ret_pc as u32);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (ret_pc as u32, ret_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
         // Check that there are no MOVE events that have yet to be executed.
@@ -420,12 +420,12 @@ mod tests {
         vrom.write(target_addr.val() as u32, target.val(), false)
             .unwrap();
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, ret_pc as u32);
-        pc_field_to_int.insert(ldi, ldi_pc as u32);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (ret_pc as u32, ret_pc as u32));
+        pc_field_to_index_pc.insert(ldi, (ldi_pc as u32, ldi_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());

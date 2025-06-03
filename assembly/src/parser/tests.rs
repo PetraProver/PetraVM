@@ -286,13 +286,13 @@ mod test_parser {
         let mut expected_prom = code_to_prom(&expected_prom);
 
         // Set the expected advice for BNZ
-        expected_prom[1].advice = Some(case_recurse_advice);
+        expected_prom[1].advice = Some((case_recurse_advice, case_recurse_advice));
         // Set the expected advice for the second BNZ
-        expected_prom[5].advice = Some(case_odd_advice);
+        expected_prom[5].advice = Some((case_odd_advice, case_odd_advice));
         // Set the expected advice for the first TAILI
-        expected_prom[9].advice = Some(collatz_advice);
+        expected_prom[9].advice = Some((case_odd_advice, collatz_advice));
         // Set the expected advice for the second TAILI
-        expected_prom[14].advice = Some(collatz_advice);
+        expected_prom[14].advice = Some((collatz_advice, collatz_advice));
 
         assert!(
             compiled_program.prom.len() == expected_prom.len(),

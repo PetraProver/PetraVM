@@ -146,7 +146,7 @@ pub fn generate_trace(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.pc_field_to_index_pc,
     )
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 

@@ -48,19 +48,19 @@ pub enum AssemblerError {
 }
 
 /// Labels hold the labels in the code, with their associated binary field PCs
-/// together with its discrete logarithm as advice.
-type Labels = HashMap<String, (B32, u32)>;
+/// together with its PROM index and discrete logarithm as advice.
+type Labels = HashMap<String, (B32, u32, u32)>;
 /// Binary field PC as the key. Values are: frame size.
 pub type LabelsFrameSizes = HashMap<B32, u16>;
 // Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
-pub(crate) type PCFieldToInt = HashMap<B32, u32>;
+pub(crate) type PCFieldToInt = HashMap<B32, (u32, u32)>;
 
 #[derive(Clone, Debug)]
 pub struct AssembledProgram {
     pub prom: ProgramRom,
     pub labels: Labels,
-    pub pc_field_to_int: PCFieldToInt,
+    pub pc_field_to_index_pc: PCFieldToInt,
     pub frame_sizes: LabelsFrameSizes,
 }
 
@@ -108,18 +108,24 @@ impl Assembler {
             return Err(AssemblerError::EmptyLabel);
         }
 
-        let (labels, pc_field_to_int, frame_sizes) = get_labels(&instructions)?;
+        let (labels, pc_field_to_index_pc, frame_sizes) = get_labels(&instructions)?;
         let mut prom = ProgramRom::new();
         let mut field_pc = B32::ONE;
 
-        for instruction in instructions.iter() {
-            get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
+        for (prom_index, instruction) in instructions.iter().enumerate() {
+            get_prom_inst_from_inst_with_label(
+                &mut prom,
+                &labels,
+                &mut field_pc,
+                prom_index as u32,
+                instruction,
+            )?;
         }
 
         Ok(AssembledProgram {
             prom,
             labels,
-            pc_field_to_int,
+            pc_field_to_index_pc,
             frame_sizes,
         })
     }
@@ -130,6 +136,7 @@ pub fn get_prom_inst_from_inst_with_label(
     prom: &mut ProgramRom,
     labels: &Labels,
     field_pc: &mut B32,
+    prom_index: u32,
     instruction: &InstructionsWithLabels,
 ) -> Result<(), AssemblerError> {
     match instruction {
@@ -160,7 +167,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::B32Muli {
             dst,
@@ -182,7 +191,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
 
             let instruction = [
                 Opcode::B32Muli.get_field_elt(),
@@ -197,7 +208,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::B128Add {
             dst,
@@ -219,7 +232,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::B128Mul {
             dst,
@@ -241,7 +256,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mvih {
             dst,
@@ -261,7 +278,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mvvw {
             dst,
@@ -281,7 +300,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mvvl {
             dst,
@@ -301,10 +322,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Taili { label, next_fp } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Taili.get_field_elt(),
@@ -316,7 +339,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
                     false,
                 ));
             } else {
@@ -343,7 +366,7 @@ pub fn get_prom_inst_from_inst_with_label(
             *field_pc *= G;
         }
         InstructionsWithLabels::Calli { label, next_fp } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Calli.get_field_elt(),
@@ -355,7 +378,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
                     false,
                 ));
             } else {
@@ -382,7 +405,7 @@ pub fn get_prom_inst_from_inst_with_label(
             *field_pc *= G;
         }
         InstructionsWithLabels::Jumpi { label } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Jumpi.get_field_elt(),
@@ -394,7 +417,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
                     false,
                 ));
             } else {
@@ -437,7 +460,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Xor {
             dst,
@@ -458,7 +483,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Xori {
             dst,
@@ -479,10 +506,12 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Bnz { label, src } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
@@ -494,7 +523,7 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
                     false,
                 ));
             } else {
@@ -521,7 +550,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Addi {
             dst,
@@ -542,7 +573,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Or {
             dst,
@@ -563,7 +596,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Ori {
             dst,
@@ -584,7 +619,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sub {
             dst,
@@ -605,7 +642,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sle {
             dst,
@@ -626,7 +665,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Slei {
             dst,
@@ -647,7 +688,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sleu {
             dst,
@@ -668,7 +711,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sleiu {
             dst,
@@ -689,7 +734,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Slt {
             dst,
@@ -710,7 +757,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Slti {
             dst,
@@ -731,7 +780,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sltu {
             dst,
@@ -752,7 +803,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sltiu {
             dst,
@@ -773,7 +826,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sll {
             dst,
@@ -794,7 +849,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Srl {
             dst,
@@ -815,7 +872,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sra {
             dst,
@@ -836,7 +895,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Andi {
             dst,
@@ -858,7 +919,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::And {
             dst,
@@ -880,7 +943,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Muli {
             dst,
@@ -901,7 +966,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mul {
             dst,
@@ -922,7 +989,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mulu {
             dst,
@@ -943,7 +1012,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mulsu {
             dst,
@@ -964,7 +1035,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Srli {
             dst,
@@ -985,7 +1058,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Slli {
             dst,
@@ -1006,7 +1081,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Srai {
             dst,
@@ -1027,7 +1104,9 @@ pub fn get_prom_inst_from_inst_with_label(
                 *prover_only,
             ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Ret => {
             let instruction = [
@@ -1089,9 +1168,10 @@ fn get_labels(
     instructions: &[InstructionsWithLabels],
 ) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), AssemblerError> {
     let mut labels = HashMap::new();
-    let mut pc_field_to_int = HashMap::new();
+    let mut pc_field_to_index_pc = HashMap::new();
     let mut frame_sizes = HashMap::new();
     let mut field_pc = B32::ONE;
+    let mut prom_index = 0;
     let mut pc = 1;
     let mut functions = HashSet::new();
 
@@ -1104,13 +1184,16 @@ fn get_labels(
     }
 
     // Insert first label into discrete log map
-    pc_field_to_int.insert(field_pc, pc);
+    pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
 
     // Identify functions from the labels and check if they have valid frame sizes.
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s, frame_size) => {
-                if labels.insert(s.clone(), (field_pc, pc)).is_some() {
+                if labels
+                    .insert(s.clone(), (field_pc, prom_index, pc))
+                    .is_some()
+                {
                     return Err(AssemblerError::DuplicateLabel(s.clone()));
                 }
 
@@ -1119,29 +1202,40 @@ fn get_labels(
                     frame_sizes.insert(field_pc, *size);
                 }
 
-                // We do not increment the PC if we found a label.
+                // We do not increment the PROM index or PC if we found a label.
                 continue;
             }
-            InstructionsWithLabels::B32Muli { .. } => {
-                field_pc *= G;
-                pc = incr_pc(pc);
-                pc_field_to_int.insert(field_pc, pc);
+            InstructionsWithLabels::B32Muli { prover_only, .. } => {
+                prom_index += 1;
+                if !*prover_only {
+                    field_pc *= G;
+                    pc = incr_pc(pc);
+                    pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
+                }
             }
             InstructionsWithLabels::Taili { label, .. } => {
                 functions.insert(label.as_str());
+                field_pc *= G;
+                pc = incr_pc(pc);
             }
             InstructionsWithLabels::Calli { label, .. } => {
                 functions.insert(label.as_str());
+                field_pc *= G;
+                pc = incr_pc(pc);
             }
-            _ => {}
+            instruction => {
+                if !instruction.prover_only() {
+                    field_pc *= G;
+                    pc = incr_pc(pc);
+                }
+            }
         }
-        field_pc *= G;
-        pc = incr_pc(pc);
-        pc_field_to_int.insert(field_pc, pc);
+        prom_index += 1;
+        pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
     }
 
     for function in functions {
-        let (as_pc, _) = labels
+        let (as_pc, _, _) = labels
             .get(function)
             .ok_or(AssemblerError::FunctionNotFound(function.to_string()))?;
         if !frame_sizes.contains_key(as_pc) {
@@ -1149,7 +1243,7 @@ fn get_labels(
         }
     }
 
-    Ok((labels, pc_field_to_int, frame_sizes))
+    Ok((labels, pc_field_to_index_pc, frame_sizes))
 }
 
 #[cfg(test)]

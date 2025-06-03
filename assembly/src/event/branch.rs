@@ -69,6 +69,7 @@ impl Event for BnzEvent {
                 target,
             };
             ctx.trace.bz.push(event);
+            ctx.incr_prom_index();
             ctx.incr_pc();
         }
 

@@ -266,16 +266,11 @@ impl MvvwEvent {
             // If the destination value is set, we set the source value.
             if dst_val_set {
                 let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
-                if prover_only {
-                    let index = ctx.addr(src.val());
-                    ctx.vrom_mut()
-                        .write(index, dst_val, false)
-                        .map_err(Into::<InterpreterError>::into)?;
-                    return Ok(None);
+                execute_mv(ctx, ctx.addr(src.val()), dst_val, prover_only)?;
+                return if prover_only {
+                    Ok(None)
                 } else {
-                    execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
-
-                    return Ok(Some(Self {
+                    Ok(Some(Self {
                         pc: field_pc,
                         fp,
                         timestamp,
@@ -284,8 +279,8 @@ impl MvvwEvent {
                         src: src.val(),
                         src_val: dst_val,
                         offset: offset.val(),
-                    }));
-                }
+                    }))
+                };
             }
         }
         // If the source value is missing or the destination address is still unknown,
@@ -300,15 +295,10 @@ impl MvvwEvent {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
 
-        if prover_only {
-            let index = dst_addr ^ offset.val() as u32;
-            ctx.vrom_mut()
-                .write(index, src_val, false)
-                .map(|_| None)
-                .map_err(Into::into)
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val, prover_only)?;
+        return if prover_only {
+            Ok(None)
         } else {
-            execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
-
             Ok(Some(Self {
                 pc: field_pc,
                 fp,
@@ -319,7 +309,7 @@ impl MvvwEvent {
                 src_val,
                 offset: offset.val(),
             }))
-        }
+        };
     }
 }
 
@@ -448,16 +438,12 @@ impl MvvlEvent {
             if dst_val_set {
                 let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
 
-                if prover_only {
-                    let index = ctx.addr(src.val());
-                    ctx.vrom_mut()
-                        .write(index, dst_val, false)
-                        .map_err(Into::<InterpreterError>::into)?;
-                    return Ok(None);
-                } else {
-                    execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val, prover_only)?;
 
-                    return Ok(Some(Self {
+                return if prover_only {
+                    Ok(None)
+                } else {
+                    Ok(Some(Self {
                         pc: field_pc,
                         fp,
                         timestamp,
@@ -466,8 +452,8 @@ impl MvvlEvent {
                         src: src.val(),
                         src_val: dst_val,
                         offset: offset.val(),
-                    }));
-                }
+                    }))
+                };
             }
         }
         // If the source value is missing or the destination address is still unknown,
@@ -482,15 +468,11 @@ impl MvvlEvent {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
 
-        if prover_only {
-            let index = dst_addr ^ offset.val() as u32;
-            ctx.vrom_mut()
-                .write(index, src_val, false)
-                .map(|_| None)
-                .map_err(Into::into)
-        } else {
-            execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val, prover_only)?;
 
+        return if prover_only {
+            Ok(None)
+        } else {
             Ok(Some(Self {
                 pc: field_pc,
                 fp,
@@ -501,7 +483,7 @@ impl MvvlEvent {
                 src_val,
                 offset: offset.val(),
             }))
-        }
+        };
     }
 }
 
@@ -571,15 +553,16 @@ impl MvihEvent {
         if dst_addr_set {
             let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-            if prover_only {
-                let index = dst_addr ^ offset.val() as u32;
-                ctx.vrom_mut()
-                    .write(index, imm.val() as u32, false)
-                    .map(|_| None)
-                    .map_err(Into::into)
-            } else {
-                execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+            execute_mv(
+                ctx,
+                dst_addr ^ offset.val() as u32,
+                imm.val() as u32,
+                prover_only,
+            )?;
 
+            return if prover_only {
+                Ok(None)
+            } else {
                 Ok(Some(Self {
                     pc: field_pc,
                     fp,
@@ -589,7 +572,7 @@ impl MvihEvent {
                     imm: imm.val(),
                     offset: offset.val(),
                 }))
-            }
+            };
         } else {
             debug_assert!(!prover_only);
             delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc, timestamp);
@@ -626,16 +609,12 @@ impl LdiEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut()
-                .write(index, imm.val(), false)
-                .map(|_| None)
-                .map_err(Into::into)
+        execute_mv(ctx, ctx.addr(dst.val()), imm.val(), prover_only)?;
+
+        return if prover_only {
+            Ok(None)
         } else {
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-
-            execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 
             Ok(Some(Self {
                 pc: field_pc,
@@ -644,7 +623,7 @@ impl LdiEvent {
                 dst: dst.val(),
                 imm: imm.val(),
             }))
-        }
+        };
     }
 }
 
@@ -681,10 +660,15 @@ fn execute_mv<T: VromValueT>(
     ctx: &mut EventContext,
     dst_addr: u32,
     value: T,
+    prover_only: bool,
 ) -> Result<(), MemoryError> {
-    ctx.vrom_write(dst_addr, value)?;
+    if prover_only {
+        ctx.vrom_mut().write(dst_addr, value, false)?;
+    } else {
+        ctx.vrom_write(dst_addr, value)?;
+        ctx.incr_pc();
+    }
     ctx.incr_prom_index();
-    ctx.incr_pc();
 
     Ok(())
 }
@@ -842,9 +826,9 @@ mod tests {
 
         let memory = Memory::new(prom, vrom);
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, 5);
-        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (5, 5));
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_index_pc);
 
         let traces = interpreter
             .run(memory)
@@ -958,9 +942,9 @@ mod tests {
         // We do not set the src_addr.
         let memory = Memory::new(prom, vrom);
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, target_pc);
-        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_int);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (target_pc, target_pc));
+        let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_index_pc);
 
         let traces = interpreter
             .run(memory)
