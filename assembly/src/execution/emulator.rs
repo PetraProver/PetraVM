@@ -224,7 +224,7 @@ impl Interpreter {
                 .pc_field_to_index_pc
                 .get(&target)
                 .expect("This target should have been parsed.");
-            debug_assert!(G.pow(self.pc as u64 - 1) == target);
+            debug_assert!(G.pow(pc as u64 - 1) == target);
             self.prom_index = prom_index;
             self.pc = pc;
         }

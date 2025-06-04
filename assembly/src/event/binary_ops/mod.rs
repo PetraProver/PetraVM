@@ -1,7 +1,6 @@
 use core::fmt::Debug;
 
 use binius_m3::builder::{B16, B32};
-use tracing::Instrument;
 
 use super::context::EventContext;
 use crate::execution::{FramePointer, InterpreterError};

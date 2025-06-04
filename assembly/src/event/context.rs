@@ -147,7 +147,6 @@ impl EventContext<'_> {
         let next_fp_addr = self.addr(next_fp_offset.val());
 
         // Check if the next frame pointer is already set.
-
         let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
             // If the next frame pointer is already set, we assume the frame has already
             // been allocated.

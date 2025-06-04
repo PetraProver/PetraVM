@@ -112,14 +112,8 @@ impl Assembler {
         let mut prom = ProgramRom::new();
         let mut field_pc = B32::ONE;
 
-        for (prom_index, instruction) in instructions.iter().enumerate() {
-            get_prom_inst_from_inst_with_label(
-                &mut prom,
-                &labels,
-                &mut field_pc,
-                prom_index as u32,
-                instruction,
-            )?;
+        for instruction in instructions.iter() {
+            get_prom_inst_from_inst_with_label(&mut prom, &labels, &mut field_pc, instruction)?;
         }
 
         Ok(AssembledProgram {
@@ -136,7 +130,6 @@ pub fn get_prom_inst_from_inst_with_label(
     prom: &mut ProgramRom,
     labels: &Labels,
     field_pc: &mut B32,
-    prom_index: u32,
     instruction: &InstructionsWithLabels,
 ) -> Result<(), AssemblerError> {
     match instruction {
@@ -1164,6 +1157,15 @@ const fn incr_pc(pc: u32) -> u32 {
     pc + 1
 }
 
+fn insert_if_empty<K, V>(map: &mut HashMap<K, V>, key: K, value: V)
+where
+    K: Eq + std::hash::Hash,
+{
+    if map.get(&key).is_none() {
+        map.insert(key, value);
+    }
+}
+
 fn get_labels(
     instructions: &[InstructionsWithLabels],
 ) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), AssemblerError> {
@@ -1210,7 +1212,7 @@ fn get_labels(
                 if !*prover_only {
                     field_pc *= G;
                     pc = incr_pc(pc);
-                    pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
+                    insert_if_empty(&mut pc_field_to_index_pc, field_pc, (prom_index, pc));
                 }
             }
             InstructionsWithLabels::Taili { label, .. } => {
@@ -1231,7 +1233,7 @@ fn get_labels(
             }
         }
         prom_index += 1;
-        pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
+        insert_if_empty(&mut pc_field_to_index_pc, field_pc, (prom_index, pc));
     }
 
     for function in functions {
