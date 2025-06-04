@@ -131,13 +131,14 @@ impl Event for B32MuliEvent {
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // B32_MULI spans over two rows in the PROM
-        let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] =
+            ctx.trace.prom()[ctx.prom_index as usize + 1].instruction;
 
         if second_opcode.val() != Opcode::B32Muli as u16
             || third != B16::ZERO
             || fourth != B16::ZERO
         {
-            return Err(InterpreterError::BadPc);
+            return Err(InterpreterError::InvalidInput);
         }
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;

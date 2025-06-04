@@ -1,4 +1,5 @@
 use anyhow::Result;
+use petravm_asm::init_logger;
 use petravm_asm::isa::GenericISA;
 use petravm_prover::model::Trace;
 use petravm_prover::prover::{verify_proof, Prover};
@@ -21,6 +22,7 @@ pub fn generate_opcodes_trace() -> Result<Trace> {
 
 #[test]
 fn test_all_opcodes() -> Result<()> {
+    let _ = init_logger();
     // Step 1: Generate trace
     let trace = generate_opcodes_trace()?;
 

@@ -1213,6 +1213,8 @@ fn get_labels(
                     field_pc *= G;
                     pc = incr_pc(pc);
                     insert_if_empty(&mut pc_field_to_index_pc, field_pc, (prom_index, pc));
+                    field_pc *= G;
+                    pc = incr_pc(pc);
                 }
             }
             InstructionsWithLabels::Taili { label, .. } => {

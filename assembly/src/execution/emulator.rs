@@ -275,7 +275,7 @@ impl Interpreter {
 
     pub fn step(&mut self, trace: &mut PetraTrace) -> Result<(), InterpreterError> {
         if (self.prom_index as usize >= trace.prom().len())
-            || (self.pc as usize >= trace.prom().len())
+            || (self.pc as usize - 1 > trace.prom().len())
         {
             return Err(InterpreterError::BadPc);
         }
@@ -286,10 +286,12 @@ impl Interpreter {
             prover_only,
         } = trace.prom()[self.prom_index as usize];
         let [opcode, arg0, arg1, arg2] = instruction;
-        trace.record_instruction(field_pc);
-        // Special handling for B32Muli
-        if opcode == Opcode::B32Muli.get_field_elt() {
-            trace.record_instruction(field_pc * G);
+        if !prover_only {
+            trace.record_instruction(field_pc);
+            // Special handling for B32Muli
+            if opcode == Opcode::B32Muli.get_field_elt() {
+                trace.record_instruction(field_pc * G);
+            }
         }
 
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
@@ -391,12 +393,15 @@ mod tests {
 
         let zero = B16::zero();
         // labels with their corresponding discrete logarithms
+        let collatz_prom_index = 0;
         let collatz_advice = 1;
         let collatz = B16::ONE;
+        let case_recurse_prom_index = 4;
         let case_recurse_advice = 5;
         let case_recurse =
             ExtensionField::<B16>::iter_bases(&G.pow((case_recurse_advice - 1) as u64))
                 .collect::<Vec<B16>>();
+        let case_odd_prom_index = 10;
         let case_odd_advice = 11;
         let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
             .collect::<Vec<B16>>();
@@ -498,13 +503,13 @@ mod tests {
 
         let mut prom = code_to_prom(&instructions);
         // Set the expected advice for BNZ
-        prom[1].advice = Some((case_recurse_advice, case_recurse_advice));
+        prom[1].advice = Some((case_recurse_prom_index, case_recurse_advice));
         // Set the expected advice for the second BNZ
-        prom[5].advice = Some((case_odd_advice, case_odd_advice));
+        prom[5].advice = Some((case_odd_prom_index, case_odd_advice));
         // Set the expected advice for the first TAILI
-        prom[9].advice = Some((collatz_advice, collatz_advice));
+        prom[9].advice = Some((collatz_prom_index, collatz_advice));
         // Set the expected advice for the second TAILI
-        prom[14].advice = Some((collatz_advice, collatz_advice));
+        prom[14].advice = Some((collatz_prom_index, collatz_advice));
 
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);

@@ -827,7 +827,7 @@ mod tests {
         let memory = Memory::new(prom, vrom);
 
         let mut pc_field_to_index_pc = HashMap::new();
-        pc_field_to_index_pc.insert(target, (5, 5));
+        pc_field_to_index_pc.insert(target, (4, 5));
         let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_index_pc);
 
         let traces = interpreter
@@ -884,6 +884,7 @@ mod tests {
         let next_fp_offset = 9.into();
 
         // In TAILV, we jump to the PC for RET.
+        let target_prom_index = 5;
         let target_pc = 6u32;
         let target = G.pow(target_pc as u64 - 1);
 
@@ -943,7 +944,7 @@ mod tests {
         let memory = Memory::new(prom, vrom);
 
         let mut pc_field_to_index_pc = HashMap::new();
-        pc_field_to_index_pc.insert(target, (target_pc, target_pc));
+        pc_field_to_index_pc.insert(target, (target_prom_index, target_pc));
         let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, pc_field_to_index_pc);
 
         let traces = interpreter

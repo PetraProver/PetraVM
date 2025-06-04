@@ -319,6 +319,7 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: unused_dst_addr (should never be written)
 
+        let ret_prom_index = 2;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
         let target_addr = 2.into();
@@ -357,7 +358,7 @@ mod tests {
             .unwrap();
 
         let mut pc_field_to_index_pc = HashMap::new();
-        pc_field_to_index_pc.insert(target, (ret_pc as u32, ret_pc as u32));
+        pc_field_to_index_pc.insert(target, (ret_prom_index, ret_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
             PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
@@ -385,8 +386,10 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: dst
 
+        let ret_prom_index = 2;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
+        let ldi_prom_index = 1;
         let ldi_pc = 2;
         let ldi = G.pow(ldi_pc - 1);
         let target_addr = 2.into();
@@ -421,8 +424,8 @@ mod tests {
             .unwrap();
 
         let mut pc_field_to_index_pc = HashMap::new();
-        pc_field_to_index_pc.insert(target, (ret_pc as u32, ret_pc as u32));
-        pc_field_to_index_pc.insert(ldi, (ldi_pc as u32, ldi_pc as u32));
+        pc_field_to_index_pc.insert(target, (ret_prom_index, ret_pc as u32));
+        pc_field_to_index_pc.insert(ldi, (ldi_prom_index, ldi_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
             PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)

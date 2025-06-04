@@ -3,11 +3,12 @@ pub mod common;
 use std::collections::HashSet;
 
 use common::test_utils::execute_test_asm;
-use petravm_asm::Opcode;
+use petravm_asm::{init_logger, Opcode};
 use strum::VariantArray;
 
 #[test]
 fn test_opcodes() {
+    let _ = init_logger();
     let mut info = execute_test_asm(include_str!("../../examples/opcodes.asm"));
 
     // Ensure all opcodes are present in the program

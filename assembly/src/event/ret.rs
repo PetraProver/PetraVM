@@ -47,11 +47,6 @@ impl Event for RetEvent {
         ctx.jump_to(B32::new(target));
         ctx.set_fp(ret_event.fp_next);
 
-        println!(
-            "RET to PROM index: {}, PC: {}, FP: {}",
-            ctx.prom_index, ctx.pc, ret_event.fp_next
-        );
-
         ctx.trace.ret.push(ret_event);
         Ok(())
     }

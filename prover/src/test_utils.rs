@@ -120,16 +120,23 @@ pub fn generate_trace(
     let compiled_program = Assembler::from_code(&asm_code)?;
     trace!("compiled program = {compiled_program:?}");
 
-    // Keep a copy of the program for later
-    let mut program = compiled_program.prom.clone();
+    // Remove prover-only instructions for the verifier
+    let mut verifier_program = compiled_program
+        .prom
+        .clone()
+        .into_iter()
+        .filter(|instr| !instr.prover_only)
+        .collect::<Vec<_>>();
 
     // TODO: pad program to 128 instructions required by lookup gadget
-    let prom_size = program.len().next_power_of_two().max(128);
-    let mut max_pc = program.last().map_or(B32::ZERO, |instr| instr.field_pc);
+    let prom_size = verifier_program.len().next_power_of_two().max(128);
+    let mut max_pc = verifier_program
+        .last()
+        .map_or(B32::ZERO, |instr| instr.field_pc);
 
-    for _ in program.len()..prom_size {
+    for _ in verifier_program.len()..prom_size {
         max_pc *= B32::MULTIPLICATIVE_GENERATOR;
-        program.push(InterpreterInstruction::new(
+        verifier_program.push(InterpreterInstruction::new(
             Instruction::default(),
             max_pc,
             None,
@@ -151,7 +158,7 @@ pub fn generate_trace(
     .map_err(|e| anyhow::anyhow!("Failed to generate trace: {:?}", e))?;
 
     // Convert to Trace format for the prover
-    let mut zkvm_trace = Trace::from_petra_trace(program, petra_trace);
+    let mut zkvm_trace = Trace::from_petra_trace(verifier_program, petra_trace);
     let actual_vrom_writes = zkvm_trace.trace.vrom().sorted_access_counts();
 
     // Validate that manually specified multiplicities match the actual ones if

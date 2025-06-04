@@ -49,7 +49,6 @@ fn test_bezout_integration() {
 
 #[test]
 fn test_bezout_deterministic_integration() {
-    let _ = init_logger();
     execute_test_asm(
         AsmToExecute::new(include_str!("../../examples/bezout_deterministic.asm"))
             .add_binary(include_str!("../../examples/div.asm")),
