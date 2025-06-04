@@ -38,10 +38,10 @@ impl Event for AllocvEvent {
         dst: B16,
         src: B16,
         _unused: B16,
-        _prover_only: bool,
+        prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let dst_addr = ctx.addr(dst.val());
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
         let ptr = ctx.vrom_mut().allocate_new_frame(src_val);
         ctx.vrom_mut()
             .write(dst_addr, ptr, false)

@@ -31,7 +31,7 @@ impl Event for BnzEvent {
         target_low: B16,
         target_high: B16,
         cond: B16,
-        _prover_only: bool,
+        prover_only: bool,
     ) -> Result<(), InterpreterError> {
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
@@ -41,7 +41,7 @@ impl Event for BnzEvent {
             return Err(InterpreterError::BadPc);
         }
 
-        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()))?;
+        let cond_val = ctx.vrom_read::<u32>(ctx.addr(cond.val()), prover_only)?;
 
         if cond_val != 0 {
             // We are actually branching.

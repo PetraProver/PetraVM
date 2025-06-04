@@ -161,7 +161,7 @@ where
         imm: B16,
         prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let dst_val = Self::calculate_result(src_val, shift_amount);
@@ -202,8 +202,8 @@ where
         src2: B16,
         prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-        let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
+        let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
         let dst_val = Self::calculate_result(src_val, shift_amount);
 
         if prover_only {

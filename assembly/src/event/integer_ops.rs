@@ -58,7 +58,7 @@ impl Event for MuliEvent {
         imm: B16,
         prover_only: bool,
     ) -> Result<(), InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
@@ -127,8 +127,8 @@ impl Event for MuluEvent {
         src2: B16,
         prover_only: bool,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
 
@@ -218,8 +218,8 @@ macro_rules! impl_signed_mul_event {
                 src2: B16,
                 prover_only: bool,
             ) -> Result<(), InterpreterError> {
-                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
+                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
 
                 let dst_val = <$op>::mul_op(src1_val, src2_val);
                 if prover_only {

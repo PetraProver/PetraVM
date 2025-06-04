@@ -27,8 +27,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32))?,
-            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32))?,
+            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32), false)?,
+            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32), false)?,
         })
     }
 }

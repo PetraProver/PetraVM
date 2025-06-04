@@ -3,7 +3,6 @@
 pub mod common;
 
 use common::test_utils::{execute_test_asm, AsmToExecute};
-use petravm_asm::init_logger;
 
 // TODO: Once we can support non-unsized arithmetic update and enable this
 // test...

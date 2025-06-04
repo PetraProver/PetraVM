@@ -52,11 +52,15 @@ impl EventContext<'_> {
         self.trace.vrom_mut()
     }
 
-    pub fn vrom_read<T>(&self, addr: u32) -> Result<T, MemoryError>
+    pub fn vrom_read<T>(&self, addr: u32, prover_only: bool) -> Result<T, MemoryError>
     where
         T: VromValueT,
     {
-        self.vrom().read(addr)
+        if prover_only {
+            self.vrom().peek::<T>(addr)
+        } else {
+            self.vrom().read::<T>(addr)
+        }
     }
 
     pub fn vrom_check_value_set<T>(&self, addr: u32) -> Result<bool, MemoryError>
@@ -150,7 +154,7 @@ impl EventContext<'_> {
         let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
             // If the next frame pointer is already set, we assume the frame has already
             // been allocated.
-            self.vrom_read(next_fp_addr)?
+            self.vrom_read(next_fp_addr, true)?
         } else {
             // Allocate a frame for the call and set the value of the next frame pointer.
             let next_fp_val = self.allocate_new_frame(target)?;

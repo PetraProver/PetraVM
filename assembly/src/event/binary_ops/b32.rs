@@ -143,7 +143,7 @@ impl Event for B32MuliEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         if prover_only {

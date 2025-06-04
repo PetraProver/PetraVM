@@ -50,7 +50,7 @@ pub(crate) trait ImmediateBinaryOperation:
         imm: B16,
         prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
         let dst_val = Self::operation(B32::new(src_val), imm);
 
         if prover_only {
@@ -104,8 +104,8 @@ pub(crate) trait NonImmediateBinaryOperation:
         src2: B16,
         prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
-        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
         let dst_val = Self::operation(B32::new(src1_val), B32::new(src2_val));
 
         if prover_only {
