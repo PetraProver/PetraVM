@@ -39,7 +39,7 @@ pub enum InstructionsWithLabels {
         dst: Slot,
         src1: Slot,
         src2: Slot,
-        prover_only: bool
+        prover_only: bool,
     },
     Groestl256Output {
         dst: Slot,
@@ -343,18 +343,12 @@ impl std::fmt::Display for InstructionsWithLabels {
                 write!(f, "B128_MUL{bang} {dst} {src1} {src2}")
             }
             InstructionsWithLabels::Groestl256Compress {
-                dst,
-                src1,
-                src2,
-                ..
+                dst, src1, src2, ..
             } => {
                 write!(f, "GROESTL256_COMPRESS{bang} {dst} {src1} {src2}")
             }
             InstructionsWithLabels::Groestl256Output {
-                dst,
-                src1,
-                src2,
-                ..,
+                dst, src1, src2, ..
             } => {
                 write!(f, "GROESTL256_OUTPUT{bang} {dst} {src1} {src2}")
             }

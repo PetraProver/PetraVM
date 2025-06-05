@@ -489,6 +489,7 @@ fn parse_line(
                                     dst,
                                     src1,
                                     src2,
+                                    prover_only,
                                 });
                             }
                             Rule::GROESTL256_OUTPUT_instr => {
@@ -496,6 +497,7 @@ fn parse_line(
                                     dst,
                                     src1,
                                     src2,
+                                    prover_only,
                                 });
                             }
                             _ => {

@@ -204,7 +204,9 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Groestl256Compress { dst, src1, src2 } => {
+        InstructionsWithLabels::Groestl256Compress {
+            dst, src1, src2, ..
+        } => {
             let instruction = [
                 Opcode::Groestl256Compress.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -216,7 +218,9 @@ pub fn get_prom_inst_from_inst_with_label(
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Groestl256Output { dst, src1, src2 } => {
+        InstructionsWithLabels::Groestl256Output {
+            dst, src1, src2, ..
+        } => {
             let instruction = [
                 Opcode::Groestl256Output.get_field_elt(),
                 dst.get_16bfield_val(),
