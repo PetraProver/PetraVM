@@ -1,8 +1,13 @@
 //! Utility functions for packing values into larger field elements for channel
 //! operations.
 
-use binius_field::{ExtensionField, Field};
-use binius_m3::builder::{upcast_col, upcast_expr, Col, Expr, TableBuilder, B1, B128, B16, B32};
+use binius_field::{
+    BinaryField, ExtensionField, Field, AES_TO_BINARY_LINEAR_TRANSFORMATION,
+    BINARY_TO_AES_LINEAR_TRANSFORMATION,
+};
+use binius_m3::builder::{
+    upcast_col, upcast_expr, Col, Expr, TableBuilder, B1, B128, B16, B32, B8,
+};
 
 /// Get a B128 basis element by index
 #[inline]
@@ -190,4 +195,28 @@ pub(crate) fn setup_mux_constraint(
             - (true_packed * upcast_col(*select_bit)
                 + false_packed * (upcast_col(*select_bit) - B32::ONE)),
     );
+}
+
+pub(crate) fn aes_to_bin_transform(bin_vals: [Col<B1>; 8]) -> Expr<B8, 1> {
+    let bases = AES_TO_BINARY_LINEAR_TRANSFORMATION.bases();
+    bin_vals
+        .iter()
+        .zip(bases.as_ref().iter())
+        .map(|(&bin_val, &base)| upcast_col(bin_val) * base)
+        .reduce(|a, b| a + b)
+        .expect("The iterator is not empty")
+}
+
+pub(crate) fn bin_to_aes_transform(bin_vals: [Col<B1>; 8]) -> Expr<B8, 1> {
+    let bases = BINARY_TO_AES_LINEAR_TRANSFORMATION
+        .bases()
+        .iter()
+        .map(|b| B8::new(b.val()));
+
+    bin_vals
+        .iter()
+        .zip(bases)
+        .map(|(&bin_val, base)| upcast_col(bin_val) * base)
+        .reduce(|a, b| a + b)
+        .expect("The iterator is not empty")
 }

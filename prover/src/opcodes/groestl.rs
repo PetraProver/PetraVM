@@ -6,6 +6,7 @@ use binius_field::Field;
 use binius_hash::groestl::GroestlShortImpl;
 use binius_hash::groestl::GroestlShortInternal;
 use binius_m3::builder::TableBuilder;
+use binius_m3::builder::B1;
 use binius_m3::builder::{Expr, B64};
 use binius_m3::{
     builder::{
@@ -16,6 +17,8 @@ use binius_m3::{
 use petravm_asm::util::u32_to_bytes;
 use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
+use crate::gadgets::aes_to_bin::AesToBinTransformColumns;
+use crate::gadgets::aes_to_bin::BinToAesTransformColumns;
 use crate::gadgets::multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget};
 use crate::gadgets::transpose::TransposeColumns;
 use crate::{
@@ -363,7 +366,10 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
 /// the input we pull from the VROM.
 ///
 /// The state we receive is the output of a previous `Groestl256Compress`, and
-/// is therefore already transposed compared to the Groestl specs.
+/// is therefore already transposed compared to the Groestl specs. Furthermore,
+/// for the same reason, the transformation from the AES to the binary basis has
+/// been applied. So the last step of the gadget is to apply the transformation
+/// from bonary to AES basis, to agree with the Groestl specs final output.
 pub struct Groestl256OutputTable {
     id: TableId,
     state_cols: StateColumns<GROESTL_OUTPUT_OPCODE>,
@@ -378,8 +384,11 @@ pub struct Groestl256OutputTable {
     /// Columns to lookup the values for src1 and src2 from the VROM.
     src1_lookup: [MultipleLookupColumns<2>; 4],
     src2_lookup: [MultipleLookupColumns<2>; 4],
-    /// Output of the P permutation.
+    /// Output of the P permutation, in the binary basis.
     out: [Col<B8, 8>; 8],
+    /// Columns to get the output of the P permutation, in the AES basis.
+    out_aes_columns: [BinToAesTransformColumns; 8],
+    out_bits: [Col<B1, 64>; 8],
     /// `projected_out` and `zero_padded_out` are the columns needed for
     /// transposing the output, and getting the B32 values we can pull from
     /// the VROM.
@@ -470,12 +479,33 @@ impl Table for Groestl256OutputTable {
         let out: [Col<B8, 8>; 8] =
             from_fn(|i| table.add_computed(format!("out_{i}"), p_out_array[i] + state_in[i]));
 
+        // Go fro the binary basis to the AES basis.
+        let out_bits: [Col<B1, 64>; 8] = from_fn(|i| table.add_committed(format!("out_bits_{i}")));
+        let out_aes_columns = from_fn(|i| {
+            // We need to convert the B8 values into AESTowerField values.
+            BinToAesTransformColumns::new(&mut table, out_bits[i], "groestl_output_out_aes")
+        });
+        let out_aes: [Col<B8, 8>; 8] = out_aes_columns
+            .iter()
+            .map(|col| col.reshaped_outputs)
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("out_aes_columns has exactly 8 elements");
+
+        // Check that the bits of the output match the expected values.
+        let out_bits_packed: [Col<B8, 8>; 8] =
+            from_fn(|i| table.add_packed("out_bits_packed", out_bits[i]));
+        out_bits_packed
+            .iter()
+            .zip(out.iter())
+            .for_each(|(&packed, &o)| table.assert_zero("Check out_bits_packed", packed - o));
+
         // We transpose the output and pack it into B32s so we can read the elements
         // form the VROM. We do not use the transposition gadget since we can truncate
         // the output early on here.
         // First, we project the `Col<B8, 8>` into independent `Col<B8>` columns.
         let projected_out_temp: [[Col<B8>; 8]; 8] = from_fn(|i| {
-            from_fn(|j| table.add_selected(format!("output_projected_out_{i}_{j}"), out[i], j))
+            from_fn(|j| table.add_selected(format!("output_projected_out_{i}_{j}"), out_aes[i], j))
         });
 
         // Then we get the elements in the correct order (we transpose the matrix).
@@ -528,10 +558,12 @@ impl Table for Groestl256OutputTable {
             src2_addrs,
             src1_lookup,
             src2_lookup,
+            out,
+            out_aes_columns,
+            out_bits,
             projected_out,
             zero_padded_out,
             p_op,
-            out,
         }
     }
 }
@@ -553,6 +585,8 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             .map(|event| {
                 let mut p_state = [B8::ZERO; 64];
                 for i in 0..32 {
+                    // p_state[i] = B8::from(AESTowerField8b::new(event.src1_val[i]));
+                    // p_state[i + 32] = B8::from(AESTowerField8b::new(event.src2_val[i]));
                     p_state[i] = B8::from(event.src1_val[i]);
                     p_state[i + 32] = B8::from(event.src2_val[i]);
                 }
@@ -585,6 +619,9 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             let mut out = (0..8)
                 .map(|i| witness.get_scalars_mut(self.out[i]))
                 .collect::<Result<Vec<_>, _>>()?;
+            let mut out_bits = (0..8)
+                .map(|i| witness.get_mut_as(self.out_bits[i]))
+                .collect::<Result<Vec<RefMut<'_, [[u8; 8]]>>, _>>()?;
             let mut projected_out = (0..64)
                 .map(|i| witness.get_mut_as(self.projected_out[i]))
                 .collect::<Result<Vec<RefMut<'_, [u8]>>, _>>()?;
@@ -600,40 +637,27 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                 // Get u32 and byte representations of the destination value.
                 let dst_val_u8 = u32_to_bytes(&event.dst_val);
 
-                // Get the full state input for the P permutation.
-                let full_state_in_transposed: [u8; 64] = [event.src1_val, event.src2_val]
-                    .concat()
-                    .try_into()
-                    .expect("src1_val and src2_val have exactly 32 bytes each");
-
-                let full_state_in: [u8; 64] = (0..8)
-                    .flat_map(|i| {
-                        (0..8)
-                            .map(move |j| full_state_in_transposed[j * 8 + i])
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>()
-                    .try_into()
-                    .expect("full_state_in has exactly 64 elements");
-
                 // Compute the output of the P permutation.
                 let p_state_bytes = p_states[i]
                     .iter()
                     .map(|&b8| AESTowerField8b::from(b8).val())
                     .collect::<Vec<_>>();
-                let p_state_bytes = GroestlShortImpl::state_from_bytes(
+                let mut state = GroestlShortImpl::state_from_bytes(
                     &p_state_bytes
                         .try_into()
                         .expect("p_state_bytes has exactly 64 elements"),
                 );
-                let mut state = p_state_bytes;
                 GroestlShortImpl::p_perm(&mut state);
 
                 // Reshape the output to get the expected output.
                 let p_out = GroestlShortImpl::state_to_bytes(&state);
-                let p_out = p_out.map(|byte| B8::from(AESTowerField8b::new(byte)));
+                let p_out_transpose = p_out.map(|byte| B8::from(AESTowerField8b::new(byte)));
                 let p_out = (0..8)
-                    .map(|j| (0..8).map(|k| p_out[k * 8 + j]).collect::<Vec<_>>())
+                    .map(|j| {
+                        (0..8)
+                            .map(|k| p_out_transpose[k * 8 + j])
+                            .collect::<Vec<_>>()
+                    })
                     .collect::<Vec<_>>();
 
                 for j in 0..4 {
@@ -648,8 +672,10 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
                         dst_vals[j][i] = event.dst_val[j];
 
                         // Fill out = p_out XOR src1_val.
-                        out[j][i * 8 + k] = p_out[j][k] + B8::from(full_state_in[k * 8 + j]);
-                        projected_out[k * 8 + j][i] = out[j][i * 8 + k].val();
+                        out[j][i * 8 + k] = p_out[j][k] + B8::from(p_states[i][k * 8 + j]);
+                        out_bits[j][i][k] = out[j][i * 8 + k].val();
+                        projected_out[k * 8 + j][i] =
+                            AESTowerField8b::from(out[j][i * 8 + k]).val();
 
                         // Fill out the truncated zero-padded columns.
                         if j < 4 {
@@ -702,6 +728,27 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             self.src2_lookup[i].populate(witness, src2_iters[i].clone())?;
         }
 
+        {
+            // Collect the output data into a Vec so we can drop the immutable borrow before
+            // mutably borrowing witness.
+            let outs_vec = (0..8)
+                .map(|i| {
+                    let data = witness.get_as(self.out[i]).unwrap();
+                    data.iter().map(|arr| *arr).collect::<Vec<[u8; 8]>>()
+                })
+                .collect::<Vec<Vec<[u8; 8]>>>();
+            let out_iters_bin = (0..8)
+                .map(|i| outs_vec[i].clone().into_iter())
+                .collect::<Vec<_>>();
+            self.out_aes_columns
+                .iter()
+                .zip(out_iters_bin)
+                .for_each(|(aes_to_bin, o)| {
+                    aes_to_bin
+                        .populate(witness, o)
+                        .expect("Failed to populate AesToBinColumns");
+                });
+        }
         // First, we need to populate the P permutation state inputs.
         self.p_op.populate_state_in(witness, p_states.iter())?;
         // Populate the P permutation.

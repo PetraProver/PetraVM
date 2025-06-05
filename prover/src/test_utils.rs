@@ -312,8 +312,6 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
 
     // Convert dst_val to a big endian representation.
     let output_state_bytes = GroestlShortImpl::state_to_bytes(&dst_val);
-    let output_state_bytes =
-        output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
     let dst_val: [u8; 32] = output_state_bytes[32..].try_into().unwrap();
     let groestl_output = bytes_to_u32(&dst_val);

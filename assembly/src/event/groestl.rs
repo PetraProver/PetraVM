@@ -164,37 +164,41 @@ impl Event for Groestl256OutputEvent {
         let src1_val = read_bytes::<8>(ctx, src1)?;
         let src2_val = read_bytes::<8>(ctx, src2)?;
 
-        // Change the input bases to match the the one used in P/Q permutations.
-        let src1_val_aes = to_aes_basis(&src1_val);
-        let src2_val_aes = to_aes_basis(&src2_val);
-        let transposed_full_input: [u8; 64] = [src1_val_aes, src2_val_aes]
+        let transposed_full_input_aes_inv: [u8; 64] = [src1_val.clone(), src2_val.clone()]
             .concat()
             .try_into()
             .expect("src1_val_aes and src2_val_aes are exactly 32 bytes each.");
 
         // The input of the Groestl output gadget comes from the output of the Groeslt
-        // compress gadget, which is transposed compares to the specs. So we need to
+        // compress gadget, which is transposed compared to the specs. So we need to
         // transpose the input here.
-        let full_input = (0..8)
+        let full_input_aes_inv: [u8; 64] = (0..8)
             .flat_map(|i| {
                 (0..8)
-                    .map(|j| transposed_full_input[j * 8 + i])
+                    .map(|j| transposed_full_input_aes_inv[j * 8 + i])
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>()
             .try_into()
             .expect("full_input is exactly 64 bytes");
-        let state_in = GroestlShortImpl::state_from_bytes(&full_input);
+
+        // Change the input bases to match the the one used in P/Q permutations.
+        // We assume (due to chaining of compression gadgets) that the inputs are in the
+        // shape AES^{-1}(input), so we should start switching to the AES basis.
+        let full_input = to_aes_basis(&full_input_aes_inv);
+        let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
         let mut state = state_in;
 
         // First, carry out the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);
         GroestlShortImpl::xor_state(&mut state, &state_in);
 
+        // The state is now in the AES basis. In the gadget, since the Output gadget is
+        // the final element of the chain, the output is also expressed in the AES basis
+        // (since we started in AES^{-1}). So there is no need to switch bases again.
+
         // Get the output in the correct format.
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
-        let out_state_bytes =
-            out_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
 
         let dst_val: [u8; 32] = out_state_bytes[32..]
             .try_into()
