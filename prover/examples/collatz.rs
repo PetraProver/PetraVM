@@ -15,7 +15,7 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    petravm_asm::init_logger();
+    let _guard = petravm_asm::init_logger();
 
     let num_steps = collatz(args.n);
 

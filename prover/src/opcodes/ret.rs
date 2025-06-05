@@ -8,6 +8,7 @@ use binius_m3::builder::{Col, ConstraintSystem, TableFiller, TableId, TableWitne
 use petravm_asm::{opcodes::Opcode, RetEvent};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions};
+use crate::utils::pull_vrom_channel;
 use crate::{
     channels::Channels, gadgets::state::StateGadget, table::Table, types::ProverPackedField,
 };
@@ -58,10 +59,10 @@ impl Table for RetTable {
         let fp_xor_1 = table.add_computed("fp_xor_1", fp0 + B32::ONE);
 
         // Read the next_pc
-        table.pull(channels.vrom_channel, [fp0, next_pc]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [fp0, next_pc]);
 
         // Read the next_fp
-        table.pull(channels.vrom_channel, [fp_xor_1, next_fp]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [fp_xor_1, next_fp]);
 
         Self {
             id: table.id(),

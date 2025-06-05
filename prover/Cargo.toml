@@ -12,6 +12,14 @@ authors.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+default = []
+# Feature flags for disabling individual channels for benchmarking
+disable_state_channel = []
+disable_prom_channel = []
+disable_vrom_channel = []
+disable_vrom_addr_space_channel = []
+
 [dependencies]
 ahash.workspace = true
 anyhow.workspace = true
@@ -24,6 +32,7 @@ petravm-asm = { path = "../assembly" }
 thiserror = "2.0.12"
 tracing.workspace = true
 tracing-forest.workspace = true
+tracing-profile.workspace = true
 tracing-subscriber.workspace = true
 
 # Binius dependencies
@@ -41,4 +50,8 @@ rand = { version = "0.9.1", features = ["std"] }
 
 [[bench]]
 name = "shift"
+harness = false
+
+[[bench]]
+name = "opcodes"
 harness = false

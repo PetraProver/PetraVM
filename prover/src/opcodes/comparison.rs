@@ -18,6 +18,7 @@ use crate::{
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
+    utils::pull_vrom_channel,
 };
 
 const SLTU_OPCODE: u16 = Opcode::Sltu as u16;
@@ -57,7 +58,6 @@ impl Table for SltuTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -96,11 +96,19 @@ impl Table for SltuTable {
         let dst_val = upcast_col(final_borrow);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -183,7 +191,6 @@ impl Table for SltiuTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -221,10 +228,10 @@ impl Table for SltiuTable {
         let dst_val = upcast_col(dst_bit);
 
         // Read src
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -305,7 +312,6 @@ impl Table for SleuTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -349,11 +355,19 @@ impl Table for SleuTable {
         let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -440,7 +454,6 @@ impl Table for SleiuTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -483,10 +496,10 @@ impl Table for SleiuTable {
         let dst_val = upcast_col(dst_bit);
 
         // Read src
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -572,7 +585,6 @@ impl Table for SltTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -615,20 +627,30 @@ impl Table for SltTable {
 
         // Direct comparison works whenever both signs are equal. If not, it's
         // determined by the src1_val sign. Therefore, the  bit is computed as
-        // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign)
-        // * final_borrow
-        let dst_bit = table.add_computed(
-            "dst_val",
-            (src1_sign + src2_sign) * src1_sign + (src1_sign + src2_sign + B1::ONE) * final_borrow,
+        // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign) *
+        // final_borrow
+        // = (src1_sign XOR src2_sign) * (src1_sign XOR final_borrow) XOR final_borrow
+        let dst_bit = table.add_committed("dst bit");
+        table.assert_zero(
+            "check dst_bit",
+            dst_bit - (src1_sign + src2_sign) * (src1_sign + final_borrow) - final_borrow,
         );
         let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -743,7 +765,6 @@ impl Table for SltiTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -793,17 +814,18 @@ impl Table for SltiTable {
         // determined by the src_val sign. Therefore, the  bit is computed as
         // (src_sign XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
         // final_borrow
-        let dst_bit = table.add_computed(
-            "dst_val",
-            (src_sign + msb) * src_sign + (src_sign + msb + B1::ONE) * final_borrow,
+        let dst_bit = table.add_committed("dst bit");
+        table.assert_zero(
+            "check dst_bit",
+            dst_bit - (src_sign + msb) * (src_sign + final_borrow) - final_borrow,
         );
         let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -922,7 +944,6 @@ impl Table for SleTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -966,20 +987,30 @@ impl Table for SleTable {
         // Direct comparison works whenever both signs are equal. If not, it's
         // determined by the src1_val sign. Therefore, the  bit is computed as
         // (src1_sign XOR src2_sign) * src1_sign XOR !(src1_sign XOR src2_sign)
-        // * final_borrow
-        let dst_bit = table.add_computed(
-            "dst_val",
-            (src1_sign + src2_sign) * src1_sign
-                + (src1_sign + src2_sign + B1::ONE) * (final_borrow + B1::ONE),
+        // * !final_borrow
+        let dst_bit = table.add_committed("dst bit");
+        table.assert_zero(
+            "check dst_bit",
+            dst_bit
+                - (src1_sign + src2_sign) * (src1_sign + final_borrow + B1::ONE)
+                - (final_borrow + B1::ONE),
         );
         let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),
@@ -1087,7 +1118,6 @@ impl Table for SleiTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -1137,17 +1167,20 @@ impl Table for SleiTable {
         // by the src_val sign. Therefore, the  bit is computed as (src_sign
         // XOR imm_sign) * src_sign XOR !(src_sign XOR imm_sign) *
         // !final_borrow
-        let dst_bit = table.add_computed(
-            "dst_val",
-            (src_sign + msb) * src_sign + (src_sign + msb + B1::ONE) * (final_borrow + B1::ONE),
+        let dst_bit = table.add_committed("dst bit");
+        table.assert_zero(
+            "check dst_bit",
+            dst_bit
+                - (src_sign + msb) * (src_sign + final_borrow + B1::ONE)
+                - (final_borrow + B1::ONE),
         );
         let dst_val = upcast_col(dst_bit);
 
         // Read src1 and src2
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
 
         // Read dst
-        table.pull(vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         Self {
             id: table.id(),

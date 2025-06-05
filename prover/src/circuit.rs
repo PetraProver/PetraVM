@@ -3,6 +3,9 @@
 //! This module defines the complete M3 circuit for PetraVM, combining
 //! all the individual tables and channels.
 
+#[cfg(feature = "disable_state_channel")]
+use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement};
+#[cfg(not(feature = "disable_state_channel"))]
 use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
 use petravm_asm::isa::ISA;
 
@@ -91,16 +94,24 @@ impl Circuit {
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
+        #[cfg(not(feature = "disable_state_channel"))]
+        let init_values = vec![B128::new(1), B128::new(0)];
+        #[cfg(feature = "disable_state_channel")]
+        let init_values = vec![];
         let initial_state = Boundary {
-            values: vec![B128::new(1), B128::new(0)],
+            values: init_values,
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Push,
             multiplicity: 1,
         };
 
         // Define the final state boundary (program ends with PC=0, FP=0)
+        #[cfg(not(feature = "disable_state_channel"))]
+        let final_values = vec![B128::new(0), B128::new(0)];
+        #[cfg(feature = "disable_state_channel")]
+        let final_values = vec![];
         let final_state = Boundary {
-            values: vec![B128::new(0), B128::new(0)],
+            values: final_values,
             channel_id: self.channels.state_channel,
             direction: FlushDirection::Pull,
             multiplicity: 1,

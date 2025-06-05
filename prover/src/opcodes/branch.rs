@@ -1,10 +1,11 @@
-use binius_field::Field;
+use binius_field::{Field, PackedField};
 use binius_m3::builder::{
     upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
 };
 use petravm_asm::{BnzEvent, BzEvent, Opcode};
 
 use crate::gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget};
+use crate::utils::pull_vrom_channel;
 use crate::{channels::Channels, table::Table, types::ProverPackedField};
 
 /// Table for BNZ in the non-zero case.
@@ -16,6 +17,8 @@ pub struct BnzTable {
     state_cols: StateColumns<{ Opcode::Bnz as u16 }>,
     cond_abs: Col<B32>, // Virtual
     cond_val: Col<B32>,
+    // cond_inv is the precomputed inverse of cond_val.
+    cond_inv: Col<B32>,
 }
 
 impl Table for BnzTable {
@@ -28,7 +31,8 @@ impl Table for BnzTable {
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("bnz");
         let cond_val = table.add_committed("cond_val");
-        table.assert_nonzero(cond_val);
+        let cond_inv = table.add_committed("cond_inv");
+        table.assert_zero("Nonzero condition check", cond_val * cond_inv + B32::ONE);
 
         let state_cols = StateColumns::new(
             &mut table,
@@ -43,13 +47,18 @@ impl Table for BnzTable {
         let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
 
         // Read cond_val
-        table.pull(channels.vrom_channel, [upcast_col(cond_abs), cond_val]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [upcast_col(cond_abs), cond_val],
+        );
 
         Self {
             id: table.id(),
             state_cols,
             cond_abs,
             cond_val,
+            cond_inv,
         }
     }
 }
@@ -69,9 +78,11 @@ impl TableFiller<ProverPackedField> for BnzTable {
         {
             let mut cond_abs = witness.get_scalars_mut(self.cond_abs)?;
             let mut cond_val = witness.get_scalars_mut(self.cond_val)?;
+            let mut cond_inv = witness.get_scalars_mut(self.cond_inv)?;
             for (i, event) in rows.clone().enumerate() {
                 cond_abs[i] = B32::new(event.fp.addr(event.cond));
                 cond_val[i] = B32::new(event.cond_val);
+                cond_inv[i] = cond_val[i].invert_or_zero();
             }
         }
         let state_rows = rows.map(|event| StateGadget {
@@ -116,7 +127,7 @@ impl Table for BzTable {
         let cond_abs = table.add_computed("cond_abs", state_cols.fp + upcast_col(state_cols.arg2));
         let zero = table.add_constant("zero", [B32::ZERO]);
 
-        table.pull(channels.vrom_channel, [cond_abs, zero]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [cond_abs, zero]);
 
         Self {
             id: table.id(),

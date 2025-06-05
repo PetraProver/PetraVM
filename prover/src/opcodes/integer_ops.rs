@@ -17,7 +17,7 @@ use crate::{
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::setup_mux_constraint,
+    utils::{pull_vrom_channel, setup_mux_constraint},
 };
 
 pub(crate) struct SignExtendedImmediateOutput {
@@ -100,7 +100,6 @@ impl Table for AddTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -129,13 +128,21 @@ impl Table for AddTable {
         let dst_val_packed = table.add_packed("dst_val_packed", add_op.zout);
 
         // Read src1
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
 
         // Read src2
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Write dst
-        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_packed]);
 
         Self {
             id: table.id(),
@@ -218,7 +225,6 @@ impl Table for SubTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -248,13 +254,21 @@ impl Table for SubTable {
         let src1_val_packed = table.add_packed("src1_val_packed", add_op.zout);
 
         // Read src1
-        table.pull(vrom_channel, [src1_abs, src1_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src1_abs, src1_val_packed],
+        );
 
         // Read src2
-        table.pull(vrom_channel, [src2_abs, src2_val_packed]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [src2_abs, src2_val_packed],
+        );
 
         // Write dst
-        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_packed]);
 
         Self {
             id: table.id(),
@@ -340,7 +354,6 @@ impl Table for AddiTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -379,10 +392,10 @@ impl Table for AddiTable {
 
         // Pull the destination and source values from the VROM channel.
         // Read src
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
 
         // Write dst
-        table.pull(vrom_channel, [dst_abs, dst_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_packed]);
 
         Self {
             id: table.id(),
@@ -485,7 +498,6 @@ impl Table for MuluTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -514,10 +526,14 @@ impl Table for MuluTable {
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
 
-        table.pull(vrom_channel, [src1_abs, src1_val]);
-        table.pull(vrom_channel, [src2_abs, src2_val]);
-        table.pull(vrom_channel, [dst_abs, dst_val_low]);
-        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_low]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [dst_abs_plus_1, dst_val_high],
+        );
 
         Self {
             id: table.id(),
@@ -619,7 +635,6 @@ impl Table for MulTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -649,10 +664,14 @@ impl Table for MulTable {
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
 
-        table.pull(vrom_channel, [src1_abs, src1_val]);
-        table.pull(vrom_channel, [src2_abs, src2_val]);
-        table.pull(vrom_channel, [dst_abs, dst_val_low]);
-        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_low]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [dst_abs_plus_1, dst_val_high],
+        );
 
         Self {
             id: table.id(),
@@ -755,7 +774,6 @@ impl Table for MuliTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -807,9 +825,13 @@ impl Table for MuliTable {
         let dst_abs_plus_1 = table.add_computed("dst_plus_1", dst_abs + B32::ONE);
         let src_abs = table.add_computed("src", state_cols.fp + upcast_col(state_cols.arg1));
 
-        table.pull(vrom_channel, [src_abs, src_val_packed]);
-        table.pull(vrom_channel, [dst_abs, out_low]);
-        table.pull(vrom_channel, [dst_abs_plus_1, out_high]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val_packed]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, out_low]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [dst_abs_plus_1, out_high],
+        );
 
         Self {
             id: table.id(),
@@ -938,7 +960,6 @@ impl Table for MulsuTable {
         let Channels {
             state_channel,
             prom_channel,
-            vrom_channel,
             ..
         } = *channels;
 
@@ -968,10 +989,14 @@ impl Table for MulsuTable {
         let src1_abs = table.add_computed("src1", state_cols.fp + upcast_col(state_cols.arg1));
         let src2_abs = table.add_computed("src2", state_cols.fp + upcast_col(state_cols.arg2));
 
-        table.pull(vrom_channel, [src1_abs, src1_val]);
-        table.pull(vrom_channel, [src2_abs, src2_val]);
-        table.pull(vrom_channel, [dst_abs, dst_val_low]);
-        table.pull(vrom_channel, [dst_abs_plus_1, dst_val_high]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val_low]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [dst_abs_plus_1, dst_val_high],
+        );
 
         Self {
             id: table.id(),
