@@ -17,7 +17,7 @@ use crate::{
     gadgets::state::{NextPc, StateColumns, StateColumnsOptions, StateGadget},
     table::Table,
     types::ProverPackedField,
-    utils::{pack_b16_into_b32, pack_instruction_one_arg},
+    utils::{pack_b16_into_b32, pack_instruction_one_arg, pull_vrom_channel},
 };
 use crate::{opcodes::G, utils::pack_instruction_with_32bits_imm_b128};
 
@@ -136,15 +136,16 @@ impl Table for B32MulTable {
         // Pull source values from VROM channel
         let src1_abs_addr = table.add_computed("src1_addr", fp + upcast_expr(src1.into()));
         let src2_abs_addr = table.add_computed("src2_addr", fp + upcast_expr(src2.into()));
-        table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
-        table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs_addr, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs_addr, src2_val]);
 
         // Compute the result
-        let dst_val = table.add_computed("b32_mul_dst_val", src1_val * src2_val);
+        let dst_val = table.add_committed("b32_mul_dst_val");
+        table.assert_zero("b32_mul_dst_val", dst_val - src1_val * src2_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         Self {
             id: table.id(),
@@ -208,11 +209,11 @@ impl Table for XorTable {
         let dst_val = table.add_computed("dst_val", src1_val + src2_val);
 
         // Read src1_val and src2_val
-        table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
-        table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs_addr, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs_addr, src2_val]);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         Self {
             id: table.id(),
@@ -276,16 +277,19 @@ impl Table for AndTable {
         let src2_abs_addr =
             table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
-        let dst_val_unpacked =
-            table.add_computed("dst_val_unpacked", src1_val_unpacked * src2_val_unpacked);
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "and_dst_val_unpacked",
+            dst_val_unpacked - src1_val_unpacked * src2_val_unpacked,
+        );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read src1_val and src2_val
-        table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
-        table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs_addr, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs_addr, src2_val]);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         Self {
             id: table.id(),
@@ -349,19 +353,23 @@ impl Table for OrTable {
         let src2_abs_addr =
             table.add_computed("src2_abs_addr", state_cols.fp + upcast_col(state_cols.arg2));
 
-        let dst_val_unpacked = table.add_computed(
-            "dst_val_unpacked",
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "or_dst_val_unpacked",
             // DeMorgan Law: a | b == a + b + (a * b)
-            src1_val_unpacked + src2_val_unpacked + (src1_val_unpacked * src2_val_unpacked),
+            dst_val_unpacked
+                - src1_val_unpacked
+                - src2_val_unpacked
+                - (src1_val_unpacked * src2_val_unpacked),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read src1_val and src2_val
-        table.pull(channels.vrom_channel, [src1_abs_addr, src1_val]);
-        table.pull(channels.vrom_channel, [src2_abs_addr, src2_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src1_abs_addr, src1_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src2_abs_addr, src2_val]);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         Self {
             id: table.id(),
@@ -424,18 +432,21 @@ impl Table for OriTable {
         let src_abs_addr =
             table.add_computed("src_abs_addr", state_cols.fp + upcast_col(state_cols.arg1));
 
-        let dst_val_unpacked = table.add_computed(
-            "dst_val_unpacked",
-            // DeMorgan Law: a | b == a + b + (a * b)
-            src_val_unpacked + imm_32b_unpacked + (src_val_unpacked * imm_32b_unpacked),
+        let dst_val_unpacked = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "ori_dst_val_unpacked",
+            dst_val_unpacked
+                - src_val_unpacked
+                - imm_32b_unpacked
+                - (src_val_unpacked * imm_32b_unpacked),
         );
         let dst_val = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read src_val
-        table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs_addr, src_val]);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         Self {
             id: table.id(),
@@ -523,10 +534,10 @@ impl Table for XoriTable {
         let dst_val = table.add_computed("dst_val", src_val + upcast_expr(imm.into()));
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs, dst_val]);
 
         // Read src_val
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),
@@ -613,14 +624,22 @@ impl Table for AndiTable {
 
         let src_val_low: Col<B1, 16> = table.add_selected_block("src_val_low", src_val_unpacked, 0);
 
-        let dst_val_unpacked = table.add_computed("dst_val", src_val_low * imm);
+        let dst_val_unpacked: Col<B1, 16> = table.add_committed("dst_val_unpacked");
+        table.assert_zero(
+            "andi_dst_val_unpacked",
+            dst_val_unpacked - src_val_low * imm,
+        );
         let dst_val: Col<B16> = table.add_packed("dst_val", dst_val_unpacked);
 
         // Read dst_val
-        table.pull(channels.vrom_channel, [dst_abs, upcast_col(dst_val)]);
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [dst_abs, upcast_col(dst_val)],
+        );
 
         // Read src_val
-        table.pull(channels.vrom_channel, [src_abs, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs, src_val]);
 
         Self {
             id: table.id(),
@@ -745,23 +764,25 @@ impl Table for B32MuliTable {
 
         // Pull source value from VROM channel
         let src_abs_addr = table.add_computed("src_addr", fp + upcast_expr(src.into()));
-        table.pull(channels.vrom_channel, [src_abs_addr, src_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [src_abs_addr, src_val]);
 
         // Compute the result
-        let dst_val = table.add_computed("b32_muli_dst_val", src_val * imm_val);
+        let dst_val = table.add_committed("b32_muli_dst_val");
+        table.assert_zero("b32_muli_dst_val", dst_val - src_val * imm_val);
 
         // Pull result from VROM channel
         let dst_abs_addr = table.add_computed("dst_addr", fp + upcast_expr(dst.into()));
-        table.pull(channels.vrom_channel, [dst_abs_addr, dst_val]);
+        pull_vrom_channel(&mut table, channels.vrom_channel, [dst_abs_addr, dst_val]);
 
         // Pack the second instruction
         let second_instruction_packed = pack_instruction_one_arg(
             &mut table,
             "second_instruction_packed",
             second_instruction_pc,
-            Opcode::B32Muli as u16,
+            B32_MULI_OPCODE,
             imm_high,
         );
+        #[cfg(not(feature = "disable_prom_channel"))]
         table.pull(channels.prom_channel, [second_instruction_packed]);
 
         Self {
