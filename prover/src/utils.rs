@@ -2,8 +2,7 @@
 //! operations.
 
 use binius_field::{
-    BinaryField, ExtensionField, Field, AES_TO_BINARY_LINEAR_TRANSFORMATION,
-    BINARY_TO_AES_LINEAR_TRANSFORMATION,
+    ExtensionField, Field, AES_TO_BINARY_LINEAR_TRANSFORMATION, BINARY_TO_AES_LINEAR_TRANSFORMATION,
 };
 use binius_m3::builder::{
     upcast_col, upcast_expr, Col, Expr, TableBuilder, B1, B128, B16, B32, B8,

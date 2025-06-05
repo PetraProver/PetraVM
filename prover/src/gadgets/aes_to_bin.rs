@@ -8,6 +8,7 @@ use crate::{
     utils::{aes_to_bin_transform, bin_to_aes_transform},
 };
 
+// TODO: Merge the two gadgets into one?
 /// This gadget turns a B8 input in the binary basis into a B32 output in the
 /// AES basis.
 pub(crate) struct AesToBinTransformColumns {

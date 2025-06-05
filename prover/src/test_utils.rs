@@ -1,10 +1,11 @@
 use anyhow::Result;
 use binius_field::{BinaryField, Field};
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
-use binius_m3::builder::{B32, B8};
+use binius_m3::builder::B32;
 use log::trace;
 use petravm_asm::{
     isa::{GenericISA, RecursionISA, ISA},
+    transpose_in_aes, transpose_in_bin,
     util::{bytes_to_u32, u32_to_bytes},
     Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
 };
@@ -232,79 +233,39 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     let src1_bytes = u32_to_bytes(&src1_val);
     let src2_bytes = u32_to_bytes(&src2_val);
 
-    // Since the first input is supposed to come from the previous compression step,
-    // it is transposed. So we have to start by transposing it.
-    let src1_val_new_transposed = src1_bytes
-        .iter()
-        .map(|s1| binius_field::AESTowerField8b::from(B8::from(*s1)).val())
-        .collect::<Vec<_>>();
-
-    let src1_val_new = (0..8)
-        .flat_map(|i| {
-            (0..8)
-                .map(|j| src1_val_new_transposed[j * 8 + i])
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
-
-    let src2_val_new = src2_bytes
-        .iter()
-        .map(|s2| binius_field::AESTowerField8b::from(B8::from(*s2)).val())
-        .collect::<Vec<_>>();
+    let src1_val_new = transpose_in_aes(&src1_bytes);
 
     let mut compression_output =
         GroestlShortImpl::state_from_bytes(&src1_val_new.clone().try_into().unwrap());
 
     <GroestlShortImpl as GroestlShortInternal>::compress(
         &mut compression_output,
-        &src2_val_new.clone().try_into().unwrap(),
+        &src2_bytes.clone().try_into().unwrap(),
     );
 
     // The output of the compression gadget is transposed compared to the Groestl
-    // specs.
+    // specs, and in the wrong basis. We therefore need to transpose it and change
+    // its basis before writing to memory. However, the Output gadget expects the
+    // input to be in this form, so we can pass it directly as is to the next
+    // gadget.
     let out_state_bytes_transposed = GroestlShortImpl::state_to_bytes(&compression_output);
-    let out_state_bytes_transposed = out_state_bytes_transposed
-        .map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-
-    let out_state_bytes: [u8; 64] = (0..8)
-        .flat_map(|i| {
-            (0..8)
-                .map(|j| out_state_bytes_transposed[j * 8 + i])
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-        .try_into()
-        .expect("out_state_bytes is exactly 64 bytes");
+    let out_state_bytes = transpose_in_bin(&out_state_bytes_transposed);
 
     // Output state that is stored as the input of the next compression step.
-    let compression_output = bytes_to_u32(&out_state_bytes);
+    let compression_output_u32 = bytes_to_u32(&out_state_bytes);
 
-    /////////////////////////////////
-    //// 2-to-1 COMPRESSION STEP ////
-    /////////////////////////////////
-
-    // Reshape the input of the 2-to-1 compression step.
-    // This is transposed compared to the actual output of the previous compression
-    // step.
-    let transposed = (0..8)
-        .flat_map(|i| (0..8).map(move |j| out_state_bytes[i + j * 8]))
-        .collect::<Vec<_>>();
-    let new_input: [u8; 64] = transposed
-        .iter()
-        .map(|byte| binius_field::AESTowerField8b::from(B8::from(*byte)).val())
-        .collect::<Vec<_>>()
-        .try_into()
-        .unwrap();
+    //////////////////////////////////////////
+    //// 2-to-1 COMPRESSION (OUTPUT) STEP ////
+    //////////////////////////////////////////
 
     // Compute the output of the 2-to-1 groestl compression.
-    let input = GroestlShortImpl::state_from_bytes(&new_input);
-    let mut state = input;
+    let mut state = compression_output;
     GroestlShortImpl::p_perm(&mut state);
 
     // Calculate the output: dst_val = P(state_in) XOR init
     let dst_val: [u64; 8] = state
         .iter()
-        .zip(input.iter())
+        .zip(compression_output.iter())
         .map(|(&x, &y)| x ^ y)
         .collect::<Vec<_>>()
         .try_into()
@@ -320,7 +281,7 @@ pub fn generate_groestl_ret_trace(src1_val: [u32; 16], src2_val: [u32; 16]) -> R
     let mut vrom_writes = vec![];
     // Write outputs.
     vrom_writes.extend(
-        compression_output
+        compression_output_u32
             .iter()
             .enumerate()
             .map(|(i, v)| (i as u32 + compression_output_offset, *v, 2u32)),

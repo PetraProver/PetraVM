@@ -18,7 +18,12 @@ use crate::{
 /// gadget, which returns a transposed output compared to the Groestl specs.
 /// Thus, we need to start by transposing the first input. We also need to
 /// transpose the output here, as the gadget returns a transposed output
-/// compared to the specs.
+/// compared to the specs. Similarly, we assume a change of basis (from AES to
+/// binary) has already been applied to the first input. And since we are
+/// chaining compression gadgets, we also apply the reverse operation to the
+/// output. So we need to change bases for the first input and the output:
+/// - go from binary to AES for the first input
+/// - go from AES to binary for the output.
 #[derive(Debug, Clone)]
 pub struct Groestl256CompressEvent {
     pub pc: B32,
@@ -51,19 +56,10 @@ impl Event for Groestl256CompressEvent {
         let src1_val = read_bytes::<16>(ctx, src1)?;
         let src2_val = read_bytes::<16>(ctx, src2)?;
 
-        // Change the input bases to match the one used in P/Q permutations.
-        let src1_val_aes_transposed = to_aes_basis(&src1_val);
-        let src2_val_aes = to_aes_basis(&src2_val);
-
-        // We transpose the first input as we supposed it comes, in a transposed form,
-        // from the previous Groestl compression gadget.
-        let src1_val_aes = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| src1_val_aes_transposed[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        // We transpose the first input as we supposed it from the previous Groestl
+        // compression gadget in a transposed form. We also change its bases to the AES
+        // one.
+        let src1_val_aes = transpose_in_aes(&src1_val);
 
         let mut out_val = GroestlShortImpl::state_from_bytes(
             &src1_val_aes
@@ -73,7 +69,8 @@ impl Event for Groestl256CompressEvent {
 
         <GroestlShortImpl as GroestlShortInternal>::compress(
             &mut out_val,
-            &src2_val_aes
+            &src2_val
+                .clone()
                 .try_into()
                 .expect("src2_val is exactly 64 bytes"),
         );
@@ -82,18 +79,7 @@ impl Event for Groestl256CompressEvent {
         // Groestl specs. This is to make the permutation gadgets, as well as chaining
         // them, more efficient.
         let out_state_bytes_transposed = GroestlShortImpl::state_to_bytes(&out_val);
-        let out_state_bytes_transposed =
-            out_state_bytes_transposed.map(|byte| B8::from(AESTowerField8b::new(byte)).val());
-
-        let out_state_bytes: [u8; 64] = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| out_state_bytes_transposed[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .expect("out_state_bytes is exactly 64 bytes");
+        let out_state_bytes = transpose_in_bin(&out_state_bytes_transposed);
 
         let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes)
             .try_into()
@@ -132,8 +118,10 @@ impl Event for Groestl256CompressEvent {
 /// Performs the output step of a Groestl hash.
 /// It corresponds to a 2-to-1 compresssion.
 /// The input comes from the last Groestl compression gadget, which returns a
-/// transposed output compared to the Groestl specs. Thus, we need to start by
-/// transposing the input.
+/// transposed output compared to the Groestl specs. The returned value has
+/// already been changed from the AES basis to the bonary basis. Thus, we need
+/// to start by transposing the input and applying a change of basis from binary
+/// to AES).
 #[derive(Debug, Clone)]
 pub struct Groestl256OutputEvent {
     pub pc: B32,
@@ -169,33 +157,28 @@ impl Event for Groestl256OutputEvent {
             .try_into()
             .expect("src1_val_aes and src2_val_aes are exactly 32 bytes each.");
 
-        // The input of the Groestl output gadget comes from the output of the Groeslt
+        // The input of the Groestl output gadget comes from the output of the Groestl
         // compress gadget, which is transposed compared to the specs. So we need to
         // transpose the input here.
-        let full_input_aes_inv: [u8; 64] = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| transposed_full_input_aes_inv[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
+        // We also assume (due to chaining of compression gadgets) that the inputs were
+        // switched from the AES to the binary basis, so we should start by applying the
+        // inverse operation.
+        let full_input: [u8; 64] = transpose_in_aes(&transposed_full_input_aes_inv)
             .try_into()
             .expect("full_input is exactly 64 bytes");
 
-        // Change the input bases to match the the one used in P/Q permutations.
-        // We assume (due to chaining of compression gadgets) that the inputs are in the
-        // shape AES^{-1}(input), so we should start switching to the AES basis.
-        let full_input = to_aes_basis(&full_input_aes_inv);
-        let state_in = GroestlShortImpl::state_from_bytes(&full_input.try_into().unwrap());
+        let state_in = GroestlShortImpl::state_from_bytes(&full_input);
         let mut state = state_in;
 
         // First, carry out the P permutation on the input.
         GroestlShortImpl::p_perm(&mut state);
         GroestlShortImpl::xor_state(&mut state, &state_in);
 
-        // The state is now in the AES basis. In the gadget, since the Output gadget is
-        // the final element of the chain, the output is also expressed in the AES basis
-        // (since we started in AES^{-1}). So there is no need to switch bases again.
+        // The state is now in the AES basis. The Output gadget is
+        // the final element of the Groestl chain. We started with an input that was
+        // switched from the AES to the binary basis. So the final output should
+        // indeed be in the AES basis, and there is therefore no need to switch bases
+        // again.
 
         // Get the output in the correct format.
         let out_state_bytes = GroestlShortImpl::state_to_bytes(&state);
@@ -247,10 +230,23 @@ fn read_bytes<const N: usize>(
     Ok(src_val)
 }
 
-fn to_aes_basis(src_val: &[u8]) -> Vec<u8> {
-    src_val
-        .iter()
-        .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
+pub fn transpose_in_aes(src_val: &[u8]) -> Vec<u8> {
+    (0..8)
+        .flat_map(|i| {
+            (0..8)
+                .map(|j| AESTowerField8b::from(B8::new(src_val[j * 8 + i])).val())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+}
+
+pub fn transpose_in_bin(src_val: &[u8]) -> Vec<u8> {
+    (0..8)
+        .flat_map(|i| {
+            (0..8)
+                .map(|j| B8::from(AESTowerField8b::new(src_val[j * 8 + i])).val())
+                .collect::<Vec<_>>()
+        })
         .collect::<Vec<_>>()
 }
 
@@ -317,47 +313,19 @@ mod tests {
         trace.validate(boundary_values);
 
         // Calculate the output.
-        let src1_val_new_transposed = src1_val
-            .iter()
-            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
-            .collect::<Vec<_>>();
-        // The first input needs to be transposed.
-        let src1_val_new = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| src1_val_new_transposed[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        let src2_val_new = src2_val
-            .iter()
-            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
-            .collect::<Vec<_>>();
+        let src1_val_new = transpose_in_aes(&src1_val);
 
         let mut state = GroestlShortImpl::state_from_bytes(
             &src1_val_new
                 .try_into()
                 .expect("src1_val_new is exactly 64 bytes"),
         );
-        <GroestlShortImpl as GroestlShortInternal>::compress(
-            &mut state,
-            &src2_val_new
-                .try_into()
-                .expect("src2_val_new is exactly 64 bytes"),
-        );
+        <GroestlShortImpl as GroestlShortInternal>::compress(&mut state, &src2_val);
 
         // Reshape the output to match the expected format.
         let out_state_bytes_transposed = GroestlShortImpl::state_to_bytes(&state);
-        let out_state_bytes_transposed = out_state_bytes_transposed
-            .map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
-        // The output needs to be transposed.
-        let out_state_bytes = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| out_state_bytes_transposed[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        let out_state_bytes = transpose_in_bin(&out_state_bytes_transposed);
+
         let dst_vals = bytes_to_u32(&out_state_bytes);
 
         let actual_dst_vals = (0..16)
@@ -419,28 +387,13 @@ mod tests {
         // Validate the trace (this consumes boundary_values)
         trace.validate(boundary_values);
 
-        // Create the input state.
-        let src1_val_new = src1_val
-            .iter()
-            .map(|s1| AESTowerField8b::from(B8::from(*s1)).val())
-            .collect::<Vec<_>>();
-        let src2_val_new = src2_val
-            .iter()
-            .map(|s2| AESTowerField8b::from(B8::from(*s2)).val())
-            .collect::<Vec<_>>();
-
         // The input needs to be transposed.
-        let full_input_transposed: [u8; 64] = [src1_val_new, src2_val_new]
+        let full_input_transposed: [u8; 64] = [src1_val, src2_val]
             .concat()
             .try_into()
             .expect("src1_val_new and src2_val_new are exactly 32 bytes each");
-        let full_input = (0..8)
-            .flat_map(|i| {
-                (0..8)
-                    .map(|j| full_input_transposed[j * 8 + i])
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+
+        let full_input = transpose_in_aes(&full_input_transposed);
         let init = GroestlShortImpl::state_from_bytes(
             &full_input
                 .try_into()
@@ -460,8 +413,7 @@ mod tests {
 
         // Convert dst_val to a big endian representation.
         let output_state_bytes = GroestlShortImpl::state_to_bytes(&dst_val);
-        let output_state_bytes =
-            output_state_bytes.map(|byte| B8::from(binius_field::AESTowerField8b::new(byte)).val());
+
         let dst_val = GenericArray::<u8, typenum::U32>::from_slice(&output_state_bytes[32..]);
         let dst_val = bytes_to_u32(dst_val);
 
@@ -470,6 +422,117 @@ mod tests {
             .collect::<Vec<_>>();
         for i in 0..8 {
             assert_eq!(dst_val[i], actual_dst_vals[i]);
+        }
+    }
+
+    #[test]
+    fn test_groestl_chaining() {
+        // Note that when chaining, we should be able to apply a "normal" Groestl
+        // computation, except for the very first input, which is supposed to be in the
+        // wrong initial base, and transposed.
+
+        // Frame:
+        // Slot 0: PC
+        // Slot 1: FP
+        // Slots 2-15: Padding
+        // Slots 16-31: src1_val
+        // Slots 32-47: src2_val
+        // Slots 48-63: compression_output
+        // Slots 64-79: groestl_output
+
+        let src1_val = [rand::random::<u8>(); 64];
+        let src1_val_packed = bytes_to_u32(src1_val.as_slice());
+
+        let src2_val = [rand::random::<u8>(); 64];
+        let src2_val_packed = bytes_to_u32(src2_val.as_slice());
+
+        let src1_offset = 16;
+        let src2_offset = 32;
+        let compression_output_offset = 48;
+        let groestl_output_offset = 64;
+
+        let mut init_values = vec![0; 48];
+        init_values[src1_offset..(16 + src1_offset)].copy_from_slice(&src1_val_packed[..16]);
+        init_values[src2_offset..(16 + src2_offset)].copy_from_slice(&src2_val_packed[..16]);
+        let vrom = ValueRom::new_with_init_vals(&init_values);
+
+        // Construct a simple program with the Groestl256Output instruction
+        // 1. GROESTL256_COMPRESS @compression_output, @src1, @src2
+        // 2. GROESTL256_OUTPUT @groestl_output, @compression_output,
+        //    @compression_output + 8
+        // 3. RET
+        let zero = B16::ZERO;
+        let compression_dst = B16::from(compression_output_offset as u16);
+        let compression_dst_offset = B16::from(compression_output_offset as u16 + 8);
+        let output_dst = B16::from(groestl_output_offset as u16);
+        let src1 = B16::from(src1_offset as u16);
+        let src2 = B16::from(src2_offset as u16);
+        let instructions = vec![
+            [
+                Opcode::Groestl256Compress.get_field_elt(),
+                compression_dst,
+                src1,
+                src2,
+            ],
+            [
+                Opcode::Groestl256Output.get_field_elt(),
+                output_dst,
+                compression_dst,
+                compression_dst_offset,
+            ],
+            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+        ];
+        // Set up frame sizes
+        let mut frames = HashMap::new();
+        frames.insert(B32::ONE, 32);
+
+        // Create the PROM
+        let prom = code_to_prom(&instructions);
+        let memory = Memory::new(prom, vrom);
+
+        // Create an interpreter and run the program
+        let (trace, boundary_values) =
+            PetraTrace::generate(Box::new(RecursionISA), memory, frames, HashMap::new())
+                .expect("Trace generation should not fail.");
+
+        // Validate the trace (this consumes boundary_values)
+        trace.validate(boundary_values);
+
+        // Create the input state. The first input needs to be transposed and switched
+        // from binary to AES basis.
+        let src1_val_new = transpose_in_aes(&src1_val);
+        let mut state = GroestlShortImpl::state_from_bytes(
+            &src1_val_new
+                .try_into()
+                .expect("src1_val_new is exactly 64 bytes"),
+        );
+
+        // Carry out a normal Groestl computation on the new state.
+        GroestlShortImpl::compress(&mut state, &src2_val);
+        let mut new_state = state;
+        GroestlShortImpl::p_perm(&mut new_state);
+
+        // Calculate the output: dst_val = P(state_in) XOR init
+        let dst_val: [u64; 8] = new_state
+            .iter()
+            .zip(state.iter())
+            .map(|(&x, &y)| x ^ y)
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("state_in and init are exactly 64 bytes each");
+
+        let output_state_bytes = GroestlShortImpl::state_to_bytes(&dst_val);
+        let dst_val = output_state_bytes[32..]
+            .try_into()
+            .expect("output_state_bytes is exactly 32 bytes");
+        let groestl_output = bytes_to_u32(dst_val);
+
+        // Read the output from the trace.
+        let actual_dst_vals = (0..8)
+            .map(|i| trace.vrom().read::<u32>(groestl_output_offset + i).unwrap())
+            .collect::<Vec<_>>();
+        for i in 0..8 {
+            assert_eq!(groestl_output[i], actual_dst_vals[i]);
         }
     }
 }

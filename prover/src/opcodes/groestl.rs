@@ -40,7 +40,8 @@ const GROESTL_OUTPUT_OPCODE: u16 = Opcode::Groestl256Output as u16;
 /// Note that the P/Q permutation gadgets take the transposed input matrix
 /// compared to the actual Groestl specs. The first source value comes from the
 /// previous Groestl compression gadged, and is therefore already transposed.
-/// But we need to tranpose the second source value.
+/// But we need to tranpose the second source value, as well as apply a basis
+/// change to it (AES to binary).
 pub struct Groestl256CompressTable {
     id: TableId,
     state_cols: StateColumns<GROESTL_COMPRESS_OPCODE>,
@@ -55,6 +56,10 @@ pub struct Groestl256CompressTable {
     /// values.
     src1_lookups: [MultipleLookupColumns<2>; 8],
     src2_addresses: [Col<B32>; 16],
+    /// Second source values.
+    src2_vals: [Col<B8, 8>; 8],
+    /// Columns to switch from src2 values in the AES basis to the binary basis.
+    src2_aes_inv_columns: [AesToBinTransformColumns; 8],
     /// Columns needed for transposing src2.
     src2_transposition: TransposeColumns,
     /// Columns for lookup up the output values in the VROM. Note that the
@@ -93,8 +98,10 @@ impl Table for Groestl256CompressTable {
             },
         );
         // Get source values.
-        let src1_vals: [Col<B8, 8>; 8] = from_fn(|i| table.add_committed(format!("src1_val_{i}")));
-        let src2_vals = from_fn(|i| table.add_committed(format!("src2_val_{i}")));
+        let src1_vals = from_fn(|i| table.add_committed(format!("src1_val_{i}")));
+        let src2_vals_bits: [Col<B1, 64>; 8] =
+            from_fn(|i| table.add_committed(format!("src2_val_bits_{i}")));
+        let src2_vals = from_fn(|i| table.add_packed(format!("src2_vals_{i}"), src2_vals_bits[i]));
 
         // Get the base address for the first and second source values.
         let src1_base_addr = state_cols.fp + upcast_col(state_cols.arg1);
@@ -127,9 +134,17 @@ impl Table for Groestl256CompressTable {
             )
         });
 
+        // Get the second source values in the binary basis, and use that in the
+        // permutations.
+        let src2_aes_inv_columns: [AesToBinTransformColumns; 8] = from_fn(|i| {
+            AesToBinTransformColumns::new(&mut table, src2_vals_bits[i], "groestl_compress_src2")
+        });
+        let src2_vals_aes_inv: [Col<B8, 8>; 8] =
+            from_fn(|i| src2_aes_inv_columns[i].reshaped_outputs);
+
         // p_state_in = src1_val XOR src2_val.
         let p_state_in: [Col<B8, 8>; 8] =
-            from_fn(|i| table.add_computed("state_in", src1_vals[i] + src2_vals[i]));
+            from_fn(|i| table.add_computed("state_in", src1_vals[i] + src2_vals_aes_inv[i]));
 
         let p_op = Permutation::new(
             &mut table,
@@ -144,7 +159,7 @@ impl Table for Groestl256CompressTable {
         let q_op = Permutation::new(
             &mut table,
             binius_m3::gadgets::hash::groestl::PermutationVariant::Q,
-            src2_vals,
+            src2_vals_aes_inv,
         );
 
         // q_out = Q(src2_val)
@@ -191,6 +206,8 @@ impl Table for Groestl256CompressTable {
             src1_addresses,
             src1_lookups,
             src2_addresses,
+            src2_vals,
+            src2_aes_inv_columns,
             src2_transposition,
             dst_vals_lookup,
             p_op,
@@ -221,7 +238,8 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     .try_into()
                     .unwrap();
                 for (i, p_s) in p_state.iter_mut().enumerate() {
-                    *p_s = B8::from(transposed_src1_val[i]) + B8::from(event.src2_val[i]);
+                    *p_s = B8::from(transposed_src1_val[i])
+                        + B8::from(AESTowerField8b::new(event.src2_val[i]));
                 }
                 p_state
             })
@@ -241,6 +259,9 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
             let mut src1_vals = (0..8)
                 .map(|i| witness.get_mut(self.src1_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
+            let mut src2_vals = (0..8)
+                .map(|i| witness.get_mut(self.src2_vals[i]))
+                .collect::<Result<Vec<_>, _>>()?;
 
             let mut dst_vals = (0..8)
                 .map(|i| witness.get_mut_as(self.dst_vals[i]))
@@ -255,7 +276,6 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     // Fill addresses.
                     dst_addresses[j][i] = dst_base_addr + 2 * j as u32;
                     src1_addresses[j][i] = src1_base_addr + 2 * j as u32;
-                    // src1_addresses[2 * j + 1][i] = src1_base_addr + 2 * j as u32 + 1;
                     src2_addresses[2 * j][i] = src2_base_addr + 2 * j as u32;
                     src2_addresses[2 * j + 1][i] = src2_base_addr + 2 * j as u32 + 1;
 
@@ -268,25 +288,17 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                             i * 8 + k,
                             B8::from(event.src1_val[j * 8 + k]),
                         );
+                        set_packed_slice(
+                            &mut src2_vals[j],
+                            i * 8 + k,
+                            B8::from(event.src2_val[j * 8 + k]),
+                        );
                     }
                 }
-
-                // We want to get the output of the P permutation. For this, we first need to
-                // reshape the input and change its basis.
-                let p_state_bytes = p_states[i]
-                    .iter()
-                    .map(|&b8| AESTowerField8b::from(b8).val())
-                    .collect::<Vec<_>>();
-
-                let mut p_state_bytes = GroestlShortImpl::state_from_bytes(
-                    &p_state_bytes
-                        .try_into()
-                        .expect("p_state_bytes has exactly 64 elements"),
-                );
-                GroestlShortImpl::p_perm(&mut p_state_bytes);
             }
         }
 
+        // Populate the src1 lookup columns.
         let src1_iters = (0..8)
             .map(|i| {
                 rows.clone().map(move |ev| {
@@ -311,7 +323,25 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
 
         // Populate the transposition columns.
         let src2_rows = rows.clone().map(|event| event.src2_val);
+        self.src2_transposition.populate(witness, src2_rows)?;
 
+        // Populate the columns for switching the src2 values' basis.
+        let src2_iters = (0..8)
+            .map(|i| {
+                rows.clone().map(move |ev| {
+                    let transpose = (0..8)
+                        .flat_map(|j| (0..8).map(move |k| ev.src2_val[k * 8 + j]))
+                        .collect::<Vec<_>>();
+                    transpose[i * 8..(i + 1) * 8].try_into().unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        self.src2_aes_inv_columns
+            .iter()
+            .zip(src2_iters.iter())
+            .try_for_each(|(col, src2_iter)| col.populate(witness, src2_iter.clone()))?;
+
+        // Populate the dst_val lookup columns.
         let dst_vals_iters = (0..8)
             .map(|i| {
                 rows.clone().map(move |event| {
@@ -328,8 +358,6 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
         for (i, d_i) in dst_vals_iters.iter().enumerate().take(8) {
             self.dst_vals_lookup[i].populate(witness, d_i.clone())?;
         }
-
-        self.src2_transposition.populate(witness, src2_rows)?;
 
         // Populate the P and Q permutations.
         // First, populate the P permutation state inputs.
@@ -585,8 +613,6 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             .map(|event| {
                 let mut p_state = [B8::ZERO; 64];
                 for i in 0..32 {
-                    // p_state[i] = B8::from(AESTowerField8b::new(event.src1_val[i]));
-                    // p_state[i + 32] = B8::from(AESTowerField8b::new(event.src2_val[i]));
                     p_state[i] = B8::from(event.src1_val[i]);
                     p_state[i + 32] = B8::from(event.src2_val[i]);
                 }
@@ -734,7 +760,7 @@ impl TableFiller<ProverPackedField> for Groestl256OutputTable {
             let outs_vec = (0..8)
                 .map(|i| {
                     let data = witness.get_as(self.out[i]).unwrap();
-                    data.iter().map(|arr| *arr).collect::<Vec<[u8; 8]>>()
+                    data.iter().copied().collect::<Vec<[u8; 8]>>()
                 })
                 .collect::<Vec<Vec<[u8; 8]>>>();
             let out_iters_bin = (0..8)
