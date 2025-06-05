@@ -189,7 +189,7 @@ mod tests {
 
     use binius_field::arch::OptimalUnderlier128b;
     use binius_field::as_packed_field::PackedType;
-    use binius_field::AESTowerField8b;
+    use binius_field::{AESTowerField8b, PackedField};
     use binius_m3::builder::{ConstraintSystem, Statement};
     use binius_m3::builder::{WitnessIndex, B1, B128, B8};
     use bumpalo::Bump;
@@ -238,11 +238,11 @@ mod tests {
 
             for i in 0..8 {
                 assert_eq!(
-                    outputs[i][0].to_underlier().0,
-                    expected_outputs[i].val() as u128,
+                    outputs[i][0].get(0),
+                    expected_outputs[i],
                     "Expected: {:x?}, but got: {:x?}",
                     expected_outputs[i],
-                    outputs[i][0].to_underlier().0,
+                    outputs[i][0],
                 );
             }
         }
@@ -300,11 +300,11 @@ mod tests {
 
             for i in 0..8 {
                 assert_eq!(
-                    outputs[i][0].to_underlier().0,
-                    expected_outputs[i].val() as u128,
+                    outputs[i][0].get(0),
+                    B8::new(expected_outputs[i].val()),
                     "Expected: {:x?}, but got: {:x?}",
                     expected_outputs[i],
-                    outputs[i][0].to_underlier().0,
+                    outputs[i][0].get(0)
                 );
             }
         }
