@@ -27,8 +27,8 @@ impl RetEvent {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32), false)?,
-            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32), false)?,
+            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32))?,
+            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32))?,
         })
     }
 }
@@ -39,8 +39,8 @@ impl Event for RetEvent {
         _unused0: B16,
         _unused1: B16,
         _unused2: B16,
-        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Ret cannot be prover-only");
         let ret_event = RetEvent::new(ctx)?;
 
         let target = ret_event.pc_next;

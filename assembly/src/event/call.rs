@@ -35,12 +35,12 @@ impl Event for TailiEvent {
         target_low: B16,
         target_high: B16,
         next_fp: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Taili cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32), prover_only)?;
-        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32), prover_only)?;
+        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
         let target = B32::from_bases([target_low, target_high])
@@ -112,15 +112,15 @@ impl Event for TailvEvent {
         offset: B16,
         next_fp: B16,
         _unused: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Tailv cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32), prover_only)?;
-        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32), prover_only)?;
+        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
+        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()), prover_only)?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
@@ -184,8 +184,8 @@ impl Event for CalliEvent {
         target_low: B16,
         target_high: B16,
         next_fp: B16,
-        _prover_only: bool,
     ) -> Result<(), InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Calli cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = B32::from_bases([target_low, target_high])
@@ -254,12 +254,12 @@ impl Event for CallvEvent {
         offset: B16,
         next_fp: B16,
         _unused: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Callv cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.
-        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()), prover_only)?;
+        let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.

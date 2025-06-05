@@ -1,4 +1,4 @@
-use binius_field::{ExtensionField, Field, PackedField};
+use binius_field::{ExtensionField, Field};
 use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
@@ -126,9 +126,8 @@ impl Event for B32MuliEvent {
         dst: B16,
         src: B16,
         imm_low: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
 
         // B32_MULI spans over two rows in the PROM
         let [second_opcode, imm_high, third, fourth] =
@@ -143,20 +142,11 @@ impl Event for B32MuliEvent {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut()
-                .write(index, dst_val.val(), false)
-                .map_err(Into::<InterpreterError>::into)?;
-            // The instruction is over two rows in the PROM.
-            ctx.incr_prom_index();
-            ctx.incr_prom_index();
-            Ok(())
-        } else {
-            debug_assert!(field_pc == G.pow(pc as u64 - 1));
+        if !ctx.prover_only {
             let event = Self::new(
                 timestamp,
                 field_pc,
@@ -167,16 +157,13 @@ impl Event for B32MuliEvent {
                 src_val,
                 imm.val(),
             );
-            ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
-            // The instruction is over two rows in the PROM.
-            ctx.incr_prom_index();
-            ctx.incr_prom_index();
-            ctx.incr_pc();
-            ctx.incr_pc();
 
             ctx.trace.b32_muli.push(event);
-            Ok(())
         }
+        // The instruction is over two rows in the PROM.
+        ctx.incr_counters();
+        ctx.incr_counters();
+        Ok(())
     }
 
     fn fire(&self, channels: &mut crate::execution::InterpreterChannels) {

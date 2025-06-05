@@ -196,7 +196,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SltEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            SltEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, slt);
 
             assert_eq!(
@@ -213,7 +213,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SltuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            SltuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, sltu);
 
             assert_eq!(
@@ -230,7 +230,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SleEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            SleEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, sle);
 
             assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SleuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            SleuEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, sleu);
 
             assert_eq!(
@@ -431,7 +431,7 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            SltiEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            SltiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
             let event = get_last_event!(ctx, slti);
 
             assert_eq!(
@@ -447,7 +447,7 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            SltiuEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            SltiuEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
             let event = get_last_event!(ctx, sltiu);
 
             assert_eq!(
@@ -463,7 +463,7 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            SleiEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            SleiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
             let event = get_last_event!(ctx, slei);
 
             assert_eq!(
@@ -479,7 +479,7 @@ mod tests {
             // Set value in VROM at the computed address (FP ^ offset)
             ctx.set_vrom(src_offset.val(), src_val);
 
-            SleiuEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            SleiuEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
             let event = get_last_event!(ctx, sleiu);
 
             assert_eq!(

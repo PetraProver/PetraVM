@@ -307,9 +307,10 @@ impl Interpreter {
             trace,
             field_pc,
             advice,
+            prover_only,
         };
 
-        opcode.generate_event(&mut ctx, arg0, arg1, arg2, prover_only)
+        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
     }
 
     pub(crate) fn allocate_new_frame(

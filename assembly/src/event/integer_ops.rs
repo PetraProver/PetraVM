@@ -56,26 +56,15 @@ impl Event for MuliEvent {
         dst: B16,
         src: B16,
         imm: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut()
-                .write(index, dst_val, false)
-                .map_err(Into::<InterpreterError>::into)?;
-            ctx.incr_prom_index();
-            Ok(())
-        } else {
-            ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-
+        if !ctx.prover_only {
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-            ctx.incr_prom_index();
-            ctx.incr_pc();
 
             let event = Self {
                 pc: field_pc,
@@ -89,8 +78,9 @@ impl Event for MuliEvent {
             };
 
             ctx.trace.muli.push(event);
-            Ok(())
         }
+        ctx.incr_counters();
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels) {
@@ -125,26 +115,15 @@ impl Event for MuluEvent {
         dst: B16,
         src1: B16,
         src2: B16,
-        prover_only: bool,
     ) -> Result<(), InterpreterError> {
-        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
-        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
+        let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut()
-                .write(index, dst_val, false)
-                .map_err(Into::<InterpreterError>::into)?;
-            ctx.incr_prom_index();
-            Ok(())
-        } else {
-            ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-
+        if !ctx.prover_only {
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-            ctx.incr_prom_index();
-            ctx.incr_pc();
 
             let mulu_event = Self {
                 pc: field_pc,
@@ -159,8 +138,9 @@ impl Event for MuluEvent {
             };
 
             ctx.trace.mulu.push(mulu_event);
-            Ok(())
         }
+        ctx.incr_counters();
+        Ok(())
     }
 
     fn fire(&self, channels: &mut InterpreterChannels) {
@@ -216,25 +196,15 @@ macro_rules! impl_signed_mul_event {
                 dst: B16,
                 src1: B16,
                 src2: B16,
-                prover_only: bool,
             ) -> Result<(), InterpreterError> {
-                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
-                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
+                let src1_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+                let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
 
                 let dst_val = <$op>::mul_op(src1_val, src2_val);
-                if prover_only {
-                    let index = ctx.addr(dst.val());
-                    ctx.vrom_mut()
-                        .write(index, dst_val, false)
-                        .map_err(Into::<InterpreterError>::into)?;
-                    ctx.incr_prom_index();
-                    Ok(())
-                } else {
-                    ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+                ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
+                if !ctx.prover_only {
                     let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-                    ctx.incr_prom_index();
-                    ctx.incr_pc();
 
                     let event = Self {
                         pc: field_pc,
@@ -250,8 +220,9 @@ macro_rules! impl_signed_mul_event {
                     };
 
                     ctx.trace.$variant.push(event);
-                    Ok(())
                 }
+                ctx.incr_counters();
+                Ok(())
             }
 
             fn fire(&self, channels: &mut InterpreterChannels) {
@@ -343,7 +314,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            AddEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            AddEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, add);
 
             assert_eq!(
@@ -407,7 +378,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SubEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            SubEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, sub);
 
             assert_eq!(
@@ -457,7 +428,7 @@ mod tests {
             ctx.set_vrom(src_offset.val(), src_val);
             let imm = B16::new(imm_val);
 
-            AddiEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            AddiEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
             let event = get_last_event!(ctx, addi);
 
             assert_eq!(
@@ -552,14 +523,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SignedMulEvent::<MulOp>::generate(
-                &mut ctx,
-                dst_offset,
-                src1_offset,
-                src2_offset,
-                false,
-            )
-            .unwrap();
+            SignedMulEvent::<MulOp>::generate(&mut ctx, dst_offset, src1_offset, src2_offset)
+                .unwrap();
 
             // Extract the event
             let event = get_last_event!(ctx, mul);
@@ -582,7 +547,7 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            MuluEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset, false).unwrap();
+            MuluEvent::generate(&mut ctx, dst_offset, src1_offset, src2_offset).unwrap();
             let event = get_last_event!(ctx, mulu);
 
             assert_eq!(
@@ -598,14 +563,8 @@ mod tests {
             ctx.set_vrom(src1_offset.val(), src1_val);
             ctx.set_vrom(src2_offset.val(), src2_val);
 
-            SignedMulEvent::<MulsuOp>::generate(
-                &mut ctx,
-                dst_offset,
-                src1_offset,
-                src2_offset,
-                false,
-            )
-            .unwrap();
+            SignedMulEvent::<MulsuOp>::generate(&mut ctx, dst_offset, src1_offset, src2_offset)
+                .unwrap();
 
             // Extract the event
             let event = get_last_event!(ctx, mulsu);
@@ -673,7 +632,7 @@ mod tests {
             ctx.set_vrom(src_offset.val(), src_val);
             let imm = B16::new(imm_val);
 
-            MuliEvent::generate(&mut ctx, dst_offset, src_offset, imm, false).unwrap();
+            MuliEvent::generate(&mut ctx, dst_offset, src_offset, imm).unwrap();
 
             // Extract the event
             let event = get_last_event!(ctx, muli);

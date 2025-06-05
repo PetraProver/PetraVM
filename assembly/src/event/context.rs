@@ -22,6 +22,7 @@ pub struct EventContext<'a> {
     pub trace: &'a mut PetraTrace,
     pub field_pc: B32,
     pub advice: Option<(u32, u32)>,
+    pub prover_only: bool,
 }
 
 impl EventContext<'_> {
@@ -52,11 +53,11 @@ impl EventContext<'_> {
         self.trace.vrom_mut()
     }
 
-    pub fn vrom_read<T>(&self, addr: u32, prover_only: bool) -> Result<T, MemoryError>
+    pub fn vrom_read<T>(&self, addr: u32) -> Result<T, MemoryError>
     where
         T: VromValueT,
     {
-        if prover_only {
+        if self.prover_only {
             self.vrom().peek::<T>(addr)
         } else {
             self.vrom().read::<T>(addr)
@@ -79,11 +80,17 @@ impl EventContext<'_> {
         T: VromValueT,
     {
         self.trace.vrom().check_alignment::<T>(addr)?;
-        for i in 0..T::word_size() {
-            let cur_word = (value.to_u128() >> (32 * i)) as u32;
-            self.trace.vrom_write(addr + i as u32, cur_word)?;
+        if self.prover_only {
+            // In prover-only mode, we don't need to check for deferred moves, nor to record
+            // the access.
+            self.vrom_mut().write(addr, value, false)
+        } else {
+            for i in 0..T::word_size() {
+                let cur_word = (value.to_u128() >> (32 * i)) as u32;
+                self.trace.vrom_write(addr + i as u32, cur_word)?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     // /// Inserts a pending value in VROM to be set later.
@@ -133,6 +140,15 @@ impl EventContext<'_> {
         self.interpreter.incr_pc();
     }
 
+    /// Inccrements the PROM index and, if not in prover-only mode, increments
+    /// the PC.
+    pub fn incr_counters(&mut self) {
+        self.interpreter.incr_prom_index();
+        if !self.prover_only {
+            self.interpreter.incr_pc();
+        }
+    }
+
     /// Increments the underlying [`Interpreter`]'s PROM index.
     pub fn incr_prom_index(&mut self) {
         self.interpreter.incr_prom_index();
@@ -154,9 +170,8 @@ impl EventContext<'_> {
         let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
             // If the next frame pointer is already set, we assume the frame has already
             // been allocated.
-            self.vrom_read(next_fp_addr, true)?
+            self.vrom().peek(next_fp_addr)?
         } else {
-            // Allocate a frame for the call and set the value of the next frame pointer.
             let next_fp_val = self.allocate_new_frame(target)?;
 
             self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
@@ -260,6 +275,7 @@ impl<'a> EventContext<'a> {
             trace,
             field_pc: B32::ONE,
             advice: None,
+            prover_only: false,
         }
     }
 

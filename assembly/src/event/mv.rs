@@ -45,9 +45,8 @@ macro_rules! impl_mv_event {
                 arg0: B16,
                 arg1: B16,
                 arg2: B16,
-                prover_only: bool,
             ) -> Result<(), InterpreterError> {
-                let opt_event = Self::generate_event(ctx, arg0, arg1, arg2, prover_only)?;
+                let opt_event = Self::generate_event(ctx, arg0, arg1, arg2)?;
                 if let Some(event) = opt_event {
                     ctx.trace.$trace_field.push(event);
                 }
@@ -198,7 +197,8 @@ impl MvvwEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), false)?;
+        debug_assert!(!ctx.prover_only, "Pending moves cannot be prover-only");
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u32>(src_addr)?;
@@ -207,7 +207,7 @@ impl MvvwEvent {
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if src_val_set {
-            let src_val = ctx.vrom_read::<u32>(src_addr, false)?;
+            let src_val = ctx.vrom_read::<u32>(src_addr)?;
             ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
@@ -250,7 +250,6 @@ impl MvvwEvent {
         dst: B16,
         offset: B16,
         src: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -260,14 +259,14 @@ impl MvvwEvent {
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), prover_only)?;
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
             let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as u32)?;
 
             // If the destination value is set, we set the source value.
             if dst_val_set {
-                let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32, prover_only)?;
-                execute_mv(ctx, ctx.addr(src.val()), dst_val, prover_only)?;
-                return if prover_only {
+                let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+                return if ctx.prover_only {
                     Ok(None)
                 } else {
                     Ok(Some(Self {
@@ -287,16 +286,15 @@ impl MvvwEvent {
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if !dst_addr_set || !src_val_set {
-            debug_assert!(!prover_only);
             delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), prover_only)?;
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
 
-        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val, prover_only)?;
-        if prover_only {
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        if ctx.prover_only {
             Ok(None)
         } else {
             Ok(Some(Self {
@@ -368,7 +366,8 @@ impl MvvlEvent {
         offset: B16,
         src: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), false)?;
+        debug_assert!(!ctx.prover_only, "Pending moves cannot be prover-only");
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
         let dst_addr_offset = dst_addr ^ offset.val() as u32;
         let src_addr = ctx.addr(src.val());
         let src_val_set = ctx.vrom_check_value_set::<u128>(src_addr)?;
@@ -377,7 +376,7 @@ impl MvvlEvent {
         // Otherwise, we add the move to the list of MOVE events to be pushed once we
         // have access to the value.
         if src_val_set {
-            let src_val = ctx.vrom_read::<u128>(src_addr, false)?;
+            let src_val = ctx.vrom_read::<u128>(src_addr)?;
             ctx.vrom_write(dst_addr_offset, src_val)?;
 
             Ok(Some(Self {
@@ -422,7 +421,6 @@ impl MvvlEvent {
         dst: B16,
         offset: B16,
         src: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -432,15 +430,15 @@ impl MvvlEvent {
         // If `dst_addr` is set, we check whether the value at the destination is
         // already set. If that's the case, we can set the source value.
         if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), prover_only)?;
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
             let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as u32)?;
             // If the destination value is set, we set the source value.
             if dst_val_set {
-                let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32, prover_only)?;
+                let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
 
-                execute_mv(ctx, ctx.addr(src.val()), dst_val, prover_only)?;
+                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
-                return if prover_only {
+                return if ctx.prover_only {
                     Ok(None)
                 } else {
                     Ok(Some(Self {
@@ -460,17 +458,16 @@ impl MvvlEvent {
         // it means we are in a MOVE that precedes a CALL, and we have to handle the
         // MOVE operation later.
         if !dst_addr_set || !src_val_set {
-            debug_assert!(!prover_only);
             delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc, timestamp);
             return Ok(None);
         }
 
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), prover_only)?;
-        let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()), prover_only)?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
 
-        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val, prover_only)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
 
-        if prover_only {
+        if ctx.prover_only {
             Ok(None)
         } else {
             Ok(Some(Self {
@@ -519,10 +516,11 @@ impl MvihEvent {
         offset: B16,
         imm: B16,
     ) -> Result<Self, InterpreterError> {
+        debug_assert!(!ctx.prover_only, "Pending moves cannot be prover-only");
         // At this point, since we are in a call procedure, `dst` corresponds to the
         // next_fp. And we know it has already been set, so we can read
         // the destination address.
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), false)?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
         ctx.vrom_write(dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
@@ -542,7 +540,6 @@ impl MvihEvent {
         dst: B16,
         offset: B16,
         imm: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
@@ -551,16 +548,11 @@ impl MvihEvent {
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
         if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()), prover_only)?;
+            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-            execute_mv(
-                ctx,
-                dst_addr ^ offset.val() as u32,
-                imm.val() as u32,
-                prover_only,
-            )?;
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
-            if prover_only {
+            if ctx.prover_only {
                 Ok(None)
             } else {
                 Ok(Some(Self {
@@ -574,7 +566,6 @@ impl MvihEvent {
                 }))
             }
         } else {
-            debug_assert!(!prover_only);
             delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc, timestamp);
             Ok(None)
         }
@@ -604,14 +595,13 @@ impl LdiEvent {
         dst: B16,
         imm_low: B16,
         imm_high: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
-        execute_mv(ctx, ctx.addr(dst.val()), imm.val(), prover_only)?;
+        execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 
-        if prover_only {
+        if ctx.prover_only {
             Ok(None)
         } else {
             let (_pc, field_pc, fp, timestamp) = ctx.program_state();
@@ -641,6 +631,10 @@ fn delegate_move(
     pc: B32,
     timestamp: u32,
 ) {
+    debug_assert!(
+        !ctx.prover_only,
+        "Cannot delegate moves in prover-only mode"
+    );
     let new_mv_info = MVInfo {
         mv_kind,
         dst,
@@ -652,23 +646,16 @@ fn delegate_move(
 
     // This move needs to be handled later, in the CALL.
     ctx.moves_to_apply.push(new_mv_info);
-    ctx.incr_prom_index();
-    ctx.incr_pc();
+    ctx.incr_counters();
 }
 
 fn execute_mv<T: VromValueT>(
     ctx: &mut EventContext,
     dst_addr: u32,
     value: T,
-    prover_only: bool,
 ) -> Result<(), MemoryError> {
-    if prover_only {
-        ctx.vrom_mut().write(dst_addr, value, false)?;
-    } else {
-        ctx.vrom_write(dst_addr, value)?;
-        ctx.incr_pc();
-    }
-    ctx.incr_prom_index();
+    ctx.vrom_write(dst_addr, value)?;
+    ctx.incr_counters();
 
     Ok(())
 }

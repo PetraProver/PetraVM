@@ -136,9 +136,8 @@ macro_rules! impl_event_for_binary_operation {
                 arg0: B16,
                 arg1: B16,
                 arg2: B16,
-                prover_only: bool,
             ) -> Result<(), InterpreterError> {
-                Self::generate_event(ctx, arg0, arg1, arg2, prover_only)?.map(|event| {
+                Self::generate_event(ctx, arg0, arg1, arg2)?.map(|event| {
                     ctx.trace.$trace_field.push(event);
                 });
                 Ok(())
@@ -417,11 +416,10 @@ macro_rules! define_bin128_op_event {
                 dst: B16,
                 src1: B16,
                 src2: B16,
-                prover_only: bool,
             ) -> Result<(), InterpreterError> {
                 // Get source values
-                let src1_val = ctx.vrom_read::<u128>(ctx.addr(src1.val()), prover_only)?;
-                let src2_val = ctx.vrom_read::<u128>(ctx.addr(src2.val()), prover_only)?;
+                let src1_val = ctx.vrom_read::<u128>(ctx.addr(src1.val()))?;
+                let src2_val = ctx.vrom_read::<u128>(ctx.addr(src2.val()))?;
 
                 // Binary field operation
                 let src1_bf = B128::new(src1_val);
@@ -429,36 +427,28 @@ macro_rules! define_bin128_op_event {
                 let dst_bf = Self::operation(src1_bf, src2_bf);
                 let dst_val = dst_bf.val();
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut()
-                .write(index, dst_val, false)
-                .map_err(Into::<InterpreterError>::into)?;
-            ctx.incr_prom_index();
-            Ok(())
-        } else {
                 // Store result
                 ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+                if !ctx.prover_only {
+                    let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-                ctx.incr_prom_index();
-                ctx.incr_pc();
+                    let event = Self {
+                        timestamp,
+                        pc: field_pc,
+                        fp,
+                        dst: dst.val(),
+                        dst_val,
+                        src1: src1.val(),
+                        src1_val,
+                        src2: src2.val(),
+                        src2_val,
+                    };
 
-                let event = Self {
-                    timestamp,
-                    pc: field_pc,
-                    fp,
-                    dst: dst.val(),
-                    dst_val,
-                    src1: src1.val(),
-                    src1_val,
-                    src2: src2.val(),
-                    src2_val,
-                };
+                    ctx.trace.$trace_field.push(event);
 
-                ctx.trace.$trace_field.push(event);
-
-                Ok(())}
+                }
+                ctx.incr_counters();
+                Ok(())
             }
 
             fn fire(&self, channels: &mut InterpreterChannels) {

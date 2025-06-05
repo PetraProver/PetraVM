@@ -159,23 +159,18 @@ where
         dst: B16,
         src: B16,
         imm: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()), prover_only)?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let dst_val = Self::calculate_result(src_val, shift_amount);
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut().write(index, dst_val, false)?;
-            ctx.incr_prom_index();
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+        ctx.incr_counters();
+        if ctx.prover_only {
             Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
-            ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-            ctx.incr_prom_index();
-            ctx.incr_pc();
 
             Ok(Some(Self::new(
                 field_pc,
@@ -200,22 +195,17 @@ where
         dst: B16,
         src1: B16,
         src2: B16,
-        prover_only: bool,
     ) -> Result<Option<Self>, InterpreterError> {
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()), prover_only)?;
-        let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()), prover_only)?;
+        let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
+        let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
         let dst_val = Self::calculate_result(src_val, shift_amount);
 
-        if prover_only {
-            let index = ctx.addr(dst.val());
-            ctx.vrom_mut().write(index, dst_val, false)?;
-            ctx.incr_prom_index();
+        ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+        ctx.incr_counters();
+        if ctx.prover_only {
             Ok(None)
         } else {
             let (_, field_pc, fp, timestamp) = ctx.program_state();
-            ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-            ctx.incr_prom_index();
-            ctx.incr_pc();
 
             Ok(Some(Self::new(
                 field_pc,
@@ -251,15 +241,14 @@ macro_rules! impl_shift_event {
                 dst: B16,
                 src1: B16,
                 src2: B16,
-                prover_only: bool,
             ) -> Result<(), InterpreterError> {
                 let event = if <$source>::is_immediate() {
-                    Self::generate_immediate_event(ctx, dst, src1, src2, prover_only)?
+                    Self::generate_immediate_event(ctx, dst, src1, src2)?
                 } else {
-                    Self::generate_vrom_event(ctx, dst, src1, src2, prover_only)?
+                    Self::generate_vrom_event(ctx, dst, src1, src2)?
                 };
 
-                if !prover_only {
+                if !ctx.prover_only {
                     let event = event.ok_or(InterpreterError::InvalidInput)?;
                     // For right shift operations, create a RightLogicShiftGadgetEvent
                     // This needs to handle both logical and arithmetic right shifts
