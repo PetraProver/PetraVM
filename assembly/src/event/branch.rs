@@ -32,7 +32,6 @@ impl Event for BnzEvent {
         target_high: B16,
         cond: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "BNZ cannot be prover-only");
         let target = (B32::from_bases([target_low, target_high]))
             .map_err(|_| InterpreterError::InvalidInput)?;
 

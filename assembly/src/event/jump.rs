@@ -29,7 +29,6 @@ impl Event for JumpvEvent {
         _unused0: B16,
         _unused1: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Jumpv cannot be prover-only");
         let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
 
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
@@ -79,7 +78,6 @@ impl Event for JumpiEvent {
         target_high: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Jumpi cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = (B32::from_bases([target_low, target_high]))

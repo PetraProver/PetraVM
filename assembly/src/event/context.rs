@@ -16,7 +16,10 @@ use crate::{
 /// [`PetraTrace`], and also contains the PC associated to the event to be
 /// generated. It also contains an optional advice, which provides a PROM index
 /// and the discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a
-/// group element defined by the instruction arguments.
+/// group element defined by the instruction arguments, and a boolean indicating
+/// whether the current instruction is prover-only. Prover-only instructions are
+/// hints for the emulator to help generating the trace, but do not produce any
+/// event and do not change the program state.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut PetraTrace,
@@ -135,7 +138,7 @@ impl EventContext<'_> {
         self.ram_mut().write(addr, value, timestamp, pc)
     }
 
-    /// Increments the underlying [`Interpreter`]'s PCs.
+    /// Increments the underlying [`Interpreter`]'s PC.
     pub fn incr_pc(&mut self) {
         self.interpreter.incr_pc();
     }

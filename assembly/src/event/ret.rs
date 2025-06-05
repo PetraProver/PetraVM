@@ -40,7 +40,6 @@ impl Event for RetEvent {
         _unused1: B16,
         _unused2: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Ret cannot be prover-only");
         let ret_event = RetEvent::new(ctx)?;
 
         let target = ret_event.pc_next;

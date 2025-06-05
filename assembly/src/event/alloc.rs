@@ -16,7 +16,6 @@ impl Event for AllociEvent {
         imm: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(ctx.prover_only, "Alloci is prover-only");
         let dst_addr = ctx.addr(dst.val());
         let ptr = ctx.vrom_mut().allocate_new_frame(imm.val() as u32);
         ctx.vrom_write(dst_addr, ptr)?;
@@ -37,7 +36,6 @@ impl Event for AllocvEvent {
         src: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(ctx.prover_only, "Allocv is prover-only");
         let dst_addr = ctx.addr(dst.val());
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let ptr = ctx.vrom_mut().allocate_new_frame(src_val);

@@ -36,7 +36,6 @@ impl Event for TailiEvent {
         target_high: B16,
         next_fp: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Taili cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
@@ -113,7 +112,6 @@ impl Event for TailvEvent {
         next_fp: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Tailv cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
@@ -185,7 +183,6 @@ impl Event for CalliEvent {
         target_high: B16,
         next_fp: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Calli cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = B32::from_bases([target_low, target_high])
@@ -255,7 +252,6 @@ impl Event for CallvEvent {
         next_fp: B16,
         _unused: B16,
     ) -> Result<(), InterpreterError> {
-        debug_assert!(!ctx.prover_only, "Callv cannot be prover-only");
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
         // Get the target address, to which we should jump.

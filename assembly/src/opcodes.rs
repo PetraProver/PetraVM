@@ -162,6 +162,22 @@ impl Opcode {
             Opcode::Invalid => 0, // invalid
         }
     }
+
+    /// Returns true if the opcode cannot be prover-only.
+    pub const fn is_verifier_only(&self) -> bool {
+        matches!(
+            self,
+            Opcode::Bnz
+                | Opcode::Bz
+                | Opcode::Jumpi
+                | Opcode::Jumpv
+                | Opcode::Taili
+                | Opcode::Tailv
+                | Opcode::Calli
+                | Opcode::Callv
+                | Opcode::Ret
+        )
+    }
 }
 
 /// Trait implemented by each [`Event`] type.

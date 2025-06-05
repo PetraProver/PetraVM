@@ -298,8 +298,16 @@ impl Interpreter {
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
         #[cfg(debug_assertions)]
-        if !self.isa.is_supported(opcode) {
-            return Err(InterpreterError::UnsupportedOpcode(opcode));
+        {
+            if !self.isa.is_supported(opcode) {
+                return Err(InterpreterError::UnsupportedOpcode(opcode));
+            }
+            if opcode.is_verifier_only() && prover_only {
+                panic!("{opcode:?} cannot be prover-only.");
+            }
+            if (opcode == Opcode::Alloci || opcode == Opcode::Allocv) && !prover_only {
+                panic!("{opcode:?} must be prover-only.");
+            }
         }
 
         let mut ctx = EventContext {
