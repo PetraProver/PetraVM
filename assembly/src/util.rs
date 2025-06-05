@@ -45,3 +45,20 @@ pub fn bytes_to_u32(input: &[u8]) -> Vec<u32> {
         output
     }
 }
+
+pub fn bytes_to_u64(input: &[u8]) -> Vec<u64> {
+    if let Ok(words) = bytemuck::try_cast_slice::<u8, u64>(input) {
+        words.to_vec()
+    } else {
+        let mut output = Vec::with_capacity(input.len() / 8);
+        for chunk in input.chunks_exact(8) {
+            let value = u64::from_le_bytes(
+                chunk
+                    .try_into()
+                    .expect("The chunk contains exactly 8 bytes"),
+            );
+            output.push(value);
+        }
+        output
+    }
+}

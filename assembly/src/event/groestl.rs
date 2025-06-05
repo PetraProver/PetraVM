@@ -1,13 +1,12 @@
 use binius_field::AESTowerField8b;
 use binius_hash::groestl::{GroestlShortImpl, GroestlShortInternal};
 use binius_m3::builder::{B16, B32, B8};
-use bytemuck::cast_slice;
 
 use super::{context::EventContext, Event};
 use crate::{
     execution::{FramePointer, InterpreterChannels, InterpreterError},
     macros::fire_non_jump_event,
-    util::bytes_to_u32,
+    util::{bytes_to_u32, bytes_to_u64},
 };
 
 /// Event for GROESTL256_COMPRESS.
@@ -81,7 +80,7 @@ impl Event for Groestl256CompressEvent {
         let out_state_bytes_transposed = GroestlShortImpl::state_to_bytes(&out_val);
         let out_state_bytes = transpose_in_bin(&out_state_bytes_transposed);
 
-        let dst_val: [u64; 8] = cast_slice::<u8, u64>(&out_state_bytes)
+        let dst_val: [u64; 8] = bytes_to_u64(&out_state_bytes)
             .try_into()
             .expect("out_state_bytes is exactly 64 bytes");
 
