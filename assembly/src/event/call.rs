@@ -181,7 +181,7 @@ impl Event for CalliEvent {
         target_high: B16,
         next_fp: B16,
     ) -> Result<(), InterpreterError> {
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (pc, field_pc, fp, timestamp) = ctx.program_state();
 
         let target = B32::new(target_low.val() as u32 + ((target_high.val() as u32) << 16));
         let advice = ctx

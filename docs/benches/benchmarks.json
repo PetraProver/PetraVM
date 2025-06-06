@@ -1,505 +1,188 @@
 [
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Xor",
-    "mean": {
-      "estimate": 136889347.504949
-    },
-    "median_abs_dev": {
-      "estimate": 903759.4495500374
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6642959771485142
-      }
-    }
+    "benchmark": "Xor",
+    "mean_ns": 222760.1861430976,
+    "ci_lower": 221925.4085310467,
+    "ci_upper": 223674.17515030497
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Xori",
-    "mean": {
-      "estimate": 135955388.35396028
-    },
-    "median_abs_dev": {
-      "estimate": 919633.8487820331
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6699765366065267
-      }
-    }
+    "benchmark": "Srai",
+    "mean_ns": 245022.9860978173,
+    "ci_lower": 236480.31882231843,
+    "ci_upper": 257995.57608788734
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/B32Mul",
-    "mean": {
-      "estimate": 136134771.0881675
-    },
-    "median_abs_dev": {
-      "estimate": 715955.2874059209
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6683914177661909
-      }
-    }
+    "benchmark": "Mulsu",
+    "mean_ns": 269144.2174758734,
+    "ci_lower": 267284.34007897845,
+    "ci_upper": 270902.4248929682
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/B32Muli",
-    "mean": {
-      "estimate": 138176437.38117918
-    },
-    "median_abs_dev": {
-      "estimate": 432315.0088543768
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6645064068945719
-      }
-    }
+    "benchmark": "Sltiu",
+    "mean_ns": 220178.97602230092,
+    "ci_lower": 219609.91572335977,
+    "ci_upper": 220751.97045183802
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/B128Add",
-    "mean": {
-      "estimate": 184017635.05546796
-    },
-    "median_abs_dev": {
-      "estimate": 915016.0073364623
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6901735747861271
-      }
-    }
+    "benchmark": "B128Add",
+    "mean_ns": 432715.280236563,
+    "ci_lower": 430775.54913606716,
+    "ci_upper": 434784.0551810068
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/B128Mul",
-    "mean": {
-      "estimate": 194053988.57500002
-    },
-    "median_abs_dev": {
-      "estimate": 1588199.1452038363
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6778771131435216
-      }
-    }
+    "benchmark": "Mul",
+    "mean_ns": 264747.208567491,
+    "ci_lower": 264272.203727258,
+    "ci_upper": 265289.4953459024
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Add",
-    "mean": {
-      "estimate": 142495919.6505288
-    },
-    "median_abs_dev": {
-      "estimate": 684038.1689986127
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6627873386412424
-      }
-    }
+    "benchmark": "Ori",
+    "mean_ns": 222894.2596293135,
+    "ci_lower": 221946.16395999302,
+    "ci_upper": 223883.28043967643
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Addi",
-    "mean": {
-      "estimate": 152697843.61229563
-    },
-    "median_abs_dev": {
-      "estimate": 787146.8909547774
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6457976869193309
-      }
-    }
+    "benchmark": "Sleiu",
+    "mean_ns": 224678.49756800281,
+    "ci_lower": 223181.30356604885,
+    "ci_upper": 226088.1214363272
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sub",
-    "mean": {
-      "estimate": 142228630.35644752
-    },
-    "median_abs_dev": {
-      "estimate": 477105.9559396704
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6642183102700441
-      }
-    }
+    "benchmark": "Sle",
+    "mean_ns": 225160.47675023222,
+    "ci_lower": 224065.01681946707,
+    "ci_upper": 226191.5100565366
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/And",
-    "mean": {
-      "estimate": 138065501.7906341
-    },
-    "median_abs_dev": {
-      "estimate": 1265097.501403333
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6783101592580981
-      }
-    }
+    "benchmark": "Sll",
+    "mean_ns": 227171.26158829435,
+    "ci_lower": 226489.0809383061,
+    "ci_upper": 228079.92244230295
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Andi",
-    "mean": {
-      "estimate": 137708223.8528269
-    },
-    "median_abs_dev": {
-      "estimate": 1195415.663877122
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6723664464243788
-      }
-    }
+    "benchmark": "Xori",
+    "mean_ns": 220399.58346266072,
+    "ci_lower": 217982.32674550387,
+    "ci_upper": 222716.3459622118
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Or",
-    "mean": {
-      "estimate": 137779242.21584967
-    },
-    "median_abs_dev": {
-      "estimate": 1015396.1474573101
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6797553667190017
-      }
-    }
+    "benchmark": "Sra",
+    "mean_ns": 241818.29802741465,
+    "ci_lower": 236535.873434242,
+    "ci_upper": 247119.6148504771
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Ori",
-    "mean": {
-      "estimate": 138467819.20810777
-    },
-    "median_abs_dev": {
-      "estimate": 925041.5287618476
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6767306406699625
-      }
-    }
+    "benchmark": "Srli",
+    "mean_ns": 221509.049216322,
+    "ci_lower": 216696.77407025476,
+    "ci_upper": 227147.51691461424
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sll",
-    "mean": {
-      "estimate": 149308137.35030383
-    },
-    "median_abs_dev": {
-      "estimate": 525497.0390643295
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6495473379743323
-      }
-    }
+    "benchmark": "B128Mul",
+    "mean_ns": 923097.4001903113,
+    "ci_lower": 914335.7273958359,
+    "ci_upper": 932778.0296402122
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Slli",
-    "mean": {
-      "estimate": 148563730.75028118
-    },
-    "median_abs_dev": {
-      "estimate": 508318.4482050991
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6478296500520937
-      }
-    }
+    "benchmark": "Sub",
+    "mean_ns": 229446.37543964194,
+    "ci_lower": 228933.5552303027,
+    "ci_upper": 230164.36359711672
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Srl",
-    "mean": {
-      "estimate": 148857330.48602182
-    },
-    "median_abs_dev": {
-      "estimate": 474239.06028912036
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6518981950306586
-      }
-    }
+    "benchmark": "And",
+    "mean_ns": 228128.22985133342,
+    "ci_lower": 227457.96375244315,
+    "ci_upper": 228795.73047702532
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Srli",
-    "mean": {
-      "estimate": 149945155.13511437
-    },
-    "median_abs_dev": {
-      "estimate": 916323.4001757504
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6452920513744661
-      }
-    }
+    "benchmark": "Add",
+    "mean_ns": 232726.99907906493,
+    "ci_lower": 229567.44735502673,
+    "ci_upper": 236305.07505575125
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sra",
-    "mean": {
-      "estimate": 150900763.78323692
-    },
-    "median_abs_dev": {
-      "estimate": 609055.2528318006
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.652394391045202
-      }
-    }
+    "benchmark": "B32Mul",
+    "mean_ns": 275931.31416666694,
+    "ci_lower": 272343.5056587513,
+    "ci_upper": 280388.3907628786
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Srai",
-    "mean": {
-      "estimate": 151748395.12766135
-    },
-    "median_abs_dev": {
-      "estimate": 606930.6045297866
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6435778971864746
-      }
-    }
+    "benchmark": "Slli",
+    "mean_ns": 217989.65895677535,
+    "ci_lower": 217646.32118588133,
+    "ci_upper": 218363.92529819364
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Mul",
-    "mean": {
-      "estimate": 339658812.4833333
-    },
-    "median_abs_dev": {
-      "estimate": 2193012.708166168
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.549682844107396
-      }
-    }
+    "benchmark": "Slt",
+    "mean_ns": 225448.99835860677,
+    "ci_lower": 224810.7306516081,
+    "ci_upper": 226082.77997960657
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Muli",
-    "mean": {
-      "estimate": 366831352.81666666
-    },
-    "median_abs_dev": {
-      "estimate": 3117032.516461596
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.5293605926308428
-      }
-    }
+    "benchmark": "Or",
+    "mean_ns": 226477.73845707235,
+    "ci_lower": 226142.5807672646,
+    "ci_upper": 226870.41426402627
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Mulu",
-    "mean": {
-      "estimate": 269362719.8125
-    },
-    "median_abs_dev": {
-      "estimate": 3075437.3711250722
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.5920904753475545
-      }
-    }
+    "benchmark": "Sleu",
+    "mean_ns": 222296.09142606132,
+    "ci_lower": 221733.3094813382,
+    "ci_upper": 222958.7723342627
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Mulsu",
-    "mean": {
-      "estimate": 294386482.8125
-    },
-    "median_abs_dev": {
-      "estimate": 1662071.6656923294
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.5804252261827254
-      }
-    }
+    "benchmark": "Slei",
+    "mean_ns": 225612.64017347846,
+    "ci_lower": 225067.49863233752,
+    "ci_upper": 226059.85015120552
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Slt",
-    "mean": {
-      "estimate": 142370190.1839715
-    },
-    "median_abs_dev": {
-      "estimate": 791220.5153823707
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6609326326242568
-      }
-    }
+    "benchmark": "Muli",
+    "mean_ns": 268385.36824831093,
+    "ci_lower": 268113.17919325683,
+    "ci_upper": 268677.9141518415
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Slti",
-    "mean": {
-      "estimate": 152187041.72328213
-    },
-    "median_abs_dev": {
-      "estimate": 791348.6462581181
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6422323493826705
-      }
-    }
+    "benchmark": "B32Muli",
+    "mean_ns": 476655.73642782745,
+    "ci_lower": 474271.9497579356,
+    "ci_upper": 479386.28195640404
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sltu",
-    "mean": {
-      "estimate": 143801194.07599467
-    },
-    "median_abs_dev": {
-      "estimate": 1533659.1600421115
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6555017119151592
-      }
-    }
+    "benchmark": "Andi",
+    "mean_ns": 224880.0524033879,
+    "ci_lower": 221640.30701385133,
+    "ci_upper": 228285.21922476284
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sltiu",
-    "mean": {
-      "estimate": 150427759.85061163
-    },
-    "median_abs_dev": {
-      "estimate": 1293660.198652161
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6390281899278916
-      }
-    }
+    "benchmark": "Srl",
+    "mean_ns": 253273.84789718696,
+    "ci_lower": 252980.0687008095,
+    "ci_upper": 253579.73050100438
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sle",
-    "mean": {
-      "estimate": 142770213.4918515
-    },
-    "median_abs_dev": {
-      "estimate": 401446.9307228923
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6579989776078301
-      }
-    }
+    "benchmark": "Addi",
+    "mean_ns": 216883.98343356504,
+    "ci_lower": 216613.1497714665,
+    "ci_upper": 217229.78723600306
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Slei",
-    "mean": {
-      "estimate": 149575501.57517904
-    },
-    "median_abs_dev": {
-      "estimate": 612503.4295508652
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6477388003716787
-      }
-    }
+    "benchmark": "Mulu",
+    "mean_ns": 274736.24237853347,
+    "ci_lower": 269151.7868686418,
+    "ci_upper": 282080.5785303745
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sleu",
-    "mean": {
-      "estimate": 145457604.1404806
-    },
-    "median_abs_dev": {
-      "estimate": 924555.3950234764
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.651865694504185
-      }
-    }
+    "benchmark": "Slti",
+    "mean_ns": 220226.35781916598,
+    "ci_lower": 219921.86444431424,
+    "ci_upper": 220628.4997043395
   },
   {
-    "reason": "benchmark-complete",
-    "id": "opcode_proving/prove/Sleiu",
-    "mean": {
-      "estimate": 144746586.58558717
-    },
-    "median_abs_dev": {
-      "estimate": 1041097.8653991322
-    },
-    "change": {
-      "mean": {
-        "estimate": -0.6528851684340222
-      }
-    }
-  },
-  {
-    "reason": "group-complete",
-    "group_name": "opcode_proving",
-    "benchmarks": [
-      "opcode_proving/prove/Xor",
-      "opcode_proving/prove/Xori",
-      "opcode_proving/prove/B32Mul",
-      "opcode_proving/prove/B32Muli",
-      "opcode_proving/prove/B128Add",
-      "opcode_proving/prove/B128Mul",
-      "opcode_proving/prove/Add",
-      "opcode_proving/prove/Addi",
-      "opcode_proving/prove/Sub",
-      "opcode_proving/prove/And",
-      "opcode_proving/prove/Andi",
-      "opcode_proving/prove/Or",
-      "opcode_proving/prove/Ori",
-      "opcode_proving/prove/Sll",
-      "opcode_proving/prove/Slli",
-      "opcode_proving/prove/Srl",
-      "opcode_proving/prove/Srli",
-      "opcode_proving/prove/Sra",
-      "opcode_proving/prove/Srai",
-      "opcode_proving/prove/Mul",
-      "opcode_proving/prove/Muli",
-      "opcode_proving/prove/Mulu",
-      "opcode_proving/prove/Mulsu",
-      "opcode_proving/prove/Slt",
-      "opcode_proving/prove/Slti",
-      "opcode_proving/prove/Sltu",
-      "opcode_proving/prove/Sltiu",
-      "opcode_proving/prove/Sle",
-      "opcode_proving/prove/Slei",
-      "opcode_proving/prove/Sleu",
-      "opcode_proving/prove/Sleiu"
-    ],
-    "report_directory": "/Users/sdeng/Project/zcray/zCrayVM/target/criterion/reports/opcode_proving"
+    "benchmark": "Sltu",
+    "mean_ns": 224386.58614914943,
+    "ci_lower": 224030.74922645927,
+    "ci_upper": 224676.3246758456
   }
 ]

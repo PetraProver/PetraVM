@@ -286,11 +286,13 @@ impl Interpreter {
             prover_only,
         } = trace.prom()[self.prom_index as usize];
         let [opcode, arg0, arg1, arg2] = instruction;
+        trace.record_instruction(field_pc);
+        // Special handling for B32Muli
         if !prover_only {
             trace.record_instruction(field_pc);
-            // Special handling for B32Muli
             if opcode == Opcode::B32Muli.get_field_elt() {
-                trace.record_instruction(field_pc * G);
+                let next_field_pc = trace.prom()[self.prom_index as usize + 1].field_pc;
+                trace.record_instruction(next_field_pc);
             }
         }
 

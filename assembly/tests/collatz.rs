@@ -1,10 +1,12 @@
 pub mod common;
 
 use common::test_utils::{execute_test_asm, AsmToExecute};
+use petravm_asm::init_logger;
 
 #[test]
 fn test_collatz_integration() {
     let init_vals = [5, 27, 3999];
+    init_logger();
 
     // Execute the program multiple times with different initial values
     for initial_value in init_vals {
