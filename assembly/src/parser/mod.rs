@@ -484,6 +484,22 @@ fn parse_line(
                                     prover_only,
                                 });
                             }
+                            Rule::GROESTL256_COMPRESS_instr => {
+                                instrs.push(InstructionsWithLabels::Groestl256Compress {
+                                    dst,
+                                    src1,
+                                    src2,
+                                    prover_only,
+                                });
+                            }
+                            Rule::GROESTL256_OUTPUT_instr => {
+                                instrs.push(InstructionsWithLabels::Groestl256Output {
+                                    dst,
+                                    src1,
+                                    src2,
+                                    prover_only,
+                                });
+                            }
                             _ => {
                                 unimplemented!("binary_op: {opcode_rule:?} not implemented");
                             }

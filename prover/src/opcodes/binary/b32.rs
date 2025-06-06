@@ -896,7 +896,8 @@ mod tests {
             RET\n"
         );
 
-        generate_trace(asm_code, None, None)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, None, isa)
     }
 
     fn test_binary_ops_with_values(val1: u32, val2: u32) -> Result<()> {

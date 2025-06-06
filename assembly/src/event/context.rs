@@ -138,23 +138,13 @@ impl EventContext<'_> {
         self.ram_mut().write(addr, value, timestamp, pc)
     }
 
-    /// Increments the underlying [`Interpreter`]'s PC.
-    pub fn incr_pc(&mut self) {
-        self.interpreter.incr_pc();
-    }
-
-    /// Inccrements the PROM index and, if not in prover-only mode, increments
+    /// Increments the PROM index and, if not in prover-only mode, increments
     /// the PC.
     pub fn incr_counters(&mut self) {
         self.interpreter.incr_prom_index();
         if !self.prover_only {
             self.interpreter.incr_pc();
         }
-    }
-
-    /// Increments the underlying [`Interpreter`]'s PROM index.
-    pub fn incr_prom_index(&mut self) {
-        self.interpreter.incr_prom_index();
     }
 
     /// Helper method to allocate a new frame, updates the [`FramePointer`] and

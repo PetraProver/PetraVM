@@ -1295,7 +1295,8 @@ mod tests {
                     SLEU @7, @2, @3\n\
                     RET\n",
         );
-        let trace = generate_trace(asm_code, None, None)?;
+        let isa = Box::new(GenericISA);
+        let trace = generate_trace(asm_code, None, None, isa)?;
         trace.validate()?;
         assert_eq!(trace.slt_events().len(), 2);
         assert_eq!(trace.sltu_events().len(), 2);
@@ -1320,7 +1321,8 @@ mod tests {
                     SLEIU @7, @2, #{imm}\n\
                     RET\n",
         );
-        let trace = generate_trace(asm_code, None, None)?;
+        let isa = Box::new(GenericISA);
+        let trace = generate_trace(asm_code, None, None, isa)?;
         trace.validate()?;
         assert_eq!(trace.slti_events().len(), 2);
         assert_eq!(trace.sltiu_events().len(), 2);
