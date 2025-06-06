@@ -3,7 +3,8 @@
 //! This module contains the data structures used to represent execution traces
 //! and events needed for the proving system.
 
-use ahash::AHashMap;
+use std::iter::repeat_n;
+
 use anyhow::Result;
 use binius_m3::builder::B32;
 use paste::paste;
@@ -154,7 +155,13 @@ impl Trace {
     /// TODO: Refactor this approach to directly obtain the zkVMTrace from
     /// program emulation rather than requiring separate population of
     /// program instructions.
-    pub fn from_petra_trace(program: Vec<InterpreterInstruction>, trace: PetraTrace) -> Self {
+    pub fn from_petra_trace(program: Vec<InterpreterInstruction>, mut trace: PetraTrace) -> Self {
+        // Pad instruction_counter
+        let instruction_counter_size = trace.instruction_counter.len();
+        trace
+            .instruction_counter
+            .extend(repeat_n(0, program.len() - instruction_counter_size));
+
         // Add the program instructions to the trace
         let mut zkvm_trace = Self::new();
         zkvm_trace.add_instructions(program, &trace.instruction_counter);
@@ -170,18 +177,17 @@ impl Trace {
     ///
     /// # Arguments
     /// * `instructions` - An iterator of InterpreterInstructions to add
-    pub fn add_instructions<I>(&mut self, instructions: I, instruction_counter: &AHashMap<B32, u32>)
-    where
-        I: IntoIterator<Item = InterpreterInstruction>,
-    {
+    pub fn add_instructions(
+        &mut self,
+        instructions: Vec<InterpreterInstruction>,
+        instruction_counter: &[u32],
+    ) {
         // Collect all instructions with their counts
-        let mut instructions_with_counts: Vec<_> = instructions
+        let mut instructions_with_counts = instructions
             .into_iter()
-            .map(|instr| {
-                let count = instruction_counter.get(&instr.field_pc).unwrap_or(&0);
-                (instr.into(), *count)
-            })
-            .collect();
+            .zip(instruction_counter.iter())
+            .map(|(instr, count)| (instr.into(), *count))
+            .collect::<Vec<_>>();
 
         // Sort by count in descending order
         instructions_with_counts.sort_by(|(_, count_a), (_, count_b)| count_b.cmp(count_a));

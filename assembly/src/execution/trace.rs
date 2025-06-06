@@ -3,7 +3,6 @@
 
 use std::collections::HashMap;
 
-use ahash::AHashMap;
 use binius_field::{Field, PackedField};
 use binius_m3::builder::B32;
 
@@ -86,9 +85,8 @@ pub struct PetraTrace {
     pub b128_mul: Vec<B128MulEvent>,
 
     memory: Memory,
-    /// A map of an instruction's field PC to the number of times that
-    /// instruction has been executed.
-    pub instruction_counter: AHashMap<B32, u32>,
+    /// A vector recording the number of times an instruction has been executed.
+    pub instruction_counter: Vec<u32>,
 
     pub right_logic_shift_gadget: Vec<RightLogicShiftGadgetEvent>,
 }
@@ -120,8 +118,10 @@ macro_rules! fire_events {
 
 impl PetraTrace {
     pub(crate) fn new(memory: Memory) -> Self {
+        let prom_size = memory.prom().len();
         Self {
             memory,
+            instruction_counter: vec![0; prom_size],
             ..Default::default()
         }
     }
@@ -305,7 +305,7 @@ impl PetraTrace {
         self.memory.vrom_pending_updates()
     }
 
-    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
-        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
+    pub(crate) fn record_instruction(&mut self, pc: u32) {
+        self.instruction_counter[pc as usize - 1] += 1;
     }
 }
