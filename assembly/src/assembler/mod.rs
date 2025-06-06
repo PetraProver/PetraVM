@@ -140,6 +140,28 @@ pub fn get_prom_inst_from_inst_with_label(
                 )));
             }
         }
+        InstructionsWithLabels::Fp {
+            dst,
+            imm,
+            prover_only,
+        } => {
+            let instruction = [
+                Opcode::Fp.get_field_elt(),
+                dst.get_16bfield_val(),
+                imm.get_field_val(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
+
+            if !*prover_only {
+                *field_pc *= G;
+            }
+        }
         InstructionsWithLabels::B32Mul {
             dst,
             src1,

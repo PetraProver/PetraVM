@@ -570,6 +570,26 @@ fn parse_line(
                             }
                         };
                     }
+                    Rule::fp => {
+                        let mut fp = instruction.into_inner();
+                        let (opcode_rule, prover_only) =
+                            parse_opcode(fp.next().expect("fp has instruction"));
+                        let dst = fp.next().expect("fp has dst");
+                        let imm = fp.next().expect("fp has imm");
+                        match opcode_rule {
+                            Rule::FP_instr => {
+                                instrs.push(InstructionsWithLabels::Fp {
+                                    dst: Slot::from_str(dst.as_str())?,
+                                    imm: Immediate::from_str(imm.as_str())?,
+                                    prover_only,
+                                });
+                            }
+                            _ => {
+                                unreachable!("We have implemented all alloc_non_imm instructions");
+                            }
+                        }
+                    }
+
                     _ => {
                         return Err(Error::UnknownInstruction(
                             instruction.as_span().as_str().to_string(),
