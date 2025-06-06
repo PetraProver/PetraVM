@@ -1,4 +1,3 @@
-use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::{context::EventContext, Event};
@@ -32,8 +31,7 @@ impl Event for BnzEvent {
         target_high: B16,
         cond: B16,
     ) -> Result<(), InterpreterError> {
-        let target = (B32::from_bases([target_low, target_high]))
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let target = B32::new(target_low.val() as u32 + ((target_high.val() as u32) << 16));
 
         let (pc, field_pc, fp, timestamp) = ctx.program_state();
         if pc == 0 {

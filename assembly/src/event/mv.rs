@@ -1,4 +1,3 @@
-use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
@@ -596,8 +595,7 @@ impl LdiEvent {
         imm_low: B16,
         imm_high: B16,
     ) -> Result<Option<Self>, InterpreterError> {
-        let imm =
-            B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
+        let imm = B32::new(imm_low.val() as u32 + ((imm_high.val() as u32) << 16));
 
         execute_mv(ctx, ctx.addr(dst.val()), imm.val())?;
 

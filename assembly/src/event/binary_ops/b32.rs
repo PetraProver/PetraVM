@@ -1,4 +1,4 @@
-use binius_field::{ExtensionField, Field};
+use binius_field::Field;
 use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
@@ -139,8 +139,7 @@ impl Event for B32MuliEvent {
         {
             return Err(InterpreterError::InvalidInput);
         }
-        let imm =
-            B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
+        let imm = B32::new(imm_low.val() as u32 + ((imm_high.val() as u32) << 16));
 
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
