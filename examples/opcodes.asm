@@ -33,14 +33,19 @@
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;; ============================================================================
 
-#[framesize(0xd)]
+#[framesize(0x10)]
 _start: 
     ;; Call the binary field test
+    ;; We also test ALLOCI with the test_binary_field frame
+    ALLOCI! @3, #41
     MVV.W @3[2], @4
     CALLI test_binary_field, @3
     BNZ test_failed, @4
     
     ;; Call the integer operations test
+    ;; We also test ALLOCV with the test_integer_ops frame
+    LDI.W! @15, #78
+    ALLOCV! @5, @15
     MVV.W @5[2], @6
     CALLI test_integer_ops, @5
     BNZ test_failed, @6

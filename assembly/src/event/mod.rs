@@ -18,6 +18,7 @@ use crate::{
     Opcode,
 };
 
+pub(crate) mod alloc;
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
 pub(crate) mod call;
@@ -37,6 +38,7 @@ pub(crate) use binary_ops::{b128, b32};
 
 // Re-exports
 pub use self::{
+    alloc::{AllociEvent, AllocvEvent},
     b128::{B128AddEvent, B128MulEvent},
     b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
     branch::{BnzEvent, BzEvent},
@@ -145,6 +147,8 @@ impl Opcode {
             Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Alloci => alloc::AllociEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Allocv => alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }

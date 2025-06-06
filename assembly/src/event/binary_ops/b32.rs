@@ -1,4 +1,4 @@
-use binius_field::{ExtensionField, Field, PackedField};
+use binius_field::{ExtensionField, Field};
 use binius_m3::builder::{B16, B32};
 
 use super::BinaryOperation;
@@ -127,40 +127,42 @@ impl Event for B32MuliEvent {
         src: B16,
         imm_low: B16,
     ) -> Result<(), InterpreterError> {
-        let (pc, field_pc, fp, timestamp) = ctx.program_state();
+        let (_, field_pc, fp, timestamp) = ctx.program_state();
 
         // B32_MULI spans over two rows in the PROM
-        let [second_opcode, imm_high, third, fourth] = ctx.trace.prom()[pc as usize].instruction;
+        let [second_opcode, imm_high, third, fourth] =
+            ctx.trace.prom()[ctx.prom_index as usize + 1].instruction;
 
         if second_opcode.val() != Opcode::B32Muli as u16
             || third != B16::ZERO
             || fourth != B16::ZERO
         {
-            return Err(InterpreterError::BadPc);
+            return Err(InterpreterError::InvalidInput);
         }
         let imm =
             B32::from_bases([imm_low, imm_high]).map_err(|_| InterpreterError::InvalidInput)?;
 
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let dst_val = Self::operation(B32::new(src_val), imm);
-
-        debug_assert!(field_pc == G.pow(pc as u64 - 1));
-        let event = Self::new(
-            timestamp,
-            field_pc,
-            fp,
-            dst.val(),
-            dst_val.val(),
-            src.val(),
-            src_val,
-            imm.val(),
-        );
         ctx.vrom_write(ctx.addr(dst.val()), dst_val.val())?;
-        // The instruction is over two rows in the PROM.
-        ctx.incr_pc();
-        ctx.incr_pc();
 
-        ctx.trace.b32_muli.push(event);
+        if !ctx.prover_only {
+            let event = Self::new(
+                timestamp,
+                field_pc,
+                fp,
+                dst.val(),
+                dst_val.val(),
+                src.val(),
+                src_val,
+                imm.val(),
+            );
+
+            ctx.trace.b32_muli.push(event);
+        }
+        // The instruction is over two rows in the PROM.
+        ctx.incr_counters();
+        ctx.incr_counters();
         Ok(())
     }
 

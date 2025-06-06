@@ -135,9 +135,9 @@ impl PetraTrace {
         isa: Box<dyn ISA>,
         memory: Memory,
         frames: LabelsFrameSizes,
-        pc_field_to_int: HashMap<B32, u32>,
+        pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
     ) -> Result<(Self, BoundaryValues), InterpreterError> {
-        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_int);
+        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_index_pc);
 
         let trace = interpreter.run(memory)?;
 
@@ -226,7 +226,7 @@ impl PetraTrace {
     ///
     /// This will also execute pending VROM updates if necessary.
     pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value)?;
+        self.vrom_mut().write(index, value, true)?;
         if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
             for pending_update in pending_updates {
                 let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, mvvl_pos) =

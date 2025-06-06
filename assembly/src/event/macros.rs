@@ -137,8 +137,9 @@ macro_rules! impl_event_for_binary_operation {
                 arg1: B16,
                 arg2: B16,
             ) -> Result<(), InterpreterError> {
-                let event = Self::generate_event(ctx, arg0, arg1, arg2)?;
-                ctx.trace.$trace_field.push(event);
+                Self::generate_event(ctx, arg0, arg1, arg2)?.map(|event| {
+                    ctx.trace.$trace_field.push(event);
+                });
                 Ok(())
             }
 
@@ -428,24 +429,25 @@ macro_rules! define_bin128_op_event {
 
                 // Store result
                 ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
+                if !ctx.prover_only {
+                    let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-                ctx.incr_pc();
+                    let event = Self {
+                        timestamp,
+                        pc: field_pc,
+                        fp,
+                        dst: dst.val(),
+                        dst_val,
+                        src1: src1.val(),
+                        src1_val,
+                        src2: src2.val(),
+                        src2_val,
+                    };
 
-                let event = Self {
-                    timestamp,
-                    pc: field_pc,
-                    fp,
-                    dst: dst.val(),
-                    dst_val,
-                    src1: src1.val(),
-                    src1_val,
-                    src2: src2.val(),
-                    src2_val,
-                };
+                    ctx.trace.$trace_field.push(event);
 
-                ctx.trace.$trace_field.push(event);
-
+                }
+                ctx.incr_counters();
                 Ok(())
             }
 

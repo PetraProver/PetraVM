@@ -315,6 +315,7 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: unused_dst_addr (should never be written)
 
+        let ret_prom_index = 2;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
         let target_addr = 2.into();
@@ -347,15 +348,16 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.write(0, 0u32).unwrap();
-        vrom.write(1, 0u32).unwrap();
-        vrom.write(target_addr.val() as u32, target.val()).unwrap();
+        vrom.write(0, 0u32, false).unwrap();
+        vrom.write(1, 0u32, false).unwrap();
+        vrom.write(target_addr.val() as u32, target.val(), false)
+            .unwrap();
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, ret_pc as u32);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (ret_prom_index, ret_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
         // Check that there are no MOVE events that have yet to be executed.
@@ -380,8 +382,10 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: dst
 
+        let ret_prom_index = 2;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
+        let ldi_prom_index = 1;
         let ldi_pc = 2;
         let ldi = G.pow(ldi_pc - 1);
         let target_addr = 2.into();
@@ -410,16 +414,17 @@ mod tests {
         let prom = code_to_prom(&instructions);
         let mut vrom = ValueRom::default();
         // Initialize VROM values: offsets 0, 1, and source value at offset 2.
-        vrom.write(0, 0u32).unwrap();
-        vrom.write(1, 0u32).unwrap();
-        vrom.write(target_addr.val() as u32, target.val()).unwrap();
+        vrom.write(0, 0u32, false).unwrap();
+        vrom.write(1, 0u32, false).unwrap();
+        vrom.write(target_addr.val() as u32, target.val(), false)
+            .unwrap();
 
-        let mut pc_field_to_int = HashMap::new();
-        pc_field_to_int.insert(target, ret_pc as u32);
-        pc_field_to_int.insert(ldi, ldi_pc as u32);
+        let mut pc_field_to_index_pc = HashMap::new();
+        pc_field_to_index_pc.insert(target, (ret_prom_index, ret_pc as u32));
+        pc_field_to_index_pc.insert(ldi, (ldi_prom_index, ldi_pc as u32));
         let memory = Memory::new(prom, vrom);
         let (trace, _) =
-            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_int)
+            PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
         assert!(trace.vrom_pending_updates().is_empty());

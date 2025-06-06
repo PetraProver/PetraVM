@@ -48,19 +48,19 @@ pub enum AssemblerError {
 }
 
 /// Labels hold the labels in the code, with their associated binary field PCs
-/// together with its discrete logarithm as advice.
-type Labels = HashMap<String, (B32, u32)>;
+/// together with its PROM index and discrete logarithm as advice.
+type Labels = HashMap<String, (B32, u32, u32)>;
 /// Binary field PC as the key. Values are: frame size.
 pub type LabelsFrameSizes = HashMap<B32, u16>;
 // Gives the field PC associated to an integer PC. Only contains the PCs that
 // can be called by the PROM.
-pub(crate) type PCFieldToInt = HashMap<B32, u32>;
+pub(crate) type PCFieldToInt = HashMap<B32, (u32, u32)>;
 
 #[derive(Clone, Debug)]
 pub struct AssembledProgram {
     pub prom: ProgramRom,
     pub labels: Labels,
-    pub pc_field_to_int: PCFieldToInt,
+    pub pc_field_to_index_pc: PCFieldToInt,
     pub frame_sizes: LabelsFrameSizes,
 }
 
@@ -108,7 +108,7 @@ impl Assembler {
             return Err(AssemblerError::EmptyLabel);
         }
 
-        let (labels, pc_field_to_int, frame_sizes) = get_labels(&instructions)?;
+        let (labels, pc_field_to_index_pc, frame_sizes) = get_labels(&instructions)?;
         let mut prom = ProgramRom::new();
         let mut field_pc = B32::ONE;
 
@@ -119,7 +119,7 @@ impl Assembler {
         Ok(AssembledProgram {
             prom,
             labels,
-            pc_field_to_int,
+            pc_field_to_index_pc,
             frame_sizes,
         })
     }
@@ -141,7 +141,10 @@ pub fn get_prom_inst_from_inst_with_label(
             }
         }
         InstructionsWithLabels::B32Mul {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::B32Mul.get_field_elt(),
@@ -150,11 +153,23 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::B32Muli { dst, src1, imm, .. } => {
+        InstructionsWithLabels::B32Muli {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::B32Muli.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -162,9 +177,16 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_field_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
 
             let instruction = [
                 Opcode::B32Muli.get_field_elt(),
@@ -172,12 +194,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
                 B16::zero(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::B128Add {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::B128Add.get_field_elt(),
@@ -186,12 +218,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::B128Mul {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::B128Mul.get_field_elt(),
@@ -200,12 +242,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Groestl256Compress {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Groestl256Compress.get_field_elt(),
@@ -214,12 +266,20 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Groestl256Output {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Groestl256Output.get_field_elt(),
@@ -228,45 +288,83 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Mvih { dst, imm, .. } => {
+        InstructionsWithLabels::Mvih {
+            dst,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Mvih.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Mvvw { dst, src, .. } => {
+        InstructionsWithLabels::Mvvw {
+            dst,
+            src,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Mvvw.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Mvvl { dst, src, .. } => {
+        InstructionsWithLabels::Mvvl {
+            dst,
+            src,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Mvvl.get_field_elt(),
                 dst.get_slot_16bfield_val(),
                 dst.get_offset_field_val(),
                 src.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Taili { label, next_fp } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Taili.get_field_elt(),
@@ -278,7 +376,8 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
+                    false,
                 ));
             } else {
                 return Err(AssemblerError::FunctionNotFound(label.to_string()));
@@ -294,12 +393,17 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                false,
+            ));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Calli { label, next_fp } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Calli.get_field_elt(),
@@ -311,7 +415,8 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
+                    false,
                 ));
             } else {
                 return Err(AssemblerError::FunctionNotFound(label.to_string()));
@@ -327,12 +432,17 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                false,
+            ));
 
             *field_pc *= G;
         }
         InstructionsWithLabels::Jumpi { label } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Jumpi.get_field_elt(),
@@ -344,7 +454,8 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
+                    false,
                 ));
             } else {
                 return Err(AssemblerError::LabelNotFound(label.to_string()));
@@ -359,23 +470,42 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                false,
+            ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Ldi { dst, imm, .. } => {
+        InstructionsWithLabels::Ldi {
+            dst,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Ldi.get_field_elt(),
                 dst.get_16bfield_val(),
                 imm.get_field_val(),
                 imm.get_high_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Xor {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Xor.get_field_elt(),
@@ -383,23 +513,42 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Xori { dst, src, imm, .. } => {
+        InstructionsWithLabels::Xori {
+            dst,
+            src,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Xori.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Bnz { label, src } => {
-            if let Some((target, advice)) = labels.get(label) {
+            if let Some((target, prom_index_advice, pc_advice)) = labels.get(label) {
                 let targets_16b = ExtensionField::<B16>::iter_bases(target).collect::<Vec<_>>();
                 let instruction = [
                     Opcode::Bnz.get_field_elt(),
@@ -411,7 +560,8 @@ pub fn get_prom_inst_from_inst_with_label(
                 prom.push(InterpreterInstruction::new(
                     instruction,
                     *field_pc,
-                    Some(*advice),
+                    Some((*prom_index_advice, *pc_advice)),
+                    false,
                 ));
             } else {
                 return Err(AssemblerError::LabelNotFound(label.to_string()));
@@ -419,7 +569,10 @@ pub fn get_prom_inst_from_inst_with_label(
             *field_pc *= G;
         }
         InstructionsWithLabels::Add {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Add.get_field_elt(),
@@ -427,23 +580,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Addi { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Addi {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Addi.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Or {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Or.get_field_elt(),
@@ -451,23 +626,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Ori { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Ori {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Ori.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sub {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sub.get_field_elt(),
@@ -475,12 +672,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sle {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sle.get_field_elt(),
@@ -488,23 +695,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Slei { dst, src, imm, .. } => {
+        InstructionsWithLabels::Slei {
+            dst,
+            src,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Slei.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sleu {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sleu.get_field_elt(),
@@ -512,23 +741,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Sleiu { dst, src, imm, .. } => {
+        InstructionsWithLabels::Sleiu {
+            dst,
+            src,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Sleiu.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Slt {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Slt.get_field_elt(),
@@ -536,23 +787,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Slti { dst, src, imm, .. } => {
+        InstructionsWithLabels::Slti {
+            dst,
+            src,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Slti.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sltu {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sltu.get_field_elt(),
@@ -560,23 +833,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Sltiu { dst, src, imm, .. } => {
+        InstructionsWithLabels::Sltiu {
+            dst,
+            src,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Sltiu.get_field_elt(),
                 dst.get_16bfield_val(),
                 src.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sll {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sll.get_field_elt(),
@@ -584,12 +879,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Srl {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Srl.get_field_elt(),
@@ -597,12 +902,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Sra {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Sra.get_field_elt(),
@@ -610,11 +925,23 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Andi { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Andi {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Andi.get_field_elt(),
                 dst.get_16bfield_val(),
@@ -622,12 +949,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 imm.get_field_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::And {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::And.get_field_elt(),
@@ -636,23 +973,45 @@ pub fn get_prom_inst_from_inst_with_label(
                 src2.get_16bfield_val(),
             ];
 
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Muli { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Muli {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Muli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mul {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Mul.get_field_elt(),
@@ -660,12 +1019,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mulu {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Mulu.get_field_elt(),
@@ -673,12 +1042,22 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Mulsu {
-            dst, src1, src2, ..
+            dst,
+            src1,
+            src2,
+            prover_only,
         } => {
             let instruction = [
                 Opcode::Mulsu.get_field_elt(),
@@ -686,42 +1065,85 @@ pub fn get_prom_inst_from_inst_with_label(
                 src1.get_16bfield_val(),
                 src2.get_16bfield_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Srli { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Srli {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Srli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Slli { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Slli {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Slli.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
-        InstructionsWithLabels::Srai { dst, src1, imm, .. } => {
+        InstructionsWithLabels::Srai {
+            dst,
+            src1,
+            imm,
+            prover_only,
+        } => {
             let instruction = [
                 Opcode::Srai.get_field_elt(),
                 dst.get_16bfield_val(),
                 src1.get_16bfield_val(),
                 imm.get_field_val(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                *prover_only,
+            ));
 
-            *field_pc *= G;
+            if !*prover_only {
+                *field_pc *= G;
+            }
         }
         InstructionsWithLabels::Ret => {
             let instruction = [
@@ -730,12 +1152,43 @@ pub fn get_prom_inst_from_inst_with_label(
                 B16::zero(),
                 B16::zero(),
             ];
-            prom.push(InterpreterInstruction::new(instruction, *field_pc, None));
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                false,
+            ));
 
             *field_pc *= G;
         }
-        InstructionsWithLabels::Alloci { .. } => unimplemented!(),
-        InstructionsWithLabels::Allocv { .. } => unimplemented!(),
+        InstructionsWithLabels::Alloci { dst, imm } => {
+            let instruction = [
+                Opcode::Alloci.get_field_elt(),
+                dst.get_16bfield_val(),
+                imm.get_field_val(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                true,
+            ));
+        }
+        InstructionsWithLabels::Allocv { src, dst } => {
+            let instruction = [
+                Opcode::Allocv.get_field_elt(),
+                dst.get_16bfield_val(),
+                src.get_16bfield_val(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                true,
+            ));
+        }
     }
     Ok(())
 }
@@ -748,13 +1201,23 @@ const fn incr_pc(pc: u32) -> u32 {
     pc + 1
 }
 
+fn insert_if_empty<K, V>(map: &mut HashMap<K, V>, key: K, value: V)
+where
+    K: Eq + std::hash::Hash,
+{
+    if map.get(&key).is_none() {
+        map.insert(key, value);
+    }
+}
+
 fn get_labels(
     instructions: &[InstructionsWithLabels],
 ) -> Result<(Labels, PCFieldToInt, LabelsFrameSizes), AssemblerError> {
     let mut labels = HashMap::new();
-    let mut pc_field_to_int = HashMap::new();
+    let mut pc_field_to_index_pc = HashMap::new();
     let mut frame_sizes = HashMap::new();
     let mut field_pc = B32::ONE;
+    let mut prom_index = 0;
     let mut pc = 1;
     let mut functions = HashSet::new();
 
@@ -767,13 +1230,16 @@ fn get_labels(
     }
 
     // Insert first label into discrete log map
-    pc_field_to_int.insert(field_pc, pc);
+    pc_field_to_index_pc.insert(field_pc, (prom_index, pc));
 
     // Identify functions from the labels and check if they have valid frame sizes.
     for instruction in instructions {
         match instruction {
             InstructionsWithLabels::Label(s, frame_size) => {
-                if labels.insert(s.clone(), (field_pc, pc)).is_some() {
+                if labels
+                    .insert(s.clone(), (field_pc, prom_index, pc))
+                    .is_some()
+                {
                     return Err(AssemblerError::DuplicateLabel(s.clone()));
                 }
 
@@ -782,29 +1248,42 @@ fn get_labels(
                     frame_sizes.insert(field_pc, *size);
                 }
 
-                // We do not increment the PC if we found a label.
+                // We do not increment the PROM index or PC if we found a label.
                 continue;
             }
-            InstructionsWithLabels::B32Muli { .. } => {
-                field_pc *= G;
-                pc = incr_pc(pc);
-                pc_field_to_int.insert(field_pc, pc);
+            InstructionsWithLabels::B32Muli { prover_only, .. } => {
+                prom_index += 1;
+                if !*prover_only {
+                    field_pc *= G;
+                    pc = incr_pc(pc);
+                    insert_if_empty(&mut pc_field_to_index_pc, field_pc, (prom_index, pc));
+                    field_pc *= G;
+                    pc = incr_pc(pc);
+                }
             }
             InstructionsWithLabels::Taili { label, .. } => {
                 functions.insert(label.as_str());
+                field_pc *= G;
+                pc = incr_pc(pc);
             }
             InstructionsWithLabels::Calli { label, .. } => {
                 functions.insert(label.as_str());
+                field_pc *= G;
+                pc = incr_pc(pc);
             }
-            _ => {}
+            instruction => {
+                if !instruction.prover_only() {
+                    field_pc *= G;
+                    pc = incr_pc(pc);
+                }
+            }
         }
-        field_pc *= G;
-        pc = incr_pc(pc);
-        pc_field_to_int.insert(field_pc, pc);
+        prom_index += 1;
+        insert_if_empty(&mut pc_field_to_index_pc, field_pc, (prom_index, pc));
     }
 
     for function in functions {
-        let (as_pc, _) = labels
+        let (as_pc, _, _) = labels
             .get(function)
             .ok_or(AssemblerError::FunctionNotFound(function.to_string()))?;
         if !frame_sizes.contains_key(as_pc) {
@@ -812,7 +1291,7 @@ fn get_labels(
         }
     }
 
-    Ok((labels, pc_field_to_int, frame_sizes))
+    Ok((labels, pc_field_to_index_pc, frame_sizes))
 }
 
 #[cfg(test)]

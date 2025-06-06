@@ -68,7 +68,7 @@ impl Event for BnzEvent {
                 target,
             };
             ctx.trace.bz.push(event);
-            ctx.incr_pc();
+            ctx.incr_counters();
         }
 
         Ok(())

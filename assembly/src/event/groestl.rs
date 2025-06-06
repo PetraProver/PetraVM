@@ -88,22 +88,23 @@ impl Event for Groestl256CompressEvent {
             ctx.vrom_write::<u64>(ctx.addr(dst.val() + 2 * i), dst_val[i as usize])?;
         }
 
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
+        if !ctx.prover_only {
+            let (_pc, field_pc, fp, timestamp) = ctx.program_state();
+            let event = Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_val,
+                src1: src1.val(),
+                src1_val: src1_val.try_into().expect("src1_val should be 64 bytes"),
+                src2: src2.val(),
+                src2_val: src2_val.try_into().expect("src2_val should be 64 bytes"),
+            };
 
-        let event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val: src1_val.try_into().expect("src1_val should be 64 bytes"),
-            src2: src2.val(),
-            src2_val: src2_val.try_into().expect("src2_val should be 64 bytes"),
-        };
-
-        ctx.trace.groestl_compress.push(event);
+            ctx.trace.groestl_compress.push(event);
+        }
+        ctx.incr_counters();
         Ok(())
     }
 
@@ -190,22 +191,24 @@ impl Event for Groestl256OutputEvent {
             ctx.vrom_write(ctx.addr(dst.val() + i), dst_val[i as usize])?;
         }
 
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
+        if !ctx.prover_only {
+            let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val: dst_val.try_into().expect("dst_val is exactly 32 bytes"),
-            src1: src1.val(),
-            src1_val: src1_val.try_into().expect("src1_val is exactly 32 bytes"),
-            src2: src2.val(),
-            src2_val: src2_val.try_into().expect("src2_val is exactly 32 bytes"),
-        };
+            let event = Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_val: dst_val.try_into().expect("dst_val is exactly 32 bytes"),
+                src1: src1.val(),
+                src1_val: src1_val.try_into().expect("src1_val is exactly 32 bytes"),
+                src2: src2.val(),
+                src2_val: src2_val.try_into().expect("src2_val is exactly 32 bytes"),
+            };
 
-        ctx.trace.groestl_output.push(event);
+            ctx.trace.groestl_output.push(event);
+        }
+        ctx.incr_counters();
         Ok(())
     }
 
