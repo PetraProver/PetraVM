@@ -195,7 +195,7 @@ impl Event for CalliEvent {
         // Jump to the target, received as advice.
         ctx.jump_to_u32(target, advice);
 
-        let return_pc = ctx.trace.prom()[ctx.prom_index as usize + 1].field_pc.val();
+        let return_pc = (field_pc * G).val();
         ctx.vrom_write(ctx.addr(0u32), return_pc)?;
         ctx.vrom_write(ctx.addr(1u32), *fp)?;
 
