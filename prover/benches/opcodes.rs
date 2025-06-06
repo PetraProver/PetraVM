@@ -1,6 +1,13 @@
+use std::array::from_fn;
+
+use binius_field::{BinaryField, Field};
+use binius_m3::builder::B32;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use petravm_asm::isa::GenericISA;
 use petravm_asm::opcodes::Opcode;
+use petravm_asm::{isa::GenericISA, Assembler};
+use petravm_asm::{
+    AssembledProgram, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
+};
 use petravm_prover::model::Trace;
 use petravm_prover::prover::Prover;
 use petravm_prover::test_utils::generate_trace;
@@ -49,6 +56,61 @@ fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
     // ——— Emit the trace ———
     let program = asm.join("\n");
     generate_trace(program, None, None).expect("Trace generation failed")
+}
+
+fn generate_simple_trace_for_opcode(opcode: Opcode, length: usize) -> (Memory, AssembledProgram) {
+    let mut rng = rng();
+    let imm = rng.random::<u16>();
+    let vals: [u32; 8] = from_fn(|_| rng.random::<u32>());
+
+    let mut asm = Vec::new();
+
+    // ——— Boot: load counter & tail‐call into helper ———
+    asm.push("#[framesize(0x10)]".to_owned());
+    asm.push("bench:".to_owned());
+    for i in 4..12 {
+        asm.push(format!("LDI.W @{i}, #{}", vals[i - 4]));
+    }
+
+    for _ in 0..length {
+        asm.push(format_instruction(opcode, 12, 4, 8, imm)); // 17 (your opcode)
+    }
+    asm.push("RET".to_owned()); // 18 (re‐package counter)
+
+    // Exact exec‐count:
+    //     3 + (3 + 12) × (TRACE_LEN − 1) + 4 = 15 × TRACE_LEN − 8 = 120000 − 8 =
+    // 119992
+
+    // ——— Emit the trace ———
+    let program = asm.join("\n");
+
+    // Compile the assembly code
+    let compiled_program = Assembler::from_code(&program).unwrap();
+
+    // Keep a copy of the program for later
+    let mut program = compiled_program.prom.clone();
+
+    // TODO: pad program to 128 instructions required by lookup gadget
+    let prom_size = program.len().next_power_of_two().max(128);
+    let mut max_pc = program.last().map_or(B32::ZERO, |instr| instr.field_pc);
+
+    for _ in program.len()..prom_size {
+        max_pc *= B32::MULTIPLICATIVE_GENERATOR;
+        program.push(InterpreterInstruction::new(
+            Instruction::default(),
+            max_pc,
+            None,
+            false,
+        ));
+    }
+
+    // Initialize memory with return PC = 0, return FP = 0 if not provided
+    let vrom = ValueRom::new_with_init_vals(&vec![0, 0]);
+    let memory = Memory::new(compiled_program.prom.clone(), vrom);
+
+    (memory, compiled_program)
+
+    // generate_trace(program, None, None).expect("Trace generation failed")
 }
 
 /// Format a single instruction for benchmarking
@@ -105,37 +167,37 @@ fn format_instruction(opcode: Opcode, dst: usize, src1: usize, src2: usize, imm:
 /// List of all opcodes to benchmark
 fn all_opcodes() -> &'static [Opcode] {
     &[
-        Opcode::Xor,
-        Opcode::Xori,
-        Opcode::B32Mul,
+        // Opcode::Xor,
+        // Opcode::Xori,
+        // Opcode::B32Mul,
         Opcode::B32Muli,
-        Opcode::B128Add,
-        Opcode::B128Mul,
-        Opcode::Add,
-        Opcode::Addi,
-        Opcode::Sub,
-        Opcode::And,
-        Opcode::Andi,
-        Opcode::Or,
-        Opcode::Ori,
-        Opcode::Sll,
-        Opcode::Slli,
-        Opcode::Srl,
-        Opcode::Srli,
-        Opcode::Sra,
-        Opcode::Srai,
-        Opcode::Mul,
-        Opcode::Muli,
-        Opcode::Mulu,
-        Opcode::Mulsu,
-        Opcode::Slt,
-        Opcode::Slti,
-        Opcode::Sltu,
-        Opcode::Sltiu,
-        Opcode::Sle,
-        Opcode::Slei,
-        Opcode::Sleu,
-        Opcode::Sleiu,
+        //     Opcode::B128Add,
+        //     Opcode::B128Mul,
+        //     Opcode::Add,
+        //     Opcode::Addi,
+        //     Opcode::Sub,
+        //     Opcode::And,
+        //     Opcode::Andi,
+        //     Opcode::Or,
+        //     Opcode::Ori,
+        //     Opcode::Sll,
+        //     Opcode::Slli,
+        //     Opcode::Srl,
+        //     Opcode::Srli,
+        //     Opcode::Sra,
+        //     Opcode::Srai,
+        //     Opcode::Mul,
+        //     Opcode::Muli,
+        //     Opcode::Mulu,
+        //     Opcode::Mulsu,
+        //     Opcode::Slt,
+        //     Opcode::Slti,
+        //     Opcode::Sltu,
+        //     Opcode::Sltiu,
+        //     Opcode::Sle,
+        //     Opcode::Slei,
+        //     Opcode::Sleu,
+        //     Opcode::Sleiu,
     ]
 }
 
@@ -156,5 +218,29 @@ fn bench_all(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_all);
+/// Benchmark all opcodes' proving performance
+fn bench_all_trace(c: &mut Criterion) {
+    // let prover = Prover::new(Box::new(GenericISA));
+    let mut group = c.benchmark_group("opcode_generation");
+    group.sample_size(SAMPLE_SIZE);
+    group.measurement_time(std::time::Duration::from_secs(20));
+
+    for &opc in all_opcodes() {
+        let (memory, compiled_program) = generate_simple_trace_for_opcode(opc, TRACE_LEN);
+        group.bench_with_input(BenchmarkId::new("generate", opc), &(), |b, _| {
+            b.iter(|| {
+                PetraTrace::generate(
+                    Box::new(GenericISA),
+                    memory.clone(),
+                    compiled_program.frame_sizes.clone(),
+                    compiled_program.pc_field_to_index_pc.clone(),
+                )
+            })
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_all, bench_all_trace);
 criterion_main!(benches);

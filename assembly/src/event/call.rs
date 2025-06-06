@@ -1,4 +1,3 @@
-use binius_field::ExtensionField;
 use binius_m3::builder::{B16, B32};
 
 use super::context::EventContext;
@@ -42,8 +41,7 @@ impl Event for TailiEvent {
         let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
 
         // Get the target address, to which we should jump.
-        let target = B32::from_bases([target_low, target_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let target = B32::new(target_low.val() as u32 + ((target_high.val() as u32) << 16));
         let advice = ctx
             .advice
             .ok_or(InterpreterError::MissingAdvice(Opcode::Taili))?;
@@ -185,8 +183,7 @@ impl Event for CalliEvent {
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let target = B32::from_bases([target_low, target_high])
-            .map_err(|_| InterpreterError::InvalidInput)?;
+        let target = B32::new(target_low.val() as u32 + ((target_high.val() as u32) << 16));
         let advice = ctx
             .advice
             .ok_or(InterpreterError::MissingAdvice(Opcode::Calli))?;

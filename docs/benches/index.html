@@ -217,10 +217,10 @@
           return response.json();
         })
         .then(data => {
+          console.log("Loaded benchmarks.json:", data);
           ops = data
-            .filter(d => d.reason === 'benchmark-complete')
             .map(d => {
-              const name = d.id.split('/').pop();
+              const name = d.benchmark;
               let category;
 
               // Categorize opcodes
@@ -232,24 +232,22 @@
               else if (['Slt', 'Slti', 'Sltu', 'Sltiu', 'Sle', 'Slei', 'Sleu', 'Sleiu'].includes(name)) category = 'Comparison';
               else category = 'Other';
 
-              // Convert ns to ms (*1e-6)
-              const meanValue = d.mean.estimate * 1e-6;
+              const meanValue = d.mean_ns * 1e-3; // Convert from nanoseconds to microseconds
+              const ciLower = d.ci_lower * 1e-3; // Convert from nanoseconds to microseconds
+              const ciUpper = d.ci_upper * 1e-3; // Convert from nanoseconds to microseconds
               // Using median absolute deviation (MAD) for error bars
-              const madValue = d.median_abs_dev.estimate * 1e-6;
+              const errorLower = meanValue - ciLower;
+              const errorUpper = ciUpper - meanValue;
+              const errorBar = Math.max(errorLower, errorUpper);
 
               // Calculate previous value from change data if available
               let previousValue = null;
               let changeEstimate = null; // Initialize changeEstimate
-              if (d.change && d.change.mean && d.change.mean.estimate !== undefined) {
-                changeEstimate = d.change.mean.estimate; // Store the estimate
-                // If change is negative, previous was higher; if positive, previous was lower
-                previousValue = meanValue / (1 + changeEstimate);
-              }
 
               return {
                 opcode: name.toUpperCase(),
                 mean: meanValue,
-                stddev: madValue,
+                stddev: errorBar,
                 category,
                 previous: previousValue,
                 changeEstimate: changeEstimate
@@ -281,7 +279,7 @@
         type: 'bar',
         marker: { color: colours },
         customdata: savingPercentages, // Pass saving percentages to customdata
-        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} ms<br>MAD: %{error_y.array:.2f} ms<br>Change: %{customdata:.2%}<extra></extra>`, // Updated hovertemplate
+        hovertemplate: `<b>%{x}</b><br>Current: %{y:.2f} μs<br>Error +/-: %{error_y.array:.2f} μs<br>Change: %{customdata:.2%}<extra></extra>`, // Updated hovertemplate
       };
 
       const previousTrace = {
@@ -294,7 +292,7 @@
           opacity: 0.5,
           pattern: { shape: '/', solidity: 0.3 }
         },
-        hovertemplate: `<b>%{x}</b><br>Previous: %{y:.2f} ms<extra></extra>`,
+        hovertemplate: `<b>%{x}</b><br>Previous: %{y:.2f} μs<extra></extra>`,
       };
 
       const layout = {
@@ -307,7 +305,7 @@
         margin: { l: 60, r: 30, t: 60, b: 150 },
         xaxis: { tickangle: -45, automargin: true, tickfont: { size: 16 } },
         yaxis: {
-          title: 'Time per 8k Target Instructions (ms)',
+          title: 'Time per 8k Target Instructions (μs)',
           titlefont: { size: 18 },
           gridcolor: '#e1e5ed',
           tickfont: { size: 16 }

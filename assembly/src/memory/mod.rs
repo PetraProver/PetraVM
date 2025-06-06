@@ -83,7 +83,7 @@ pub type ProgramRom = Vec<InterpreterInstruction>;
 
 /// The `Memory` for an execution contains an *immutable* Program ROM,
 /// and a *mutable* Value ROM.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Memory {
     prom: ProgramRom,
     vrom: ValueRom,
