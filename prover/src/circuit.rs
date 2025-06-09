@@ -144,7 +144,9 @@ impl Circuit {
 
         // Add table sizes for each supported instruction
         for table in &self.tables {
-            table_sizes.push(table.num_events(trace));
+            let num_events = table.num_events(trace);
+            log::trace!("Num events for table {}: {}", table.name(), num_events);
+            table_sizes.push(num_events);
         }
 
         // Create the statement with all boundaries
