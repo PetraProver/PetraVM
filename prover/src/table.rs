@@ -68,6 +68,7 @@ pub trait FillableTable {
     /// in the provided [`Trace`].
     fn num_events(&self, trace: &Trace) -> usize;
 
+    /// Outputs the name of the table.
     fn name(&self) -> &'static str;
 }
 
