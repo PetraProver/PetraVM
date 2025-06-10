@@ -59,8 +59,10 @@ impl ValueRom {
 
     /// Creates a default VROM and initializes it with the provided u32 values.
     pub fn new_with_init_vals(init_values: &[u32]) -> Self {
-        let data = init_values.iter().copied().map(Some).collect::<Vec<_>>();
+        let mut data = init_values.iter().copied().map(Some).collect::<Vec<_>>();
+        data.resize(1 << 16, None);
         let len = data.len();
+
         Self {
             data,
             access_counts: vec![Cell::new(0); len],
@@ -93,7 +95,12 @@ impl ValueRom {
         let mut value = T::zero();
 
         // Read the entire chunk at once.
-        let read_data = &self.data[index as usize..index as usize + T::word_size()];
+
+        // *SAFETY*: Alignment and bounds have already been checked.
+        let read_data = unsafe {
+            let ptr = self.data.as_ptr().add(index as usize);
+            std::slice::from_raw_parts(ptr, T::word_size())
+        };
 
         for (i, opt_word) in read_data.iter().enumerate() {
             let word = opt_word.ok_or(MemoryError::VromMissingValue(index))?;
@@ -112,7 +119,13 @@ impl ValueRom {
             // VROM hasn't been expanded to the target index, there is nothing to read yet.
             return Ok(false);
         };
-        let read_data = &self.data[index as usize..index as usize + T::word_size()];
+
+        // *SAFETY*: Alignment and bounds have already been checked.
+        let read_data = unsafe {
+            let ptr = self.data.as_ptr().add(index as usize);
+            std::slice::from_raw_parts(ptr, T::word_size())
+        };
+
         for &opt_word in read_data {
             if opt_word.is_none() {
                 return Ok(false);
@@ -138,18 +151,28 @@ impl ValueRom {
         if record {
             self.record_access::<T>(index);
         }
+
+        let base_ptr = unsafe { self.data.as_mut_ptr().add(index as usize) };
+
         for i in 0..T::word_size() {
             let cur_word = (value.to_u128() >> (32 * i)) as u32;
-            let prev_value = &mut self.data[index as usize + i];
-            if let Some(prev_val) = prev_value {
+            let cell = unsafe { base_ptr.add(i).as_mut().unwrap_unchecked() };
+
+            match cell {
                 // The VROM is write-once. If a value already exists at `index`,
                 // check that it matches the value we wanted to write.
-                if *prev_val != cur_word {
-                    return Err(MemoryError::VromRewrite(index, *prev_val, cur_word));
+                Some(prev_val) if *prev_val != cur_word => {
+                    return Err(MemoryError::VromRewrite(
+                        index + i as u32,
+                        *prev_val,
+                        cur_word,
+                    ));
                 }
-            } else {
-                // The VROM hasn't been updated yet at the provided `index`.
-                *prev_value = Some(cur_word);
+                Some(_) => {} // already written with same value
+                None => {
+                    // The VROM hasn't been updated yet at the provided `index`.
+                    *cell = Some(cur_word);
+                }
             }
         }
 

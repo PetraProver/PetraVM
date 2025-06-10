@@ -153,6 +153,11 @@ impl Circuit {
             table_sizes.push(num_events);
         }
 
+        log::info!(
+            "Number of instructions: {}",
+            table_sizes.iter().sum::<usize>()
+        );
+
         // Create the statement with all boundaries
         let statement = Statement {
             boundaries: vec![initial_state, final_state],
