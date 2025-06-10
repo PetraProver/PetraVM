@@ -252,61 +252,79 @@ impl MvvwEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
         let src_val_set = ctx.vrom_check_value_set::<u32>(ctx.addr(src.val()))?;
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-        // If `dst_addr` is set, we check whether the value at the destination is
-        // already set. If that's the case, we can set the source value.
-        if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-            let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as u32)?;
+        if src_val_set {
+            let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+            if ctx.prover_only {
+                Ok(None)
+            } else {
+                Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val,
+                    offset: offset.val(),
+                }))
+            }
+        } else {
+            // The dst value needs to be set.
+            // let dst_addr = ctx.vrom().peek(ctx.addr(dst.val()))?;
+            // let dst_val_set = ctx.vrom_check_value_set::<u32>(dst_addr ^ offset.val() as
+            // u32)?;
 
             // If the destination value is set, we set the source value.
-            if dst_val_set {
-                let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
-                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
-                return if ctx.prover_only {
-                    Ok(None)
-                } else {
-                    Ok(Some(Self {
-                        pc: field_pc,
-                        fp,
-                        timestamp,
-                        dst: dst.val(),
-                        dst_addr,
-                        src: src.val(),
-                        src_val: dst_val,
-                        offset: offset.val(),
-                    }))
-                };
-            }
-        }
-        // If the source value is missing or the destination address is still unknown,
-        // it means we are in a MOVE that precedes a CALL, and we have to handle the
-        // MOVE operation later.
-        if !dst_addr_set || !src_val_set {
-            delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc, timestamp);
-            return Ok(None);
+            // let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+
+            let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
+            execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+            return if ctx.prover_only {
+                Ok(None)
+            } else {
+                Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }))
+            };
         }
 
-        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-        let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+        // // If the source value is missing or the destination address is still
+        // unknown, // it means we are in a MOVE that precedes a CALL,
+        // and we have to handle the // MOVE operation later.
+        // if !dst_addr_set || !src_val_set {
+        //     delegate_move(ctx, MVKind::Mvvw, dst, offset, src, field_pc,
+        // timestamp);     return Ok(None);
+        // }
 
-        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
-        if ctx.prover_only {
-            Ok(None)
-        } else {
-            Ok(Some(Self {
-                pc: field_pc,
-                fp,
-                timestamp,
-                dst: dst.val(),
-                dst_addr,
-                src: src.val(),
-                src_val,
-                offset: offset.val(),
-            }))
-        }
+        // let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        // let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
+
+        // execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        // if ctx.prover_only {
+        //     Ok(None)
+        // } else {
+        //     Ok(Some(Self {
+        //         pc: field_pc,
+        //         fp,
+        //         timestamp,
+        //         dst: dst.val(),
+        //         dst_addr,
+        //         src: src.val(),
+        //         src_val,
+        //         offset: offset.val(),
+        //     }))
+        // }
     }
 }
 
@@ -423,63 +441,107 @@ impl MvvlEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
         let src_val_set = ctx.vrom_check_value_set::<u128>(ctx.addr(src.val()))?;
-
-        // If `dst_addr` is set, we check whether the value at the destination is
-        // already set. If that's the case, we can set the source value.
-        if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-            let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as u32)?;
-            // If the destination value is set, we set the source value.
-            if dst_val_set {
-                let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
-
-                execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
-
-                return if ctx.prover_only {
-                    Ok(None)
-                } else {
-                    Ok(Some(Self {
-                        pc: field_pc,
-                        fp,
-                        timestamp,
-                        dst: dst.val(),
-                        dst_addr,
-                        src: src.val(),
-                        src_val: dst_val,
-                        offset: offset.val(),
-                    }))
-                };
-            }
-        }
-        // If the source value is missing or the destination address is still unknown,
-        // it means we are in a MOVE that precedes a CALL, and we have to handle the
-        // MOVE operation later.
-        if !dst_addr_set || !src_val_set {
-            delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc, timestamp);
-            return Ok(None);
-        }
-
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
-        let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
 
-        execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+        if src_val_set {
+            let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
 
-        if ctx.prover_only {
-            Ok(None)
+            execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+
+            if ctx.prover_only {
+                Ok(None)
+            } else {
+                Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val,
+                    offset: offset.val(),
+                }))
+            }
         } else {
-            Ok(Some(Self {
-                pc: field_pc,
-                fp,
-                timestamp,
-                dst: dst.val(),
-                dst_addr,
-                src: src.val(),
-                src_val,
-                offset: offset.val(),
-            }))
+            // let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^ offset.val() as
+            // u32)?; If the destination value is set, we set the source value.
+
+            let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
+
+            execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+
+            return if ctx.prover_only {
+                Ok(None)
+            } else {
+                Ok(Some(Self {
+                    pc: field_pc,
+                    fp,
+                    timestamp,
+                    dst: dst.val(),
+                    dst_addr,
+                    src: src.val(),
+                    src_val: dst_val,
+                    offset: offset.val(),
+                }))
+            };
         }
+
+        // // If `dst_addr` is set, we check whether the value at the
+        // destination is // already set. If that's the case, we can set
+        // the source value. if dst_addr_set {
+        //     let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        //     let dst_val_set = ctx.vrom_check_value_set::<u128>(dst_addr ^
+        // offset.val() as u32)?;     // If the destination value is
+        // set, we set the source value.     if dst_val_set {
+        //         let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val()
+        // as u32)?;
+
+        //         execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
+
+        //         return if ctx.prover_only {
+        //             Ok(None)
+        //         } else {
+        //             Ok(Some(Self {
+        //                 pc: field_pc,
+        //                 fp,
+        //                 timestamp,
+        //                 dst: dst.val(),
+        //                 dst_addr,
+        //                 src: src.val(),
+        //                 src_val: dst_val,
+        //                 offset: offset.val(),
+        //             }))
+        //         };
+        //     }
+        // }
+        // // If the source value is missing or the destination address is still
+        // unknown, // it means we are in a MOVE that precedes a CALL,
+        // and we have to handle the // MOVE operation later.
+        // if !dst_addr_set || !src_val_set {
+        //     delegate_move(ctx, MVKind::Mvvl, dst, offset, src, field_pc,
+        // timestamp);     return Ok(None);
+        // }
+
+        // let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        // let src_val = ctx.vrom_read::<u128>(ctx.addr(src.val()))?;
+
+        // execute_mv(ctx, dst_addr ^ offset.val() as u32, src_val)?;
+
+        // if ctx.prover_only {
+        //     Ok(None)
+        // } else {
+        //     Ok(Some(Self {
+        //         pc: field_pc,
+        //         fp,
+        //         timestamp,
+        //         dst: dst.val(),
+        //         dst_addr,
+        //         src: src.val(),
+        //         src_val,
+        //         offset: offset.val(),
+        //     }))
+        // }
     }
 }
 
@@ -542,32 +604,32 @@ impl MvihEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
+        // let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
 
         // If the destination address is still unknown, it means we are in a MOVE that
         // precedes a CALL, and we have to handle the MOVE operation later.
-        if dst_addr_set {
-            let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
+        // if dst_addr_set {
+        let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
-            execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
+        execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;
 
-            if ctx.prover_only {
-                Ok(None)
-            } else {
-                Ok(Some(Self {
-                    pc: field_pc,
-                    fp,
-                    timestamp,
-                    dst: dst.val(),
-                    dst_addr,
-                    imm: imm.val(),
-                    offset: offset.val(),
-                }))
-            }
-        } else {
-            delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc, timestamp);
+        if ctx.prover_only {
             Ok(None)
+        } else {
+            Ok(Some(Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_addr,
+                imm: imm.val(),
+                offset: offset.val(),
+            }))
         }
+        // } else {
+        //     delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc,
+        // timestamp);     Ok(None)
+        // }
     }
 }
 

@@ -46,16 +46,18 @@ bezout_else:
     ALLOCV! @7, @15
     MVV.W @7[2], @3
     MVV.W @7[3], @2
-    MVV.W @7[4], @9
-    MVV.W @7[5], @10
     CALLI div, @7
+    ;; Set return values
+    MVV.W @7[5], @10
+    MVV.W @7[4], @9
     ALLOCI! @8, #15
     MVV.W @8[2], @10
     MVV.W @8[3], @2
+    CALLI bezout, @8
+    ;; Set return values
     MVV.W @8[4], @4
     MVV.W @8[5], @6
     MVV.W @8[6], @11
-    CALLI bezout, @8
     MUL @12, @6, @9
     SUB @5, @11, @12
     RET

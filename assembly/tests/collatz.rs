@@ -17,7 +17,7 @@ fn test_collatz_integration() {
 
         // Verify the final result is 1, as expected for the Collatz conjecture
         assert_eq!(
-            collatz_frame.get_vrom_expected::<u32>(3),
+            collatz_frame.get_vrom_expected::<u32>(4),
             1,
             "Final result should be 1 for initial value {initial_value}"
         );

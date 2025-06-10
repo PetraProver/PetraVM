@@ -8,15 +8,20 @@ div:
     ;; Slot 4: Return value quot
     ;; Slot 5: Return value rem
     ;; Slot 6: Non-deterministic local: Next FP
-    ;; Slot 7: 0x80000000
+    ;; Slot 7: Return quot value absolute addr
+    ;; Slot 8: Return rem value absolute addr
+    ;; Slot 9: 0x80000000
+    ALLOCI! @6, #20
     MVV.W @6[2], @2
     MVV.W @6[3], @3
-    LDI.W @7, #2147483648 ;; 0x80000000
-    MVV.W @6[4], @7
+    LDI.W @9, #2147483648 ;; 0x80000000
+    MVV.W @6[4], @9
     MVI.H @6[5], #0
     MVI.H @6[6], #0
-    MVV.W @6[7], @4
-    MVV.W @6[8], @5
+    FP @7, #4
+    FP @8, #5
+    MVV.W @6[7], @7
+    MVV.W @6[8], @8
     TAILI div_helper, @6
 
 #[framesize(0x14)]
@@ -29,8 +34,8 @@ div_helper:
     ;; Slot 4: Arg selector
     ;; Slot 5: Arg quot
     ;; Slot 6: Arg rem
-    ;; Slot 7: Return value quot
-    ;; Slot 8: Return value rem
+    ;; Slot 7: Return value quot pointer
+    ;; Slot 8: Return value rem pointer
     ;; Slot 9: Non-deterministic local: Next FP
     ;; Slot 10: a & selector
     ;; Slot 11: (a & selector) == 0
@@ -43,8 +48,8 @@ div_helper:
     ;; SLOT 18: (rem << 1) + curr_bit - B
     ;; SLOT 19: selector >> 1
     BNZ div_helper_else1, @4
-    XORI @7, @5, #0
-    XORI @8, @6, #0
+    MVV.W @7[0], @5
+    MVV.W @8[0], @6
     RET
 div_helper_else1:
     AND @10, @2, @4
@@ -62,6 +67,7 @@ div_helper_else2:
     XORI @17, @16, #0
     XORI @18, @14, #0
 div_helper_tail:
+    ALLOCI! @9, #20
     MVV.W @9[2], @2
     MVV.W @9[3], @3
     SRLI @19, @4, #1
