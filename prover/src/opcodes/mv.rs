@@ -449,6 +449,7 @@ mod tests {
         #[framesize(0x10)]
         _start:
             ;; Test case 1: Known source value
+            ALLOCI! @12, #16
             LDI.W @4, #1234       ;; Set low 32 bits of source
             LDI.W @5, #5678       ;; Set next 32 bits
             LDI.W @6, #9012       ;; Set next 32 bits
@@ -456,8 +457,8 @@ mod tests {
             MVV.L @12[4], @4      ;; Move 128-bit value to final destination
             
             ;; Test case 2: unknown source value
-            MVV.L @12[8], @8      ;; Move 128-bit value from final destination to source
             CALLI compute_value, @12
+            MVV.L @12[8], @8      ;; Move 128-bit value from final destination to source
             RET
             
         #[framesize(0x10)]
@@ -470,7 +471,7 @@ mod tests {
         "#
         .to_string();
 
-        let calli_return_pc = G.pow(7).val();
+        let calli_return_pc = G.pow(6).val();
         let vrom_writes = vec![
             // 2 MVV.L + 1 CALLI (next_fp)
             (12, 16, 3),
@@ -522,9 +523,10 @@ mod tests {
         #[framesize(0x10)]
         _start:
             ;; Test case: unknown source value
+            ALLOCI! @12, #16
+            CALLI compute_value, @12
             MVV.L @12[8], @4      ;; Move 128-bit value from final destination to source
             MVV.L @12[4], @8      ;; Move 128-bit value from final destination to source
-            CALLI compute_value, @12
             RET
         #[framesize(0x10)]
         compute_value:

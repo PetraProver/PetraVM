@@ -6,6 +6,7 @@ use petravm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
 
 #[test]
 fn test_fibonacci() -> Result<()> {
+    init_logger();
     // Step 1: Generate trace
     let n = 11;
     let res = fibonacci(n);

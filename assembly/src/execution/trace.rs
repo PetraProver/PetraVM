@@ -8,8 +8,6 @@ use binius_field::{Field, PackedField};
 use binius_m3::builder::B32;
 
 use super::FramePointer;
-#[cfg(test)]
-use crate::memory::VromPendingUpdates;
 use crate::{
     assembler::LabelsFrameSizes,
     event::{
@@ -33,8 +31,7 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     isa::ISA,
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    Opcode,
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom},
 };
 
 #[derive(Debug, Default)]
@@ -225,61 +222,9 @@ impl PetraTrace {
     /// This will also execute pending VROM updates if necessary.
     pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
         self.vrom_mut().write(index, value, true)?;
-        // if let Some(pending_updates) =
-        // self.memory.vrom_pending_updates_mut().remove(&index) {
-        //     for pending_update in pending_updates {
-        //         let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src,
-        // offset, mvvl_pos) =             pending_update;
-        //         self.vrom_write(parent, value)?;
-        //         if opcode == Opcode::Mvvw {
-        //             let event_out = MVEventOutput::new(
-        //                 opcode,
-        //                 field_pc,
-        //                 fp.into(),
-        //                 timestamp,
-        //                 dst,
-        //                 dst_addr,
-        //                 src,
-        //                 offset,
-        //                 value.to_u128(),
-        //             );
-        //             event_out.push_mv_event(self);
-        //         } else if mvvl_pos == 3 {
-        //             // There is a limitation here that pos = 3 must be the last
-        // position set for             // Mvvl, otherwise a vrom read error
-        // will occur.             let value = self.vrom().peek::<u128>(dst_addr
-        // + offset.val() as u32)?;             let event_out =
-        // MVEventOutput::new(                 opcode,
-        //                 field_pc,
-        //                 fp.into(),
-        //                 timestamp,
-        //                 dst,
-        //                 dst_addr,
-        //                 src,
-        //                 offset,
-        //                 value,
-        //             );
-        //             event_out.push_mv_event(self);
-        //         }
-        //     }
-        // }
 
         Ok(())
     }
-
-    // /// Inserts a pending value in VROM to be set later.
-    // ///
-    // /// Maps a destination address to a `VromUpdate` which contains necessary
-    // /// information to create a MOVE event once the value is available.
-    // pub(crate) fn insert_pending(
-    //     &mut self,
-    //     parent: u32,
-    //     pending_value: VromUpdate,
-    // ) -> Result<(), MemoryError> {
-    //     self.vrom_mut().insert_pending(parent, pending_value)?;
-
-    //     Ok(())
-    // }
 
     /// Returns a reference to the VROM.
     pub const fn vrom(&self) -> &ValueRom {
@@ -299,11 +244,6 @@ impl PetraTrace {
     /// Returns a mutable reference to the RAM.
     pub fn ram_mut(&mut self) -> &mut Ram {
         self.memory.ram_mut()
-    }
-
-    #[cfg(test)]
-    pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
-        self.memory.vrom_pending_updates()
     }
 
     pub(crate) fn record_instruction(&mut self, field_pc: B32) {

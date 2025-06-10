@@ -8,23 +8,6 @@ use crate::{
     memory::{MemoryError, VromValueT},
 };
 
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum MVKind {
-    Mvvw,
-    Mvvl,
-    Mvih,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct MVInfo {
-    pub(crate) mv_kind: MVKind,
-    pub(crate) dst: B16,
-    pub(crate) offset: B16,
-    pub(crate) src: B16,
-    pub(crate) pc: B32,
-    pub(crate) timestamp: u32,
-}
-
 /// Convenience macro to implement the [`Event`] trait for MV events.
 ///
 /// It takes as argument the instruction and its corresponding field name in the
@@ -58,89 +41,6 @@ macro_rules! impl_mv_event {
         }
     };
 }
-
-// pub(crate) struct MVEventOutput {
-//     pub(crate) opcode: Opcode,
-//     pub(crate) field_pc: B32,    // field PC
-//     pub(crate) fp: FramePointer, // fp
-//     pub(crate) timestamp: u32,   // timestamp
-//     pub(crate) dst: B16,         // dst
-//     pub(crate) dst_addr: u32,    // dst addr
-//     pub(crate) src: B16,         // src
-//     pub(crate) offset: B16,      // offset
-//     pub(crate) src_val: u128,
-// }
-
-// impl MVEventOutput {
-//     #[allow(clippy::too_many_arguments)]
-//     pub(crate) const fn new(
-//         opcode: Opcode,
-//         field_pc: B32,    // field PC
-//         fp: FramePointer, // fp
-//         timestamp: u32,   // timestamp
-//         dst: B16,         // dst
-//         dst_addr: u32,    // dst addr
-//         src: B16,         // src
-//         offset: B16,      // offset
-//         src_val: u128,
-//     ) -> Self {
-//         Self {
-//             opcode,
-//             field_pc,
-//             fp,
-//             timestamp,
-//             dst,
-//             dst_addr,
-//             src,
-//             offset,
-//             src_val,
-//         }
-//     }
-
-//     pub(crate) fn push_mv_event(&self, trace: &mut PetraTrace) {
-//         let &MVEventOutput {
-//             opcode,
-//             field_pc,
-//             fp,
-//             timestamp,
-//             dst,
-//             dst_addr,
-//             src,
-//             offset,
-//             src_val,
-//         } = self;
-
-//         match opcode {
-//             Opcode::Mvvl => {
-//                 let new_event = MvvlEvent::new(
-//                     field_pc,
-//                     fp,
-//                     timestamp,
-//                     dst.val(),
-//                     dst_addr,
-//                     src.val(),
-//                     src_val,
-//                     offset.val(),
-//                 );
-//                 trace.mvvl.push(new_event);
-//             }
-//             Opcode::Mvvw => {
-//                 let new_event = MvvwEvent::new(
-//                     field_pc,
-//                     fp,
-//                     timestamp,
-//                     dst.val(),
-//                     dst_addr,
-//                     src.val(),
-//                     src_val as u32,
-//                     offset.val(),
-//                 );
-//                 trace.mvvw.push(new_event);
-//             }
-//             o => panic!("Events for {o:?} should already have been
-// generated."),         }
-//     }
-// }
 
 /// Event for MVV.W.
 ///
@@ -218,7 +118,7 @@ impl MvvwEvent {
 
             let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
             execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
-            return if ctx.prover_only {
+            if ctx.prover_only {
                 Ok(None)
             } else {
                 Ok(Some(Self {
@@ -231,7 +131,7 @@ impl MvvwEvent {
                     src_val: dst_val,
                     offset: offset.val(),
                 }))
-            };
+            }
         }
     }
 }
@@ -315,7 +215,7 @@ impl MvvlEvent {
 
             execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
 
-            return if ctx.prover_only {
+            if ctx.prover_only {
                 Ok(None)
             } else {
                 Ok(Some(Self {
@@ -328,7 +228,7 @@ impl MvvlEvent {
                     src_val: dst_val,
                     offset: offset.val(),
                 }))
-            };
+            }
         }
     }
 }
@@ -450,11 +350,10 @@ fn execute_mv<T: VromValueT>(
 mod tests {
     use std::collections::HashMap;
 
-    use binius_field::{Field, PackedField};
+    use binius_field::PackedField;
     use binius_m3::builder::{B16, B32};
 
     use crate::{
-        event::mv::{MVInfo, MVKind},
         execution::{Interpreter, G},
         isa::GenericISA,
         memory::Memory,
@@ -483,6 +382,8 @@ mod tests {
         let dst_addr2 = 5.into();
         let offset2 = 8.into();
         let src_addr2 = 12.into();
+        let src1_val = 20u32;
+        let src2_val = 30u32;
         // Do MVVW and MVVL with an unaccessible source value.
         let instructions = vec![
             [Opcode::Mvvw.get_field_elt(), dst_addr1, offset1, src_addr1],
@@ -498,35 +399,29 @@ mod tests {
         vrom.write(0, 0u32, false).unwrap();
         vrom.write(1, 0u32, false).unwrap();
         vrom.write(2, 0u32, false).unwrap();
+        vrom.write(3, src1_val, false).unwrap();
         vrom.write(5, 0u32, false).unwrap();
+        vrom.write(8, src2_val, false).unwrap();
+        vrom.write(9, 0u32, false).unwrap();
+        vrom.write(10, 0u32, false).unwrap();
+        vrom.write(11, 0u32, false).unwrap();
 
         let memory = Memory::new(prom, vrom);
 
         let mut interpreter = Interpreter::new(Box::new(GenericISA), frames, HashMap::new());
 
-        let _ = interpreter
+        let trace = interpreter
             .run(memory)
             .expect("The interpreter should run smoothly.");
 
-        // Check that `moves_to_apply` contains the two MOVE events.
-        let first_move = MVInfo {
-            mv_kind: MVKind::Mvvw,
-            dst: dst_addr1,
-            offset: offset1,
-            src: src_addr1,
-            pc: B32::ONE,
-            timestamp: 0,
-        };
-        let second_move = MVInfo {
-            mv_kind: MVKind::Mvvl,
-            dst: dst_addr2,
-            offset: offset2,
-            src: src_addr2,
-            pc: G,
-            timestamp: 0, // Only RAM operations increase the timestamp
-        };
-
-        assert_eq!(interpreter.moves_to_apply, vec![first_move, second_move]);
+        assert_eq!(
+            trace.vrom().read::<u32>(src_addr1.val() as u32).unwrap(),
+            src1_val
+        );
+        assert_eq!(
+            trace.vrom().read::<u128>(src_addr2.val() as u32).unwrap(),
+            src2_val as u128
+        );
     }
 
     #[test]
@@ -547,6 +442,7 @@ mod tests {
         let src_addr2 = 4.into();
         let offset3 = 8.into();
         let imm = 12.into();
+        let next_fp = 16u32;
 
         let call_offset = 8.into();
         let next_fp_offset = 9.into();
@@ -587,6 +483,9 @@ mod tests {
         vrom.write(0, 0u32, false).unwrap();
         vrom.write(1, 0u32, false).unwrap();
 
+        // Set next frame pointer.
+        vrom.write(next_fp_offset.val() as u32, next_fp, false)
+            .unwrap();
         // Set src vals.
         let src_val1 = 1u32;
         let src_val2 = 2u128;
@@ -607,28 +506,24 @@ mod tests {
             .run(memory)
             .expect("The interpreter should run smoothly.");
 
-        assert!(traces.vrom_pending_updates().is_empty());
-        assert!(interpreter.moves_to_apply.is_empty());
-
-        let next_fp = 16;
         assert_eq!(
             traces
                 .vrom()
-                .read::<u32>(next_fp as u32 + offset1.val() as u32)
+                .read::<u32>(next_fp + offset1.val() as u32)
                 .unwrap(),
             src_val1
         );
         assert_eq!(
             traces
                 .vrom()
-                .read::<u128>(next_fp as u32 + offset2.val() as u32)
+                .read::<u128>(next_fp + offset2.val() as u32)
                 .unwrap(),
             src_val2
         );
         assert_eq!(
             traces
                 .vrom()
-                .read::<u32>(next_fp as u32 + offset3.val() as u32)
+                .read::<u32>(next_fp + offset3.val() as u32)
                 .unwrap(),
             imm.val() as u32
         );

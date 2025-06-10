@@ -32,11 +32,15 @@ pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
     let mut prom = crate::ProgramRom::new();
     // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
     // `*G`.
-    let mut pc = B32::ONE; // we start at PC = 1G.
+    let mut pc = B32::ONE; // we start at PC = 0G.
     for &instruction in code.iter() {
-        let interp_inst = InterpreterInstruction::new(instruction, pc, None, false);
+        let prover_only = instruction[0] == Opcode::Alloci.get_field_elt();
+        let interp_inst = InterpreterInstruction::new(instruction, pc, None, prover_only);
         prom.push(interp_inst);
-        pc *= G;
+
+        if !prover_only {
+            pc *= G;
+        }
     }
 
     prom
@@ -65,4 +69,4 @@ macro_rules! get_last_event {
 // Re-export the macro for use in tests.
 pub(crate) use get_last_event;
 
-use crate::InterpreterInstruction;
+use crate::{InterpreterInstruction, Opcode};

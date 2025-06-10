@@ -1,5 +1,5 @@
 use anyhow::Result;
-use petravm_asm::isa::GenericISA;
+use petravm_asm::{init_logger, isa::GenericISA};
 use petravm_prover::{
     prover::{verify_proof, Prover},
     test_utils::generate_asm_trace,
@@ -155,9 +155,10 @@ fn test_non_tail_long_div() {
     // Slot 1: Return FP = 0
     // Slot 2: Arg: a
     // Slot 3: Arg: b
+    init_logger();
     let init_values = |a, b| vec![0, 0, a, b];
     // Test case 1: a < b
-    run_test(&files, init_values(10, 3)).unwrap();
+    run_test(&files, init_values(1, 3)).unwrap();
 
     // Test case 2: a == b
     run_test(&files, init_values(20, 4)).unwrap();
