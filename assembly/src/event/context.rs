@@ -184,68 +184,68 @@ impl EventContext<'_> {
         // Once we have the next_fp, we know the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
         // delegate the other moves.
-        self.handles_call_moves()?;
+        // self.handles_call_moves()?;
 
         self.set_fp(next_fp_val);
         Ok(next_fp_val)
     }
 
-    /// This method should only be called once the frame pointer has been
-    /// allocated. It is used to generate events -- whenever possible --
-    /// once the next_fp has been set by the allocator. When it is not yet
-    /// possible to generate the MOVE event (because we are dealing with a
-    /// return value that has not yet been set), we add the move information to
-    /// the trace's `pending_updates`, so that it can be generated later on.
-    fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
-        while let Some(mv_info) = self.moves_to_apply.pop() {
-            match mv_info.mv_kind {
-                MVKind::Mvvw => {
-                    let opt_event = MvvwEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        self.trace.mvvw.push(event);
-                    }
-                }
-                MVKind::Mvvl => {
-                    let opt_event = MvvlEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        self.trace.mvvl.push(event);
-                    }
-                }
-                MVKind::Mvih => {
-                    let event = MvihEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    self.trace.mvih.push(event);
-                }
-            }
-        }
+    // /// This method should only be called once the frame pointer has been
+    // /// allocated. It is used to generate events -- whenever possible --
+    // /// once the next_fp has been set by the allocator. When it is not yet
+    // /// possible to generate the MOVE event (because we are dealing with a
+    // /// return value that has not yet been set), we add the move information to
+    // /// the trace's `pending_updates`, so that it can be generated later on.
+    // fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
+    //     while let Some(mv_info) = self.moves_to_apply.pop() {
+    //         match mv_info.mv_kind {
+    //             MVKind::Mvvw => {
+    //                 let opt_event = MvvwEvent::generate_event_from_info(
+    //                     self,
+    //                     mv_info.pc,
+    //                     mv_info.timestamp,
+    //                     self.fp,
+    //                     mv_info.dst,
+    //                     mv_info.offset,
+    //                     mv_info.src,
+    //                 )?;
+    //                 if let Some(event) = opt_event {
+    //                     self.trace.mvvw.push(event);
+    //                 }
+    //             }
+    //             MVKind::Mvvl => {
+    //                 let opt_event = MvvlEvent::generate_event_from_info(
+    //                     self,
+    //                     mv_info.pc,
+    //                     mv_info.timestamp,
+    //                     self.fp,
+    //                     mv_info.dst,
+    //                     mv_info.offset,
+    //                     mv_info.src,
+    //                 )?;
+    //                 if let Some(event) = opt_event {
+    //                     self.trace.mvvl.push(event);
+    //                 }
+    //             }
+    //             MVKind::Mvih => {
+    //                 let event = MvihEvent::generate_event_from_info(
+    //                     self,
+    //                     mv_info.pc,
+    //                     mv_info.timestamp,
+    //                     self.fp,
+    //                     mv_info.dst,
+    //                     mv_info.offset,
+    //                     mv_info.src,
+    //                 )?;
+    //                 self.trace.mvih.push(event);
+    //             }
+    //         }
+    //     }
 
-        debug_assert!(self.moves_to_apply.is_empty());
+    //     debug_assert!(self.moves_to_apply.is_empty());
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub(crate) fn allocate_new_frame(&mut self, target: B32) -> Result<u32, InterpreterError> {
         self.interpreter.allocate_new_frame(self.trace, target)
