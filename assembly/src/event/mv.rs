@@ -114,8 +114,6 @@ impl MvvwEvent {
             }
         } else {
             // If the destination value is set, we set the source value.
-            // let dst_addr_set = ctx.vrom_check_value_set::<u32>(ctx.addr(dst.val()))?;
-
             let dst_val = ctx.vrom_read::<u32>(dst_addr ^ offset.val() as u32)?;
             execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
             if ctx.prover_only {
@@ -211,6 +209,7 @@ impl MvvlEvent {
                 }))
             }
         } else {
+            // If the destination value is set, we set the source value.
             let dst_val = ctx.vrom_read::<u128>(dst_addr ^ offset.val() as u32)?;
 
             execute_mv(ctx, ctx.addr(src.val()), dst_val)?;
@@ -282,10 +281,6 @@ impl MvihEvent {
                 offset: offset.val(),
             }))
         }
-        // } else {
-        //     delegate_move(ctx, MVKind::Mvih, dst, offset, imm, field_pc,
-        // timestamp);     Ok(None)
-        // }
     }
 }
 
