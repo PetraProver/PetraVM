@@ -55,15 +55,15 @@ impl Prover {
         // Fill all table witnesses in sequence
 
         // 1. Fill PROM table with program instructions
-        witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
+        witness.fill_table_parallel(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM address space table with the full address space
         let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
         let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
-        witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
+        witness.fill_table_parallel(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
 
         // 3. Fill VROM write table with writes
-        witness.fill_table_sequential(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
+        witness.fill_table_parallel(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
 
         // 4. Fill VROM skip table with skipped addresses
         // Generate the list of skipped addresses (addresses not in vrom_writes)
@@ -74,10 +74,10 @@ impl Prover {
             .filter(|addr| !write_addrs.contains(addr))
             .collect();
 
-        witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
+        witness.fill_table_parallel(&self.circuit.vrom_skip_table, &vrom_skips)?;
 
         // 5. Fill the right shifter table
-        witness.fill_table_sequential(
+        witness.fill_table_parallel(
             &self.circuit.right_shifter_table,
             trace.right_shift_events(),
         )?;
