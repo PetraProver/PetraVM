@@ -244,10 +244,10 @@ impl ValueRom {
 
     /// Record accesses for addresses [addr, addr+size).
     pub(crate) fn record_access<T: VromValueT>(&self, addr: u32) {
-        for i in 0..T::word_size() {
-            let idx = addr as usize + i;
-            let count = self.access_counts[idx].get();
-            self.access_counts[idx].set(count + 1);
+        let slice = &self.access_counts[addr as usize..addr as usize + T::word_size()];
+        for cell in slice {
+            let count = cell.get();
+            cell.set(count + 1);
         }
     }
 
