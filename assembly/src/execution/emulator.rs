@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn test_petra() {
         let zero = B16::zero();
-        let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
+        let code = vec![([Opcode::Ret.get_field_elt(), zero, zero, zero], false)];
         let prom = code_to_prom(&code);
         let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
 
@@ -370,7 +370,7 @@ mod tests {
         let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
             .collect::<Vec<B16>>();
 
-        let instructions = vec![
+        let instructions = [
             // collatz_main:
             [
                 Opcode::Fp.get_field_elt(),
@@ -499,10 +499,24 @@ mod tests {
                 get_binary_slot(4),
             ], //  18G: TAILI collatz, @4
         ];
+
+        // Add `prover_only` flags to the instructions.
+        let instructions_prover_only = instructions
+            .iter()
+            .map(|inst| {
+                if inst[0].val() == Opcode::Alloci.get_field_elt().val() {
+                    (*inst, true) // Alloci is the only prover-only instruction
+                                  // in this program
+                } else {
+                    (*inst, false)
+                }
+            })
+            .collect::<Vec<_>>();
+
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
 
-        let mut prom = code_to_prom(&instructions);
+        let mut prom = code_to_prom(&instructions_prover_only);
         // Set the expected advice for the first TAILI
         prom[4].advice = Some((collatz_prom_index, collatz_advice));
         // Set the expected advice for BNZ

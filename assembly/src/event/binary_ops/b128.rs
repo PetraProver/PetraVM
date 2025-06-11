@@ -42,7 +42,7 @@ mod tests {
         isa::GenericISA,
         memory::{Memory, ValueRom},
         opcodes::Opcode,
-        test_util::code_to_prom,
+        test_util::code_to_prom_no_prover_only,
         PetraTrace,
     };
 
@@ -117,7 +117,7 @@ mod tests {
         ];
 
         // Create the PROM
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
 
         // Test values
         let a_val = 0x1111111122222222u128 | (0x3333333344444444u128 << 64);

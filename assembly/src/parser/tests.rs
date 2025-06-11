@@ -194,7 +194,7 @@ mod test_parser {
 
         let zero = B16::zero();
 
-        let expected_prom = vec![
+        let expected_prom = [
             // collatz_main:
             [
                 Opcode::Fp.get_field_elt(),
@@ -324,7 +324,20 @@ mod test_parser {
             ], //  18G: TAILI collatz, @4
         ];
 
-        let mut expected_prom = code_to_prom(&expected_prom);
+        // Add `prover_only` flags to the instructions.
+        let expected_prom_prover_only = expected_prom
+            .iter()
+            .map(|inst| {
+                if inst[0].val() == Opcode::Alloci.get_field_elt().val() {
+                    (*inst, true) // Alloci is the only prover-only instruction
+                                  // in this program
+                } else {
+                    (*inst, false)
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let mut expected_prom = code_to_prom(&expected_prom_prover_only);
 
         // Set the expected advice for the first TAILI
         expected_prom[4].advice = Some((collatz_prom_index, collatz_advice));

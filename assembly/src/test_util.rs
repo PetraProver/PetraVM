@@ -22,8 +22,34 @@ pub(crate) fn collatz_orbits(initial_val: u32) -> (Vec<u32>, Vec<u32>) {
     (evens, odds)
 }
 
-/// Helper method to convert Instructions to a program ROM.
-pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
+/// Helper method to convert (Instruction, prover_only) pairs to a program ROM.
+/// `prover_only` indicates whether a given instruction should only e executed
+/// by the prover.
+pub(crate) fn code_to_prom(code: &[(crate::Instruction, bool)]) -> crate::ProgramRom {
+    use binius_field::Field;
+    use binius_m3::builder::B32;
+
+    use crate::execution::G;
+
+    let mut prom = crate::ProgramRom::new();
+    // TODO: type-gate field_pc and use some `incr()` method to abstract away `+1` /
+    // `*G`.
+    let mut pc = B32::ONE; // we start at PC = 0G.
+    for &(instruction, prover_only) in code.iter() {
+        let interp_inst = InterpreterInstruction::new(instruction, pc, None, prover_only);
+        prom.push(interp_inst);
+
+        if !prover_only {
+            pc *= G;
+        }
+    }
+
+    prom
+}
+
+/// Helper method to convert Instructions to a program ROM. Assumes that no
+/// instruction is prover-only.
+pub(crate) fn code_to_prom_no_prover_only(code: &[crate::Instruction]) -> crate::ProgramRom {
     use binius_field::Field;
     use binius_m3::builder::B32;
 
@@ -34,13 +60,10 @@ pub(crate) fn code_to_prom(code: &[crate::Instruction]) -> crate::ProgramRom {
     // `*G`.
     let mut pc = B32::ONE; // we start at PC = 0G.
     for &instruction in code.iter() {
-        let prover_only = instruction[0] == Opcode::Alloci.get_field_elt();
-        let interp_inst = InterpreterInstruction::new(instruction, pc, None, prover_only);
+        let interp_inst = InterpreterInstruction::new(instruction, pc, None, false);
         prom.push(interp_inst);
 
-        if !prover_only {
-            pc *= G;
-        }
+        pc *= G;
     }
 
     prom
@@ -69,4 +92,4 @@ macro_rules! get_last_event {
 // Re-export the macro for use in tests.
 pub(crate) use get_last_event;
 
-use crate::{InterpreterInstruction, Opcode};
+use crate::InterpreterInstruction;

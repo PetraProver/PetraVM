@@ -323,26 +323,35 @@ mod tests {
         let unused_imm = 10.into();
 
         let instructions = vec![
-            [
-                Opcode::Alloci.get_field_elt(),
-                next_fp_addr,
-                next_fp_size,
-                zero,
-            ],
-            [
-                Opcode::Tailv.get_field_elt(),
-                target_addr,
-                next_fp_addr,
-                zero,
-            ],
+            (
+                [
+                    Opcode::Alloci.get_field_elt(),
+                    next_fp_addr,
+                    next_fp_size,
+                    zero,
+                ],
+                true,
+            ),
+            (
+                [
+                    Opcode::Tailv.get_field_elt(),
+                    target_addr,
+                    next_fp_addr,
+                    zero,
+                ],
+                false,
+            ),
             // Code that should not be accessed.
-            [
-                Opcode::Ldi.get_field_elt(),
-                unaccessed_dst_addr,
-                unused_imm,
-                zero,
-            ],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+            (
+                [
+                    Opcode::Ldi.get_field_elt(),
+                    unaccessed_dst_addr,
+                    unused_imm,
+                    zero,
+                ],
+                false,
+            ),
+            ([Opcode::Ret.get_field_elt(), zero, zero, zero], false),
         ];
 
         let mut frames = HashMap::new();
@@ -399,15 +408,21 @@ mod tests {
         // CALLV jumps into a new frame at the RET opcode level. Then we return to the
         // initial frame, at the LDI opcode level.
         let instructions = vec![
-            [Opcode::Alloci.get_field_elt(), next_fp_addr, 2.into(), zero],
-            [
-                Opcode::Callv.get_field_elt(),
-                target_addr,
-                next_fp_addr,
-                zero,
-            ],
-            [Opcode::Ldi.get_field_elt(), dst_addr, imm, zero],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+            (
+                [Opcode::Alloci.get_field_elt(), next_fp_addr, 2.into(), zero],
+                true,
+            ),
+            (
+                [
+                    Opcode::Callv.get_field_elt(),
+                    target_addr,
+                    next_fp_addr,
+                    zero,
+                ],
+                false,
+            ),
+            ([Opcode::Ldi.get_field_elt(), dst_addr, imm, zero], false),
+            ([Opcode::Ret.get_field_elt(), zero, zero, zero], false),
         ];
 
         let mut frames = HashMap::new();

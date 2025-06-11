@@ -353,7 +353,7 @@ mod tests {
         isa::GenericISA,
         memory::Memory,
         opcodes::Opcode,
-        test_util::code_to_prom,
+        test_util::code_to_prom_no_prover_only,
         ValueRom,
     };
 
@@ -389,7 +389,7 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(B32::one(), 16);
 
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let mut vrom = ValueRom::default();
         vrom.write(0, 0u32, false).unwrap();
         vrom.write(1, 0u32, false).unwrap();
@@ -472,7 +472,7 @@ mod tests {
         frames.insert(B32::one(), 10);
         frames.insert(target, 9);
 
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
         vrom.write(0, 0u32, false).unwrap();
@@ -591,7 +591,7 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(B32::one(), 13);
 
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
         vrom.write(0, 0u32, false).unwrap();
@@ -700,7 +700,7 @@ mod tests {
         let mut frames = HashMap::new();
         frames.insert(B32::one(), 13);
 
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let mut vrom = ValueRom::default();
         // Set FP and PC
         vrom.write(0, 0u32, false).unwrap();

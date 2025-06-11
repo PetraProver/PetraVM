@@ -138,10 +138,10 @@ impl EventContext<'_> {
         self.interpreter.incr_prom_index();
     }
 
-    /// Helper method to allocate a new frame, updates the [`FramePointer`] and
-    /// handle pending MOVE events.
+    /// Helper method to update the [`FramePointer`]. It assumes that the next
+    /// frame has already been allocated.
     ///
-    /// Returns the updated `fp`, post frame allocation.
+    /// Returns the updated `fp`.
     pub fn setup_call_frame(&mut self, next_fp_offset: B16) -> Result<u32, InterpreterError> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
