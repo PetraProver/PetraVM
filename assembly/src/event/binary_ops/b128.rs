@@ -4,7 +4,7 @@ use super::BinaryOperation;
 use crate::macros::define_bin128_op_event;
 use crate::{
     event::{context::EventContext, Event},
-    execution::{FramePointer, InterpreterChannels, InterpreterError, G},
+    execution::{FramePointer, InterpreterChannels, InterpreterError},
 };
 
 define_bin128_op_event!(

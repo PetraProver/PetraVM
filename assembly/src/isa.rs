@@ -91,6 +91,7 @@ define_isa!(
         AndiEvent,
         BnzEvent,
         BzEvent,
+        FpEvent,
         B32MulEvent,
         B32MuliEvent,
         B128AddEvent,
@@ -129,5 +130,7 @@ define_isa!(
         TailvEvent,
         XorEvent,
         XoriEvent,
+        AllociEvent,
+        AllocvEvent,
     ]
 );

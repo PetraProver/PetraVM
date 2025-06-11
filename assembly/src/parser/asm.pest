@@ -3,6 +3,7 @@ separator  = _{ spaces* ~ "," ~ spaces* }
 WHITESPACE = _{ spaces | NEWLINE }
 
 XOR_instr      = { "XOR" }
+FP_instr       = { "FP" }
 B32_ADD_instr  = { "B32_ADD" }
 B32_MUL_instr  = { "B32_MUL" }
 B128_ADD_instr = { "B128_ADD" }
@@ -101,6 +102,7 @@ mov_imm_instr         = ${ MVI_H_instr ~ prover_flag? }
 load_imm_instr        = ${ LDI_W_instr ~ prover_flag? }
 alloc_imm_instr       = ${ ALLOCI_instr ~ prover_flag }
 alloc_non_imm_instr   = ${ ALLOCV_instr ~ prover_flag }
+fp_instr              = ${ FP_instr ~ prover_flag? }
 nullary_instrs        = ${ RET_instr }
 
 // Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offsetted
@@ -140,6 +142,7 @@ load_imm             = ${ load_imm_instr ~ spaces+ ~ slot ~ separator ~ immediat
 load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ separator ~ slot ~ separator ~ immediate }
 alloc_imm            = ${ alloc_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
 alloc_non_imm        = ${ alloc_non_imm_instr ~ spaces+ ~ slot ~ separator ~ slot }
+fp                   = ${ fp_instr ~ spaces+ ~ slot ~ separator ~ immediate }
 
 instruction = {
     nullary
@@ -154,6 +157,7 @@ instruction = {
   | load_store
   | alloc_imm
   | alloc_non_imm
+  | fp
 }
 
 line = { (((frame_size_annotation? ~ label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }

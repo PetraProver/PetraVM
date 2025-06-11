@@ -8,12 +8,14 @@ use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
 };
+use binius_fast_compute::{layer::FastCpuLayer, memory::PackedMemorySliceMut};
 use binius_field::arch::OptimalUnderlier128b;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, WitnessIndex, B128};
 use bumpalo::Bump;
+use bytemuck::zeroed_vec;
 use petravm_asm::isa::ISA;
 use tracing::instrument;
 
@@ -52,7 +54,7 @@ impl Prover {
         // Fill all table witnesses in sequence
 
         // 1. Fill PROM table with program instructions
-        witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
+        witness.fill_table_parallel(&self.circuit.prom_table, &trace.program)?;
 
         // 2. Fill VROM table with VROM addresses and values
         let vrom_addr_space_size = (trace.max_vrom_addr + 1).next_power_of_two();
@@ -119,11 +121,20 @@ impl Prover {
         binius_core::constraint_system::validate::validate_witness(
             &compiled_cs,
             &statement.boundaries,
+            &statement.table_sizes,
             &witness,
         )?;
 
+        let ccs_digest = compiled_cs.digest::<Groestl256>();
+
+        let hal = FastCpuLayer::<CanonicalTowerFamily, ProverPackedField>::default();
+        let mut host_mem = zeroed_vec(1 << 20);
+        let mut dev_mem_owned = zeroed_vec(1 << (28 - ProverPackedField::LOG_WIDTH));
+        let dev_mem = PackedMemorySliceMut::new_slice(&mut dev_mem_owned);
+
         // Generate the proof
         let proof = prove::<
+            _,
             OptimalUnderlier128b,
             CanonicalTowerFamily,
             Groestl256,
@@ -131,10 +142,15 @@ impl Prover {
             HasherChallenger<Groestl256>,
             _,
         >(
+            &hal,
+            &mut host_mem,
+            dev_mem,
             &compiled_cs,
             LOG_INV_RATE,
             SECURITY_BITS,
+            &ccs_digest,
             &statement.boundaries,
+            &statement.table_sizes,
             witness,
             &make_portable_backend(),
         )?;
@@ -183,6 +199,8 @@ pub fn verify_proof(
     compiled_cs: &ConstraintSystem<B128>,
     proof: Proof,
 ) -> Result<()> {
+    let ccs_digest = compiled_cs.digest::<Groestl256>();
+
     verify::<
         OptimalUnderlier128b,
         CanonicalTowerFamily,
@@ -193,6 +211,7 @@ pub fn verify_proof(
         compiled_cs,
         LOG_INV_RATE,
         SECURITY_BITS,
+        &ccs_digest,
         &statement.boundaries,
         proof,
     )?;

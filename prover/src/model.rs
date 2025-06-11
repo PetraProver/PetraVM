@@ -87,10 +87,10 @@ pub struct Instruction {
     pub opcode: Opcode,
     /// Arguments to the instruction (up to 3)
     pub args: Vec<u16>,
-    /// Optional advice. Used for providing the discrete logarihm in base
-    /// `B32::MULTIPLICATIVE_GENERATOR` of a group element defined by the
-    /// instruction arguments.
-    pub advice: Option<u32>,
+    /// Optional advice. Used for providing the PROM index and the discrete
+    /// logarihm in base `B32::MULTIPLICATIVE_GENERATOR` of a group element
+    /// defined by the instruction arguments.
+    pub advice: Option<(u32, u32)>,
 }
 
 impl From<InterpreterInstruction> for Instruction {
@@ -242,6 +242,7 @@ define_table_registry_and_accessors!(
     (ret, Ret),
     (bz, Bz),
     (bnz, Bnz),
+    (fp, Fp),
     (b32_mul, B32Mul),
     (b32_muli, B32Muli),
     (b128_add, B128Add),

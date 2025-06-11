@@ -175,12 +175,15 @@ mod test_parser {
 
     #[test]
     fn test_parsing_collatz() {
+        let collatz_prom_index = 0;
         let collatz_advice = 1;
         let collatz = B16::ONE;
+        let case_recurse_prom_index = 4;
         let case_recurse_advice = 5;
         let case_recurse =
             ExtensionField::<B16>::iter_bases(&G.pow((case_recurse_advice - 1) as u64))
                 .collect::<Vec<B16>>();
+        let case_odd_prom_index = 10;
         let case_odd_advice = 11;
         let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
             .collect::<Vec<B16>>();
@@ -286,13 +289,13 @@ mod test_parser {
         let mut expected_prom = code_to_prom(&expected_prom);
 
         // Set the expected advice for BNZ
-        expected_prom[1].advice = Some(case_recurse_advice);
+        expected_prom[1].advice = Some((case_recurse_prom_index, case_recurse_advice));
         // Set the expected advice for the second BNZ
-        expected_prom[5].advice = Some(case_odd_advice);
+        expected_prom[5].advice = Some((case_odd_prom_index, case_odd_advice));
         // Set the expected advice for the first TAILI
-        expected_prom[9].advice = Some(collatz_advice);
+        expected_prom[9].advice = Some((collatz_prom_index, collatz_advice));
         // Set the expected advice for the second TAILI
-        expected_prom[14].advice = Some(collatz_advice);
+        expected_prom[14].advice = Some((collatz_prom_index, collatz_advice));
 
         assert!(
             compiled_program.prom.len() == expected_prom.len(),

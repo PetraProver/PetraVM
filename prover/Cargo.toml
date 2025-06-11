@@ -37,6 +37,7 @@ tracing-subscriber.workspace = true
 
 # Binius dependencies
 binius_core.workspace = true
+binius_fast_compute.workspace = true
 binius_field.workspace = true
 binius_hal.workspace = true
 binius_hash.workspace = true

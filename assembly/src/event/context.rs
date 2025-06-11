@@ -14,14 +14,18 @@ use crate::{
 ///
 /// It contains a mutable reference to the running [`Interpreter`], the
 /// [`PetraTrace`], and also contains the PC associated to the event to be
-/// generated. It also contains an optional advice, which provides the
-/// discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a group
-/// element defined by the instruction arguments.
+/// generated. It also contains an optional advice, which provides a PROM index
+/// and the discrete logarithm in base `B32::MULTIPLICATIVE_GENERATOR` of a
+/// group element defined by the instruction arguments, and a boolean indicating
+/// whether the current instruction is prover-only. Prover-only instructions are
+/// hints for the emulator to help generating the trace, but do not produce any
+/// event and do not change the program state.
 pub struct EventContext<'a> {
     pub interpreter: &'a mut Interpreter,
     pub trace: &'a mut PetraTrace,
     pub field_pc: B32,
-    pub advice: Option<u32>,
+    pub advice: Option<(u32, u32)>,
+    pub prover_only: bool,
 }
 
 impl EventContext<'_> {
@@ -56,7 +60,11 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        self.vrom().read(addr)
+        if self.prover_only {
+            self.vrom().peek::<T>(addr)
+        } else {
+            self.vrom().read::<T>(addr)
+        }
     }
 
     pub fn vrom_check_value_set<T>(&self, addr: u32) -> Result<bool, MemoryError>
@@ -75,11 +83,17 @@ impl EventContext<'_> {
         T: VromValueT,
     {
         self.trace.vrom().check_alignment::<T>(addr)?;
-        for i in 0..T::word_size() {
-            let cur_word = (value.to_u128() >> (32 * i)) as u32;
-            self.trace.vrom_write(addr + i as u32, cur_word)?;
+        if self.prover_only {
+            // In prover-only mode, we don't need to check for deferred moves, nor to record
+            // the access.
+            self.vrom_mut().write(addr, value, false)
+        } else {
+            for i in 0..T::word_size() {
+                let cur_word = (value.to_u128() >> (32 * i)) as u32;
+                self.trace.vrom_write(addr + i as u32, cur_word)?;
+            }
+            Ok(())
         }
-        Ok(())
     }
 
     // /// Inserts a pending value in VROM to be set later.
@@ -129,6 +143,20 @@ impl EventContext<'_> {
         self.interpreter.incr_pc();
     }
 
+    /// Inccrements the PROM index and, if not in prover-only mode, increments
+    /// the PC.
+    pub fn incr_counters(&mut self) {
+        self.interpreter.incr_prom_index();
+        if !self.prover_only {
+            self.interpreter.incr_pc();
+        }
+    }
+
+    /// Increments the underlying [`Interpreter`]'s PROM index.
+    pub fn incr_prom_index(&mut self) {
+        self.interpreter.incr_prom_index();
+    }
+
     /// Helper method to allocate a new frame, updates the [`FramePointer`] and
     /// handle pending MOVE events.
     ///
@@ -138,13 +166,20 @@ impl EventContext<'_> {
         next_fp_offset: B16,
         target: B32,
     ) -> Result<u32, InterpreterError> {
-        // Allocate a frame for the call and set the value of the next frame pointer.
-        let next_fp_val = self.allocate_new_frame(target)?;
-
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
 
-        self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
+        // Check if the next frame pointer is already set.
+        let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
+            // If the next frame pointer is already set, we assume the frame has already
+            // been allocated.
+            self.vrom().peek(next_fp_addr)?
+        } else {
+            let next_fp_val = self.allocate_new_frame(target)?;
+
+            self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
+            next_fp_val
+        };
 
         // Once we have the next_fp, we know the destination address for the moves in
         // the call procedures. We can then generate events for some moves and correctly
@@ -243,6 +278,7 @@ impl<'a> EventContext<'a> {
             trace,
             field_pc: B32::ONE,
             advice: None,
+            prover_only: false,
         }
     }
 

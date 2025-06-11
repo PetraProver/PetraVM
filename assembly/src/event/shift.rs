@@ -159,28 +159,31 @@ where
         dst: B16,
         src: B16,
         imm: B16,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src.val()))?;
         let imm_val = imm.val();
         let shift_amount = u32::from(imm_val);
         let dst_val = Self::calculate_result(src_val, shift_amount);
 
-        let (_, field_pc, fp, timestamp) = ctx.program_state();
-
         ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-        ctx.incr_pc();
+        ctx.incr_counters();
+        if ctx.prover_only {
+            Ok(None)
+        } else {
+            let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        Ok(Self::new(
-            field_pc,
-            fp,
-            timestamp,
-            dst.val(),
-            dst_val,
-            src.val(),
-            src_val,
-            0, // No shift amount offset for immediate shifts
-            shift_amount,
-        ))
+            Ok(Some(Self::new(
+                field_pc,
+                fp,
+                timestamp,
+                dst.val(),
+                dst_val,
+                src.val(),
+                src_val,
+                0, // No shift amount offset for immediate shifts
+                shift_amount,
+            )))
+        }
     }
 
     /// Generate a ShiftEvent for VROM-based shift operations.
@@ -192,27 +195,30 @@ where
         dst: B16,
         src1: B16,
         src2: B16,
-    ) -> Result<Self, InterpreterError> {
+    ) -> Result<Option<Self>, InterpreterError> {
         let src_val = ctx.vrom_read::<u32>(ctx.addr(src1.val()))?;
         let shift_amount = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
         let dst_val = Self::calculate_result(src_val, shift_amount);
 
-        let (_, field_pc, fp, timestamp) = ctx.program_state();
-
         ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
-        ctx.incr_pc();
+        ctx.incr_counters();
+        if ctx.prover_only {
+            Ok(None)
+        } else {
+            let (_, field_pc, fp, timestamp) = ctx.program_state();
 
-        Ok(Self::new(
-            field_pc,
-            fp,
-            timestamp,
-            dst.val(),
-            dst_val,
-            src1.val(),
-            src_val,
-            src2.val(),
-            shift_amount,
-        ))
+            Ok(Some(Self::new(
+                field_pc,
+                fp,
+                timestamp,
+                dst.val(),
+                dst_val,
+                src1.val(),
+                src_val,
+                src2.val(),
+                shift_amount,
+            )))
+        }
     }
 }
 
@@ -242,29 +248,32 @@ macro_rules! impl_shift_event {
                     Self::generate_vrom_event(ctx, dst, src1, src2)?
                 };
 
-                // For right shift operations, create a RightLogicShiftGadgetEvent
-                // This needs to handle both logical and arithmetic right shifts
-                match stringify!($variant) {
-                    "srli" | "srl" => {
-                        // For logical right shifts, just use the values directly
-                        ctx.trace.add_right_shift_event(
-                            event.src_val,
-                            event.shift_amount,
-                            event.dst_val,
-                        );
+                if !ctx.prover_only {
+                    let event = event.ok_or(InterpreterError::InvalidInput)?;
+                    // For right shift operations, create a RightLogicShiftGadgetEvent
+                    // This needs to handle both logical and arithmetic right shifts
+                    match stringify!($variant) {
+                        "srli" | "srl" => {
+                            // For logical right shifts, just use the values directly
+                            ctx.trace.add_right_shift_event(
+                                event.src_val,
+                                event.shift_amount,
+                                event.dst_val,
+                            );
+                        }
+                        "srai" | "sra" => {
+                            // For arithmetic right shifts, handle sign bit appropriately
+                            let sign = (event.src_val >> 31) & 1 == 1;
+                            let input = if sign { !event.src_val } else { event.src_val };
+                            let output = input >> (event.shift_amount & 0x1F);
+                            ctx.trace
+                                .add_right_shift_event(input, event.shift_amount, output);
+                        }
+                        _ => {}
                     }
-                    "srai" | "sra" => {
-                        // For arithmetic right shifts, handle sign bit appropriately
-                        let sign = (event.src_val >> 31) & 1 == 1;
-                        let input = if sign { !event.src_val } else { event.src_val };
-                        let output = input >> (event.shift_amount & 0x1F);
-                        ctx.trace
-                            .add_right_shift_event(input, event.shift_amount, output);
-                    }
-                    _ => {}
-                }
 
-                ctx.trace.$variant.push(event);
+                    ctx.trace.$variant.push(event);
+                }
                 Ok(())
             }
 
@@ -406,8 +415,8 @@ mod test {
 
         // Initialize VROM
         let mut vrom = ValueRom::default();
-        vrom.write(0, 0u32).unwrap(); // Return PC
-        vrom.write(1, 0u32).unwrap(); // Return FP
+        vrom.write(0, 0u32, false).unwrap(); // Return PC
+        vrom.write(1, 0u32, false).unwrap(); // Return FP
 
         // Create source value slots
         let src_pos = vrom.set_value_at_offset(2, 0x00000003);

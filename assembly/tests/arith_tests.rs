@@ -13,7 +13,7 @@ fn test_naive_div() {
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.pc_field_to_index_pc,
     )
     .expect("Trace generation should not fail.");
 
@@ -52,7 +52,7 @@ fn test_bezout() {
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.pc_field_to_index_pc,
     )
     .expect("Trace generation should not fail.");
 
@@ -97,7 +97,7 @@ fn test_non_tail_long_div() {
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.pc_field_to_index_pc,
     )
     .expect("Trace generation should not fail.");
 
@@ -131,7 +131,7 @@ fn test_tail_long_div() {
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
-        compiled_program.pc_field_to_int,
+        compiled_program.pc_field_to_index_pc,
     )
     .expect("Trace generation should not fail.");
 

@@ -18,11 +18,13 @@ use crate::{
     Opcode,
 };
 
+pub(crate) mod alloc;
 pub(crate) mod binary_ops;
 pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod comparison;
 pub(crate) mod context;
+pub(crate) mod fp;
 pub(crate) mod gadgets;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
@@ -36,6 +38,7 @@ pub(crate) use binary_ops::{b128, b32};
 
 // Re-exports
 pub use self::{
+    alloc::{AllociEvent, AllocvEvent},
     b128::{B128AddEvent, B128MulEvent},
     b32::{AndEvent, AndiEvent, B32MulEvent, B32MuliEvent, OrEvent, OriEvent, XorEvent, XoriEvent},
     branch::{BnzEvent, BzEvent},
@@ -43,6 +46,7 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    fp::FpEvent,
     gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
     integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
     jump::{JumpiEvent, JumpvEvent},
@@ -91,6 +95,7 @@ impl Opcode {
         arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
+            Opcode::Fp => fp::FpEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")
@@ -137,6 +142,8 @@ impl Opcode {
             Opcode::B32Muli => b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Add => b128::B128AddEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Alloci => alloc::AllociEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Allocv => alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }

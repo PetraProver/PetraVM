@@ -61,24 +61,25 @@ impl Event for MuliEvent {
 
         let imm_val = imm.val();
         let dst_val = (src_val as i32 as i64).wrapping_mul(imm_val as i16 as i64) as u64;
-
         ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
+        if !ctx.prover_only {
+            let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src: src.val(),
-            src_val,
-            imm: imm_val,
-        };
+            let event = Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_val,
+                src: src.val(),
+                src_val,
+                imm: imm_val,
+            };
 
-        ctx.trace.muli.push(event);
+            ctx.trace.muli.push(event);
+        }
+        ctx.incr_counters();
         Ok(())
     }
 
@@ -119,25 +120,26 @@ impl Event for MuluEvent {
         let src2_val = ctx.vrom_read::<u32>(ctx.addr(src2.val()))?;
 
         let dst_val = (src1_val as u64).wrapping_mul(src2_val as u64);
-
         ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-        let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-        ctx.incr_pc();
+        if !ctx.prover_only {
+            let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let mulu_event = Self {
-            pc: field_pc,
-            fp,
-            timestamp,
-            dst: dst.val(),
-            dst_val,
-            src1: src1.val(),
-            src1_val,
-            src2: src2.val(),
-            src2_val,
-        };
+            let mulu_event = Self {
+                pc: field_pc,
+                fp,
+                timestamp,
+                dst: dst.val(),
+                dst_val,
+                src1: src1.val(),
+                src1_val,
+                src2: src2.val(),
+                src2_val,
+            };
 
-        ctx.trace.mulu.push(mulu_event);
+            ctx.trace.mulu.push(mulu_event);
+        }
+        ctx.incr_counters();
         Ok(())
     }
 
@@ -201,23 +203,25 @@ macro_rules! impl_signed_mul_event {
                 let dst_val = <$op>::mul_op(src1_val, src2_val);
                 ctx.vrom_write(ctx.addr(dst.val()), dst_val)?;
 
-                let (_pc, field_pc, fp, timestamp) = ctx.program_state();
-                ctx.incr_pc();
+                if !ctx.prover_only {
+                    let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-                let event = Self {
-                    pc: field_pc,
-                    fp,
-                    timestamp,
-                    dst: dst.val(),
-                    dst_val,
-                    src1: src1.val(),
-                    src1_val,
-                    src2: src2.val(),
-                    src2_val,
-                    _phantom: PhantomData,
-                };
+                    let event = Self {
+                        pc: field_pc,
+                        fp,
+                        timestamp,
+                        dst: dst.val(),
+                        dst_val,
+                        src1: src1.val(),
+                        src1_val,
+                        src2: src2.val(),
+                        src2_val,
+                        _phantom: PhantomData,
+                    };
 
-                ctx.trace.$variant.push(event);
+                    ctx.trace.$variant.push(event);
+                }
+                ctx.incr_counters();
                 Ok(())
             }
 
