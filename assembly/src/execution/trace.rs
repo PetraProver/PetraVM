@@ -31,7 +31,7 @@ use crate::{
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     isa::ISA,
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom},
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromValueT},
 };
 
 #[derive(Debug, Default)]
@@ -218,10 +218,16 @@ impl PetraTrace {
 
     /// Sets a value of one of the supported types at the provided index in
     /// VROM.
-    ///
-    /// This will also execute pending VROM updates if necessary.
-    pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value, true)?;
+    pub(crate) fn vrom_write<T>(
+        &mut self,
+        index: u32,
+        value: T,
+        record: bool,
+    ) -> Result<(), MemoryError>
+    where
+        T: VromValueT,
+    {
+        self.vrom_mut().write(index, value, record)?;
 
         Ok(())
     }

@@ -261,9 +261,6 @@ impl MvihEvent {
     ) -> Result<Option<Self>, InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        // If the destination address is still unknown, it means we are in a MOVE that
-        // precedes a CALL, and we have to handle the MOVE operation later.
-        // if dst_addr_set {
         let dst_addr = ctx.vrom_read::<u32>(ctx.addr(dst.val()))?;
 
         execute_mv(ctx, dst_addr ^ offset.val() as u32, imm.val() as u32)?;

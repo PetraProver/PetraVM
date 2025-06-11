@@ -13,7 +13,7 @@ collatz_main:
     FP @3, #4
     ALLOCI! @5, #10
     MVV.W @5[2], @2 ;; Move n
-    MVV.W @5[3], @3 ;; More the absolute address of the return value
+    MVV.W @5[3], @3 ;; Move the absolute address of the return value
     TAILI collatz, @5
 
 #[framesize(0xa)]
