@@ -43,8 +43,8 @@ fn test_bezout() {
 
     let compiled_program = Assembler::from_code(&full_kernel).unwrap();
 
-    let a = 12;
-    let b = 3;
+    let a = 274; // -2 in 32-bit unsigned representation
+    let b = 685;
     let vrom = ValueRom::new_with_init_vals(&[0, 0, a, b]);
 
     let memory = Memory::new(compiled_program.prom, vrom);
@@ -61,23 +61,23 @@ fn test_bezout() {
         trace
             .vrom()
             .read::<u32>(4)
-            .expect("Return value for quotient not set."),
-        3
+            .expect("Return value for gcd not set."),
+        137
     );
     // a's coefficient
     assert_eq!(
         trace
             .vrom()
             .read::<u32>(5)
-            .expect("Return value for remainder not set."),
-        0
+            .expect("Return value for a coefficient not set."),
+        (-2i32) as u32
     );
     // b's coefficient
     assert_eq!(
         trace
             .vrom()
             .read::<u32>(6)
-            .expect("Return value for remainder not set."),
+            .expect("Return value for b coefficient not set."),
         1
     );
 }

@@ -14,10 +14,11 @@ func_call:
     ;; Slot 4: Local: add_two_numbers(4, 8)
     ;; Slot 5: Local: 
 
+    ALLOCI! @3, #5
     MVI.H @3[2], #4  ;; a = 4
     MVI.H @3[3], #8  ;; b = 8
-    MVV.W @3[4], @4  ;; x = add_two_numbers(4, 8)
     CALLI add_two_numbers, @3
+    MVV.W @3[4], @4  ;; x = add_two_numbers(4, 8)
 
     ADDI @2, @4, #10 ;; return x + 10
     RET

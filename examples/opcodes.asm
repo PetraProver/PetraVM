@@ -38,41 +38,46 @@ _start:
     ;; Call the binary field test
     ;; We also test ALLOCI with the test_binary_field frame
     ALLOCI! @3, #41
-    MVV.W @3[2], @4
     CALLI test_binary_field, @3
+    MVV.W @3[2], @4
     BNZ test_failed, @4
     
     ;; Call the integer operations test
     ;; We also test ALLOCV with the test_integer_ops frame
     LDI.W! @17, #78
     ALLOCV! @5, @17
-    MVV.W @5[2], @6
     CALLI test_integer_ops, @5
+    MVV.W @5[2], @6
     BNZ test_failed, @6
     
     ;; Call the move operations test
-    MVV.W @7[2], @8
+    ALLOCI! @7, #48
     CALLI test_move_ops, @7
+    MVV.W @7[2], @8
     BNZ test_failed, @8
     
     ;; Call the branch and jump test
-    MVV.W @9[2], @10
+    ALLOCI! @9, #17
     CALLI test_jumps_branches, @9
+    MVV.W @9[2], @10
     BNZ test_failed, @10
     
     ;; Call the function call operations test
-    MVV.W @11[2], @12
+    ALLOCI! @11, #13
     CALLI test_function_calls, @11
+    MVV.W @11[2], @12
     BNZ test_failed, @12
     
     ;; Call the TAILI test
-    MVV.W @13[2], @14
+    ALLOCI! @13, #5
     CALLI test_taili, @13
+    MVV.W @13[2], @14
     BNZ test_failed, @14
 
     ;; Call the FP test
-    MVV.W @15[2], @16
+    ALLOCI! @15, #5
     CALLI test_fp, @15
+    MVV.W @15[2], @16
     BNZ test_failed, @16
 
     LDI.W @2, #0    ;; overall success flag
@@ -97,7 +102,7 @@ callv_target_fn:
 ;; PC = 28G (we know this exact value for TAILV tests)
 #[framesize(0x3)]
 tail_target_fn:
-    LDI.W @2, #0        ;; Set success flag (0 = success)
+    MVI.H @2[0], #0        ;; Set success flag (0 = success)
     RET
 
 ;; PC = 30G (we know this exact value for JUMPV tests)
@@ -640,9 +645,10 @@ test_move_ops:
     LDI.W @8, #9876      ;; Source value
     
     ;; Call a test function with MVV.W to verify it works
+    ALLOCI! @9, #16
     MVV.W @9[2], @8      ;; Pass the value to the function
-    MVV.W @9[3], @10     ;; Set up return value location
     CALLI test_move_call, @9
+    MVV.W @9[3], @10     ;; Set up return value location
     BNZ move_fail, @10   ;; Check if test failed
 
     ;; ------------------------------------------------------------
@@ -662,9 +668,10 @@ test_move_ops:
     LDI.W @15, #4444     ;; 4th word
     
     ;; Call a test function with MVV.L to verify it works
+    ALLOCI! @16, #16
     MVV.L @16[4], @12    ;; Pass the 128-bit value to the function (aligned at offset 4)
-    MVV.W @16[2], @17    ;; Set up return value location (use slot 2 for return value)
     CALLI test_move_call_l, @16
+    MVV.W @16[2], @17    ;; Set up return value location (use slot 2 for return value)
     BNZ move_fail, @17   ;; Check if test failed
 
     ;; ------------------------------------------------------------
@@ -679,9 +686,10 @@ test_move_ops:
     ;; EFFECT: VROM[fp[dst] + off] = ZeroExtend(imm)
     ;; ------------------------------------------------------------
     ;; Call a test function with MVI.H to verify it works
+    ALLOCI! @18, #16
     MVI.H @18[2], #255   ;; Pass the immediate value to the function
-    MVV.W @18[3], @19    ;; Set up return value location
     CALLI test_move_call_h, @18
+    MVV.W @18[3], @19    ;; Set up return value location
     BNZ move_fail, @19   ;; Check if test failed
 
     LDI.W @2, #0         ;; Set success flag (0 = success)
@@ -842,7 +850,7 @@ branch_fail:
 ;; Tests for function call instructions, which save and restore execution context.
 ;; ============================================================================
 
-#[framesize(0xb)]
+#[framesize(0xd)]
 test_function_calls:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -866,8 +874,9 @@ test_function_calls:
     ;;   PC = target
     ;; ------------------------------------------------------------
     ;; Test a regular function call
-    MVV.W @3[2], @4    ;; Set up a slot to receive the return value
+    ALLOCI! @3, #3
     CALLI test_simple_fn, @3
+    MVV.W @3[2], @4    ;; Set up a slot to receive the return value
     
     ;; Check the return value from the function
     XORI @5, @4, #42   ;; Function should return 42
@@ -892,9 +901,10 @@ test_function_calls:
     ;; We placed callv_target_fn at PC = 26G (marked in comments above)
     LDI.W @6, #2118631418  ;; Actual field element value for 26G
     
+    ALLOCI! @7, #3
     ;; Set up a call frame for CALLV
-    MVV.W @7[2], @8    ;; Set up a slot to receive the return value
     CALLV @6, @7       ;; Call using the address in @13
+    MVV.W @7[2], @8    ;; Set up a slot to receive the return value
     
     ;; Check if we got the special return value from callv_target_fn (123)
     XORI @9, @8, #123  ;; Function should return 123
@@ -919,9 +929,11 @@ test_function_calls:
     ;; We placed tailv_target_fn at PC = 28G (marked in comments above)
     LDI.W @10, #2552055959  ;; Actual field element value for 28G
     
-    ;; Pass the final return value slot to the function
-    MVV.W @11[2], @2     ;; Pass the final return value slot
-    TAILV @10, @11       ;; Tail call using address in @17
+    ;; Pass the final return value address to the function
+    ALLOCI! @12, #3
+    FP @11, #2           ;; Get current_fp XOR 2
+    MVV.W @12[2], @11    ;; Pass the final return value address
+    TAILV @10, @12       ;; Tail call using address in @17
     
     ;; We should not reach here - the tail call should return directly
     ;; to the caller of test_function_calls
@@ -937,6 +949,8 @@ test_taili:
     ;; Slot 0: Return PC
     ;; Slot 1: Return FP
     ;; Slot 2: Return value slot
+    ;; Slot 3: Return value address
+    ;; Slot 4: ND Local: Next FP
     
     ;; ------------------------------------------------------------
     ;; INSTRUCTION: TAILI (Tail Call Immediate)
@@ -955,8 +969,10 @@ test_taili:
     ;; ------------------------------------------------------------
     
     ;; Set up a new frame for the tail call
-    MVV.W @3[2], @2     ;; Pass the return value slot to the target function
-    TAILI tail_target_fn, @3  ;; Tail call to tail_target_fn
+    ALLOCI! @4, #3
+    FP @3, #2           ;; Get current_fp XOR 3, as the return value address
+    MVV.W @4[2], @3     ;; Pass the return value pointer to the next frame
+    TAILI tail_target_fn, @4  ;; Tail call to tail_target_fn
     
     ;; Should not reach here - the tail call should return directly to our caller
     LDI.W @2, #1        ;; Set failure flag (1 = failure)
@@ -986,8 +1002,8 @@ test_simple_fn:
 ;; ============================================================================
 #[framesize(0x5)]
 test_fp:
-    FP @3, #1       ;; Set to FP[1] = 24 + 1
-    XORI @4, @3, #25
+    FP @3, #1       ;; Set to FP[1] = 48 + 1
+    XORI @4, @3, #49
     BNZ fp_fail, @4
     LDI.W @2, #0    ;; Set success flag (0 = success)
     RET

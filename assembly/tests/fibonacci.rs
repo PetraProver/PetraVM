@@ -56,11 +56,16 @@ fn test_fibonacci_integration() {
     }
 
     let final_fib_helper_frame = &info.frames["fib_helper"][init_val as usize - 1];
-    let final_fib_ret_val = final_fib_helper_frame.get_vrom_expected::<u32>(5);
+    let fib_ret_val_addr = final_fib_helper_frame.get_vrom_expected::<u32>(5);
+    let final_fib_ret_val = fib_frame.get_vrom_expected::<u32>(4);
 
     // Check the final return value
-    assert_eq!(final_fib_ret_val, cur_fibs[0]);
+    assert_eq!(
+        final_fib_ret_val, cur_fibs[0],
+        "Final return value mismatch"
+    );
 
-    // Check that the returned value is propagated correctly to the initial frame
-    assert_eq!(final_fib_ret_val, fib_frame.get_vrom_expected::<u32>(3));
+    // Check that the returned value's absolute address is propagated correctly to
+    // the initial frame
+    assert_eq!(fib_ret_val_addr, fib_frame.get_vrom_expected::<u32>(3));
 }
