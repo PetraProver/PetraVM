@@ -5,7 +5,7 @@ on:
 
 jobs:
   checkout:
-    runs-on: [ubuntu-22-enterprise]
+    runs-on: [ubuntu-22-self-hosted]
 
     steps:
       - name: Checkout repository
