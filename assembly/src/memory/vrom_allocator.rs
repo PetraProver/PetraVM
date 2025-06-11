@@ -3,6 +3,54 @@ use std::collections::BTreeMap;
 // We need at least two slots for return pc and return fp.
 const MIN_FRAME_SIZE: u32 = 2;
 
+// This struct will implement the Iterator trait
+pub struct PowerOfTwoBlocksIterator {
+    current_addr: u32,
+    remaining_size: u32,
+}
+
+impl Iterator for PowerOfTwoBlocksIterator {
+    type Item = (u32, u32); // (address, size)
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.remaining_size > 0 {
+            let k = self.current_addr.trailing_zeros();
+            let max_align_size = 1 << k;
+
+            let max_size_in_remaining = if self.remaining_size > 0 {
+                1 << (31 - self.remaining_size.leading_zeros())
+            } else {
+                0
+            };
+
+            let block_size = max_align_size.min(max_size_in_remaining);
+
+            // If the block is too small, skip it and advance.
+            if block_size < MIN_FRAME_SIZE {
+                self.current_addr += block_size;
+                self.remaining_size -= block_size;
+                // Continue the loop to find the next valid block
+                continue;
+            }
+
+            // Valid block found
+            let result = (self.current_addr, block_size);
+            self.current_addr += block_size;
+            self.remaining_size -= block_size;
+            return Some(result);
+        }
+        None // No more blocks
+    }
+}
+
+// Modify the original function to return the iterator
+fn split_into_power_of_two_blocks_iter(addr: u32, size: u32) -> PowerOfTwoBlocksIterator {
+    PowerOfTwoBlocksIterator {
+        current_addr: addr,
+        remaining_size: size,
+    }
+}
+
 /// VromAllocator allocates VROM addresses for objects, ensuring that:
 /// - The object's size is padded to the next power-of-two (with a minimum of
 ///   MIN_FRAME_SIZE),
@@ -96,7 +144,7 @@ impl VromAllocator {
         if size < MIN_FRAME_SIZE {
             return;
         }
-        for (block_addr, block_size) in split_into_power_of_two_blocks(addr, size) {
+        for (block_addr, block_size) in split_into_power_of_two_blocks_iter(addr, size) {
             self.slack
                 .entry(block_size.trailing_zeros())
                 .or_default()
@@ -123,21 +171,33 @@ const fn align_to(pos: u32, alignment: u32) -> u32 {
 ///   remaining 4 slots are dropped.
 /// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
 ///   (8,8)]`, but the 4-slot block is dropped, resulting in `[(8,8)]`.
+#[cfg(test)]
 fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
     let mut blocks = Vec::new();
     let mut current_addr = addr;
     let mut remaining = size;
     while remaining > 0 {
-        // Determine the maximum block size allowed by the current address's alignment.
-        let alignment_constraint = if current_addr == 0 {
-            remaining
-        } else {
-            1 << current_addr.trailing_zeros()
-        };
-        // Largest power-of-two not exceeding the remaining size.
-        let largest_possible = 1 << (31 - remaining.leading_zeros());
-        let block_size = alignment_constraint.min(largest_possible);
-        // Skip blocks that are smaller than MIN_FRAME_SIZE.
+        // We calculate the largest power-of-two block that can fit into `remaining`
+        // and is properly aligned for `current_addr`.
+        // The `trailing_zeros()` on `current_addr` gives the exponent `k` such that
+        // `current_addr` is a multiple of `2^k`.
+        let k = current_addr.trailing_zeros();
+        let max_align_size = 1 << k;
+
+        // The largest power-of-two block that fits within `remaining`.
+        // `leading_zeros()` returns the number of leading zeros. For a 32-bit
+        // `remaining`, `31 - remaining.leading_zeros()` gives the position of
+        // the most significant bit, which corresponds to
+        // `log2(largest_power_of_two_less_than_or_equal_to_remaining)`.
+        let max_size_in_remaining = 1 << (31 - remaining.leading_zeros());
+
+        // The actual block size is the minimum of what's allowed by alignment and
+        // remaining size.
+        let block_size = max_align_size.min(max_size_in_remaining);
+
+        // If the block is too small, just advance and continue.
+        // We ensure that we don't infinitely loop if `block_size` becomes 0 by checking
+        // `remaining > 0`.
         if block_size < MIN_FRAME_SIZE {
             current_addr += block_size;
             remaining -= block_size;
