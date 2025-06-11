@@ -20,6 +20,7 @@ use crate::{
     memory::{Memory, MemoryError},
     mv::MVInfo,
     opcodes::Opcode,
+    util::rdtsc,
 };
 
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
@@ -255,8 +256,9 @@ impl Interpreter {
         let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
         self.allocate_new_frame(&mut trace, field_pc)?;
+        let mut opcode_times = HashMap::new();
         loop {
-            match self.step(&mut trace) {
+            match self.step(&mut trace, &mut opcode_times) {
                 Ok(_) => {}
                 Err(error) => {
                     match error {
@@ -268,12 +270,23 @@ impl Interpreter {
                 }
             }
             if self.is_halted() {
+                for (opcode, times) in opcode_times.iter() {
+                    println!(
+                        "{:?}: {:.2?}",
+                        opcode,
+                        times.iter().sum::<usize>() as f64 / times.len() as f64
+                    );
+                }
                 return Ok(trace);
             }
         }
     }
 
-    pub fn step(&mut self, trace: &mut PetraTrace) -> Result<(), InterpreterError> {
+    pub fn step(
+        &mut self,
+        trace: &mut PetraTrace,
+        opcode_times: &mut HashMap<Opcode, Vec<usize>>,
+    ) -> Result<(), InterpreterError> {
         if (self.prom_index as usize >= trace.prom().len())
             || (self.pc as usize - 1 > trace.prom().len())
         {
@@ -319,7 +332,18 @@ impl Interpreter {
             prover_only,
         };
 
-        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
+        let start = rdtsc();
+        let result = opcode.generate_event(&mut ctx, arg0, arg1, arg2);
+        let end = rdtsc();
+
+        let cycles = end - start;
+
+        opcode_times
+            .entry(opcode)
+            .or_default()
+            .push(cycles as usize);
+
+        result
     }
 
     pub(crate) fn allocate_new_frame(

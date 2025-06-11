@@ -24,3 +24,15 @@ pub fn init_logger() -> Option<impl Drop> {
     }
     None
 }
+
+#[inline(always)]
+pub fn rdtsc() -> u64 {
+    // Only works on x86_64
+    #[cfg(target_arch = "x86_64")]
+    unsafe {
+        core::arch::x86_64::_rdtsc()
+    }
+
+    #[cfg(not(target_arch = "x86_64"))]
+    compile_error!("rdtsc is only available on x86_64");
+}
