@@ -1,0 +1,12 @@
+name: Selfhoster Minimal Checkout
+
+on:
+  push:
+
+jobs:
+  checkout:
+    runs-on: [ubuntu-22-enterprise]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
