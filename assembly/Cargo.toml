@@ -13,7 +13,6 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-ahash.workspace = true
 anyhow.workspace = true
 binius_field.workspace = true
 binius_utils.workspace = true
