@@ -71,7 +71,7 @@ impl ValueRom {
         let read_data = &self.data[index as usize..index as usize + T::word_size()];
 
         for (i, opt_word) in read_data.iter().enumerate() {
-            let word = opt_word.ok_or(MemoryError::VromMissingValue(index))?;
+            let word = unsafe { opt_word.unwrap_unchecked() };
 
             // Shift the word to its appropriate position and add to the value
             value = value + (T::from(word) << (i * 32));
@@ -150,6 +150,7 @@ impl ValueRom {
     }
 
     /// Checks if the index has proper alignment.
+    #[inline(always)]
     pub(crate) fn check_alignment<T: AccessSize>(&self, index: u32) -> Result<(), MemoryError> {
         if index as usize % T::word_size() != 0 {
             Err(MemoryError::VromMisaligned(T::word_size() as u8, index))
@@ -159,6 +160,7 @@ impl ValueRom {
     }
 
     /// Checks if an address is within the current bounds of VROM.
+    #[inline(always)]
     fn check_bounds<T: AccessSize>(&self, addr: u32) -> Result<(), MemoryError> {
         let end_addr = addr as usize + T::word_size();
 
