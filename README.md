@@ -130,6 +130,12 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 1
 RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
 ```
 
+### Benchmarking examples
+
+Benchmarks are run on every commit to `main` across multiple machines, with detailed Perfetto traces collected for deep profiling.
+
+See the full [benchmark results](https://github.com/PetraProver/PetraVM/blob/main/.github/workflows/benchmark.yml).
+
 ## Development Status
 
 The project is actively developed. Many instructions are already supported by the prover, with new instructions and additional features added regularly.

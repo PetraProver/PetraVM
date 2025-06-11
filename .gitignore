@@ -36,3 +36,4 @@ Cargo.lock
 
 /*.perfetto-trace
 .last_perfetto_trace_path
+benchmark_results
