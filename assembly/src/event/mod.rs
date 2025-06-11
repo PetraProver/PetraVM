@@ -24,6 +24,7 @@ pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod comparison;
 pub(crate) mod context;
+pub(crate) mod fp;
 pub(crate) mod gadgets;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
@@ -45,6 +46,7 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    fp::FpEvent,
     gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
     integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
     jump::{JumpiEvent, JumpvEvent},
@@ -93,6 +95,7 @@ impl Opcode {
         arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
+            Opcode::Fp => fp::FpEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")

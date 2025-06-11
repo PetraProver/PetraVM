@@ -242,6 +242,7 @@ define_table_registry_and_accessors!(
     (ret, Ret),
     (bz, Bz),
     (bnz, Bnz),
+    (fp, Fp),
     (b32_mul, B32Mul),
     (b32_muli, B32Muli),
     (b128_add, B128Add),

@@ -26,67 +26,65 @@ use crate::event::*;
 // TODO: Adjust opcode discriminants once settled on their values.
 // Consider Deref to account for aliases?
 pub enum Opcode {
+    #[default]
+    Invalid = 0x00,
+
     // Integer instructions
-    Xori = 0x02,
-    Xor = 0x03,
-    Andi = 0x04,
-    Srli = 0x05,
-    Slli = 0x06,
-    Srai = 0x22,
-    Addi = 0x07,
-    Add = 0x08,
-    Muli = 0x09,
-    Mulu = 0x23,
-    Mulsu = 0x24,
-    Mul = 0x1f,
-    B32Mul = 0x10,
-    B32Muli = 0x27,
-    B128Add = 0x16,
-    B128Mul = 0x17,
-    And = 0x13,
-    Or = 0x14,
-    Ori = 0x15,
-    Sub = 0x19,
-    Sll = 0x1c,
-    Srl = 0x1d,
-    Sra = 0x1e,
+    Xori,
+    Xor,
+    Andi,
+    Srli,
+    Slli,
+    Srai,
+    Addi,
+    Add,
+    Muli,
+    Mulu,
+    Mulsu,
+    Mul,
+    B32Mul,
+    B32Muli,
+    B128Add,
+    B128Mul,
+    And,
+    Or,
+    Ori,
+    Sub,
+    Sll,
+    Srl,
+    Sra,
 
     // Move instructions
-    Mvvw = 0x0d,
-    Mvih = 0x0e,
-    Ldi = 0x0f,
-    Mvvl = 0x11,
+    Mvvw,
+    Mvih,
+    Ldi,
+    Mvvl,
 
     // Jump instructions
-    Jumpi = 0x20,
-    Jumpv = 0x21,
-    Taili = 0x0c,
-    Tailv = 0x12,
-    Calli = 0x18,
-    Callv = 0x0a,
-    Ret = 0x0b,
+    Jumpi,
+    Jumpv,
+    Taili,
+    Tailv,
+    Calli,
+    Callv,
+    Ret,
 
     // Comparison instructions
-    Sle = 0x28,
-    Slei = 0x29,
-    Sleu = 0x2a,
-    Sleiu = 0x2b,
-    Slt = 0x25,
-    Slti = 0x26,
-    Sltu = 0x1a,
-    Sltiu = 0x1b,
-
-    // Branch instructions
-    Bnz = 0x01,
-    /// Bz is only declared to allow for proper mapping with the associated
-    /// table. This is an *invalid* instruction and should never be reached.
-    /// [`BzEvent`] should only be generated through the execution of
-    /// [`Opcode::Bnz`] when no branching occurs.
-    Bz = 0xffff,
+    Sle,
+    Slei,
+    Sleu,
+    Sleiu,
+    Slt,
+    Slti,
+    Sltu,
+    Sltiu,
 
     // Allocation instructions (prover-only)
-    Alloci = 0x2c,
-    Allocv = 0x2d,
+    Alloci,
+    Allocv,
+
+    // Register instructions
+    Fp,
 
     // Memory Access (RAM) instructions
     // TODO: optional ISA extension for future implementation
@@ -100,8 +98,14 @@ pub enum Opcode {
     // LHU,
     // SB,
     // SH,
-    #[default]
-    Invalid = 0x00,
+
+    // Branch instructions
+    Bnz,
+    /// Bz is only declared to allow for proper mapping with the associated
+    /// table. This is an *invalid* instruction and should never be reached.
+    /// [`BzEvent`] should only be generated through the execution of
+    /// [`Opcode::Bnz`] when no branching occurs.
+    Bz = 0xffff,
 }
 
 impl Opcode {
@@ -113,6 +117,7 @@ impl Opcode {
     /// Returns the number of arguments expected by the given opcode.
     pub const fn num_args(&self) -> usize {
         match self {
+            Opcode::Fp => 2,      // dst, imm
             Opcode::Bnz => 3,     // target_low, target_high, cond
             Opcode::Bz => 0,      // non-existing instruction
             Opcode::Jumpi => 2,   // target_low, target_high
@@ -212,6 +217,7 @@ impl_instruction_info!(
     (B128MulEvent, Opcode::B128Mul),
     (CalliEvent, Opcode::Calli),
     (CallvEvent, Opcode::Callv),
+    (FpEvent, Opcode::Fp),
     (JumpiEvent, Opcode::Jumpi),
     (JumpvEvent, Opcode::Jumpv),
     (LdiEvent, Opcode::Ldi),

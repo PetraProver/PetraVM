@@ -104,6 +104,9 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `TAILV` - Tail call to variable address
 - [x] `RET` - Return from function
 
+#### Register Operations
+- [x] `FP` - Dump current FP value
+
 #### Future Random-Access Memory Extensions
 - [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte

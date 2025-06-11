@@ -33,7 +33,7 @@
 ;; - Slot 2+: Function-specific arguments, return values, and local variables
 ;; ============================================================================
 
-#[framesize(0x10)]
+#[framesize(0x12)]
 _start: 
     ;; Call the binary field test
     ;; We also test ALLOCI with the test_binary_field frame
@@ -44,8 +44,8 @@ _start:
     
     ;; Call the integer operations test
     ;; We also test ALLOCV with the test_integer_ops frame
-    LDI.W! @15, #78
-    ALLOCV! @5, @15
+    LDI.W! @17, #78
+    ALLOCV! @5, @17
     MVV.W @5[2], @6
     CALLI test_integer_ops, @5
     BNZ test_failed, @6
@@ -70,6 +70,11 @@ _start:
     CALLI test_taili, @13
     BNZ test_failed, @14
 
+    ;; Call the FP test
+    MVV.W @15[2], @16
+    CALLI test_fp, @15
+    BNZ test_failed, @16
+
     LDI.W @2, #0    ;; overall success flag
     RET
 
@@ -83,19 +88,19 @@ test_failed:
 ;; These functions are placed early in the program so we can know their PC values
 ;; ============================================================================
 
-;; PC = 23G (we know this exact value for CALLV tests)
+;; PC = 26G (we know this exact value for CALLV tests)
 #[framesize(0x3)]
 callv_target_fn:
     LDI.W @2, #123      ;; Set special return value to identify CALLV worked
     RET
 
-;; PC = 25G (we know this exact value for TAILV tests)
+;; PC = 28G (we know this exact value for TAILV tests)
 #[framesize(0x3)]
 tail_target_fn:
     LDI.W @2, #0        ;; Set success flag (0 = success)
     RET
 
-;; PC = 27G (we know this exact value for JUMPV tests)
+;; PC = 30G (we know this exact value for JUMPV tests)
 jumpv_destination:
     LDI.W @15, #77       ;; Set special value to identify JUMPV worked
     J jumpv_done        ;; Jump to continue testing
@@ -739,7 +744,7 @@ move_call_h_fail:
 ;; Tests for jump and branch instructions, which control the flow of execution.
 ;; ============================================================================
 
-#[framesize(0xa)]
+#[framesize(0x11)]
 test_jumps_branches:
     ;; Frame slots:
     ;; Slot 0: Return PC
@@ -818,8 +823,8 @@ jump_target:
     ;;
     ;; EFFECT: PC = fp[slot]
     ;; ------------------------------------------------------------
-    ;; Load the destination address (PC = 27G from jumpv_destination)
-    LDI.W @9, #2983627541  ;; Field element value for 27G
+    ;; Load the destination address (PC = 30G from jumpv_destination)
+    LDI.W @9, #815359857  ;; Field element value for 30G
     
     ;; Jump to that address
     J @9                    ;; Jump to the address in @9
@@ -884,8 +889,8 @@ test_function_calls:
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
     ;; For CALLV, we need to use a known PC value
-    ;; We placed callv_target_fn at PC = 23G (marked in comments above)
-    LDI.W @6, #2803768080  ;; Actual field element value for 23G
+    ;; We placed callv_target_fn at PC = 26G (marked in comments above)
+    LDI.W @6, #2118631418  ;; Actual field element value for 26G
     
     ;; Set up a call frame for CALLV
     MVV.W @7[2], @8    ;; Set up a slot to receive the return value
@@ -911,8 +916,8 @@ test_function_calls:
     ;;   PC = fp[target]
     ;; ------------------------------------------------------------
     ;; Test TAILV using a known PC value
-    ;; We placed tailv_target_fn at PC = 25G (marked in comments above)
-    LDI.W @10, #3069186472  ;; Actual field element value for 25G
+    ;; We placed tailv_target_fn at PC = 28G (marked in comments above)
+    LDI.W @10, #2552055959  ;; Actual field element value for 28G
     
     ;; Pass the final return value slot to the function
     MVV.W @11[2], @2     ;; Pass the final return value slot
@@ -966,3 +971,27 @@ test_simple_fn:
     
     LDI.W @2, #42       ;; Set a test return value
     RET                 ;; Return to caller
+
+;; ============================================================================
+;; FP INSTRUCTION
+;;
+;; FORMAT:
+;;   FP dst, imm
+;;
+;; DESCRIPTION:
+;;   Set destination to FP + imm.
+;;
+;; EFFECT:
+;;   fp[dst] = fp ^ imm
+;; ============================================================================
+#[framesize(0x5)]
+test_fp:
+    FP @3, #1       ;; Set to FP[1] = 24 + 1
+    XORI @4, @3, #25
+    BNZ fp_fail, @4
+    LDI.W @2, #0    ;; Set success flag (0 = success)
+    RET
+fp_fail:
+    LDI.W @2, #1    ;; Set failure flag (1 = failure)
+    RET
+

@@ -22,6 +22,7 @@ use crate::{
         comparison::{
             SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        fp::FpEvent,
         gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
         integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
@@ -38,6 +39,7 @@ use crate::{
 
 #[derive(Debug, Default)]
 pub struct PetraTrace {
+    pub fp: Vec<FpEvent>,
     pub bnz: Vec<BnzEvent>,
     pub jumpi: Vec<JumpiEvent>,
     pub jumpv: Vec<JumpvEvent>,
@@ -165,6 +167,7 @@ impl PetraTrace {
         ));
 
         fire_events!(self.bnz, &mut channels);
+        fire_events!(self.fp, &mut channels);
         fire_events!(self.jumpi, &mut channels);
         fire_events!(self.jumpv, &mut channels);
         fire_events!(self.xor, &mut channels);
