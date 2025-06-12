@@ -3,7 +3,6 @@ use std::arch::x86_64::_rdtsc;
 
 use strum::EnumCount;
 
-#[cfg(not(target_arch = "x86_64"))]
 use crate::execution::InterpreterError;
 use crate::Opcode;
 
@@ -15,7 +14,7 @@ struct CycleStats {
 
 impl CycleStats {
     #[cfg(target_arch = "x86_64")]
-    fn record_time(&mut self, time: usize) {
+    fn record_time(&mut self, time: u64) {
         self.total_cycles += time;
         self.count += 1;
     }
@@ -47,11 +46,13 @@ impl AllCycleStats {
         opcode: Opcode,
         f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
+        use rand::seq::index;
+
+        let index = opcode as usize;
         let start = unsafe { _rdtsc() };
         let result = f();
         let end = unsafe { _rdtsc() };
-        self.states[index].record_time(end - start);
-        self.states[index].count += 1;
+        self.stats[index].record_time(end - start);
         result
     }
 
