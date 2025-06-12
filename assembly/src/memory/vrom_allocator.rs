@@ -23,11 +23,7 @@ impl Iterator for PowerOfTwoBlocksIterator {
             };
 
             // Largest power-of-two not exceeding the remaining size.
-            let max_size_in_remaining = if self.remaining_size > 0 {
-                1 << (31 - self.remaining_size.leading_zeros())
-            } else {
-                0
-            };
+            let max_size_in_remaining = 1 << (31 - self.remaining_size.leading_zeros());
 
             let block_size = max_align_size.min(max_size_in_remaining);
 
