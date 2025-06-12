@@ -122,17 +122,18 @@ impl AllCycleStats {
         opcode: Opcode,
         f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
+        use std::result;
+
         let index = opcode_to_index(opcode);
         if index < STAT_OP_COUNT {
             let start = unsafe { _rdtsc() };
-            let result = f();
+            f()?;
             let end = unsafe { _rdtsc() };
             self.stats[index].record_time(end - start);
+            Ok(())
         } else {
-            let result = f();
+            f()
         }
-
-        result
     }
 
     #[cfg(not(target_arch = "x86_64"))]
