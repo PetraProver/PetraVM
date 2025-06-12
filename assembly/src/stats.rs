@@ -40,7 +40,7 @@ pub fn opcode_to_index(opcode: Opcode) -> usize {
         Opcode::Slei => 29,
         Opcode::Sleu => 30,
         Opcode::Sleiu => 31,
-        _ => panic!("Opcode {opcode:?} is not a valid opcode for statistics"),
+        _ => 32,
     }
 }
 
@@ -123,10 +123,13 @@ impl AllCycleStats {
         f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
         let index = opcode_to_index(opcode);
-        let start = unsafe { _rdtsc() };
-        let result = f();
-        let end = unsafe { _rdtsc() };
-        self.stats[index].record_time(end - start);
+        if index < STAT_OP_COUNT {
+            let start = unsafe { _rdtsc() };
+            let result = f();
+            let end = unsafe { _rdtsc() };
+            self.stats[index].record_time(end - start);
+        }
+
         result
     }
 
