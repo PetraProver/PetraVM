@@ -6,6 +6,44 @@ use crate::Opcode;
 
 pub const STAT_OP_COUNT: usize = 32;
 
+pub fn opcode_to_index(opcode: Opcode) -> usize {
+    match opcode {
+        Opcode::Fp => 0,
+        Opcode::Xor => 1,
+        Opcode::Xori => 2,
+        Opcode::B32Mul => 3,
+        Opcode::B32Muli => 4,
+        Opcode::B128Add => 5,
+        Opcode::B128Mul => 6,
+        Opcode::Add => 7,
+        Opcode::Addi => 8,
+        Opcode::Sub => 9,
+        Opcode::And => 10,
+        Opcode::Andi => 11,
+        Opcode::Or => 12,
+        Opcode::Ori => 13,
+        Opcode::Sll => 14,
+        Opcode::Slli => 15,
+        Opcode::Srl => 16,
+        Opcode::Srli => 17,
+        Opcode::Sra => 18,
+        Opcode::Srai => 19,
+        Opcode::Mul => 20,
+        Opcode::Muli => 21,
+        Opcode::Mulu => 22,
+        Opcode::Mulsu => 23,
+        Opcode::Slt => 24,
+        Opcode::Slti => 25,
+        Opcode::Sltu => 26,
+        Opcode::Sltiu => 27,
+        Opcode::Sle => 28,
+        Opcode::Slei => 29,
+        Opcode::Sleu => 30,
+        Opcode::Sleiu => 31,
+        _ => panic!("Opcode {opcode:?} is not a valid opcode for statistics"),
+    }
+}
+
 /// List of all opcodes to benchmark
 pub fn all_opcodes() -> &'static [Opcode] {
     &[
@@ -84,7 +122,7 @@ impl AllCycleStats {
         opcode: Opcode,
         f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
-        let index = opcode as usize;
+        let index = opcode_to_index(opcode);
         let start = unsafe { _rdtsc() };
         let result = f();
         let end = unsafe { _rdtsc() };
