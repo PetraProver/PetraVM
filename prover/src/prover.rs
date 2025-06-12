@@ -4,17 +4,17 @@
 //! PetraVM execution traces.
 
 use anyhow::{anyhow, Result};
+use binius_compute::{alloc::HostBumpAllocator, cpu::alloc::CpuComputeAllocator};
 use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
 };
 use binius_fast_compute::{layer::FastCpuLayer, memory::PackedMemorySliceMut};
-use binius_field::arch::OptimalUnderlier128b;
+use binius_field::arch::OptimalUnderlier;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, WitnessIndex, B128};
-use bumpalo::Bump;
 use bytemuck::zeroed_vec;
 use petravm_asm::isa::ISA;
 use tracing::instrument;
@@ -46,7 +46,7 @@ impl Prover {
     pub fn generate_witness<'a>(
         &self,
         trace: &Trace,
-        allocator: &'a Bump,
+        allocator: &'a HostBumpAllocator<'a, ProverPackedField>,
     ) -> Result<WitnessIndex<'_, 'a, ProverPackedField>> {
         // Build the witness structure
         let mut witness = WitnessIndex::new(&self.circuit.cs, allocator);
@@ -109,7 +109,8 @@ impl Prover {
             .map_err(|e| anyhow!(e))?;
 
         // Create a memory allocator for the witness
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 25);
+        let allocator = allocator.into_bump_allocator();
 
         // Convert witness to multilinear extension format
         let witness = self
@@ -135,7 +136,7 @@ impl Prover {
         // Generate the proof
         let proof = prove::<
             _,
-            OptimalUnderlier128b,
+            OptimalUnderlier,
             CanonicalTowerFamily,
             Groestl256,
             Groestl256ByteCompression,
@@ -165,12 +166,13 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Create a memory allocator for the witness
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 25);
+        let allocator = allocator.into_bump_allocator();
 
         // Fill all table witnesses in sequence
         let witness = self.generate_witness(trace, &allocator)?;
 
-        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier128b>(
+        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier>(
             &self.circuit.cs,
             witness,
             statement.boundaries,
@@ -202,7 +204,7 @@ pub fn verify_proof(
     let ccs_digest = compiled_cs.digest::<Groestl256>();
 
     verify::<
-        OptimalUnderlier128b,
+        OptimalUnderlier,
         CanonicalTowerFamily,
         Groestl256,
         Groestl256ByteCompression,

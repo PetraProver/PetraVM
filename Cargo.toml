@@ -25,6 +25,7 @@ tracing-profile = "0.10.6"
 # Binius dependencies
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
