@@ -353,6 +353,9 @@ RUSTFLAGS="-C target-cpu=native" cargo run --release --example fibonacci -- -n 1
 # Run Collatz conjecture for starting value 7
 RUSTFLAGS="-C target-cpu=native" cargo run --release --example collatz -- -n 7
 </code></pre>
+<h3 id="benchmarking-examples"><a class="header" href="#benchmarking-examples">Benchmarking examples</a></h3>
+<p>Benchmarks are run on every commit to <code>main</code> across multiple machines, with detailed Perfetto traces collected for deep profiling.</p>
+<p>See the full <a href="https://github.com/PetraProver/PetraVM/blob/main/.github/workflows/benchmark.yml">benchmark results</a>.</p>
 <h2 id="development-status"><a class="header" href="#development-status">Development Status</a></h2>
 <p>The project is actively developed. Many instructions are already supported by the prover, with new instructions and additional features added regularly.</p>
 <h2 id="crates"><a class="header" href="#crates">Crates</a></h2>
