@@ -128,6 +128,8 @@ impl AllCycleStats {
             let result = f();
             let end = unsafe { _rdtsc() };
             self.stats[index].record_time(end - start);
+        } else {
+            let result = f();
         }
 
         result
