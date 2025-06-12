@@ -18,7 +18,6 @@ use crate::{
     execution::{PetraTrace, StateChannel},
     isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
-    mv::MVInfo,
     opcodes::Opcode,
 };
 
@@ -83,13 +82,6 @@ pub struct Interpreter {
     /// The system timestamp. Only RAM operations increase it.
     pub timestamp: u32,
     frames: LabelsFrameSizes,
-    /// Before a CALL, there are a few move operations used to populate the next
-    /// frame. But the next frame pointer is not necessarily known at this
-    /// point, and return values may also not be known. Thus, this `Vec` is
-    /// used to store the move operations that need to be handled once we
-    /// have enough information. Stores all move operations that should be
-    /// handles during the current call procedure.
-    pub moves_to_apply: Vec<MVInfo>,
     // Temporary HashMap storing the mapping between binary field elements that appear in the PROM
     // and their associated PROM index and integer PC.
     pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
@@ -105,7 +97,6 @@ impl Default for Interpreter {
             timestamp: 0,
             frames: HashMap::new(),
             pc_field_to_index_pc: HashMap::new(),
-            moves_to_apply: vec![],
         }
     }
 }
@@ -195,7 +186,6 @@ impl Interpreter {
             timestamp: 0,
             frames,
             pc_field_to_index_pc,
-            moves_to_apply: vec![],
         }
     }
 
@@ -287,10 +277,10 @@ impl Interpreter {
         } = trace.prom()[self.prom_index as usize];
         let [opcode, arg0, arg1, arg2] = instruction;
         if !prover_only {
-            trace.record_instruction(field_pc);
+            trace.record_instruction(self.pc);
             // Special handling for B32Muli
             if opcode == Opcode::B32Muli.get_field_elt() {
-                trace.record_instruction(field_pc * G);
+                trace.record_instruction(self.pc + 1);
             }
         }
 
@@ -346,7 +336,7 @@ mod tests {
     #[test]
     fn test_petra() {
         let zero = B16::zero();
-        let code = vec![[Opcode::Ret.get_field_elt(), zero, zero, zero]];
+        let code = vec![([Opcode::Ret.get_field_elt(), zero, zero, zero], false)];
         let prom = code_to_prom(&code);
         let memory = Memory::new(prom, ValueRom::new_with_init_vals(&[0, 0]));
 
@@ -361,164 +351,181 @@ mod tests {
 
     #[test]
     fn test_compiled_collatz() {
-        //     collatz:
-        //     ;; Frame:
-        //     ;; Slot @0: Return PC
-        //     ;; Slot @1: Return FP
-        //     ;; Slot @2: Arg: n
-        //     ;; Slot @3: Return value
-        //     ;; Slot @4: ND Local: Next FP
-        //     ;; Slot @5: Local: n == 1
-        //     ;; Slot @6: Local: n % 2
-        //     ;; Slot @7: Local: n >> 1 or 3*n + 1
-        //     ;; Slot @8: Local: 3*n (lower 32bits)
-        //     ;; Slot @9: Local 3*n (higher 32bits, unused)
-
-        //     ;; Branch to recursion label if value in slot 2 is not 1
-        //     XORI @5, @2, #1
-        //     BNZ case_recurse, @5 ;; branch if n != 1
-        //     XORI @3, @2, #0
-        //     RET
-
-        // case_recurse:
-        //     ANDI @6, @2, #1  ;; n % 2 is & 0x00..01
-        //     BNZ case_odd, @6 ;; branch if n % 2 == 1u32
-
-        //     ;; case even
-        //     ;; n >> 1
-        //     SRLI @7, @2, #1
-        //     MVV.W @4[2], @7
-        //     MVV.W @4[3], @3
-        //     TAILI collatz, @4
-
-        // case_odd:
-        //     MULI @8, @2, #3
-        //     ADDI @7, @8, #1
-        //     MVV.W @4[2], @7
-        //     MVV.W @4[3], @3
-        //     TAILI collatz, @4
-
         init_logger();
 
         let zero = B16::zero();
         // labels with their corresponding discrete logarithms
-        let collatz_prom_index = 0;
-        let collatz_advice = 1;
-        let collatz = B16::ONE;
-        let case_recurse_prom_index = 4;
-        let case_recurse_advice = 5;
+        let collatz_prom_index = 5;
+        let collatz_advice = 5;
+        let collatz = ExtensionField::<B16>::iter_bases(&G.pow((collatz_advice - 1) as u64))
+            .collect::<Vec<B16>>();
+        let case_recurse_prom_index = 9;
+        let case_recurse_advice = 9;
         let case_recurse =
             ExtensionField::<B16>::iter_bases(&G.pow((case_recurse_advice - 1) as u64))
                 .collect::<Vec<B16>>();
-        let case_odd_prom_index = 10;
-        let case_odd_advice = 11;
+        let case_odd_prom_index = 16;
+        let case_odd_advice = 15;
         let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
             .collect::<Vec<B16>>();
 
-        let instructions = vec![
+        let instructions = [
+            // collatz_main:
+            [
+                Opcode::Fp.get_field_elt(),
+                get_binary_slot(3),
+                4.into(),
+                zero,
+            ], // 0G: FP @3, #4
+            [
+                Opcode::Alloci.get_field_elt(),
+                get_binary_slot(5),
+                10.into(),
+                zero,
+            ], // ALLOCI! @2, @1, #0
+            [
+                Opcode::Mvvw.get_field_elt(),
+                get_binary_slot(5),
+                get_binary_slot(2),
+                get_binary_slot(2),
+            ], // 1G: MVV.W @5[2], @2
+            [
+                Opcode::Mvvw.get_field_elt(),
+                get_binary_slot(5),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], // 2G: MVV.W @5[3], @3
+            [
+                Opcode::Taili.get_field_elt(),
+                collatz[0],
+                collatz[1],
+                get_binary_slot(5),
+            ], //  3G: TAILI collatz, @5
             // collatz:
             [
                 Opcode::Xori.get_field_elt(),
                 get_binary_slot(5),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  0G: XORI @5, @2, #1
+            ], //  4G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
                 case_recurse[0],
                 case_recurse[1],
                 get_binary_slot(5),
-            ], //  1G: BNZ case_recurse, @5
+            ], //  5G: BNZ case_recurse, @5
             // case_return:
             [
-                Opcode::Xori.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(3),
-                get_binary_slot(2),
                 zero,
-            ], //  2G: XORI @3, @2, #0
-            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  3G: RET
+                get_binary_slot(2),
+            ], //  6G: XORI @3, @2, #0
+            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  7G: RET
             // case_recurse:
             [
                 Opcode::Andi.get_field_elt(),
                 get_binary_slot(6),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], // 4G: ANDI @6, @2, #1
+            ], // 8G: ANDI @6, @2, #1
+            [
+                Opcode::Alloci.get_field_elt(),
+                get_binary_slot(4),
+                10.into(),
+                zero,
+            ], // ALLOCI! @4, #10
             [
                 Opcode::Bnz.get_field_elt(),
                 case_odd[0],
                 case_odd[1],
                 get_binary_slot(6),
-            ], //  5G: BNZ case_odd, @6
+            ], //  9G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI @7, @2, #1
+            ], //  10G: SRLI @7, @2, #1
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  7G: MVV.W @4[2], @7
+            ], //  11G: MVV.W @4[2], @7
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  8G: MVV.W @4[3], @3
+            ], //  12G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
-                collatz,
-                zero,
+                collatz[0],
+                collatz[1],
                 get_binary_slot(4),
-            ], // 9G: TAILI collatz, @4
+            ], // 13G: TAILI collatz, @4
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
                 get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI @8, @2, #3
+            ], //  14G: MULI @8, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(8),
                 get_binary_slot(1),
-            ], //  11G: ADDI @7, @8, #1
+            ], //  15G: ADDI @7, @8, #1
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  12G: MVV.W @4[2], @7
+            ], //  16G: MVV.W @4[2], @7
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  13G: MVV.W @4[3], @3
+            ], //  17G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
-                collatz,
-                zero,
+                collatz[0],
+                collatz[1],
                 get_binary_slot(4),
-            ], //  14G: TAILI collatz, @4
+            ], //  18G: TAILI collatz, @4
         ];
+
+        // Add `prover_only` flags to the instructions.
+        let instructions_prover_only = instructions
+            .iter()
+            .map(|inst| {
+                if inst[0].val() == Opcode::Alloci.get_field_elt().val() {
+                    (*inst, true) // Alloci is the only prover-only instruction
+                                  // in this program
+                } else {
+                    (*inst, false)
+                }
+            })
+            .collect::<Vec<_>>();
+
         let initial_val = 5;
         let (expected_evens, expected_odds) = collatz_orbits(initial_val);
 
-        let mut prom = code_to_prom(&instructions);
-        // Set the expected advice for BNZ
-        prom[1].advice = Some((case_recurse_prom_index, case_recurse_advice));
-        // Set the expected advice for the second BNZ
-        prom[5].advice = Some((case_odd_prom_index, case_odd_advice));
+        let mut prom = code_to_prom(&instructions_prover_only);
         // Set the expected advice for the first TAILI
-        prom[9].advice = Some((collatz_prom_index, collatz_advice));
+        prom[4].advice = Some((collatz_prom_index, collatz_advice));
+        // Set the expected advice for BNZ
+        prom[6].advice = Some((case_recurse_prom_index, case_recurse_advice));
+        // Set the expected advice for the second BNZ
+        prom[11].advice = Some((case_odd_prom_index, case_odd_advice));
         // Set the expected advice for the second TAILI
-        prom[14].advice = Some((collatz_prom_index, collatz_advice));
+        prom[15].advice = Some((collatz_prom_index, collatz_advice));
+        // Set the expected advice for the third TAILI
+        prom[20].advice = Some((collatz_prom_index, collatz_advice));
 
         // return PC = 0, return FP = 0, n = 5
         let vrom = ValueRom::new_with_init_vals(&[0, 0, initial_val]);
@@ -560,13 +567,14 @@ mod tests {
             );
         }
 
-        let nb_frames = expected_evens.len() + expected_odds.len();
+        let nb_frames = expected_evens.len() + expected_odds.len() + 1;
         let mut cur_val = initial_val;
 
-        for i in 0..nb_frames {
+        assert_eq!(traces.vrom().read::<u32>(5).unwrap(), 16); // first next_fp
+        for i in 1..nb_frames {
             assert_eq!(
-                traces.vrom().read::<u32>(i as u32 * 16 + 4).unwrap(), // next_fp (slot 4)
-                ((i + 1) * 16) as u32                                  // next_fp_val
+                traces.vrom().read::<u32>((i as u32) * 16 + 4).unwrap(), // next_fp (slot 4)
+                ((i + 1) * 16) as u32                                    // next_fp_val
             );
             assert_eq!(
                 traces.vrom().read::<u32>(i as u32 * 16 + 2).unwrap(), // n (slot 2)
@@ -581,6 +589,9 @@ mod tests {
         }
 
         // Check return value.
-        assert_eq!(traces.vrom().read::<u32>(3).unwrap(), 1);
+        assert_eq!(traces.vrom().read::<u32>(4).unwrap(), 1);
+
+        // Check return value abs address.
+        assert_eq!(traces.vrom().read::<u32>(3).unwrap(), 4);
     }
 }

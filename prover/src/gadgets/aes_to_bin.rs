@@ -187,12 +187,12 @@ impl BinToAesTransformColumns {
 mod tests {
     use std::array::from_fn;
 
+    use binius_compute::cpu::alloc::CpuComputeAllocator;
     use binius_field::arch::OptimalUnderlier128b;
     use binius_field::as_packed_field::PackedType;
     use binius_field::{AESTowerField8b, PackedField};
     use binius_m3::builder::{ConstraintSystem, Statement};
     use binius_m3::builder::{WitnessIndex, B1, B128, B8};
-    use bumpalo::Bump;
 
     use crate::gadgets::aes_to_bin::{AesToBinTransformColumns, BinToAesTransformColumns};
 
@@ -206,7 +206,8 @@ mod tests {
 
         let table_id = table.id();
 
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 12);
+        let allocator = allocator.into_bump_allocator();
 
         let mut witness =
             WitnessIndex::<PackedType<OptimalUnderlier128b, B128>>::new(&cs, &allocator);
@@ -253,9 +254,16 @@ mod tests {
         };
 
         let ccs = cs.compile(&statement).unwrap();
+        let table_sizes = witness.table_sizes();
         let witness = witness.into_multilinear_extension_index();
 
-        binius_core::constraint_system::validate::validate_witness(&ccs, &[], &witness).unwrap();
+        binius_core::constraint_system::validate::validate_witness(
+            &ccs,
+            &[],
+            &table_sizes,
+            &witness,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -268,7 +276,8 @@ mod tests {
 
         let table_id = table.id();
 
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 12);
+        let allocator = allocator.into_bump_allocator();
 
         let mut witness =
             WitnessIndex::<PackedType<OptimalUnderlier128b, B128>>::new(&cs, &allocator);
@@ -315,8 +324,15 @@ mod tests {
         };
 
         let ccs = cs.compile(&statement).unwrap();
+        let table_sizes = witness.table_sizes();
         let witness = witness.into_multilinear_extension_index();
 
-        binius_core::constraint_system::validate::validate_witness(&ccs, &[], &witness).unwrap();
+        binius_core::constraint_system::validate::validate_witness(
+            &ccs,
+            &[],
+            &table_sizes,
+            &witness,
+        )
+        .unwrap();
     }
 }

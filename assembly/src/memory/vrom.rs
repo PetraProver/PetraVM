@@ -1,26 +1,11 @@
-use std::{cell::Cell, collections::HashMap, ops::Shl};
+use std::{cell::Cell, ops::Shl};
 
-use binius_m3::builder::{B16, B32};
+#[cfg(test)]
+use binius_m3::builder::B16;
 use num_traits::Zero;
 
 use super::{AccessSize, MemoryError};
-use crate::{memory::vrom_allocator::VromAllocator, opcodes::Opcode};
-
-pub(crate) type VromPendingUpdates = HashMap<u32, Vec<VromUpdate>>;
-
-/// Represents the data needed to create a MOVE event later.
-pub(crate) type VromUpdate = (
-    u32,    // parent addr
-    Opcode, // operation code
-    B32,    // field pc
-    u32,    // fp
-    u32,    // timestamp
-    B16,    // dst
-    u32,    // dst addr
-    B16,    // src
-    B16,    // offset
-    u32,    // pending update position only used for Mvvl
-);
+use crate::memory::vrom_allocator::VromAllocator;
 
 /// `ValueRom` represents a memory structure for storing different sized values.
 #[derive(Clone, Debug, Default)]
@@ -31,14 +16,6 @@ pub struct ValueRom {
     access_counts: Vec<Cell<u32>>,
     /// Allocator for new frames
     vrom_allocator: VromAllocator,
-    /// HashMap used to set values and push MV events during a CALL procedure.
-    /// When a MV occurs with a value that isn't set within a CALL procedure, we
-    /// assume it is a return value. Then, we add (addr_next_frame,
-    /// pending_update) to `pending_updates`, where `pending_update` contains
-    /// enough information to create a MOVE event later. Whenever an address
-    /// in the HashMap's keys is finally set, we populate the missing values
-    /// and remove them from the HashMap.
-    pub(crate) pending_updates: VromPendingUpdates,
 }
 
 impl ValueRom {
@@ -49,7 +26,6 @@ impl ValueRom {
             data,
             access_counts: vec![Cell::new(0); len],
             vrom_allocator: Default::default(),
-            pending_updates: Default::default(),
         }
     }
 
@@ -65,7 +41,6 @@ impl ValueRom {
             data,
             access_counts: vec![Cell::new(0); len],
             vrom_allocator: Default::default(),
-            pending_updates: Default::default(),
         }
     }
 
@@ -190,23 +165,6 @@ impl ValueRom {
         if end_addr > self.data.len() {
             return Err(MemoryError::VromAddressOutOfBounds(addr, T::word_size()));
         }
-
-        Ok(())
-    }
-
-    /// Inserts a pending value to be set later.
-    ///
-    /// Maps a destination address to a `VromUpdate` which contains necessary
-    /// information to create a MOVE event once the value is available.
-    pub(crate) fn insert_pending(
-        &mut self,
-        parent: u32,
-        pending_value: VromUpdate,
-    ) -> Result<(), MemoryError> {
-        self.pending_updates
-            .entry(parent)
-            .or_default()
-            .push(pending_value);
 
         Ok(())
     }

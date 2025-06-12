@@ -24,14 +24,15 @@ div:
     ;; Slot 8: Local: a-b
     ;; Slot 9: Local: q1
 
+    ALLOCI! @6, #10
     SLTU @7, @2, @3
     BNZ div_consequent, @7 ;; TODO: This logic is inverted but we're going to wait until SLE is implemented...
     SUB @8, @2, @3
     MVV.W @6[2], @8
     MVV.W @6[3], @3
+    CALLI div, @6
     MVV.W @6[4], @9
     MVV.W @6[5], @5
-    CALLI div, @6
     ADDI @4, @9, #1
     RET
 div_consequent:

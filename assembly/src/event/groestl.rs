@@ -260,7 +260,10 @@ mod tests {
     use generic_array::{typenum, GenericArray};
 
     use super::*;
-    use crate::{isa::RecursionISA, test_util::code_to_prom, Memory, Opcode, PetraTrace, ValueRom};
+    use crate::{
+        isa::RecursionISA, test_util::code_to_prom_no_prover_only, Memory, Opcode, PetraTrace,
+        ValueRom,
+    };
 
     #[test]
     fn test_groestl_compress() {
@@ -303,7 +306,7 @@ mod tests {
         frames.insert(B32::ONE, 64);
 
         // Create the PROM
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let memory = Memory::new(prom, vrom);
 
         // Create an interpreter and run the program
@@ -378,7 +381,7 @@ mod tests {
         frames.insert(B32::ONE, 32);
 
         // Create the PROM
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let memory = Memory::new(prom, vrom);
 
         // Create an interpreter and run the program
@@ -489,7 +492,7 @@ mod tests {
         frames.insert(B32::ONE, 32);
 
         // Create the PROM
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let memory = Memory::new(prom, vrom);
 
         // Create an interpreter and run the program

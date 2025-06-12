@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_parser {
 
-    use binius_field::{ExtensionField, Field, PackedField};
+    use binius_field::{ExtensionField, PackedField};
     use binius_m3::builder::B16;
     use pest::Parser;
 
@@ -106,7 +106,7 @@ mod test_parser {
 
     #[test]
     fn test_prover_flag() {
-        parse_program(include_str!("../../../examples/bezout_deterministic.asm")).unwrap();
+        parse_program(include_str!("../../../examples/bezout.asm")).unwrap();
     }
 
     #[test]
@@ -175,16 +175,17 @@ mod test_parser {
 
     #[test]
     fn test_parsing_collatz() {
-        let collatz_prom_index = 0;
-        let collatz_advice = 1;
-        let collatz = B16::ONE;
-        let case_recurse_prom_index = 4;
-        let case_recurse_advice = 5;
+        let collatz_prom_index = 5;
+        let collatz_advice = 5;
+        let collatz = ExtensionField::<B16>::iter_bases(&G.pow((collatz_advice - 1) as u64))
+            .collect::<Vec<B16>>();
+        let case_recurse_prom_index = 9;
+        let case_recurse_advice = 9;
         let case_recurse =
             ExtensionField::<B16>::iter_bases(&G.pow((case_recurse_advice - 1) as u64))
                 .collect::<Vec<B16>>();
-        let case_odd_prom_index = 10;
-        let case_odd_advice = 11;
+        let case_odd_prom_index = 16;
+        let case_odd_advice = 15;
         let case_odd = ExtensionField::<B16>::iter_bases(&G.pow((case_odd_advice - 1) as u64))
             .collect::<Vec<B16>>();
 
@@ -193,109 +194,161 @@ mod test_parser {
 
         let zero = B16::zero();
 
-        let expected_prom = vec![
+        let expected_prom = [
+            // collatz_main:
+            [
+                Opcode::Fp.get_field_elt(),
+                get_binary_slot(3),
+                4.into(),
+                zero,
+            ], // 0G: FP @3, #4
+            [
+                Opcode::Alloci.get_field_elt(),
+                get_binary_slot(5),
+                10.into(),
+                zero,
+            ], // ALLOCI! @2, @1, #0
+            [
+                Opcode::Mvvw.get_field_elt(),
+                get_binary_slot(5),
+                get_binary_slot(2),
+                get_binary_slot(2),
+            ], // 1G: MVV.W @5[2], @2
+            [
+                Opcode::Mvvw.get_field_elt(),
+                get_binary_slot(5),
+                get_binary_slot(3),
+                get_binary_slot(3),
+            ], // 2G: MVV.W @5[3], @3
+            [
+                Opcode::Taili.get_field_elt(),
+                collatz[0],
+                collatz[1],
+                get_binary_slot(5),
+            ], //  3G: TAILI collatz, @5
             // collatz:
             [
                 Opcode::Xori.get_field_elt(),
                 get_binary_slot(5),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  0G: XORI @5, @2, #1
+            ], //  4G: XORI @5, @2, #1
             [
                 Opcode::Bnz.get_field_elt(),
                 case_recurse[0],
                 case_recurse[1],
                 get_binary_slot(5),
-            ], //  1G: BNZ case_recurse, @5
+            ], //  5G: BNZ case_recurse, @5
             // case_return:
             [
-                Opcode::Xori.get_field_elt(),
+                Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(3),
-                get_binary_slot(2),
                 zero,
-            ], //  2G: XORI @3, @2, #0
-            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  3G: RET
+                get_binary_slot(2),
+            ], //  6G: XORI @3, @2, #0
+            [Opcode::Ret.get_field_elt(), zero, zero, zero], //  7G: RET
             // case_recurse:
             [
                 Opcode::Andi.get_field_elt(),
                 get_binary_slot(6),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], // 4G: ANDI @6, @2, #1
+            ], // 8G: ANDI @6, @2, #1
+            [
+                Opcode::Alloci.get_field_elt(),
+                get_binary_slot(4),
+                10.into(),
+                zero,
+            ], // ALLOCI! @4, #10
             [
                 Opcode::Bnz.get_field_elt(),
                 case_odd[0],
                 case_odd[1],
                 get_binary_slot(6),
-            ], //  5G: BNZ case_odd, @6
+            ], //  9G: BNZ case_odd, @6
             // case_even:
             [
                 Opcode::Srli.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(2),
                 get_binary_slot(1),
-            ], //  6G: SRLI @7, @2, #1
+            ], //  10G: SRLI @7, @2, #1
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  7G: MVV.W @4[2], @7
+            ], //  11G: MVV.W @4[2], @7
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  8G: MVV.W @4[3], @3
+            ], //  12G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
-                collatz,
-                zero,
+                collatz[0],
+                collatz[1],
                 get_binary_slot(4),
-            ], // 9G: TAILI collatz, @4
+            ], // 13G: TAILI collatz, @4
             // case_odd:
             [
                 Opcode::Muli.get_field_elt(),
                 get_binary_slot(8),
                 get_binary_slot(2),
                 get_binary_slot(3),
-            ], //  10G: MULI @8, @2, #3
+            ], //  14G: MULI @8, @2, #3
             [
                 Opcode::Addi.get_field_elt(),
                 get_binary_slot(7),
                 get_binary_slot(8),
                 get_binary_slot(1),
-            ], //  11G: ADDI @7, @8, #1
+            ], //  15G: ADDI @7, @8, #1
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(2),
                 get_binary_slot(7),
-            ], //  12G: MVV.W @4[2], @7
+            ], //  16G: MVV.W @4[2], @7
             [
                 Opcode::Mvvw.get_field_elt(),
                 get_binary_slot(4),
                 get_binary_slot(3),
                 get_binary_slot(3),
-            ], //  13G: MVV.W @4[3], @3
+            ], //  17G: MVV.W @4[3], @3
             [
                 Opcode::Taili.get_field_elt(),
-                collatz,
-                zero,
+                collatz[0],
+                collatz[1],
                 get_binary_slot(4),
-            ], //  14G: TAILI collatz, @4
+            ], //  18G: TAILI collatz, @4
         ];
 
-        let mut expected_prom = code_to_prom(&expected_prom);
+        // Add `prover_only` flags to the instructions.
+        let expected_prom_prover_only = expected_prom
+            .iter()
+            .map(|inst| {
+                if inst[0].val() == Opcode::Alloci.get_field_elt().val() {
+                    (*inst, true) // Alloci is the only prover-only instruction
+                                  // in this program
+                } else {
+                    (*inst, false)
+                }
+            })
+            .collect::<Vec<_>>();
 
-        // Set the expected advice for BNZ
-        expected_prom[1].advice = Some((case_recurse_prom_index, case_recurse_advice));
-        // Set the expected advice for the second BNZ
-        expected_prom[5].advice = Some((case_odd_prom_index, case_odd_advice));
+        let mut expected_prom = code_to_prom(&expected_prom_prover_only);
+
         // Set the expected advice for the first TAILI
-        expected_prom[9].advice = Some((collatz_prom_index, collatz_advice));
+        expected_prom[4].advice = Some((collatz_prom_index, collatz_advice));
+        // Set the expected advice for BNZ
+        expected_prom[6].advice = Some((case_recurse_prom_index, case_recurse_advice));
+        // Set the expected advice for the second BNZ
+        expected_prom[11].advice = Some((case_odd_prom_index, case_odd_advice));
         // Set the expected advice for the second TAILI
-        expected_prom[14].advice = Some((collatz_prom_index, collatz_advice));
+        expected_prom[15].advice = Some((collatz_prom_index, collatz_advice));
+        // Set the expected advice for the third TAILI
+        expected_prom[20].advice = Some((collatz_prom_index, collatz_advice));
 
         assert!(
             compiled_program.prom.len() == expected_prom.len(),

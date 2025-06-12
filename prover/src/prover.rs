@@ -4,16 +4,18 @@
 //! PetraVM execution traces.
 
 use anyhow::{anyhow, Result};
+use binius_compute::{alloc::HostBumpAllocator, cpu::alloc::CpuComputeAllocator};
 use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
 };
-use binius_field::arch::OptimalUnderlier128b;
+use binius_fast_compute::{layer::FastCpuLayer, memory::PackedMemorySliceMut};
+use binius_field::arch::OptimalUnderlier;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
-use binius_m3::builder::{Statement, TableFiller, WitnessIndex, B128};
-use bumpalo::Bump;
+use binius_m3::builder::{Statement, WitnessIndex, B128};
+use bytemuck::zeroed_vec;
 use petravm_asm::isa::ISA;
 use tracing::instrument;
 
@@ -44,8 +46,7 @@ impl Prover {
     pub fn generate_witness<'a>(
         &self,
         trace: &Trace,
-        statement: &Statement,
-        allocator: &'a Bump,
+        allocator: &'a HostBumpAllocator<'a, ProverPackedField>,
     ) -> Result<WitnessIndex<'_, 'a, ProverPackedField>> {
         // Build the witness structure
         let mut witness = WitnessIndex::new(&self.circuit.cs, allocator);
@@ -53,34 +54,27 @@ impl Prover {
         // Fill all table witnesses in sequence
 
         // 1. Fill PROM table with program instructions
-        witness.fill_table_sequential(&self.circuit.prom_table, &trace.program)?;
+        witness.fill_table_parallel(&self.circuit.prom_table, &trace.program)?;
 
-        // 2. Fill VROM address space table with the full address space
-        let vrom_addr_space_size = statement.table_sizes[self.circuit.vrom_addr_space_table.id()];
-        let vrom_addr_space: Vec<u32> = (0..vrom_addr_space_size as u32).collect();
-        witness.fill_table_sequential(&self.circuit.vrom_addr_space_table, &vrom_addr_space)?;
+        // 2. Fill VROM table with VROM addresses and values
+        let vrom_addr_space_size = (trace.max_vrom_addr + 1).next_power_of_two();
+        let mut vrom_with_multiplicities = (0..vrom_addr_space_size)
+            .map(|addr| (addr as u32, 0u32, 0u32))
+            .collect::<Vec<_>>();
+        for &(addr, val, mul) in trace.vrom_writes.iter() {
+            vrom_with_multiplicities[addr as usize] = (addr, val, mul);
+        }
+        vrom_with_multiplicities.sort_by_key(|(_, _, mul)| *mul);
+        vrom_with_multiplicities.reverse();
+        witness.fill_table_sequential(&self.circuit.vrom_table, &vrom_with_multiplicities)?;
 
-        // 3. Fill VROM write table with writes
-        witness.fill_table_sequential(&self.circuit.vrom_write_table, &trace.vrom_writes)?;
-
-        // 4. Fill VROM skip table with skipped addresses
-        // Generate the list of skipped addresses (addresses not in vrom_writes)
-        let write_addrs: ahash::AHashSet<u32> =
-            trace.vrom_writes.iter().map(|(addr, _, _)| *addr).collect();
-
-        let vrom_skips: Vec<u32> = (0..vrom_addr_space_size as u32)
-            .filter(|addr| !write_addrs.contains(addr))
-            .collect();
-
-        witness.fill_table_sequential(&self.circuit.vrom_skip_table, &vrom_skips)?;
-
-        // 5. Fill the right shifter table
+        // 3. Fill the right shifter table
         witness.fill_table_sequential(
             &self.circuit.right_shifter_table,
             trace.right_shift_events(),
         )?;
 
-        // 6. Fill all event tables
+        // 4. Fill all event tables
         for table in &self.circuit.tables {
             table.fill(&mut witness, trace)?;
         }
@@ -115,11 +109,12 @@ impl Prover {
             .map_err(|e| anyhow!(e))?;
 
         // Create a memory allocator for the witness
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 25);
+        let allocator = allocator.into_bump_allocator();
 
         // Convert witness to multilinear extension format
         let witness = self
-            .generate_witness(trace, &statement, &allocator)?
+            .generate_witness(trace, &allocator)?
             .into_multilinear_extension_index();
 
         // Validate the witness against the constraint system in debug mode only
@@ -127,22 +122,36 @@ impl Prover {
         binius_core::constraint_system::validate::validate_witness(
             &compiled_cs,
             &statement.boundaries,
+            &statement.table_sizes,
             &witness,
         )?;
 
+        let ccs_digest = compiled_cs.digest::<Groestl256>();
+
+        let hal = FastCpuLayer::<CanonicalTowerFamily, ProverPackedField>::default();
+        let mut host_mem = zeroed_vec(1 << 20);
+        let mut dev_mem_owned = zeroed_vec(1 << (28 - ProverPackedField::LOG_WIDTH));
+        let dev_mem = PackedMemorySliceMut::new_slice(&mut dev_mem_owned);
+
         // Generate the proof
         let proof = prove::<
-            OptimalUnderlier128b,
+            _,
+            OptimalUnderlier,
             CanonicalTowerFamily,
             Groestl256,
             Groestl256ByteCompression,
             HasherChallenger<Groestl256>,
             _,
         >(
+            &hal,
+            &mut host_mem,
+            dev_mem,
             &compiled_cs,
             LOG_INV_RATE,
             SECURITY_BITS,
+            &ccs_digest,
             &statement.boundaries,
+            &statement.table_sizes,
             witness,
             &make_portable_backend(),
         )?;
@@ -157,12 +166,13 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Create a memory allocator for the witness
-        let allocator = Bump::new();
+        let mut allocator = CpuComputeAllocator::new(1 << 25);
+        let allocator = allocator.into_bump_allocator();
 
         // Fill all table witnesses in sequence
-        let witness = self.generate_witness(trace, &statement, &allocator)?;
+        let witness = self.generate_witness(trace, &allocator)?;
 
-        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier128b>(
+        binius_m3::builder::test_utils::validate_system_witness::<OptimalUnderlier>(
             &self.circuit.cs,
             witness,
             statement.boundaries,
@@ -191,8 +201,10 @@ pub fn verify_proof(
     compiled_cs: &ConstraintSystem<B128>,
     proof: Proof,
 ) -> Result<()> {
+    let ccs_digest = compiled_cs.digest::<Groestl256>();
+
     verify::<
-        OptimalUnderlier128b,
+        OptimalUnderlier,
         CanonicalTowerFamily,
         Groestl256,
         Groestl256ByteCompression,
@@ -201,6 +213,7 @@ pub fn verify_proof(
         compiled_cs,
         LOG_INV_RATE,
         SECURITY_BITS,
+        &ccs_digest,
         &statement.boundaries,
         proof,
     )?;

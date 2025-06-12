@@ -67,6 +67,9 @@ pub trait FillableTable {
     /// Outputs the number of events associated with the corresponding [`Table`]
     /// in the provided [`Trace`].
     fn num_events(&self, trace: &Trace) -> usize;
+
+    /// Outputs the name of the table.
+    fn name(&self) -> &'static str;
 }
 
 /// A dynamic table entry that binds a [`Table`] instance with an event
@@ -98,5 +101,9 @@ where
 
     fn num_events(&self, trace: &Trace) -> usize {
         (self.get_events)(trace).len()
+    }
+
+    fn name(&self) -> &'static str {
+        self.table.name()
     }
 }

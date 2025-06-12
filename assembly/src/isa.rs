@@ -92,6 +92,7 @@ define_isa!(
         AndiEvent,
         BnzEvent,
         BzEvent,
+        FpEvent,
         B32MulEvent,
         B32MuliEvent,
         B128AddEvent,

@@ -24,6 +24,7 @@ pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod comparison;
 pub(crate) mod context;
+pub(crate) mod fp;
 pub(crate) mod gadgets;
 pub(crate) mod groestl;
 pub(crate) mod integer_ops;
@@ -46,6 +47,7 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    fp::FpEvent,
     gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
     groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
     integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
@@ -95,6 +97,7 @@ impl Opcode {
         arg2: B16,
     ) -> Result<(), InterpreterError> {
         match self {
+            Opcode::Fp => fp::FpEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Groestl256Compress => {
                 groestl::Groestl256CompressEvent::generate(ctx, arg0, arg1, arg2)
             }

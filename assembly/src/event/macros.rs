@@ -458,10 +458,7 @@ macro_rules! define_bin128_op_event {
                 assert_eq!(self.output(), Self::operation(self.left(), self.right()));
 
                 // Update state channel
-                channels.state_channel.pull((self.pc, *self.fp, self.timestamp));
-                channels
-                    .state_channel
-                    .push((self.pc * G, *self.fp, self.timestamp));
+                $crate::macros::fire_non_jump_event!(self, channels);
             }
         }
     };

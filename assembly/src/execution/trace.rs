@@ -3,13 +3,10 @@
 
 use std::collections::HashMap;
 
-use ahash::AHashMap;
 use binius_field::{Field, PackedField};
 use binius_m3::builder::B32;
 
 use super::FramePointer;
-#[cfg(test)]
-use crate::memory::VromPendingUpdates;
 use crate::{
     assembler::LabelsFrameSizes,
     event::{
@@ -22,23 +19,24 @@ use crate::{
         comparison::{
             SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
         },
+        fp::FpEvent,
         gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
         groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
         integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
-        mv::{LdiEvent, MVEventOutput, MvihEvent, MvvlEvent, MvvwEvent},
+        mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},
         ret::RetEvent,
         shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
     },
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     isa::ISA,
-    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromUpdate, VromValueT},
-    Opcode,
+    memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromValueT},
 };
 
 #[derive(Debug, Default)]
 pub struct PetraTrace {
+    pub fp: Vec<FpEvent>,
     pub bnz: Vec<BnzEvent>,
     pub jumpi: Vec<JumpiEvent>,
     pub jumpv: Vec<JumpvEvent>,
@@ -87,9 +85,8 @@ pub struct PetraTrace {
     pub groestl_output: Vec<Groestl256OutputEvent>,
 
     memory: Memory,
-    /// A map of an instruction's field PC to the number of times that
-    /// instruction has been executed.
-    pub instruction_counter: AHashMap<B32, u32>,
+    /// A vector recording the number of times an instruction has been executed.
+    pub instruction_counter: Vec<u32>,
 
     pub right_logic_shift_gadget: Vec<RightLogicShiftGadgetEvent>,
 }
@@ -121,8 +118,10 @@ macro_rules! fire_events {
 
 impl PetraTrace {
     pub(crate) fn new(memory: Memory) -> Self {
+        let prom_size = memory.prom().len();
         Self {
             memory,
+            instruction_counter: vec![0; prom_size],
             ..Default::default()
         }
     }
@@ -168,6 +167,7 @@ impl PetraTrace {
         ));
 
         fire_events!(self.bnz, &mut channels);
+        fire_events!(self.fp, &mut channels);
         fire_events!(self.jumpi, &mut channels);
         fire_events!(self.jumpv, &mut channels);
         fire_events!(self.xor, &mut channels);
@@ -223,61 +223,16 @@ impl PetraTrace {
 
     /// Sets a value of one of the supported types at the provided index in
     /// VROM.
-    ///
-    /// This will also execute pending VROM updates if necessary.
-    pub(crate) fn vrom_write(&mut self, index: u32, value: u32) -> Result<(), MemoryError> {
-        self.vrom_mut().write(index, value, true)?;
-        if let Some(pending_updates) = self.memory.vrom_pending_updates_mut().remove(&index) {
-            for pending_update in pending_updates {
-                let (parent, opcode, field_pc, fp, timestamp, dst, dst_addr, src, offset, mvvl_pos) =
-                    pending_update;
-                self.vrom_write(parent, value)?;
-                if opcode == Opcode::Mvvw {
-                    let event_out = MVEventOutput::new(
-                        opcode,
-                        field_pc,
-                        fp.into(),
-                        timestamp,
-                        dst,
-                        dst_addr,
-                        src,
-                        offset,
-                        value.to_u128(),
-                    );
-                    event_out.push_mv_event(self);
-                } else if mvvl_pos == 3 {
-                    // There is a limitation here that pos = 3 must be the last position set for
-                    // Mvvl, otherwise a vrom read error will occur.
-                    let value = self.vrom().peek::<u128>(dst_addr + offset.val() as u32)?;
-                    let event_out = MVEventOutput::new(
-                        opcode,
-                        field_pc,
-                        fp.into(),
-                        timestamp,
-                        dst,
-                        dst_addr,
-                        src,
-                        offset,
-                        value,
-                    );
-                    event_out.push_mv_event(self);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Inserts a pending value in VROM to be set later.
-    ///
-    /// Maps a destination address to a `VromUpdate` which contains necessary
-    /// information to create a MOVE event once the value is available.
-    pub(crate) fn insert_pending(
+    pub(crate) fn vrom_write<T>(
         &mut self,
-        parent: u32,
-        pending_value: VromUpdate,
-    ) -> Result<(), MemoryError> {
-        self.vrom_mut().insert_pending(parent, pending_value)?;
+        index: u32,
+        value: T,
+        record: bool,
+    ) -> Result<(), MemoryError>
+    where
+        T: VromValueT,
+    {
+        self.vrom_mut().write(index, value, record)?;
 
         Ok(())
     }
@@ -302,12 +257,7 @@ impl PetraTrace {
         self.memory.ram_mut()
     }
 
-    #[cfg(test)]
-    pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
-        self.memory.vrom_pending_updates()
-    }
-
-    pub(crate) fn record_instruction(&mut self, field_pc: B32) {
-        *self.instruction_counter.entry(field_pc).or_insert(0) += 1;
+    pub(crate) fn record_instruction(&mut self, pc: u32) {
+        self.instruction_counter[pc as usize - 1] += 1;
     }
 }

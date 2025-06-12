@@ -71,8 +71,9 @@ pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
     // Slot 0: Return PC = 0
     // Slot 1: Return FP = 0
     // Slot 2: Arg: n
-    // Slot 3: Arg: Result
-    let init_values = vec![0, 0, n, res];
+    // Slot 3: Arg: Result address
+    // Slot 4: Arg: Result
+    let init_values = vec![0, 0, n, 4, res];
     let isa = Box::new(GenericISA);
     generate_asm_trace(&["fib.asm"], init_values, isa)
 }

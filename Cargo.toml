@@ -16,7 +16,6 @@ keywords = ["zkvm", "zero-knowledge", "binius", "rust", "snark"]
 categories = ["cryptography", "compilers", "wasm"]
 
 [workspace.dependencies]
-ahash = "0.8.12"
 anyhow = "1.0"
 tracing = "0.1.41"
 tracing-forest = { version = "0.1.6", features = ["ansi"] }
@@ -25,6 +24,8 @@ tracing-profile = "0.10.6"
 
 # Binius dependencies
 binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
 binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }

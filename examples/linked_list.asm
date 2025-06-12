@@ -47,11 +47,11 @@ build_linked_list_of_ints:
     ;; Slot 4: ND Local: Next FP
     ;; Slot 5: Return value: 0 (emtpy list), > 0 pointer to the first node value
     
+    ALLOCI! @4, #12
     MVV.W @4[2], @2 ;; curr_val
     MVV.W @4[3], @3 ;; list_size
-    MVV.W @4[4], @4 ;; cur_fp
-    MVV.W @4[6], @5 ;; return value
     CALLI build_linked_list_of_ints_rec, @4
+    MVV.W @4[6], @5 ;; return value
     RET
 
 #[framesize(0xb)]
@@ -61,27 +61,29 @@ build_linked_list_of_ints_rec:
     ;; Slot 1: Return FP
     ;; Slot 2: Arg: curr_val
     ;; Slot 3: Arg: list_size
-    ;; Slot 4: Arg: cur_fp (this is the address of the current frame. We can keep track of it in the code.)
-    ;; Slot 5: ND Local: Next FP.
+    ;; Slot 4: ND Local: Next FP.
+    ;; Slot 5: Address of node.node_val
     ;; Slot 6: Return value: 0 (emtpy list), > 0 pointer to the first node value
     ;; Slot 7: Local: curr_val < list_size
     ;; Slot 8: Local: node.node_val
     ;; Slot 9: Local node.next
     ;; Slot 10: next_val    
+    FP @5, #8 ;; Store the address of the current value
+
     SLT @7, @2, @3 ;; curr_val < list_size
     BNZ add_new_node, @7
     LDI.W @6, #0 ;; This is the null node
     RET    
 
 add_new_node:
-    ADDI @6 , @4, #8 ;; The address of the node is the address of node.node_val.
-    ADDI @8, @2, #0 ;; node.node_val = curr_val
+    XORI @6 , @5, #0 ;; The address of the node is the address of node.node_val.
+    XORI @8, @2, #0 ;; node.node_val = curr_val
     ADDI @10, @2, #1 ;; curr_val + 1
     ;; Populate next frame.
+    ALLOCI! @4, #12
     ;; Args:
-    MVV.W @5[2], @10 ;; Next value
-    MVV.W @5[3], @3 ;; List size
-    MVV.W @5[4], @5 ;; Store the address of the next frame pointer.
-    MVV.W @5[6], @9 ;; Return value: next node address
-    CALLI build_linked_list_of_ints_rec, @5
+    MVV.W @4[2], @10 ;; Next value
+    MVV.W @4[3], @3 ;; List size
+    CALLI build_linked_list_of_ints_rec, @4
+    MVV.W @4[6], @9 ;; Return value: next node address
     RET

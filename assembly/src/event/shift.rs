@@ -306,8 +306,8 @@ mod test {
 
     use super::*;
     use crate::{
-        isa::GenericISA, memory::Memory, opcodes::Opcode, test_util::code_to_prom, PetraTrace,
-        ValueRom,
+        isa::GenericISA, memory::Memory, opcodes::Opcode, test_util::code_to_prom_no_prover_only,
+        PetraTrace, ValueRom,
     };
 
     #[test]
@@ -514,7 +514,7 @@ mod test {
         let mut frames = HashMap::new();
         frames.insert(B32::ONE, frame_size);
 
-        let prom = code_to_prom(&instructions);
+        let prom = code_to_prom_no_prover_only(&instructions);
         let memory = Memory::new(prom, vrom);
 
         let (trace, _) = PetraTrace::generate(Box::new(GenericISA), memory, frames, HashMap::new())

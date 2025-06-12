@@ -1,0 +1,84 @@
+---
+
+name: Benchmark
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      benchmark:
+        description: "Benchmark to run (choose a specific benchmark or 'all')"
+        type: choice
+        options: [all, fibonacci]
+        default: all
+jobs:
+  #
+  # Run benchmarks
+  #
+  benchmark:
+    name: Run benchmarks (${{ matrix.os }})
+    container: rustlang/rust:nightly
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false  # make sure one matrix‐fail doesn’t stop the others
+      matrix:
+        os: [c7a-2xlarge, c8g-2xlarge, supermicro]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to include all git information in traces
+      - name: Set safe directory
+        # workaround: https://github.com/actions/checkout/issues/2031
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Execute Benchmarks
+        run: |
+          ./scripts/run_benchmark.py \
+          --clean \
+          --output-dir benchmark_results \
+          --benchmark "${{ github.event.inputs.benchmark || 'all' }}"
+      - name: Store Perfetto Traces
+        uses: actions/upload-artifact@v4
+        with:
+          name: perfetto-traces-${{ matrix.os }}
+          path: benchmark_results/*.perfetto-trace
+
+  #
+  # Upload Perfetto Traces to S3
+  #
+  upload_perfetto_traces:
+    name: Upload Perfetto Traces to S3
+    permissions:
+      contents: read  # allow reading repository contents
+      id-token: write  # Required to get AWS credentials with OIDC
+    needs: [benchmark]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Download Prefetto Traces
+        uses: actions/download-artifact@v4
+        with:
+          pattern: perfetto-traces-*
+          path: benchmark_results  # directory for artifacts
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.13
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ secrets.BENCHMARK_AWS_UPLOAD_ROLE }}
+      - name: Upload Perfetto Traces
+        run: |
+          python3 .github/scripts/upload_perfetto_traces.py \
+            --perfetto-host  "https://perfetto.irreducible.com" \
+            --s3-bucket      "${{ secrets.BENCHMARK_S3_BUCKET }}" \
+            --repo           "petravm" \
+            --branch         "${{ github.head_ref || github.ref_name }}" \
+            --commit-sha     "${{ github.sha }}" \
+            --results-dir    "benchmark_results" \
+            --summary-path   "${GITHUB_STEP_SUMMARY}"

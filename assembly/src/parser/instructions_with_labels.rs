@@ -11,6 +11,11 @@ use super::instruction_args::{Immediate, Slot, SlotWithOffset};
 #[derive(Debug)]
 pub enum InstructionsWithLabels {
     Label(String, Option<u16>),
+    Fp {
+        dst: Slot,
+        imm: Immediate,
+        prover_only: bool,
+    },
     B32Mul {
         dst: Slot,
         src1: Slot,
@@ -270,6 +275,7 @@ impl InstructionsWithLabels {
     pub(crate) fn prover_only(&self) -> bool {
         use InstructionsWithLabels::*;
         match self {
+            Fp { prover_only, .. } => *prover_only,
             B32Mul { prover_only, .. } => *prover_only,
             B32Muli { prover_only, .. } => *prover_only,
             B128Add { prover_only, .. } => *prover_only,
@@ -323,6 +329,9 @@ impl std::fmt::Display for InstructionsWithLabels {
                 } else {
                     write!(f, "{label}:")
                 }
+            }
+            Fp { dst, imm, .. } => {
+                write!(f, "FP{bang} {dst} {imm}")
             }
             B32Mul {
                 dst, src1, src2, ..
