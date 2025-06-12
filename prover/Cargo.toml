@@ -22,7 +22,6 @@ disable_vrom_addr_space_channel = []
 
 [dependencies]
 anyhow.workspace = true
-bumpalo = { version = "3.17.0", features = ["collections"] }
 bytemuck = { version = "1.23.0", features = ["derive", "min_const_generics"] }
 clap = { version = "4.5.37", features = ["derive"] }
 log = "0.4"
