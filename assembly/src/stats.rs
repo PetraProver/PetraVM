@@ -1,10 +1,48 @@
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::_rdtsc;
 
-use strum::EnumCount;
-
 use crate::execution::InterpreterError;
 use crate::Opcode;
+
+pub const STAT_OP_COUNT: usize = 32;
+
+/// List of all opcodes to benchmark
+pub fn all_opcodes() -> &'static [Opcode] {
+    &[
+        Opcode::Fp,
+        Opcode::Xor,
+        Opcode::Xori,
+        Opcode::B32Mul,
+        Opcode::B32Muli,
+        Opcode::B128Add,
+        Opcode::B128Mul,
+        Opcode::Add,
+        Opcode::Addi,
+        Opcode::Sub,
+        Opcode::And,
+        Opcode::Andi,
+        Opcode::Or,
+        Opcode::Ori,
+        Opcode::Sll,
+        Opcode::Slli,
+        Opcode::Srl,
+        Opcode::Srli,
+        Opcode::Sra,
+        Opcode::Srai,
+        Opcode::Mul,
+        Opcode::Muli,
+        Opcode::Mulu,
+        Opcode::Mulsu,
+        Opcode::Slt,
+        Opcode::Slti,
+        Opcode::Sltu,
+        Opcode::Sltiu,
+        Opcode::Sle,
+        Opcode::Slei,
+        Opcode::Sleu,
+        Opcode::Sleiu,
+    ]
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 struct CycleStats {
@@ -30,13 +68,13 @@ impl CycleStats {
 
 #[derive(Debug)]
 pub struct AllCycleStats {
-    stats: [CycleStats; Opcode::COUNT as usize],
+    stats: [CycleStats; STAT_OP_COUNT],
 }
 
 impl AllCycleStats {
     pub(crate) fn new() -> Self {
         AllCycleStats {
-            stats: [CycleStats::default(); Opcode::COUNT as usize],
+            stats: [CycleStats::default(); STAT_OP_COUNT],
         }
     }
 
@@ -63,17 +101,12 @@ impl AllCycleStats {
         f()
     }
 
-    pub(crate) fn average_cycles(&self) {
-        for index in 0..Opcode::COUNT as usize {
-            if self.stats[index].count == 0 {
-                continue;
-            }
-            let opcode = Opcode::try_from(index as u16).expect("Invalid opcode index");
-            println!(
-                "Opcode: {:?}, Average Cycles: {:.2}",
-                opcode,
-                self.stats[index].average_cycles()
-            );
-        }
+    pub(crate) fn average_cycles(&self) -> Vec<(Opcode, f64)> {
+        (0..all_opcodes().len())
+            .map(|index| {
+                let opcode = all_opcodes()[index];
+                (opcode, self.stats[index].average_cycles())
+            })
+            .collect()
     }
 }

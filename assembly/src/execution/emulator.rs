@@ -266,6 +266,35 @@ impl Interpreter {
         }
     }
 
+    pub fn run_with_cycles(
+        &mut self,
+        memory: Memory,
+    ) -> Result<(PetraTrace, Vec<(Opcode, f64)>), InterpreterError> {
+        let mut trace = PetraTrace::new(memory);
+        let mut all_cycles = AllCycleStats::new();
+
+        let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
+        // Start by allocating a frame for the initial label.
+        self.allocate_new_frame(&mut trace, field_pc)?;
+        loop {
+            match self.step(&mut trace, &mut all_cycles) {
+                Ok(_) => {}
+                Err(error) => {
+                    match error {
+                        InterpreterError::Exception(_exc) => {} //TODO: handle exception
+                        critical_error => {
+                            panic!("{critical_error:?}");
+                        } //TODO: properly format error
+                    }
+                }
+            }
+            if self.is_halted() {
+                let timings = all_cycles.average_cycles();
+                return Ok((trace, timings));
+            }
+        }
+    }
+
     pub fn step(
         &mut self,
         trace: &mut PetraTrace,

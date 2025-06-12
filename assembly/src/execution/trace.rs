@@ -151,6 +151,30 @@ impl PetraTrace {
         Ok((trace, boundary_values))
     }
 
+    pub fn generate_with_cycles(
+        isa: Box<dyn ISA>,
+        memory: Memory,
+        frames: LabelsFrameSizes,
+        pc_field_to_index_pc: HashMap<B32, (u32, u32)>,
+    ) -> Result<(Self, BoundaryValues, Vec<(crate::Opcode, f64)>), InterpreterError> {
+        let mut interpreter = Interpreter::new(isa, frames, pc_field_to_index_pc);
+
+        let (trace, cycles) = interpreter.run_with_cycles(memory)?;
+
+        let final_pc = if interpreter.pc == 0 {
+            B32::zero()
+        } else {
+            G.pow(interpreter.pc as u64)
+        };
+
+        let boundary_values = BoundaryValues {
+            final_pc,
+            final_fp: interpreter.fp,
+            timestamp: interpreter.timestamp,
+        };
+        Ok((trace, boundary_values, cycles))
+    }
+
     pub fn validate(&self, boundary_values: BoundaryValues) {
         let mut channels = InterpreterChannels::default();
 

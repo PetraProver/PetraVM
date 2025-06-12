@@ -13,7 +13,7 @@ pub mod isa;
 pub mod memory;
 pub mod opcodes;
 mod parser;
-pub(crate) mod stats;
+pub mod stats;
 mod util;
 
 #[cfg(test)]

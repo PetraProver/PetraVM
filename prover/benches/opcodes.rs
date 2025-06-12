@@ -111,8 +111,6 @@ fn generate_simple_trace_for_opcode(opcode: Opcode, length: usize) -> (Memory, A
     let memory = Memory::new(compiled_program.prom.clone(), vrom);
 
     (memory, compiled_program)
-
-    // generate_trace(program, None, None).expect("Trace generation failed")
 }
 
 /// Format a single instruction for benchmarking
