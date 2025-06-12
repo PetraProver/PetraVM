@@ -25,6 +25,7 @@ fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
     // ——— Boot: load counter & tail‐call into helper ———
     asm.push("#[framesize(0x4)]".to_owned());
     asm.push("bench:".to_owned());
+    asm.push("ALLOCI! @3, #32".to_owned());
     asm.push(format!("LDI.W @2, #{length}G")); // 1
     asm.push("MVV.W @3[2], @2".to_owned()); // 2
     asm.push("TAILI bench_helper, @3".to_owned()); // 3
@@ -46,6 +47,7 @@ fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
         asm.push(format!("LDI.W @{reg}, #{val}")); // 9–16
     }
     asm.push(format_instruction(opcode, 12, 4, 8, imm)); // 17 (your opcode)
+    asm.push("ALLOCI! @18, #32".to_owned());
     asm.push("MVV.W @18[2], @17".to_owned()); // 18 (re‐package counter)
     asm.push("TAILI bench_helper, @18".to_owned()); // 19 (loop back)
 
@@ -160,6 +162,9 @@ fn format_instruction(opcode: Opcode, dst: usize, src1: usize, src2: usize, imm:
         Sleu => format!("SLEU   @{dst}, @{src1}, @{src2}"),
         Sleiu => format!("SLEIU  @{dst}, @{src1}, #{imm}"),
 
+        // FP
+        Fp => format!("FP   @{dst}, #{imm}"),
+
         _ => panic!("Unhandled opcode: {opcode:?}"),
     }
 }
@@ -167,6 +172,7 @@ fn format_instruction(opcode: Opcode, dst: usize, src1: usize, src2: usize, imm:
 /// List of all opcodes to benchmark
 fn all_opcodes() -> &'static [Opcode] {
     &[
+        Opcode::Fp,
         Opcode::Xor,
         Opcode::Xori,
         Opcode::B32Mul,

@@ -294,7 +294,6 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
-        println!("opcode {:?}", opcode);
         #[cfg(debug_assertions)]
         {
             if !self.isa.is_supported(opcode) {

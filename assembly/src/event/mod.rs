@@ -180,9 +180,12 @@ impl Opcode {
                 });
                 comparison::SleiEvent::generate(ctx, arg0, arg1, arg2)
             }
-            Opcode::Sleu => all_cycles.record(self, || {
+            Opcode::Sleu => {
+                let _ = all_cycles.record(self, || {
+                    comparison::SleuEvent::generate(ctx, arg0, arg1, arg2)
+                });
                 comparison::SleuEvent::generate(ctx, arg0, arg1, arg2)
-            }),
+            }
             Opcode::Sleiu => {
                 let _ = all_cycles.record(self, || {
                     comparison::SleiuEvent::generate(ctx, arg0, arg1, arg2)
