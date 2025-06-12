@@ -613,13 +613,13 @@ mod tests {
     /// Creates an execution trace for a simple program that uses the TAILI and
     /// TAILV instructions to test function call operations.
     fn generate_taili_tailv_trace() -> Result<Trace> {
-        let pc_val = G.pow(4).val();
+        let pc_val = G.pow(3).val();
         // Create an assembly program that tests function call variants
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
+                ALLOCI! @4, #16\n\
                 LDI.W @3, #{pc_val}\n\
-                MVV.W @4[2], @2\n\
                 MVI.H @4[3], #2\n\
                 TAILV @3, @4\n\
             #[framesize(0x10)]\n\
@@ -628,8 +628,8 @@ mod tests {
                 LDI.W @2, #100\n\
                 RET\n\
             case_recurse:\n\
+                ALLOCI! @5, #16\n\
                 LDI.W @4, #0\n\
-                MVV.W @5[2], @2\n\
                 MVV.W @5[3], @4\n\
                 TAILI loop, @5\n"
         );
@@ -645,10 +645,11 @@ mod tests {
         let asm_code = format!(
             "#[framesize(0x10)]\n\
             _start:\n\
+                ALLOCI! @4, #16
                 LDI.W @3, #{pc_val}\n\
-                MVV.W @4[2], @2\n\
                 MVI.H @4[3], #2\n\
                 CALLV @3, @4\n\
+                MVV.W @4[2], @2\n\
                 RET\n\
             #[framesize(0x10)]\n\
             loop:\n\
@@ -656,10 +657,11 @@ mod tests {
                 LDI.W @2, #100\n\
                 RET\n\
             case_recurse:\n\
+                ALLOCI! @5, #16\n\
                 LDI.W @4, #0\n\
-                MVV.W @5[2], @2\n\
                 MVV.W @5[3], @4\n\
                 CALLI loop, @5\n\
+                MVV.W @5[2], @2\n\
                 RET\n"
         );
 

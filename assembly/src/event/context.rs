@@ -2,7 +2,6 @@ use std::ops::{Deref, DerefMut};
 
 use binius_m3::builder::{B16, B32};
 
-use super::mv::{MVKind, MvihEvent, MvvlEvent, MvvwEvent};
 use crate::{
     execution::{FramePointer, Interpreter, InterpreterError},
     memory::{MemoryError, Ram, RamValueT, VromValueT},
@@ -74,41 +73,17 @@ impl EventContext<'_> {
         self.vrom().check_value_set::<T>(addr)
     }
 
-    pub(crate) fn vrom_record_access<T: VromValueT>(&self, addr: u32) {
-        self.vrom().record_access::<T>(addr);
-    }
-
     pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
     where
         T: VromValueT,
     {
         self.trace.vrom().check_alignment::<T>(addr)?;
-        if self.prover_only {
-            // In prover-only mode, we don't need to check for deferred moves, nor to record
-            // the access.
-            self.vrom_mut().write(addr, value, false)
-        } else {
-            for i in 0..T::word_size() {
-                let cur_word = (value.to_u128() >> (32 * i)) as u32;
-                self.trace.vrom_write(addr + i as u32, cur_word)?;
-            }
-            Ok(())
-        }
+
+        // In prover-only mode, we don't need to check for deferred moves, nor to record
+        // the access.
+        let record_write = !self.prover_only;
+        self.trace.vrom_write(addr, value, record_write)
     }
-
-    // /// Inserts a pending value in VROM to be set later.
-    // ///
-    // /// Maps a destination address to a `VromUpdate` which contains necessary
-    // /// information to create a MOVE event once the value is available.
-    // pub(crate) fn insert_vrom_pending(
-    //     &mut self,
-    //     parent: u32,
-    //     pending_value: VromUpdate,
-    // ) -> Result<(), MemoryError> {
-    //     self.vrom_mut().insert_pending(parent, pending_value)?;
-
-    //     Ok(())
-    // }
 
     pub const fn ram(&self) -> &Ram {
         self.trace.ram()
@@ -157,98 +132,19 @@ impl EventContext<'_> {
         self.interpreter.incr_prom_index();
     }
 
-    /// Helper method to allocate a new frame, updates the [`FramePointer`] and
-    /// handle pending MOVE events.
+    /// Helper method to update the [`FramePointer`]. It assumes that the next
+    /// frame has already been allocated.
     ///
-    /// Returns the updated `fp`, post frame allocation.
-    pub fn setup_call_frame(
-        &mut self,
-        next_fp_offset: B16,
-        target: B32,
-    ) -> Result<u32, InterpreterError> {
+    /// Returns the updated `fp`.
+    pub fn setup_call_frame(&mut self, next_fp_offset: B16) -> Result<u32, InterpreterError> {
         // Address where the value of the next frame pointer is stored.
         let next_fp_addr = self.addr(next_fp_offset.val());
 
-        // Check if the next frame pointer is already set.
-        let next_fp_val = if self.vrom_check_value_set::<u32>(next_fp_addr)? {
-            // If the next frame pointer is already set, we assume the frame has already
-            // been allocated.
-            self.vrom().peek(next_fp_addr)?
-        } else {
-            let next_fp_val = self.allocate_new_frame(target)?;
-
-            self.vrom_write::<u32>(next_fp_addr, next_fp_val)?;
-            next_fp_val
-        };
-
-        // Once we have the next_fp, we know the destination address for the moves in
-        // the call procedures. We can then generate events for some moves and correctly
-        // delegate the other moves.
-        self.handles_call_moves()?;
+        // We assume that the next frame pointer is already set.
+        let next_fp_val = self.vrom_read::<u32>(next_fp_addr)?;
 
         self.set_fp(next_fp_val);
         Ok(next_fp_val)
-    }
-
-    /// This method should only be called once the frame pointer has been
-    /// allocated. It is used to generate events -- whenever possible --
-    /// once the next_fp has been set by the allocator. When it is not yet
-    /// possible to generate the MOVE event (because we are dealing with a
-    /// return value that has not yet been set), we add the move information to
-    /// the trace's `pending_updates`, so that it can be generated later on.
-    fn handles_call_moves(&mut self) -> Result<(), InterpreterError> {
-        while let Some(mv_info) = self.moves_to_apply.pop() {
-            match mv_info.mv_kind {
-                MVKind::Mvvw => {
-                    let opt_event = MvvwEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        self.trace.mvvw.push(event);
-                    }
-                }
-                MVKind::Mvvl => {
-                    let opt_event = MvvlEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    if let Some(event) = opt_event {
-                        self.trace.mvvl.push(event);
-                    }
-                }
-                MVKind::Mvih => {
-                    let event = MvihEvent::generate_event_from_info(
-                        self,
-                        mv_info.pc,
-                        mv_info.timestamp,
-                        self.fp,
-                        mv_info.dst,
-                        mv_info.offset,
-                        mv_info.src,
-                    )?;
-                    self.trace.mvih.push(event);
-                }
-            }
-        }
-
-        debug_assert!(self.moves_to_apply.is_empty());
-
-        Ok(())
-    }
-
-    pub(crate) fn allocate_new_frame(&mut self, target: B32) -> Result<u32, InterpreterError> {
-        self.interpreter.allocate_new_frame(self.trace, target)
     }
 }
 

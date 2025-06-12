@@ -5,7 +5,7 @@ pub mod vrom_allocator;
 pub(crate) use ram::{Ram, RamValueT};
 use strum_macros::Display;
 pub use vrom::ValueRom;
-pub(crate) use vrom::{VromPendingUpdates, VromUpdate, VromValueT};
+pub(crate) use vrom::VromValueT;
 
 use crate::execution::InterpreterInstruction;
 
@@ -119,15 +119,5 @@ impl Memory {
     /// Returns a mutable reference to the RAM.
     pub fn ram_mut(&mut self) -> &mut Ram {
         todo!()
-    }
-    #[cfg(test)]
-    /// Returns a reference to the pending VROM updates map.
-    pub(crate) const fn vrom_pending_updates(&self) -> &VromPendingUpdates {
-        &self.vrom.pending_updates
-    }
-
-    /// Returns a mutable reference to the pending VROM updates map.
-    pub(crate) fn vrom_pending_updates_mut(&mut self) -> &mut VromPendingUpdates {
-        &mut self.vrom.pending_updates
     }
 }

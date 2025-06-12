@@ -48,7 +48,7 @@ impl Event for TailiEvent {
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
-        let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
+        let next_fp_val = ctx.setup_call_frame(next_fp)?;
 
         // Jump to the target, received as advice.
         ctx.jump_to_u32(target, advice);
@@ -120,7 +120,7 @@ impl Event for TailvEvent {
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
-        let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
+        let next_fp_val = ctx.setup_call_frame(next_fp)?;
 
         // Jump to the target,
         ctx.jump_to(B32::new(target));
@@ -190,7 +190,7 @@ impl Event for CalliEvent {
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
-        let next_fp_val = ctx.setup_call_frame(next_fp, target)?;
+        let next_fp_val = ctx.setup_call_frame(next_fp)?;
 
         // Jump to the target, received as advice.
         ctx.jump_to_u32(target, advice);
@@ -256,7 +256,7 @@ impl Event for CallvEvent {
 
         // Allocate a new frame for the call and set the value of the next frame
         // pointer.
-        let next_fp_val = ctx.setup_call_frame(next_fp, target.into())?;
+        let next_fp_val = ctx.setup_call_frame(next_fp)?;
 
         // Jump to the target,
         ctx.jump_to(B32::new(target));
@@ -312,30 +312,46 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: unused_dst_addr (should never be written)
 
-        let ret_prom_index = 2;
+        let ret_prom_index = 3;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
         let target_addr = 2.into();
         let next_fp_addr = 3.into();
+        let next_fp_size = 2.into();
 
         let unaccessed_dst_addr = 4.into();
         let unused_imm = 10.into();
 
         let instructions = vec![
-            [
-                Opcode::Tailv.get_field_elt(),
-                target_addr,
-                next_fp_addr,
-                zero,
-            ],
+            (
+                [
+                    Opcode::Alloci.get_field_elt(),
+                    next_fp_addr,
+                    next_fp_size,
+                    zero,
+                ],
+                true,
+            ),
+            (
+                [
+                    Opcode::Tailv.get_field_elt(),
+                    target_addr,
+                    next_fp_addr,
+                    zero,
+                ],
+                false,
+            ),
             // Code that should not be accessed.
-            [
-                Opcode::Ldi.get_field_elt(),
-                unaccessed_dst_addr,
-                unused_imm,
-                zero,
-            ],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+            (
+                [
+                    Opcode::Ldi.get_field_elt(),
+                    unaccessed_dst_addr,
+                    unused_imm,
+                    zero,
+                ],
+                false,
+            ),
+            ([Opcode::Ret.get_field_elt(), zero, zero, zero], false),
         ];
 
         let mut frames = HashMap::new();
@@ -357,8 +373,6 @@ mod tests {
             PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
-        // Check that there are no MOVE events that have yet to be executed.
-        assert!(trace.vrom_pending_updates().is_empty());
         // Check that the next frame pointer was set correctly.
         assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was not executed.
@@ -379,10 +393,10 @@ mod tests {
         // Slot 3: Next_fp
         // Slot 4: dst
 
-        let ret_prom_index = 2;
+        let ret_prom_index = 3;
         let ret_pc = 3;
         let target = G.pow(ret_pc - 1);
-        let ldi_prom_index = 1;
+        let ldi_prom_index = 2;
         let ldi_pc = 2;
         let ldi = G.pow(ldi_pc - 1);
         let target_addr = 2.into();
@@ -394,14 +408,21 @@ mod tests {
         // CALLV jumps into a new frame at the RET opcode level. Then we return to the
         // initial frame, at the LDI opcode level.
         let instructions = vec![
-            [
-                Opcode::Callv.get_field_elt(),
-                target_addr,
-                next_fp_addr,
-                zero,
-            ],
-            [Opcode::Ldi.get_field_elt(), dst_addr, imm, zero],
-            [Opcode::Ret.get_field_elt(), zero, zero, zero],
+            (
+                [Opcode::Alloci.get_field_elt(), next_fp_addr, 2.into(), zero],
+                true,
+            ),
+            (
+                [
+                    Opcode::Callv.get_field_elt(),
+                    target_addr,
+                    next_fp_addr,
+                    zero,
+                ],
+                false,
+            ),
+            ([Opcode::Ldi.get_field_elt(), dst_addr, imm, zero], false),
+            ([Opcode::Ret.get_field_elt(), zero, zero, zero], false),
         ];
 
         let mut frames = HashMap::new();
@@ -424,7 +445,6 @@ mod tests {
             PetraTrace::generate(Box::new(GenericISA), memory, frames, pc_field_to_index_pc)
                 .expect("Trace generation should not fail.");
 
-        assert!(trace.vrom_pending_updates().is_empty());
         assert_eq!(trace.vrom().read::<u32>(3).unwrap(), 6u32);
         // Check that the load instruction was executed.
         assert_eq!(

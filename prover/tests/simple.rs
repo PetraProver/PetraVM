@@ -219,7 +219,7 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
     // 3. case_recurse tail calls back to loop
     let asm_code = "#[framesize(0x10)]\n\
          _start:\n\
-           MVV.W @3[2], @2\n\
+           ALLOCI! @3, #16\n\
            MVI.H @3[3], #2\n\
            TAILI loop, @3\n\
          #[framesize(0x10)]\n\
@@ -228,8 +228,8 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
            LDI.W @2, #100\n\
            RET\n\
          case_recurse:\n\
+           ALLOCI! @5, #10\n\
            LDI.W @4, #0\n\
-           MVV.W @5[2], @2\n\
            MVV.W @5[3], @4\n\
            TAILI loop, @5\n"
         .to_string();
@@ -237,26 +237,26 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
     // VROM state after the trace is executed
     // Sorted by number of accesses
     let vrom_writes = vec![
-        // New FP values
-        (3, 16, 3),
-        (21, 32, 3),
+        // First new FP value
+        (3, 16, 2),
         // TAILI events
         (16, 0, 2),
         (17, 0, 2),
-        // MVV.W events
-        (18, 100, 2),
+        // MVV.W events in the first round of loop
         (19, 2, 2),
         (20, 0, 2),
+        // Second new FP value
+        (21, 32, 2),
+        // Second set of TAILI events
         (32, 0, 2),
         (33, 0, 2),
-        // LDI in case_recurse
-        (34, 100, 2),
-        // Additional MVV.W in case_recurse
-        (35, 0, 2), // MVV.W @4[2], @3
+        // MVV.W events in case_recurse
+        (35, 0, 2),
         // Initial values
-        (0, 0, 1),   // Return PC
-        (1, 0, 1),   // Return FP
-        (2, 100, 1), // Return value
+        (0, 0, 1), // Return PC
+        (1, 0, 1), // Return FP
+        // Final LDI in the loop
+        (34, 100, 1),
     ];
 
     generate_trace(asm_code, Some(init_values), Some(vrom_writes))
@@ -306,8 +306,8 @@ fn test_simple_taili_loop() -> Result<()> {
                 // Verify we have one MVVW event (in case_recurse)
                 assert_eq!(
                     trace.mvvw_events().len(),
-                    3,
-                    "Should have exactly three MVVW events"
+                    1,
+                    "Should have exactly one MVVW events"
                 );
 
                 // Verify we have one BZ event (when condition becomes 0)

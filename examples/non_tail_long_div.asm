@@ -21,12 +21,13 @@ div:
     LDI.W @5, #0
     RET
 div_else1:
+    ALLOCI! @6, #10
     SRAI @7, @2, #1
     MVV.W @6[2], @7
     MVV.W @6[3], @3
+    CALLI div, @6
     MVV.W @6[4], @8
     MVV.W @6[5], @9
-    CALLI div, @6
     ANDI @10, @2, #1
     SLLI @11, @9, #1
     ADD @12, @11, @10
