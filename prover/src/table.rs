@@ -11,7 +11,6 @@ use binius_m3::builder::ConstraintSystem;
 use binius_m3::builder::TableFiller;
 use binius_m3::builder::WitnessIndex;
 use petravm_asm::opcodes::InstructionInfo;
-use tracing::instrument;
 
 use crate::model::Trace;
 // Re-export instruction-specific tables
@@ -88,15 +87,21 @@ impl<T> FillableTable for TableEntry<T>
 where
     T: Table + TableFiller<ProverPackedField> + 'static,
 {
-    #[instrument(level = "debug", skip_all, fields(table = %self.table.name()))]
     fn fill(
         &self,
         witness: &mut WitnessIndex<'_, '_, ProverPackedField>,
         trace: &Trace,
     ) -> anyhow::Result<()> {
-        witness
-            .fill_table_sequential(&*self.table, (self.get_events)(trace))
-            .map_err(|e| anyhow!(e))
+        let span = tracing::debug_span!(
+            "fill",
+            table = %self.table.name(),
+        );
+
+        span.in_scope(|| {
+            witness
+                .fill_table_sequential(&*self.table, (self.get_events)(trace))
+                .map_err(|e| anyhow!(e))
+        })
     }
 
     fn num_events(&self, trace: &Trace) -> usize {

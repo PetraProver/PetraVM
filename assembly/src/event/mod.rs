@@ -11,7 +11,6 @@
 
 use binius_m3::builder::B16;
 use context::EventContext;
-use tracing::instrument;
 
 use crate::{
     execution::{InterpreterChannels, InterpreterError},
@@ -78,15 +77,6 @@ pub trait Event {
 
 impl Opcode {
     /// Generates the appropriate event for this opcode.
-    #[instrument(
-        level = "trace",
-        skip(ctx),
-        fields(
-            arg0 = %format!("0x{:x}", arg0.val()),
-            arg1 = %format!("0x{:x}", arg1.val()),
-            arg2 = %format!("0x{:x}", arg2.val()),
-        )
-    )]
     pub(crate) fn generate_event(
         self,
         ctx: &mut EventContext,
@@ -94,7 +84,15 @@ impl Opcode {
         arg1: B16,
         arg2: B16,
     ) -> Result<(), InterpreterError> {
-        match self {
+        let span = tracing::trace_span!(
+            "generate_event",
+            op = %self,
+            arg0 = format_args!("0x{:x}", arg0.val()),
+            arg1 = format_args!("0x{:x}", arg1.val()),
+            arg2 = format_args!("0x{:x}", arg2.val()),
+        );
+
+        span.in_scope(|| match self {
             Opcode::Fp => fp::FpEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
@@ -145,6 +143,6 @@ impl Opcode {
             Opcode::Alloci => alloc::AllociEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Allocv => alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
-        }
+        })
     }
 }

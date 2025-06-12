@@ -54,9 +54,12 @@ impl Prover {
         // Fill all table witnesses in sequence
 
         // 1. Fill PROM table with program instructions
+        let prom_fill_span = tracing::debug_span!("fill", table = "prom").entered();
         witness.fill_table_parallel(&self.circuit.prom_table, &trace.program)?;
+        drop(prom_fill_span);
 
         // 2. Fill VROM table with VROM addresses and values
+        let vrom_fill_span = tracing::debug_span!("fill", table = "vrom").entered();
         let vrom_addr_space_size = (trace.max_vrom_addr + 1).next_power_of_two();
         let mut vrom_with_multiplicities = (0..vrom_addr_space_size)
             .map(|addr| (addr as u32, 0u32, 0u32))
@@ -67,12 +70,16 @@ impl Prover {
         vrom_with_multiplicities.sort_by_key(|(_, _, mul)| *mul);
         vrom_with_multiplicities.reverse();
         witness.fill_table_sequential(&self.circuit.vrom_table, &vrom_with_multiplicities)?;
+        drop(vrom_fill_span);
 
         // 3. Fill the right shifter table
+        let right_shifter_fill_span =
+            tracing::debug_span!("fill", table = "right_shifter").entered();
         witness.fill_table_sequential(
             &self.circuit.right_shifter_table,
             trace.right_shift_events(),
         )?;
+        drop(right_shifter_fill_span);
 
         // 4. Fill all event tables
         for table in &self.circuit.tables {
