@@ -46,8 +46,6 @@ impl AllCycleStats {
         opcode: Opcode,
         f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
-        use rand::seq::index;
-
         let index = opcode as usize;
         let start = unsafe { _rdtsc() };
         let result = f();
