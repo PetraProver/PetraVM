@@ -97,243 +97,141 @@ impl Opcode {
         all_cycles: &mut AllCycleStats,
     ) -> Result<(), InterpreterError> {
         match self {
-            Opcode::Fp => {
-                let _ = all_cycles.record(self, || fp::FpEvent::generate(ctx, arg0, arg1, arg2));
-                fp::FpEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Bnz => {
-                let _ = all_cycles.record(self, || BnzEvent::generate(ctx, arg0, arg1, arg2));
-                BnzEvent::generate(ctx, arg0, arg1, arg2)
-            }
+            Opcode::Fp => all_cycles.record(self, || fp::FpEvent::generate(ctx, arg0, arg1, arg2)),
+            Opcode::Bnz => all_cycles.record(self, || BnzEvent::generate(ctx, arg0, arg1, arg2)),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")
             }
             Opcode::Jumpi => {
-                let _ =
-                    all_cycles.record(self, || jump::JumpiEvent::generate(ctx, arg0, arg1, arg2));
-                jump::JumpiEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || jump::JumpiEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Jumpv => {
-                let _ =
-                    all_cycles.record(self, || jump::JumpvEvent::generate(ctx, arg0, arg1, arg2));
-                jump::JumpvEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || jump::JumpvEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Xori => {
-                let _ = all_cycles.record(self, || b32::XoriEvent::generate(ctx, arg0, arg1, arg2));
-                b32::XoriEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::XoriEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Xor => {
-                let _ = all_cycles.record(self, || b32::XorEvent::generate(ctx, arg0, arg1, arg2));
-                b32::XorEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::XorEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Slli => {
-                let _ =
-                    all_cycles.record(self, || shift::SlliEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SlliEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SlliEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Srli => {
-                let _ =
-                    all_cycles.record(self, || shift::SrliEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SrliEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SrliEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Srai => {
-                let _ =
-                    all_cycles.record(self, || shift::SraiEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SraiEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SraiEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Sll => {
-                let _ =
-                    all_cycles.record(self, || shift::SllEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SllEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SllEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Srl => {
-                let _ =
-                    all_cycles.record(self, || shift::SrlEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SrlEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SrlEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Sra => {
-                let _ =
-                    all_cycles.record(self, || shift::SraEvent::generate(ctx, arg0, arg1, arg2));
-                shift::SraEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || shift::SraEvent::generate(ctx, arg0, arg1, arg2))
             }
-            Opcode::Addi => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::AddiEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            Opcode::Addi => all_cycles.record(self, || {
                 integer_ops::AddiEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Add => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::AddEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Add => all_cycles.record(self, || {
                 integer_ops::AddEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sle => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SleEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sle => all_cycles.record(self, || {
                 comparison::SleEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Slei => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SleiEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Slei => all_cycles.record(self, || {
                 comparison::SleiEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sleu => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SleuEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sleu => all_cycles.record(self, || {
                 comparison::SleuEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sleiu => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SleiuEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sleiu => all_cycles.record(self, || {
                 comparison::SleiuEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Slt => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SltEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Slt => all_cycles.record(self, || {
                 comparison::SltEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Slti => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SltiEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Slti => all_cycles.record(self, || {
                 comparison::SltiEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sltu => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SltuEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sltu => all_cycles.record(self, || {
                 comparison::SltuEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sltiu => {
-                let _ = all_cycles.record(self, || {
-                    comparison::SltiuEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sltiu => all_cycles.record(self, || {
                 comparison::SltiuEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Muli => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::MuliEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Muli => all_cycles.record(self, || {
                 integer_ops::MuliEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Mulu => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::MuluEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Mulu => all_cycles.record(self, || {
                 integer_ops::MuluEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Mulsu => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::MulsuEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Mulsu => all_cycles.record(self, || {
                 integer_ops::MulsuEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Mul => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::MulEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Mul => all_cycles.record(self, || {
                 integer_ops::MulEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Sub => {
-                let _ = all_cycles.record(self, || {
-                    integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Sub => all_cycles.record(self, || {
                 integer_ops::SubEvent::generate(ctx, arg0, arg1, arg2)
-            }
+            }),
             Opcode::Ret => {
-                let _ = all_cycles.record(self, || ret::RetEvent::generate(ctx, arg0, arg1, arg2));
-                ret::RetEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || ret::RetEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Taili => {
-                let _ =
-                    all_cycles.record(self, || call::TailiEvent::generate(ctx, arg0, arg1, arg2));
-                call::TailiEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || call::TailiEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Tailv => {
-                let _ =
-                    all_cycles.record(self, || call::TailvEvent::generate(ctx, arg0, arg1, arg2));
-                call::TailvEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || call::TailvEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Calli => {
-                let _ =
-                    all_cycles.record(self, || call::CalliEvent::generate(ctx, arg0, arg1, arg2));
-                call::CalliEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || call::CalliEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Callv => {
-                let _ =
-                    all_cycles.record(self, || call::CallvEvent::generate(ctx, arg0, arg1, arg2));
-                call::CallvEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || call::CallvEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::And => {
-                let _ = all_cycles.record(self, || b32::AndEvent::generate(ctx, arg0, arg1, arg2));
-                b32::AndEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::AndEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Andi => {
-                let _ = all_cycles.record(self, || b32::AndiEvent::generate(ctx, arg0, arg1, arg2));
-                b32::AndiEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::AndiEvent::generate(ctx, arg0, arg1, arg2))
             }
-            Opcode::Or => {
-                let _ = all_cycles.record(self, || b32::OrEvent::generate(ctx, arg0, arg1, arg2));
-                b32::OrEvent::generate(ctx, arg0, arg1, arg2)
-            }
+            Opcode::Or => all_cycles.record(self, || b32::OrEvent::generate(ctx, arg0, arg1, arg2)),
             Opcode::Ori => {
-                let _ = all_cycles.record(self, || b32::OriEvent::generate(ctx, arg0, arg1, arg2));
-                b32::OriEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::OriEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Mvih => {
-                let _ = all_cycles.record(self, || mv::MvihEvent::generate(ctx, arg0, arg1, arg2));
-                mv::MvihEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || mv::MvihEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Mvvw => {
-                let _ = all_cycles.record(self, || mv::MvvwEvent::generate(ctx, arg0, arg1, arg2));
-                mv::MvvwEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || mv::MvvwEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Mvvl => {
-                let _ = all_cycles.record(self, || mv::MvvlEvent::generate(ctx, arg0, arg1, arg2));
-                mv::MvvlEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || mv::MvvlEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::Ldi => {
-                let _ = all_cycles.record(self, || mv::LdiEvent::generate(ctx, arg0, arg1, arg2));
-                mv::LdiEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || mv::LdiEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::B32Mul => {
-                let _ =
-                    all_cycles.record(self, || b32::B32MulEvent::generate(ctx, arg0, arg1, arg2));
-                b32::B32MulEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::B32MulEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::B32Muli => {
-                let _ =
-                    all_cycles.record(self, || b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2));
-                b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b32::B32MuliEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::B128Add => {
-                let _ =
-                    all_cycles.record(self, || b128::B128AddEvent::generate(ctx, arg0, arg1, arg2));
-                b128::B128AddEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b128::B128AddEvent::generate(ctx, arg0, arg1, arg2))
             }
             Opcode::B128Mul => {
-                let _ =
-                    all_cycles.record(self, || b128::B128MulEvent::generate(ctx, arg0, arg1, arg2));
-                b128::B128MulEvent::generate(ctx, arg0, arg1, arg2)
+                all_cycles.record(self, || b128::B128MulEvent::generate(ctx, arg0, arg1, arg2))
             }
-            Opcode::Alloci => {
-                let _ = all_cycles.record(Opcode::Alloci, || {
-                    alloc::AllociEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            Opcode::Alloci => all_cycles.record(Opcode::Alloci, || {
                 alloc::AllociEvent::generate(ctx, arg0, arg1, arg2)
-            }
-            Opcode::Allocv => {
-                let _ = all_cycles.record(Opcode::Allocv, || {
-                    alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2)
-                });
+            }),
+            Opcode::Allocv => all_cycles.record(Opcode::Allocv, || {
                 alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2)
-            }
+            }),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }

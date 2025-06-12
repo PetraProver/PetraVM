@@ -58,9 +58,9 @@ impl AllCycleStats {
     pub(crate) fn record(
         &mut self,
         _opcode: Opcode,
-        _f: impl FnOnce() -> Result<(), InterpreterError>,
+        f: impl FnOnce() -> Result<(), InterpreterError>,
     ) -> Result<(), InterpreterError> {
-        Ok(())
+        f()
     }
 
     pub(crate) fn average_cycles(&self) {
