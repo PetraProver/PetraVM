@@ -8,7 +8,6 @@ use petravm_prover::test_utils::{fibonacci, generate_fibonacci_trace};
 fn test_fibonacci() -> Result<()> {
     init_logger();
     // Step 1: Generate trace
-    init_logger();
     let n = 40;
     let res = fibonacci(n);
 

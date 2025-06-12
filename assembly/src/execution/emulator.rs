@@ -19,6 +19,7 @@ use crate::{
     isa::{GenericISA, ISA},
     memory::{Memory, MemoryError},
     opcodes::Opcode,
+    stats::AllCycleStats,
 };
 
 pub(crate) const G: B32 = B32::MULTIPLICATIVE_GENERATOR;
@@ -241,12 +242,13 @@ impl Interpreter {
     #[instrument(level = "info", skip_all)]
     pub fn run(&mut self, memory: Memory) -> Result<PetraTrace, InterpreterError> {
         let mut trace = PetraTrace::new(memory);
+        let mut all_cycles = AllCycleStats::new();
 
         let field_pc = trace.prom()[self.pc as usize - 1].field_pc;
         // Start by allocating a frame for the initial label.
         self.allocate_new_frame(&mut trace, field_pc)?;
         loop {
-            match self.step(&mut trace) {
+            match self.step(&mut trace, &mut all_cycles) {
                 Ok(_) => {}
                 Err(error) => {
                     match error {
@@ -258,12 +260,17 @@ impl Interpreter {
                 }
             }
             if self.is_halted() {
+                all_cycles.average_cycles();
                 return Ok(trace);
             }
         }
     }
 
-    pub fn step(&mut self, trace: &mut PetraTrace) -> Result<(), InterpreterError> {
+    pub fn step(
+        &mut self,
+        trace: &mut PetraTrace,
+        all_cycles: &mut AllCycleStats,
+    ) -> Result<(), InterpreterError> {
         if (self.prom_index as usize >= trace.prom().len())
             || (self.pc as usize - 1 > trace.prom().len())
         {
@@ -287,6 +294,7 @@ impl Interpreter {
         debug_assert_eq!(field_pc, G.pow(self.pc as u64 - 1));
 
         let opcode = Opcode::try_from(opcode.val()).map_err(|_| InterpreterError::InvalidOpcode)?;
+        println!("opcode {:?}", opcode);
         #[cfg(debug_assertions)]
         {
             if !self.isa.is_supported(opcode) {
@@ -308,7 +316,7 @@ impl Interpreter {
             prover_only,
         };
 
-        opcode.generate_event(&mut ctx, arg0, arg1, arg2)
+        opcode.generate_event(&mut ctx, arg0, arg1, arg2, all_cycles)
     }
 
     pub(crate) fn allocate_new_frame(
