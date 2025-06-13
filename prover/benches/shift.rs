@@ -45,7 +45,7 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
     asm_lines.push("RET".to_string());
     let asm_code = asm_lines.join("\n");
 
-    generate_trace(asm_code, None, None)
+    generate_trace(asm_code, None, None).map(|(trace, _)| trace)
 }
 
 fn bench_shifts(c: &mut Criterion) {

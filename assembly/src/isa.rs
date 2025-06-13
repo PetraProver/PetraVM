@@ -12,6 +12,7 @@ use core::fmt::Debug;
 use std::collections::HashSet;
 
 use crate::event::*;
+use crate::exception::TrapEvent;
 use crate::Opcode;
 
 /// Defines an Instruction Set Architecture for the Petra Virtual Machine.
@@ -132,5 +133,6 @@ define_isa!(
         XoriEvent,
         AllociEvent,
         AllocvEvent,
+        TrapEvent
     ]
 );

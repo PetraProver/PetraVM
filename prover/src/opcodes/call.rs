@@ -634,7 +634,7 @@ mod tests {
                 TAILI loop, @5\n"
         );
 
-        generate_trace(asm_code, None, None)
+        generate_trace(asm_code, None, None).map(|(trace, _)| trace)
     }
 
     /// Creates an execution trace for a simple program that uses the CALLI and
@@ -665,7 +665,7 @@ mod tests {
                 RET\n"
         );
 
-        generate_trace(asm_code, None, None)
+        generate_trace(asm_code, None, None).map(|(trace, _)| trace)
     }
 
     #[test]

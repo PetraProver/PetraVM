@@ -78,10 +78,16 @@ impl Circuit {
     ///
     /// # Arguments
     /// * `trace` - The PetraVM execution trace
+    /// * `final_fp` - The final frame pointer returned in the final boundary
+    ///   value. If nonzero, it indicates the frame pointer of an exception.
     ///
     /// # Returns
     /// * A Statement that defines boundaries and table sizes
-    pub fn create_statement(&self, trace: &Trace) -> anyhow::Result<Statement> {
+    pub fn create_statement_with_final_fp(
+        &self,
+        trace: &Trace,
+        final_fp: u128,
+    ) -> anyhow::Result<Statement> {
         // Build the statement with boundary values
 
         // Define the initial state boundary (program starts at PC=1, FP=0)
@@ -98,7 +104,7 @@ impl Circuit {
 
         // Define the final state boundary (program ends with PC=0, FP=0)
         #[cfg(not(feature = "disable_state_channel"))]
-        let final_values = vec![B128::new(0), B128::new(0)];
+        let final_values = vec![B128::new(0), B128::new(final_fp)];
         #[cfg(feature = "disable_state_channel")]
         let final_values = vec![];
         let final_state = Boundary {
@@ -143,5 +149,17 @@ impl Circuit {
         };
 
         Ok(statement)
+    }
+
+    /// Create a circuit statement for a given trace. Assumes the final frame
+    /// pointer is 0 (meaning no exception occurred).
+    ///
+    /// # Arguments
+    /// * `trace` - The PetraVM execution trace
+    ///
+    /// # Returns
+    /// * A Statement that defines boundaries and table sizes
+    pub fn create_statement(&self, trace: &Trace) -> anyhow::Result<Statement> {
+        self.create_statement_with_final_fp(trace, 0)
     }
 }

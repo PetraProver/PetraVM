@@ -111,7 +111,7 @@ fn generate_b128add_b128mul_trace(x: u128, y: u128) -> Result<Trace> {
         (19, mul_result_array[3], 1),
     ];
 
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes)).map(|(trace, _)| trace)
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn generate_integer_ops_trace(src1_value: u32, src2_value: u32) -> Result<Trace>
             RET\n"
     );
 
-    generate_trace(asm_code, None, None)
+    generate_trace(asm_code, None, None).map(|(trace, _)| trace)
 }
 #[test]
 fn test_integer_ops() -> Result<()> {
@@ -259,7 +259,7 @@ fn generate_simple_taili_trace(init_values: Vec<u32>) -> Result<Trace> {
         (34, 100, 1),
     ];
 
-    generate_trace(asm_code, Some(init_values), Some(vrom_writes))
+    generate_trace(asm_code, Some(init_values), Some(vrom_writes)).map(|(trace, _)| trace)
 }
 
 #[test]

@@ -228,8 +228,10 @@ impl Trace {
             ));
         }
 
-        if self.ret_events().is_empty() {
-            return Err(anyhow::anyhow!("Trace must contain at least one RET event"));
+        if self.ret_events().is_empty() && self.trace.trap.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Trace must contain at least one RET or one TRAP event"
+            ));
         }
 
         if self.vrom_writes.is_empty() {
@@ -289,4 +291,5 @@ define_table_registry_and_accessors!(
     (sltiu, Sltiu),
     (sleu, Sleu),
     (sleiu, Sleiu),
+    (trap, Trap),
 );

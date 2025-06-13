@@ -3,7 +3,8 @@ use binius_field::{BinaryField, Field};
 use binius_m3::builder::B32;
 use log::trace;
 use petravm_asm::{
-    isa::GenericISA, Assembler, Instruction, InterpreterInstruction, Memory, PetraTrace, ValueRom,
+    execution::FramePointer, isa::GenericISA, Assembler, Instruction, InterpreterInstruction,
+    Memory, PetraTrace, ValueRom,
 };
 use tracing::instrument;
 
@@ -31,7 +32,7 @@ pub fn fibonacci(n: u32) -> u32 {
 ///
 /// # Returns
 /// * A trace containing the program execution
-pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<Trace> {
+pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<(Trace, FramePointer)> {
     // Read the assembly code from the specified files
     #[allow(clippy::manual_try_fold)]
     let asm_code = files
@@ -57,7 +58,7 @@ pub fn generate_asm_trace(files: &[&str], init_values: Vec<u32>) -> Result<Trace
 /// # Returns
 /// * A trace containing the Fibonacci program execution
 #[instrument(level = "info", skip(res))]
-pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<Trace> {
+pub fn generate_fibonacci_trace(n: u32, res: u32) -> Result<(Trace, FramePointer)> {
     let n = B32::MULTIPLICATIVE_GENERATOR.pow([n as u64]).val();
     // Initialize memory with:
     // Slot 0: Return PC = 0
@@ -93,7 +94,7 @@ pub const fn collatz(mut n: u32) -> usize {
 /// # Returns
 /// * A trace containing the Fibonacci program execution
 #[instrument(level = "info", skip_all)]
-pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
+pub fn generate_collatz_trace(n: u32) -> Result<(Trace, FramePointer)> {
     // Initialize memory with:
     // Slot 0: Return PC = 0
     // Slot 1: Return FP = 0
@@ -112,11 +113,12 @@ pub fn generate_collatz_trace(n: u32) -> Result<Trace> {
 ///
 /// # Returns
 /// * A Trace containing executed instructions
+/// * The final frame pointer value
 pub fn generate_trace(
     asm_code: String,
     init_values: Option<Vec<u32>>,
     vrom_writes: Option<Vec<(u32, u32, u32)>>,
-) -> Result<Trace> {
+) -> Result<(Trace, petravm_asm::execution::FramePointer)> {
     // Compile the assembly code
     let compiled_program = Assembler::from_code(&asm_code)?;
     trace!("compiled program = {compiled_program:?}");
@@ -150,7 +152,7 @@ pub fn generate_trace(
     let memory = Memory::new(compiled_program.prom, vrom);
 
     // Generate the trace from the compiled program
-    let (petra_trace, _) = PetraTrace::generate(
+    let (petra_trace, boundary_values) = PetraTrace::generate(
         Box::new(GenericISA),
         memory,
         compiled_program.frame_sizes,
@@ -185,5 +187,5 @@ pub fn generate_trace(
     }
 
     zkvm_trace.max_vrom_addr = max_dst as usize;
-    Ok(zkvm_trace)
+    Ok((zkvm_trace, boundary_values.final_fp))
 }

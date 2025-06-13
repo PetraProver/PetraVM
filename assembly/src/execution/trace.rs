@@ -28,6 +28,7 @@ use crate::{
         shift::{SllEvent, SlliEvent, SraEvent, SraiEvent, SrlEvent, SrliEvent},
         Event,
     },
+    exception::TrapEvent,
     execution::{Interpreter, InterpreterChannels, InterpreterError, G},
     isa::ISA,
     memory::{Memory, MemoryError, ProgramRom, Ram, ValueRom, VromValueT},
@@ -80,6 +81,7 @@ pub struct PetraTrace {
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
+    pub trap: Vec<TrapEvent>,
 
     memory: Memory,
     /// A vector recording the number of times an instruction has been executed.
@@ -88,6 +90,7 @@ pub struct PetraTrace {
     pub right_logic_shift_gadget: Vec<RightLogicShiftGadgetEvent>,
 }
 
+#[derive(Clone, Debug)]
 pub struct BoundaryValues {
     pub final_pc: B32,
     pub final_fp: FramePointer,
@@ -208,6 +211,7 @@ impl PetraTrace {
         fire_events!(self.b32_muli, &mut channels);
         fire_events!(self.b128_add, &mut channels);
         fire_events!(self.b128_mul, &mut channels);
+        fire_events!(self.trap, &mut channels);
 
         assert!(channels.state_channel.is_balanced());
     }

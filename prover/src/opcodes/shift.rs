@@ -852,7 +852,7 @@ mod tests {
         );
 
         let init_values = vec![0, 0, val];
-        generate_trace(asm_code, Some(init_values), None)
+        generate_trace(asm_code, Some(init_values), None).map(|(trace, _)| trace)
     }
 
     fn test_shift_with_values(val: u32, shift_amount: u32) -> Result<()> {
