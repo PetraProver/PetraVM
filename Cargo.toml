@@ -23,14 +23,23 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-profile = "0.10.6"
 
 # Binius dependencies
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git" }
+binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "4e9db49453f13ef2e823ce29b3337f0c4faca570" }
+
+#binius_core = { path = "../binius/crates/core" }
+#binius_field = { path = "../binius/crates/field" }
+#binius_utils = { path = "../binius/crates/utils" }
+#binius_m3 = { path = "../binius/crates/m3" }
+#binius_hash = { path = "../binius/crates/hash" }
+#binius_hal = { path = "../binius/crates/hal" }
+#binius_compute = { path = "../binius/crates/compute" }
+#binius_fast_compute = { path = "../binius/crates/fast_compute" }
 
 [profile.release]
 lto = "fat"
