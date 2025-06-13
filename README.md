@@ -107,6 +107,10 @@ Expansion to include RAM-related instructions is kept for future work.
 #### Register Operations
 - [x] `FP` - Dump current FP value
 
+### Groestl Primitives
+- [x] `GROESTL256_COMPRESS` - [Groestl](https://www.groestl.info/Groestl.pdf) compression function
+- [x] `GROESTL256_OUTPUT` - [Groestl](https://www.groestl.info/Groestl.pdf) output function
+
 #### Future Random-Access Memory Extensions
 - [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte

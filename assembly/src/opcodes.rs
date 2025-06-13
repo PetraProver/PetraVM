@@ -29,6 +29,10 @@ pub enum Opcode {
     #[default]
     Invalid = 0x00,
 
+    // GROESTL instructions
+    Groestl256Compress,
+    Groestl256Output,
+
     // Integer instructions
     Xori,
     Xor,
@@ -117,54 +121,56 @@ impl Opcode {
     /// Returns the number of arguments expected by the given opcode.
     pub const fn num_args(&self) -> usize {
         match self {
-            Opcode::Fp => 2,      // dst, imm
-            Opcode::Bnz => 3,     // target_low, target_high, cond
-            Opcode::Bz => 0,      // non-existing instruction
-            Opcode::Jumpi => 2,   // target_low, target_high
-            Opcode::Jumpv => 1,   // offset
-            Opcode::Xori => 3,    // dst, src, imm
-            Opcode::Xor => 3,     // dst, src1, src2
-            Opcode::Ret => 0,     //
-            Opcode::Slli => 3,    // dst, src, imm
-            Opcode::Srli => 3,    // dst, src, imm
-            Opcode::Srai => 3,    // dst, src, imm
-            Opcode::Sll => 3,     // dst, src1, src2
-            Opcode::Srl => 3,     // dst, src1, src2
-            Opcode::Sra => 3,     // dst, src1, src2
-            Opcode::Tailv => 2,   // offset, next_fp
-            Opcode::Taili => 3,   // target_low, target_high, next_fp
-            Opcode::Calli => 3,   // target_low, target_high, next_fp
-            Opcode::Callv => 2,   // offset, next_fp
-            Opcode::And => 3,     // dst, src1, src2
-            Opcode::Andi => 3,    // dst, src, imm
-            Opcode::Sub => 3,     // dst, src1, src2
-            Opcode::Sle => 3,     // dst, src1, src2
-            Opcode::Slei => 3,    // dst, src, imm
-            Opcode::Sleu => 3,    // dst, src1, src2
-            Opcode::Sleiu => 3,   // dst, src, imm
-            Opcode::Slt => 3,     // dst, src1, src2
-            Opcode::Slti => 3,    // dst, src, imm
-            Opcode::Sltu => 3,    // dst, src1, src2
-            Opcode::Sltiu => 3,   // dst, src, imm
-            Opcode::Or => 3,      // dst, src1, src2
-            Opcode::Ori => 3,     // dst, src, imm
-            Opcode::Muli => 3,    // dst, src, imm
-            Opcode::Mulu => 3,    // dst, src1, src2
-            Opcode::Mul => 3,     // dst, src1, src2
-            Opcode::Mulsu => 3,   // dst, src1, src2
-            Opcode::B32Mul => 3,  // dst, src1, src2
-            Opcode::B32Muli => 3, // dst, src, imm
-            Opcode::B128Add => 3, // dst, src1, src2
-            Opcode::B128Mul => 3, // dst, src1, src2
-            Opcode::Add => 3,     // dst, src1, src2
-            Opcode::Addi => 3,    // dst, src, imm
-            Opcode::Mvvw => 3,    // dst, offset, src
-            Opcode::Mvvl => 3,    // dst, offset, src
-            Opcode::Mvih => 3,    // dst, offset, imm
-            Opcode::Ldi => 3,     // dst, imm_low, imm_high
-            Opcode::Alloci => 2,  // dst, imm
-            Opcode::Allocv => 2,  // dst, src
-            Opcode::Invalid => 0, // invalid
+            Opcode::Fp => 2,                 // dst, imm
+            Opcode::Groestl256Compress => 3, // dst, src1, src2
+            Opcode::Groestl256Output => 3,   // dst, src1, src2
+            Opcode::Bnz => 3,                // target_low, target_high, cond
+            Opcode::Bz => 0,                 // non-existing instruction
+            Opcode::Jumpi => 2,              // target_low, target_high
+            Opcode::Jumpv => 1,              // offset
+            Opcode::Xori => 3,               // dst, src, imm
+            Opcode::Xor => 3,                // dst, src1, src2
+            Opcode::Ret => 0,                //
+            Opcode::Slli => 3,               // dst, src, imm
+            Opcode::Srli => 3,               // dst, src, imm
+            Opcode::Srai => 3,               // dst, src, imm
+            Opcode::Sll => 3,                // dst, src1, src2
+            Opcode::Srl => 3,                // dst, src1, src2
+            Opcode::Sra => 3,                // dst, src1, src2
+            Opcode::Tailv => 2,              // offset, next_fp
+            Opcode::Taili => 3,              // target_low, target_high, next_fp
+            Opcode::Calli => 3,              // target_low, target_high, next_fp
+            Opcode::Callv => 2,              // offset, next_fp
+            Opcode::And => 3,                // dst, src1, src2
+            Opcode::Andi => 3,               // dst, src, imm
+            Opcode::Sub => 3,                // dst, src1, src2
+            Opcode::Sle => 3,                // dst, src1, src2
+            Opcode::Slei => 3,               // dst, src, imm
+            Opcode::Sleu => 3,               // dst, src1, src2
+            Opcode::Sleiu => 3,              // dst, src, imm
+            Opcode::Slt => 3,                // dst, src1, src2
+            Opcode::Slti => 3,               // dst, src, imm
+            Opcode::Sltu => 3,               // dst, src1, src2
+            Opcode::Sltiu => 3,              // dst, src, imm
+            Opcode::Or => 3,                 // dst, src1, src2
+            Opcode::Ori => 3,                // dst, src, imm
+            Opcode::Muli => 3,               // dst, src, imm
+            Opcode::Mulu => 3,               // dst, src1, src2
+            Opcode::Mul => 3,                // dst, src1, src2
+            Opcode::Mulsu => 3,              // dst, src1, src2
+            Opcode::B32Mul => 3,             // dst, src1, src2
+            Opcode::B32Muli => 3,            // dst, src, imm
+            Opcode::B128Add => 3,            // dst, src1, src2
+            Opcode::B128Mul => 3,            // dst, src1, src2
+            Opcode::Add => 3,                // dst, src1, src2
+            Opcode::Addi => 3,               // dst, src, imm
+            Opcode::Mvvw => 3,               // dst, offset, src
+            Opcode::Mvvl => 3,               // dst, offset, src
+            Opcode::Mvih => 3,               // dst, offset, imm
+            Opcode::Ldi => 3,                // dst, imm_low, imm_high
+            Opcode::Alloci => 2,             // dst, imm
+            Opcode::Allocv => 2,             // dst, src
+            Opcode::Invalid => 0,            // invalid
         }
     }
 
@@ -218,6 +224,8 @@ impl_instruction_info!(
     (CalliEvent, Opcode::Calli),
     (CallvEvent, Opcode::Callv),
     (FpEvent, Opcode::Fp),
+    (Groestl256CompressEvent, Opcode::Groestl256Compress),
+    (Groestl256OutputEvent, Opcode::Groestl256Output),
     (JumpiEvent, Opcode::Jumpi),
     (JumpvEvent, Opcode::Jumpv),
     (LdiEvent, Opcode::Ldi),
