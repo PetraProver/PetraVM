@@ -23,12 +23,18 @@ impl RetEvent {
     pub(crate) fn new(ctx: &EventContext) -> Result<Self, InterpreterError> {
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
+        let (pc_next, fp_next) = {
+            // Perform a single packed read to get both u32 values at once.
+            let pack = ctx.vrom_read::<u64>(ctx.addr(0u32))?;
+            (pack as u32, (pack >> 32) as u32)
+        };
+
         Ok(Self {
             pc: field_pc,
             fp,
             timestamp,
-            pc_next: ctx.vrom_read::<u32>(ctx.addr(0u32))?,
-            fp_next: ctx.vrom_read::<u32>(ctx.addr(1u32))?,
+            pc_next,
+            fp_next,
         })
     }
 }
