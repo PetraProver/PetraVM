@@ -260,7 +260,7 @@ pub enum InstructionsWithLabels {
 }
 
 impl InstructionsWithLabels {
-    pub(crate) fn prover_only(&self) -> bool {
+    pub(crate) const fn prover_only(&self) -> bool {
         use InstructionsWithLabels::*;
         match self {
             Fp { prover_only, .. } => *prover_only,

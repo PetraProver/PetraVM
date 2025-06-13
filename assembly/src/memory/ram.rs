@@ -125,7 +125,7 @@ impl Ram {
         }
     }
 
-    pub fn capacity(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.data.len()
     }
 

@@ -17,7 +17,7 @@ pub struct RightLogicShiftGadgetEvent {
 
 impl RightLogicShiftGadgetEvent {
     /// Creates a new RightLogicShiftGadgetEvent
-    pub fn new(input: u32, shift_amount: u32, output: u32) -> Self {
+    pub const fn new(input: u32, shift_amount: u32, output: u32) -> Self {
         Self {
             input,
             shift_amount,

@@ -57,7 +57,7 @@ impl Iterator for PowerOfTwoBlocksIterator {
 ///   remaining 4 slots are dropped.
 /// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
 ///   (8,8)]`, but the 4-slot block is dropped, resulting in `[(8,8)]`.
-fn split_into_power_of_two_blocks(addr: u32, size: u32) -> PowerOfTwoBlocksIterator {
+const fn split_into_power_of_two_blocks(addr: u32, size: u32) -> PowerOfTwoBlocksIterator {
     PowerOfTwoBlocksIterator {
         current_addr: addr,
         remaining_size: size,
@@ -86,7 +86,7 @@ impl VromAllocator {
     }
 
     /// Set the current position of the allocator.
-    pub fn set_pos(&mut self, pos: u32) {
+    pub const fn set_pos(&mut self, pos: u32) {
         self.pos = pos;
     }
 

@@ -30,6 +30,7 @@ pub struct EventContext<'a> {
 impl EventContext<'_> {
     /// Computes a VROM address from a provided offset, by scaling the frame
     /// pointer accordingly.
+    #[inline(always)]
     pub fn addr(&self, offset: impl Into<u32>) -> u32 {
         *self.fp ^ offset.into()
     }
@@ -39,10 +40,12 @@ impl EventContext<'_> {
     ///   - the field program counter PC, as `B32`
     ///   - the frame pointer FP, as `u32`
     ///   - the timestamp TS, as `u32`
+    #[inline(always)]
     pub fn program_state(&self) -> (u32, B32, FramePointer, u32) {
         (self.pc, self.field_pc, self.fp, self.timestamp)
     }
 
+    #[inline(always)]
     pub fn set_fp<T: Into<FramePointer>>(&mut self, fp: T) {
         self.fp = fp.into();
     }
@@ -51,7 +54,7 @@ impl EventContext<'_> {
         self.trace.vrom()
     }
 
-    pub fn vrom_mut(&mut self) -> &mut ValueRom {
+    pub const fn vrom_mut(&mut self) -> &mut ValueRom {
         self.trace.vrom_mut()
     }
 
@@ -60,9 +63,9 @@ impl EventContext<'_> {
         T: VromValueT,
     {
         if self.prover_only {
-            self.vrom().peek::<T>(addr)
+            self.trace.vrom().peek::<T>(addr)
         } else {
-            self.vrom().read::<T>(addr)
+            self.trace.vrom().read::<T>(addr)
         }
     }
 
@@ -70,7 +73,7 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        self.vrom().check_value_set::<T>(addr)
+        self.trace.vrom().check_value_set::<T>(addr)
     }
 
     pub fn vrom_write<T>(&mut self, addr: u32, value: T) -> Result<(), MemoryError>
@@ -97,7 +100,7 @@ impl EventContext<'_> {
     where
         T: RamValueT,
     {
-        self.ram_mut().read(addr, timestamp, pc)
+        self.trace.ram_mut().read(addr, timestamp, pc)
     }
 
     pub fn ram_write<T>(
@@ -110,17 +113,17 @@ impl EventContext<'_> {
     where
         T: RamValueT,
     {
-        self.ram_mut().write(addr, value, timestamp, pc)
+        self.trace.ram_mut().write(addr, value, timestamp, pc)
     }
 
     /// Increments the underlying [`Interpreter`]'s PC.
-    pub fn incr_pc(&mut self) {
+    pub const fn incr_pc(&mut self) {
         self.interpreter.incr_pc();
     }
 
     /// Inccrements the PROM index and, if not in prover-only mode, increments
     /// the PC.
-    pub fn incr_counters(&mut self) {
+    pub const fn incr_counters(&mut self) {
         self.interpreter.incr_prom_index();
         if !self.prover_only {
             self.interpreter.incr_pc();
@@ -128,7 +131,7 @@ impl EventContext<'_> {
     }
 
     /// Increments the underlying [`Interpreter`]'s PROM index.
-    pub fn incr_prom_index(&mut self) {
+    pub const fn incr_prom_index(&mut self) {
         self.interpreter.incr_prom_index();
     }
 

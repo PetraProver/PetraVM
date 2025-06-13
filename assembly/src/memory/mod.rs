@@ -107,7 +107,7 @@ impl Memory {
     }
 
     /// Returns a mutable reference to the VROM.
-    pub(crate) fn vrom_mut(&mut self) -> &mut ValueRom {
+    pub(crate) const fn vrom_mut(&mut self) -> &mut ValueRom {
         &mut self.vrom
     }
 
