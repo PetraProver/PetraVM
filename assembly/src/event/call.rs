@@ -200,7 +200,7 @@ impl Event for CalliEvent {
         let return_pc = (field_pc * G).val();
 
         // Perform a single packed write to store both u32 values at once.
-        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + (*fp as u64) << 32)?;
+        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + ((*fp as u64) << 32))?;
 
         let event = Self {
             pc: field_pc,
@@ -267,7 +267,7 @@ impl Event for CallvEvent {
         let return_pc = (field_pc * G).val();
 
         // Perform a single packed write to store both u32 values at once.
-        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + (*fp as u64) << 32)?;
+        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + ((*fp as u64) << 32))?;
 
         let event = Self {
             pc: field_pc,
