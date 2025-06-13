@@ -12,39 +12,21 @@ const SAMPLE_SIZE: usize = 20; // Number of benchmark runs per opcode
 fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
     let mut rng = rng();
     let imm = rng.random::<u16>();
+    let vals = rng.random::<[u32; 8]>();
 
     let mut asm = Vec::new();
 
     // ——— Boot: load counter & tail‐call into helper ———
-    asm.push("#[framesize(0x4)]".to_owned());
+    asm.push("#[framesize(0x10)]".to_owned());
     asm.push("bench:".to_owned());
-    asm.push(format!("LDI.W @2, #{length}G")); // 1
-    asm.push("MVV.W @3[2], @2".to_owned()); // 2
-    asm.push("TAILI bench_helper, @3".to_owned()); // 3
-
-    // ——— Helper: test counter ———
-    asm.push("\n#[framesize(0x20)]".to_owned());
-    asm.push("bench_helper:".to_owned());
-    asm.push("LDI.W @3, #0G".to_owned()); // 4
-    asm.push("XOR   @16, @2, @3".to_owned()); // 5
-    asm.push("BNZ   bench_body, @16".to_owned()); // 6
-    asm.push("RET".to_owned()); // 7
-
-    // ——— Body: one opcode + loop back ———
-    asm.push("bench_body:".to_owned());
-    asm.push("B32_MULI @17, @2, #-1G".to_owned()); // 8  (decrement)
-                                                   // 8 × LDI.W(@4–@11)
-    for reg in 4..=11 {
-        let val = rng.random::<u32>();
-        asm.push(format!("LDI.W @{reg}, #{val}")); // 9–16
+    for i in 4..12 {
+        asm.push(format!("LDI.W @{i}, #{}", vals[i - 4]));
     }
-    asm.push(format_instruction(opcode, 12, 4, 8, imm)); // 17 (your opcode)
-    asm.push("MVV.W @18[2], @17".to_owned()); // 18 (re‐package counter)
-    asm.push("TAILI bench_helper, @18".to_owned()); // 19 (loop back)
 
-    // Exact exec‐count:
-    //     3 + (3 + 12) × (TRACE_LEN − 1) + 4 = 15 × TRACE_LEN − 8 = 120000 − 8 =
-    // 119992
+    for _ in 0..length {
+        asm.push(format_instruction(opcode, 12, 4, 8, imm)); // 17 (your opcode)
+    }
+    asm.push("RET".to_owned()); // 18 (re‐package counter)
 
     // ——— Emit the trace ———
     let program = asm.join("\n");
