@@ -23,14 +23,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-profile = "0.10.6"
 
 # Binius dependencies
-binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
-binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2fdf679579e0c48c9067091c7eeec14d759a8ccc" }
+binius_core = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_fast_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_compute = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_field = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
+binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "2aac402f261a2b7fd59a563d97f5884087c15c6a" }
 
 [profile.release]
 lto = "fat"
