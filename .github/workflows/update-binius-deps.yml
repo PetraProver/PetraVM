@@ -68,24 +68,12 @@ jobs:
 
           echo "Updated Binius dependencies from $CURRENT_COMMIT to $LATEST_COMMIT"
 
-      - name: Check if Cargo.lock needs updating
-        if: steps.check-update.outputs.update_needed == 'true'
-        run: |
-          # Update Cargo.lock to reflect the new dependencies
-          cargo update
-
-      - name: Run basic checks
-        if: steps.check-update.outputs.update_needed == 'true'
-        run: |
-          # Run a basic cargo check to ensure dependencies resolve
-          cargo check --workspace
-
       - name: Commit changes
         if: steps.check-update.outputs.update_needed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add Cargo.toml Cargo.lock
+          git add Cargo.toml
           git commit -m "chore: update Binius dependencies to \
           ${{ steps.binius-commit.outputs.latest_commit }}
 
@@ -125,12 +113,11 @@ jobs:
             - binius_utils
 
             **Verification:**
-            - ✅ Dependencies resolve correctly (`cargo check` passed)
-            - ✅ Cargo.lock updated
+            - 🔄 CI will verify build status
 
             This is an automated update created by the weekly Binius dependency update workflow.
 
-            Please review the changes and run additional tests before merging.
+            Please review the CI checks and resolve any build issues before merging.
           labels: |
             dependencies
             automation
@@ -141,6 +128,7 @@ jobs:
           if [ "${{ steps.check-update.outputs.update_needed }}" == "true" ]; then
             echo "✅ Binius dependencies updated successfully"
             echo "📝 Pull request created: ${{ env.BRANCH_NAME }}"
+            echo "🔄 CI will verify build status"
           else
             echo "ℹ️ No update needed - dependencies are already up to date"
           fi
