@@ -36,20 +36,14 @@ echo "📦 Updating Cargo.lock..."
 cargo update
 
 echo "🔍 Running basic checks..."
-cargo check --workspace
+if ! cargo check --workspace; then
+    echo "❌ Cargo check failed! Please fix build issues before proceeding."
+    echo ""
+    exit 1
+fi
 
 echo "✅ Binius dependencies updated successfully!"
 echo "Updated from: $CURRENT_COMMIT"
 echo "Updated to:   $LATEST_COMMIT"
-echo ""
-echo "Dependencies updated:"
-echo "- binius_core"
-echo "- binius_fast_compute"
-echo "- binius_compute"
-echo "- binius_field"
-echo "- binius_hal"
-echo "- binius_hash"
-echo "- binius_m3"
-echo "- binius_utils"
 echo ""
 echo "🚀 Ready to commit and push your changes!" 
