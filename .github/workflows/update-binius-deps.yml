@@ -1,3 +1,5 @@
+---  # Update Binius dependencies workflow
+
 name: Update Binius Dependencies
 
 on:
