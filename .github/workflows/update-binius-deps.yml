@@ -1,0 +1,134 @@
+---  # Update Binius dependencies workflow
+
+name: Update Binius Dependencies
+
+on:
+  schedule:
+    # Run every Monday at 9:00 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: {}  # Allow manual triggering
+
+jobs:
+  update-binius-deps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Get latest Binius commit
+        id: binius-commit
+        run: |
+          LATEST_COMMIT=$(git ls-remote https://github.com/IrreducibleOSS/binius.git HEAD | cut -f1)
+          echo "latest_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+          echo "Latest Binius commit: $LATEST_COMMIT"
+
+      - name: Get current Binius commit from Cargo.toml
+        id: current-commit
+        run: |
+          CURRENT_COMMIT=$(grep 'binius_core.*rev.*=' Cargo.toml | sed 's/.*rev = "\([^"]*\)".*/\1/')
+          echo "current_commit=$CURRENT_COMMIT" >> $GITHUB_OUTPUT
+          echo "Current Binius commit: $CURRENT_COMMIT"
+
+      - name: Check if update is needed
+        id: check-update
+        run: |
+          if [ "${{ steps.binius-commit.outputs.latest_commit }}" != \
+               "${{ steps.current-commit.outputs.current_commit }}" ]; then
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "Update needed: latest commit differs from current"
+          else
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+            echo "No update needed: commits are the same"
+          fi
+
+      - name: Create update branch
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: |
+          BRANCH_NAME="update-binius-deps-$(date +%Y%m%d)"
+          git checkout -b $BRANCH_NAME
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Update Binius dependencies
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: |
+          LATEST_COMMIT="${{ steps.binius-commit.outputs.latest_commit }}"
+          CURRENT_COMMIT="${{ steps.current-commit.outputs.current_commit }}"
+
+          # Update all Binius dependencies to the latest commit
+          sed -i "s/$CURRENT_COMMIT/$LATEST_COMMIT/g" Cargo.toml
+
+          echo "Updated Binius dependencies from $CURRENT_COMMIT to $LATEST_COMMIT"
+
+      - name: Commit changes
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add Cargo.toml
+          git commit -m "chore: update Binius dependencies to \
+          ${{ steps.binius-commit.outputs.latest_commit }}
+
+          Updated all Binius dependencies from \
+          ${{ steps.current-commit.outputs.current_commit }} to \
+          ${{ steps.binius-commit.outputs.latest_commit }}"
+
+      - name: Push changes
+        if: steps.check-update.outputs.update_needed == 'true'
+        run: |
+          git push origin $BRANCH_NAME
+
+      - name: Create Pull Request
+        if: steps.check-update.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ env.BRANCH_NAME }}
+          title: "chore: update Binius dependencies (weekly)"
+          body: |
+            ## 🔄 Weekly Binius Dependencies Update
+
+            This PR automatically updates all Binius dependencies to their latest commits.
+
+            **Changes:**
+            - Updated from commit: `${{ steps.current-commit.outputs.current_commit }}`
+            - Updated to commit: `${{ steps.binius-commit.outputs.latest_commit }}`
+
+            **Dependencies updated:**
+            - binius_core
+            - binius_fast_compute
+            - binius_compute
+            - binius_field
+            - binius_hal
+            - binius_hash
+            - binius_m3
+            - binius_utils
+
+            **Verification:**
+            - 🔄 CI will verify build status
+
+            This is an automated update created by the weekly Binius dependency update workflow.
+
+            Please review the CI checks and resolve any build issues before merging.
+          labels: |
+            dependencies
+            automation
+          draft: false
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.check-update.outputs.update_needed }}" == "true" ]; then
+            echo "✅ Binius dependencies updated successfully"
+            echo "📝 Pull request created: ${{ env.BRANCH_NAME }}"
+            echo "🔄 CI will verify build status"
+          else
+            echo "ℹ️ No update needed - dependencies are already up to date"
+          fi
