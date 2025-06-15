@@ -16,7 +16,7 @@ CURRENT_COMMIT=$(grep 'binius_core.*rev.*=' Cargo.toml | sed 's/.*rev = "\([^"]*
 echo "Current Binius commit: $CURRENT_COMMIT"
 
 # Check if update is needed
-if [ "$LATEST_COMMIT" = "$CURRENT_COMMIT" ]; then
+if [ "$LATEST_COMMIT" = "$CURRENT_COMMIT" ] && [ -n "$CURRENT_COMMIT" ]; then
     echo "✅ Dependencies are already up to date!"
     exit 0
 fi
@@ -24,7 +24,13 @@ fi
 echo "🔄 Updating Binius dependencies..."
 
 # Update all Binius dependencies to the latest commit
-sed -i.backup "s/$CURRENT_COMMIT/$LATEST_COMMIT/g" Cargo.toml
+if [ -z "$CURRENT_COMMIT" ]; then
+    # If current commit is empty, replace empty rev fields
+    sed -i.backup 's/rev = ""/rev = "'$LATEST_COMMIT'"/' Cargo.toml
+else
+    # If current commit exists, replace it
+    sed -i.backup "s/$CURRENT_COMMIT/$LATEST_COMMIT/g" Cargo.toml
+fi
 
 echo "📦 Updating Cargo.lock..."
 cargo update
