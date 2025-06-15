@@ -1,7 +1,6 @@
----  # yamllint disable-line rule:document-start
 name: Update Binius Dependencies
 
-'on':
+on:
   schedule:
     # Run every Monday at 9:00 AM UTC
     - cron: '0 9 * * 1'
