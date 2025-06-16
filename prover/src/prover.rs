@@ -107,8 +107,7 @@ impl Prover {
             .compile(&statement)
             .map_err(|e| anyhow!(e))?;
 
-        let witness_allocator_span =
-            tracing::info_span!("Witness Alloc").entered();
+        let witness_allocator_span = tracing::info_span!("Witness Alloc").entered();
 
         // Create a memory allocator for the witness
         let mut allocator = CpuComputeAllocator::new(1 << 25);
@@ -149,7 +148,7 @@ impl Prover {
             HasherChallenger<Groestl256>,
             _,
             _,
-            _
+            _,
         >(
             &mut compute_holder.to_data(),
             &compiled_cs,
