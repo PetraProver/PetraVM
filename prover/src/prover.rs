@@ -132,10 +132,8 @@ impl Prover {
         let ccs_digest = compiled_cs.digest::<Groestl256>();
 
         let hal_span = tracing::info_span!("HAL Setup").entered();
-        let mut compute_holder = FastCpuLayerHolder::<CanonicalTowerFamily, ProverPackedField>::new(
-            1 << 20,
-            1 << (28 - ProverPackedField::LOG_WIDTH),
-        );
+        let mut compute_holder =
+            FastCpuLayerHolder::<CanonicalTowerFamily, ProverPackedField>::new(1 << 20, 1 << 26);
         drop(hal_span);
 
         // Generate the proof
