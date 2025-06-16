@@ -232,9 +232,7 @@ impl PetraTrace {
     where
         T: VromValueT,
     {
-        self.vrom_mut().write(index, value, record)?;
-
-        Ok(())
+        self.vrom_mut().write(index, value, record)
     }
 
     /// Returns a reference to the VROM.

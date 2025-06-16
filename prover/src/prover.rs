@@ -4,18 +4,17 @@
 //! PetraVM execution traces.
 
 use anyhow::{anyhow, Result};
-use binius_compute::{alloc::HostBumpAllocator, cpu::alloc::CpuComputeAllocator};
+use binius_compute::{alloc::HostBumpAllocator, cpu::alloc::CpuComputeAllocator, ComputeHolder};
 use binius_core::{
     constraint_system::{prove, verify, ConstraintSystem, Proof},
     fiat_shamir::HasherChallenger,
 };
-use binius_fast_compute::{layer::FastCpuLayer, memory::PackedMemorySliceMut};
+use binius_fast_compute::layer::FastCpuLayerHolder;
 use binius_field::arch::OptimalUnderlier;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
 use binius_m3::builder::{Statement, WitnessIndex, B128};
-use bytemuck::zeroed_vec;
 use petravm_asm::isa::ISA;
 use tracing::instrument;
 
@@ -108,9 +107,13 @@ impl Prover {
             .compile(&statement)
             .map_err(|e| anyhow!(e))?;
 
+        let witness_allocator_span = tracing::info_span!("Witness Alloc").entered();
+
         // Create a memory allocator for the witness
         let mut allocator = CpuComputeAllocator::new(1 << 25);
         let allocator = allocator.into_bump_allocator();
+
+        drop(witness_allocator_span);
 
         // Convert witness to multilinear extension format
         let witness = self
@@ -128,10 +131,10 @@ impl Prover {
 
         let ccs_digest = compiled_cs.digest::<Groestl256>();
 
-        let hal = FastCpuLayer::<CanonicalTowerFamily, ProverPackedField>::default();
-        let mut host_mem = zeroed_vec(1 << 20);
-        let mut dev_mem_owned = zeroed_vec(1 << (28 - ProverPackedField::LOG_WIDTH));
-        let dev_mem = PackedMemorySliceMut::new_slice(&mut dev_mem_owned);
+        let hal_span = tracing::info_span!("HAL Setup").entered();
+        let mut compute_holder =
+            FastCpuLayerHolder::<CanonicalTowerFamily, ProverPackedField>::new(1 << 20, 1 << 26);
+        drop(hal_span);
 
         // Generate the proof
         let proof = prove::<
@@ -142,10 +145,10 @@ impl Prover {
             Groestl256ByteCompression,
             HasherChallenger<Groestl256>,
             _,
+            _,
+            _,
         >(
-            &hal,
-            &mut host_mem,
-            dev_mem,
+            &mut compute_holder.to_data(),
             &compiled_cs,
             LOG_INV_RATE,
             SECURITY_BITS,

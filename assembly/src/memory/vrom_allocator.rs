@@ -3,6 +3,67 @@ use std::collections::BTreeMap;
 // We need at least two slots for return pc and return fp.
 const MIN_FRAME_SIZE: u32 = 2;
 
+/// An iterator used to allocate power-of-two blocks with proper alignment.
+pub struct PowerOfTwoBlocksIterator {
+    current_addr: u32,
+    remaining_size: u32,
+}
+
+impl Iterator for PowerOfTwoBlocksIterator {
+    type Item = (u32, u32); // (address, size)
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.remaining_size > 0 {
+            // Determine the maximum block size allowed by the current address's alignment.
+            let max_align_size = if self.current_addr == 0 {
+                // If address is 0, it's aligned to any power of two.
+                self.remaining_size
+            } else {
+                1 << self.current_addr.trailing_zeros()
+            };
+
+            // Largest power-of-two not exceeding the remaining size.
+            let max_size_in_remaining = 1 << (31 - self.remaining_size.leading_zeros());
+
+            let block_size = max_align_size.min(max_size_in_remaining);
+
+            // Skip blocks that are smaller than MIN_FRAME_SIZE.
+            if block_size < MIN_FRAME_SIZE {
+                self.current_addr += block_size;
+                self.remaining_size -= block_size;
+
+                continue;
+            }
+
+            // Valid block found
+            let result = (self.current_addr, block_size);
+            self.current_addr += block_size;
+            self.remaining_size -= block_size;
+            return Some(result);
+        }
+
+        None // No more blocks
+    }
+}
+
+/// Splits the interval [addr, addr + size) into power-of-two blocks with proper
+/// alignment.
+///
+/// Blocks smaller than MIN_FRAME_SIZE are dropped.
+///
+/// # Examples
+///
+/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the
+///   remaining 4 slots are dropped.
+/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
+///   (8,8)]`, but the 4-slot block is dropped, resulting in `[(8,8)]`.
+fn split_into_power_of_two_blocks(addr: u32, size: u32) -> PowerOfTwoBlocksIterator {
+    PowerOfTwoBlocksIterator {
+        current_addr: addr,
+        remaining_size: size,
+    }
+}
+
 /// VromAllocator allocates VROM addresses for objects, ensuring that:
 /// - The object's size is padded to the next power-of-two (with a minimum of
 ///   MIN_FRAME_SIZE),
@@ -112,44 +173,6 @@ const fn align_to(pos: u32, alignment: u32) -> u32 {
     (pos + alignment - 1) & !(alignment - 1)
 }
 
-/// Splits the interval [addr, addr + size) into power-of-two blocks with proper
-/// alignment.
-///
-/// Blocks smaller than MIN_FRAME_SIZE are dropped.
-///
-/// # Examples
-///
-/// - `split_into_power_of_two_blocks(0, 12)` yields `[(0,8)]` because the
-///   remaining 4 slots are dropped.
-/// - `split_into_power_of_two_blocks(4, 12)` initially produces `[(4,4),
-///   (8,8)]`, but the 4-slot block is dropped, resulting in `[(8,8)]`.
-fn split_into_power_of_two_blocks(addr: u32, size: u32) -> Vec<(u32, u32)> {
-    let mut blocks = Vec::new();
-    let mut current_addr = addr;
-    let mut remaining = size;
-    while remaining > 0 {
-        // Determine the maximum block size allowed by the current address's alignment.
-        let alignment_constraint = if current_addr == 0 {
-            remaining
-        } else {
-            1 << current_addr.trailing_zeros()
-        };
-        // Largest power-of-two not exceeding the remaining size.
-        let largest_possible = 1 << (31 - remaining.leading_zeros());
-        let block_size = alignment_constraint.min(largest_possible);
-        // Skip blocks that are smaller than MIN_FRAME_SIZE.
-        if block_size < MIN_FRAME_SIZE {
-            current_addr += block_size;
-            remaining -= block_size;
-            continue;
-        }
-        blocks.push((current_addr, block_size));
-        current_addr += block_size;
-        remaining -= block_size;
-    }
-    blocks
-}
-
 #[cfg(test)]
 mod tests {
     use rand::Rng;
@@ -170,12 +193,15 @@ mod tests {
     #[test]
     fn test_split_into_power_of_two_blocks() {
         // Region exactly a power-of-two.
-        assert_eq!(split_into_power_of_two_blocks(0, 8), vec![(0, 8)]);
+        assert_eq!(split_into_power_of_two_blocks(0, 8).next(), Some((0, 8)));
         // 12 slots splits into (0,8) and (8,4) but the 4-slot block is dropped.
-        assert_eq!(split_into_power_of_two_blocks(0, 12), vec![(0, 8), (8, 4)]);
+        assert_eq!(
+            split_into_power_of_two_blocks(0, 12).collect::<Vec<_>>(),
+            vec![(0, 8), (8, 4)]
+        );
         // Region starting at a non power-of-two address.
         assert_eq!(
-            split_into_power_of_two_blocks(5, 32),
+            split_into_power_of_two_blocks(5, 32).collect::<Vec<_>>(),
             vec![(6, 2), (8, 8), (16, 16), (32, 4)]
         );
     }
