@@ -5,9 +5,9 @@ use binius_field::AESTowerField8b;
 use binius_field::Field;
 use binius_hash::groestl::GroestlShortImpl;
 use binius_hash::groestl::GroestlShortInternal;
+use binius_m3::builder::Expr;
 use binius_m3::builder::TableBuilder;
 use binius_m3::builder::B1;
-use binius_m3::builder::{Expr, B64};
 use binius_m3::{
     builder::{
         upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32, B8,
@@ -47,7 +47,8 @@ pub struct Groestl256CompressTable {
     /// Base address.
     dst_addresses: [Col<B32>; 8],
     /// Destination values.
-    dst_vals: [Col<B64>; 8],
+    dst_vals: [Col<B32>; 16],
+    dst_vals_lookup_packed: [Col<B32, 2>; 8],
     src1_vals: [Col<B8, 8>; 8],
     /// Base address.
     src1_addresses: [Col<B32>; 8],
@@ -179,7 +180,7 @@ impl Table for Groestl256CompressTable {
         let dst_base_addr = state_cols.fp + upcast_col(state_cols.arg0);
         let dst_addresses = get_half_addresses(&mut table, dst_base_addr, "dst_addr");
 
-        let dst_vals_lookup = (0..8)
+        let dst_vals_lookup: [MultipleLookupColumns<2>; 8] = (0..8)
             .flat_map(|i| {
                 [MultipleLookupColumns::<2>::new(
                     &mut table,
@@ -193,14 +194,19 @@ impl Table for Groestl256CompressTable {
             .try_into()
             .expect("state_in_lookup has exactly 8 elements");
 
-        // Pack the output values to get the final destination values.
-        let dst_vals = from_fn(|i| table.add_packed("dst_vals", dst_vals_lookup_packed[i]));
+        let dst_vals = dst_vals_lookup
+            .iter()
+            .flat_map(|l| l.val_cols)
+            .collect::<Vec<_>>()
+            .try_into()
+            .expect("dst_vals_lookup has 8 x 2 value columns.");
 
         Self {
             id: table.id(),
             state_cols,
             dst_addresses,
             dst_vals,
+            dst_vals_lookup_packed,
             src1_vals,
             src1_addresses,
             src1_lookups,
@@ -262,9 +268,12 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                 .map(|i| witness.get_mut(self.src2_vals[i]))
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let mut dst_vals = (0..8)
+            let mut dst_vals = (0..16)
                 .map(|i| witness.get_mut_as(self.dst_vals[i]))
-                .collect::<Result<Vec<RefMut<'_, [u64]>>, _>>()?;
+                .collect::<Result<Vec<RefMut<'_, [u32]>>, _>>()?;
+            let mut dst_vals_lookup_packed = (0..8)
+                .map(|i| witness.get_mut_as(self.dst_vals_lookup_packed[i]))
+                .collect::<Result<Vec<RefMut<'_, [[u32; 2]]>>, _>>()?;
 
             for (i, event) in rows.clone().enumerate() {
                 let dst_base_addr = event.fp.addr(event.dst as u32);
@@ -279,7 +288,10 @@ impl TableFiller<ProverPackedField> for Groestl256CompressTable {
                     src2_addresses[2 * j + 1][i] = src2_base_addr + 2 * j as u32 + 1;
 
                     // Fill out the destination values.
-                    dst_vals[j][i] = event.dst_val[j];
+                    dst_vals[2 * j][i] = event.dst_val[j] as u32;
+                    dst_vals[2 * j + 1][i] = (event.dst_val[j] >> 32) as u32;
+                    dst_vals_lookup_packed[j][i][0] = event.dst_val[j] as u32;
+                    dst_vals_lookup_packed[j][i][1] = (event.dst_val[j] >> 32) as u32;
 
                     for k in 0..8 {
                         set_packed_slice(
