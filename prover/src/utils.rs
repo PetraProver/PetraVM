@@ -253,26 +253,20 @@ pub(crate) fn push_state_channel(
     let _ = table;
 }
 
-pub(crate) fn aes_to_bin_transform(bin_vals: [Col<B1>; 8]) -> Expr<B8, 1> {
-    let bases = AES_TO_BINARY_LINEAR_TRANSFORMATION.bases();
+pub(crate) fn aes_bin_transform(bin_vals: [Col<B1>; 8], aes_to_bin: bool) -> Expr<B8, 1> {
+    let bases = if aes_to_bin {
+        AES_TO_BINARY_LINEAR_TRANSFORMATION.bases()
+    } else {
+        &BINARY_TO_AES_LINEAR_TRANSFORMATION
+            .bases()
+            .iter()
+            .map(|b| B8::new(b.val()))
+            .collect::<Vec<_>>()
+    };
     bin_vals
         .iter()
         .zip(bases.as_ref().iter())
         .map(|(&bin_val, &base)| upcast_col(bin_val) * base)
-        .reduce(|a, b| a + b)
-        .expect("The iterator is not empty")
-}
-
-pub(crate) fn bin_to_aes_transform(bin_vals: [Col<B1>; 8]) -> Expr<B8, 1> {
-    let bases = BINARY_TO_AES_LINEAR_TRANSFORMATION
-        .bases()
-        .iter()
-        .map(|b| B8::new(b.val()));
-
-    bin_vals
-        .iter()
-        .zip(bases)
-        .map(|(&bin_val, base)| upcast_col(bin_val) * base)
         .reduce(|a, b| a + b)
         .expect("The iterator is not empty")
 }

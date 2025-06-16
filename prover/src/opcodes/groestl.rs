@@ -17,8 +17,7 @@ use binius_m3::{
 use petravm_asm::util::u32_to_bytes;
 use petravm_asm::{Groestl256CompressEvent, Groestl256OutputEvent, Opcode};
 
-use crate::gadgets::aes_to_bin::AesToBinTransformColumns;
-use crate::gadgets::aes_to_bin::BinToAesTransformColumns;
+use crate::gadgets::aes_to_bin::AesBinTransformColumns;
 use crate::gadgets::multiple_lookup::{MultipleLookupColumns, MultipleLookupGadget};
 use crate::gadgets::transpose::TransposeColumns;
 use crate::{
@@ -59,7 +58,7 @@ pub struct Groestl256CompressTable {
     /// Second source values.
     src2_vals: [Col<B8, 8>; 8],
     /// Columns to switch from src2 values in the AES basis to the binary basis.
-    src2_aes_inv_columns: [AesToBinTransformColumns; 8],
+    src2_aes_inv_columns: [AesBinTransformColumns<true>; 8],
     /// Columns needed for transposing src2.
     src2_transposition: TransposeColumns,
     /// Columns for lookup up the output values in the VROM. Note that the
@@ -136,8 +135,8 @@ impl Table for Groestl256CompressTable {
 
         // Get the second source values in the binary basis, and use that in the
         // permutations.
-        let src2_aes_inv_columns: [AesToBinTransformColumns; 8] = from_fn(|i| {
-            AesToBinTransformColumns::new(&mut table, src2_vals_bits[i], "groestl_compress_src2")
+        let src2_aes_inv_columns: [AesBinTransformColumns<true>; 8] = from_fn(|i| {
+            AesBinTransformColumns::new(&mut table, src2_vals_bits[i], "groestl_compress_src2")
         });
         let src2_vals_aes_inv: [Col<B8, 8>; 8] =
             from_fn(|i| src2_aes_inv_columns[i].reshaped_outputs);
@@ -415,7 +414,7 @@ pub struct Groestl256OutputTable {
     /// Output of the P permutation, in the binary basis.
     out: [Col<B8, 8>; 8],
     /// Columns to get the output of the P permutation, in the AES basis.
-    out_aes_columns: [BinToAesTransformColumns; 8],
+    out_aes_columns: [AesBinTransformColumns<false>; 8],
     out_bits: [Col<B1, 64>; 8],
     /// `projected_out` and `zero_padded_out` are the columns needed for
     /// transposing the output, and getting the B32 values we can pull from
@@ -511,7 +510,7 @@ impl Table for Groestl256OutputTable {
         let out_bits: [Col<B1, 64>; 8] = from_fn(|i| table.add_committed(format!("out_bits_{i}")));
         let out_aes_columns = from_fn(|i| {
             // We need to convert the B8 values into AESTowerField values.
-            BinToAesTransformColumns::new(&mut table, out_bits[i], "groestl_output_out_aes")
+            AesBinTransformColumns::<false>::new(&mut table, out_bits[i], "groestl_output_out_aes")
         });
         let out_aes: [Col<B8, 8>; 8] = out_aes_columns
             .iter()
