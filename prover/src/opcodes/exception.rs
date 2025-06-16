@@ -1,6 +1,6 @@
-//! RET (Return) table implementation for the PetraVM M3 circuit.
+//! TRAP (Exception) table implementation for the PetraVM M3 circuit.
 //!
-//! This module contains the RET table which handles return operations
+//! This module contains the TRAP table which handles exceptions
 //! in the PetraVM execution.
 
 use binius_field::Field;
@@ -15,10 +15,11 @@ use crate::{
     channels::Channels, gadgets::state::StateGadget, table::Table, types::ProverPackedField,
 };
 
-/// RET (Return) table.
+/// TRAP (Exception) table.
 ///
-/// This table handles the Return instruction, which returns from a function
-/// call by loading the return PC and FP from the current frame.
+/// This table handles the TRAP instruction, which handles exceptions by
+/// creating an exception frame and filling it with the PC and FP where the
+/// exception was hit, as well as an exception code.
 ///
 /// Logic:
 /// 1. Load the current PC and FP from the state channel
