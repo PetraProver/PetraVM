@@ -170,18 +170,9 @@ pub fn generate_trace(
 
     // Add other VROM writes
     let mut max_dst = 0;
-    // TODO: the lookup gadget requires a minimum of 128 entries
-    let vrom_write_size = actual_vrom_writes.len().next_power_of_two().max(128);
     for (dst, val, multiplicity) in actual_vrom_writes {
         zkvm_trace.add_vrom_write(dst, val, multiplicity);
         max_dst = max_dst.max(dst);
-    }
-
-    // TODO: we have to add a zero multiplicity entry at the end and pad to 128 due
-    // to the bug in the lookup gadget
-    for _ in zkvm_trace.vrom_writes.len()..vrom_write_size {
-        max_dst += 1;
-        zkvm_trace.add_vrom_write(max_dst, 0, 0);
     }
 
     zkvm_trace.max_vrom_addr = max_dst as usize;
