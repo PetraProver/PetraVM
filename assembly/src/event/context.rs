@@ -77,12 +77,9 @@ impl EventContext<'_> {
     where
         T: VromValueT,
     {
-        self.trace.vrom().check_alignment::<T>(addr)?;
-
-        // In prover-only mode, we don't need to check for deferred moves, nor to record
-        // the access.
-        let record_write = !self.prover_only;
-        self.trace.vrom_write(addr, value, record_write)
+        // In prover-only mode, we don't need to check for deferred moves,
+        // nor to record the access.
+        self.trace.vrom_write(addr, value, !self.prover_only)
     }
 
     pub const fn ram(&self) -> &Ram {
