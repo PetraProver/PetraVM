@@ -4,11 +4,12 @@
 //! all the individual tables and channels.
 
 #[cfg(feature = "disable_state_channel")]
-use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement};
+use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection};
 #[cfg(not(feature = "disable_state_channel"))]
-use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, Statement, B128};
+use binius_m3::builder::{Boundary, ConstraintSystem, FlushDirection, B128};
 use petravm_asm::isa::ISA;
 
+use crate::types::Statement;
 use crate::{
     channels::Channels,
     gadgets::right_shifter_table::RightShifterTable,
