@@ -13,25 +13,29 @@ pub struct TrapEvent {
     pub fp: FramePointer,
     pub timestamp: u32,
     pub exception_fp: u32,
-    pub exception_code: B16,
+    pub exception_slot: B16,
+    pub exception_code: u8,
 }
 
 impl Event for TrapEvent {
     fn generate(
         ctx: &mut EventContext,
-        exception_code: B16,
+        exception_slot: B16,
         _unused0: B16,
         _unused1: B16,
     ) -> Result<(), InterpreterError> {
         let (_, field_pc, fp, timestamp) = ctx.program_state();
 
+        // Read exception code from the specified slot.
+        let exception_code = ctx.vrom_read::<u32>(ctx.addr(exception_slot.val()))? as u8;
+
         // Allocate exception frame.
         let exception_fp = ctx.vrom_mut().allocate_new_frame(3);
 
         // Setup exception frame.
-        ctx.vrom_write(exception_fp, field_pc.val())?;
-        ctx.vrom_write(exception_fp ^ 1, *fp)?;
-        ctx.vrom_write(exception_fp ^ 2, exception_code.val() as u32)?;
+        let packed_vals = field_pc.val() as u64 + ((*fp as u128) << 32) as u64;
+        ctx.vrom_write(exception_fp, packed_vals)?;
+        ctx.vrom_write(exception_fp ^ 2, exception_code as u32)?;
 
         // Set FP and PC.
         ctx.set_fp(exception_fp);
@@ -42,6 +46,7 @@ impl Event for TrapEvent {
             fp,
             timestamp,
             exception_fp,
+            exception_slot,
             exception_code,
         };
         ctx.trace.trap.push(trap_event);

@@ -13,8 +13,6 @@ pub fn generate_exception_trace() -> Result<(Trace, FramePointer)> {
         include_str!("../../examples/div.asm"),
     ];
     let asm_code = kernel_files.join("\n");
-    // let asm_code = std::fs::read_to_string(asm_path)
-    //     .map_err(|e| anyhow::anyhow!("Failed to read opcodes.asm: {}", e))?;
 
     // Initialize memory with:
     // Slot 0: Return PC = 0

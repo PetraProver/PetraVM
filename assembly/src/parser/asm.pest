@@ -145,7 +145,7 @@ load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ separator ~ slot 
 alloc_imm            = ${ alloc_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
 alloc_non_imm        = ${ alloc_non_imm_instr ~ spaces+ ~ slot ~ separator ~ slot }
 fp                   = ${ fp_instr ~ spaces+ ~ slot ~ separator ~ immediate }
-trap                 = ${ trap_instr ~ spaces+ ~ immediate }
+trap                 = ${ trap_instr ~ spaces+ ~ slot }
 
 instruction = {
     nullary

@@ -11,9 +11,6 @@ pub struct SlotWithOffset(u32, u16);
 #[derive(Debug, Clone, Copy)]
 pub struct Immediate(u32);
 
-#[derive(Debug, Clone, Copy)]
-pub struct ExcCode(u8);
-
 impl std::fmt::Display for Slot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "@{}", self.0)
@@ -103,28 +100,6 @@ impl Immediate {
     }
 }
 
-impl std::fmt::Display for ExcCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{}G", self.0)
-    }
-}
-
-impl std::str::FromStr for ExcCode {
-    type Err = BadArgumentError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.trim_start_matches('#');
-
-        let int_val = u8::from_str(s).map_err(|_| BadArgumentError::Immediate(s.to_string()))?;
-        Ok(ExcCode(int_val))
-    }
-}
-
-impl ExcCode {
-    pub(crate) const fn get_field_val(self) -> B16 {
-        B16::new(self.0 as u16)
-    }
-}
-
 #[derive(Error, Debug)]
 pub enum BadArgumentError {
     #[error("Bad slot argument: {0}")]
@@ -135,9 +110,6 @@ pub enum BadArgumentError {
 
     #[error("Bad immediate argument: {0}")]
     Immediate(String),
-
-    #[error("Bad exception code: {0}")]
-    ExcCode(String),
 
     #[error("Bad frame size argument: {0}")]
     FrameSize(String),

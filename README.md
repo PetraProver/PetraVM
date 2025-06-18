@@ -107,6 +107,9 @@ Expansion to include RAM-related instructions is kept for future work.
 #### Register Operations
 - [x] `FP` - Dump current FP value
 
+#### Exceptions
+- [x] `TRAP` - Set a new exception frame and abort.
+
 #### Future Random-Access Memory Extensions
 - [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte

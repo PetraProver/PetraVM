@@ -44,7 +44,7 @@ fn test_exception_integration() {
             .vrom()
             .read::<u32>(*exception_fp)
             .expect("TRAP PC is not set."),
-        G.pow(8).val()
+        G.pow(10).val()
     );
     // TRAP FP
     assert_eq!(

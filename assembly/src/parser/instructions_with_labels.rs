@@ -1,7 +1,6 @@
 use thiserror::Error;
 
 use super::instruction_args::{Immediate, Slot, SlotWithOffset};
-use crate::parser::instruction_args::ExcCode;
 
 /// This is an incomplete list of instructions
 /// So far, only the ones added for parsing the fibonacci example has been added
@@ -258,7 +257,7 @@ pub enum InstructionsWithLabels {
         src: Slot,
     },
     Trap {
-        exc_code: ExcCode,
+        src: Slot,
     },
     Ret,
 }
@@ -476,8 +475,8 @@ impl std::fmt::Display for InstructionsWithLabels {
             Allocv { dst, src } => {
                 write!(f, "ALLOCV! {dst} {src}")
             }
-            Trap { exc_code } => {
-                write!(f, "TRAP {exc_code}")
+            Trap { src } => {
+                write!(f, "TRAP {src}")
             }
         }
     }

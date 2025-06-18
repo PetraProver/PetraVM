@@ -10,8 +10,6 @@ use instruction_args::{Immediate, Slot, SlotWithOffset};
 pub(crate) use instructions_with_labels::{Error, InstructionsWithLabels};
 use tracing::instrument;
 
-use crate::parser::instruction_args::ExcCode;
-
 #[derive(pest_derive::Parser)]
 #[grammar = "parser/asm.pest"]
 struct AsmParser;
@@ -595,11 +593,11 @@ fn parse_line(
                         let mut trap = instruction.into_inner();
                         let opcode_rule =
                             get_first_inner(trap.next().unwrap(), "trap has instruction").as_rule();
-                        let exc_code = trap.next().expect("trap has exc_code");
+                        let exc_slot = trap.next().expect("trap has exc_slot");
                         match opcode_rule {
                             Rule::TRAP_instr => {
                                 instrs.push(InstructionsWithLabels::Trap {
-                                    exc_code: ExcCode::from_str(exc_code.as_str())?,
+                                    src: Slot::from_str(exc_slot.as_str())?,
                                 });
                             }
                             _ => {

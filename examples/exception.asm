@@ -11,6 +11,8 @@ _start:
     ;; If b == 0, throw an exception
     BNZ div_entrypoint, @3
     ALLOCI! @6, #3
+    LDI.W @4, #3
+    MVV.W @6[2], @4
     CALLI trap_entrypoint, @6
 
 div_entrypoint:
@@ -24,4 +26,4 @@ div_entrypoint:
 
 #[framesize(0x3)]
 trap_entrypoint:
-    TRAP #3
+    TRAP @2

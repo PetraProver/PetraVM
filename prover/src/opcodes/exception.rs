@@ -5,7 +5,7 @@
 
 use binius_field::Field;
 use binius_m3::builder::{
-    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32,
+    upcast_col, Col, ConstraintSystem, TableFiller, TableId, TableWitnessSegment, B32, B8,
 };
 use petravm_asm::{opcodes::Opcode, TrapEvent};
 
@@ -25,16 +25,19 @@ use crate::{
 /// 1. Load the current PC and FP from the state channel
 /// 2. Get the instruction from PROM channel
 /// 3. Verify this is a TRAP instruction
-/// 4. Verify that the exception frame is correctly set:
+/// 4. Read the exception code from the VROM channel
+/// 5. Verify that the exception frame is correctly set:
 ///    - First slot: PC when the trap was hit.
 ///    - Second slot: FP where the trap was hit.
 ///    - Third slot: Exception code.
-/// 5. Update the state with the PC zero and exception FP.
+/// 6. Update the state with the PC zero and exception FP.
 pub struct TrapTable {
     /// Table ID
     id: TableId,
     /// State columns
     state_cols: StateColumns<{ Opcode::Trap as u16 }>,
+    exc_code_addr: Col<B32>,
+    exception_code: Col<B8>,      // Virtual
     exception_fp: Col<B32>,       // Virtual
     exception_fp_xor_1: Col<B32>, // Virtual
     exception_fp_xor_2: Col<B32>, // Virtual
@@ -49,6 +52,7 @@ impl Table for TrapTable {
 
     fn new(cs: &mut ConstraintSystem, channels: &Channels) -> Self {
         let mut table = cs.add_table("ret");
+
         let exception_fp = table.add_committed("exception_fp");
         let exception_fp_xor_1 = table.add_computed("exception_fp_xor_1", exception_fp + B32::ONE);
         let exception_fp_xor_2 =
@@ -66,6 +70,15 @@ impl Table for TrapTable {
         );
 
         let fp = state_cols.fp;
+        let exc_code_addr = table.add_computed("exc_code_addr", fp + upcast_col(state_cols.arg0));
+        let exception_code = table.add_committed("exception_code");
+
+        // Read the exception code from the VROM channel.
+        pull_vrom_channel(
+            &mut table,
+            channels.vrom_channel,
+            [exc_code_addr, upcast_col(exception_code)],
+        );
 
         // Write the PC.
         pull_vrom_channel(
@@ -79,12 +92,14 @@ impl Table for TrapTable {
         pull_vrom_channel(
             &mut table,
             channels.vrom_channel,
-            [exception_fp_xor_2, upcast_col(state_cols.arg0)],
+            [exception_fp_xor_2, upcast_col(exception_code)],
         );
 
         Self {
             id: table.id(),
             state_cols,
+            exc_code_addr,
+            exception_code,
             exception_fp,
             exception_fp_xor_1,
             exception_fp_xor_2,
@@ -105,6 +120,8 @@ impl TableFiller<ProverPackedField> for TrapTable {
         witness: &'a mut TableWitnessSegment<ProverPackedField>,
     ) -> Result<(), anyhow::Error> {
         {
+            let mut exc_code_addr = witness.get_scalars_mut(self.exc_code_addr)?;
+            let mut exception_code = witness.get_scalars_mut(self.exception_code)?;
             let mut exception_fp = witness.get_scalars_mut(self.exception_fp)?;
             let mut exception_fp_xor_1 = witness.get_scalars_mut(self.exception_fp_xor_1)?;
             let mut exception_fp_xor_2 = witness.get_scalars_mut(self.exception_fp_xor_2)?;
@@ -112,13 +129,15 @@ impl TableFiller<ProverPackedField> for TrapTable {
                 exception_fp[i] = B32::new(event.exception_fp);
                 exception_fp_xor_1[i] = B32::new(event.exception_fp ^ 1);
                 exception_fp_xor_2[i] = B32::new(event.exception_fp ^ 2);
+                exception_code[i] = B8::new(event.exception_code);
+                exc_code_addr[i] = B32::new(*event.fp ^ event.exception_slot.val() as u32);
             }
         }
         let state_rows = rows.map(|event| StateGadget {
             pc: event.pc.into(),
             next_pc: Some(0),
             fp: *event.fp,
-            arg0: event.exception_code.val(),
+            arg0: event.exception_slot.val(),
             ..Default::default()
         });
         self.state_cols.populate(witness, state_rows)
