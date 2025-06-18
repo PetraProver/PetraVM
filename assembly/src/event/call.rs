@@ -37,8 +37,9 @@ impl Event for TailiEvent {
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
-        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
+        // Perform a single packed read to get both u32 values at once.
+        let pack = ctx.vrom_read::<u64>(*ctx.fp)?; // no address offset
+        let (return_addr, old_fp_val) = { (pack as u32, (pack >> 32) as u32) };
 
         // Get the target address, to which we should jump.
         let target = B32::new(target_low.val() as u32 + ((target_high.val() as u32) << 16));
@@ -53,8 +54,8 @@ impl Event for TailiEvent {
         // Jump to the target, received as advice.
         ctx.jump_to_u32(target, advice);
 
-        ctx.vrom_write(ctx.addr(0u32), return_addr)?;
-        ctx.vrom_write(ctx.addr(1u32), old_fp_val)?;
+        // Perform a single packed write to store both u32 values at once.
+        ctx.vrom_write::<u64>(*ctx.fp, pack)?;
 
         let event = Self {
             pc: field_pc,
@@ -112,8 +113,9 @@ impl Event for TailvEvent {
     ) -> Result<(), InterpreterError> {
         let (_pc, field_pc, fp, timestamp) = ctx.program_state();
 
-        let return_addr = ctx.vrom_read::<u32>(ctx.addr(0u32))?;
-        let old_fp_val = ctx.vrom_read::<u32>(ctx.addr(1u32))?;
+        // Perform a single packed read to get both u32 values at once.
+        let pack = ctx.vrom_read::<u64>(*ctx.fp)?; // no address offset
+        let (return_addr, old_fp_val) = { (pack as u32, (pack >> 32) as u32) };
 
         // Get the target address, to which we should jump.
         let target = ctx.vrom_read::<u32>(ctx.addr(offset.val()))?;
@@ -125,8 +127,8 @@ impl Event for TailvEvent {
         // Jump to the target,
         ctx.jump_to(B32::new(target));
 
-        ctx.vrom_write(ctx.addr(0u32), return_addr)?;
-        ctx.vrom_write(ctx.addr(1u32), old_fp_val)?;
+        // Perform a single packed write to store both u32 values at once.
+        ctx.vrom_write::<u64>(*ctx.fp, pack)?;
 
         let event = Self {
             pc: field_pc,
@@ -196,8 +198,9 @@ impl Event for CalliEvent {
         ctx.jump_to_u32(target, advice);
 
         let return_pc = (field_pc * G).val();
-        ctx.vrom_write(ctx.addr(0u32), return_pc)?;
-        ctx.vrom_write(ctx.addr(1u32), *fp)?;
+
+        // Perform a single packed write to store both u32 values at once.
+        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + ((*fp as u64) << 32))?;
 
         let event = Self {
             pc: field_pc,
@@ -262,8 +265,9 @@ impl Event for CallvEvent {
         ctx.jump_to(B32::new(target));
 
         let return_pc = (field_pc * G).val();
-        ctx.vrom_write(ctx.addr(0u32), return_pc)?;
-        ctx.vrom_write(ctx.addr(1u32), *fp)?;
+
+        // Perform a single packed write to store both u32 values at once.
+        ctx.vrom_write::<u64>(*ctx.fp, return_pc as u64 + ((*fp as u64) << 32))?;
 
         let event = Self {
             pc: field_pc,
