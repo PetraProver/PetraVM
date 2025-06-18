@@ -111,7 +111,7 @@ mod tests {
     use binius_field::arch::OptimalUnderlier128b;
     use binius_field::as_packed_field::PackedType;
     use binius_field::{AESTowerField8b, PackedField};
-    use binius_m3::builder::{ConstraintSystem, Statement};
+    use binius_m3::builder::ConstraintSystem;
     use binius_m3::builder::{WitnessIndex, B1, B128, B8};
 
     use crate::gadgets::aes_to_bin::AesBinTransformColumns;
@@ -168,12 +168,7 @@ mod tests {
             }
         }
 
-        let statement = Statement {
-            boundaries: vec![],
-            table_sizes: vec![1 << 2],
-        };
-
-        let ccs = cs.compile(&statement).unwrap();
+        let ccs = cs.compile().unwrap();
         let table_sizes = witness.table_sizes();
         let witness = witness.into_multilinear_extension_index();
 
@@ -238,12 +233,7 @@ mod tests {
             }
         }
 
-        let statement = Statement {
-            boundaries: vec![],
-            table_sizes: vec![1 << 2],
-        };
-
-        let ccs = cs.compile(&statement).unwrap();
+        let ccs = cs.compile().unwrap();
         let table_sizes = witness.table_sizes();
         let witness = witness.into_multilinear_extension_index();
 

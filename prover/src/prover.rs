@@ -14,10 +14,11 @@ use binius_field::arch::OptimalUnderlier;
 use binius_field::tower::CanonicalTowerFamily;
 use binius_hal::make_portable_backend;
 use binius_hash::groestl::{Groestl256, Groestl256ByteCompression};
-use binius_m3::builder::{Statement, WitnessIndex, B128};
+use binius_m3::builder::{WitnessIndex, B128};
 use petravm_asm::isa::ISA;
 use tracing::instrument;
 
+use crate::types::Statement;
 use crate::{circuit::Circuit, model::Trace, types::ProverPackedField};
 
 const LOG_INV_RATE: usize = 1;
@@ -101,11 +102,7 @@ impl Prover {
         let statement = self.circuit.create_statement(trace)?;
 
         // Compile the constraint system
-        let compiled_cs = self
-            .circuit
-            .cs
-            .compile(&statement)
-            .map_err(|e| anyhow!(e))?;
+        let compiled_cs = self.circuit.cs.compile().map_err(|e| anyhow!(e))?;
 
         let witness_allocator_span = tracing::info_span!("Witness Alloc").entered();
 
