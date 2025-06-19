@@ -31,6 +31,7 @@ binius_hal = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "f869
 binius_hash = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "f869c4ebd6d8ed7acdb3785ab66b8d9e1b130742" }
 binius_m3 = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "f869c4ebd6d8ed7acdb3785ab66b8d9e1b130742" }
 binius_utils = { git = "https://github.com/IrreducibleOSS/binius.git", rev = "f869c4ebd6d8ed7acdb3785ab66b8d9e1b130742" }
+generic-array = "1.2.0"
 
 [profile.release]
 lto = "thin"

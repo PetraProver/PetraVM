@@ -21,6 +21,7 @@ use crate::{
         },
         fp::FpEvent,
         gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
+        groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
         integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
         jump::{JumpiEvent, JumpvEvent},
         mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},
@@ -81,6 +82,8 @@ pub struct PetraTrace {
     pub b32_muli: Vec<B32MuliEvent>,
     pub b128_add: Vec<B128AddEvent>,
     pub b128_mul: Vec<B128MulEvent>,
+    pub groestl_compress: Vec<Groestl256CompressEvent>,
+    pub groestl_output: Vec<Groestl256OutputEvent>,
     pub trap: Vec<TrapEvent>,
 
     memory: Memory,
@@ -211,6 +214,8 @@ impl PetraTrace {
         fire_events!(self.b32_muli, &mut channels);
         fire_events!(self.b128_add, &mut channels);
         fire_events!(self.b128_mul, &mut channels);
+        fire_events!(self.groestl_compress, &mut channels);
+        fire_events!(self.groestl_output, &mut channels);
         fire_events!(self.trap, &mut channels);
 
         assert!(channels.state_channel.is_balanced());

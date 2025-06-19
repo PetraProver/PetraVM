@@ -15,6 +15,8 @@ fn test_opcodes() {
     let mut unseen_types_remaining: HashSet<_> = HashSet::from_iter(Opcode::VARIANTS);
     unseen_types_remaining.remove(&Opcode::Bz); // Bz isn't an actual opcode
     unseen_types_remaining.remove(&Opcode::Invalid); // Invalid is not an opcode.
+    unseen_types_remaining.remove(&Opcode::Groestl256Compress); // Groestl256Compress is not an opcode.
+    unseen_types_remaining.remove(&Opcode::Groestl256Output); // Groestl256Output is not an opcode.
 
     for instr in &info.compiled_program.prom {
         unseen_types_remaining.remove(&instr.opcode());

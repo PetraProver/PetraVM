@@ -192,7 +192,8 @@ mod tests {
             (2, 0, 1),      // Success Result
             (4, 999, 1),    // LDI.W @4, #999
         ];
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     #[test]

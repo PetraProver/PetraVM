@@ -1103,7 +1103,8 @@ mod tests {
             (5, (muli_result >> 32) as u32, 1),
         ];
 
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     /// Creates an execution trace for a simple program that uses the unsigned
@@ -1139,7 +1140,8 @@ mod tests {
             (7, (mulu_result >> 32) as u32, 1),
         ];
 
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     /// Creates an execution trace for a simple program that uses the signed
@@ -1170,7 +1172,8 @@ mod tests {
             (5, (mul_result >> 32) as u32, 1),
         ];
 
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     /// Creates an execution trace for a simple program that uses the MULSU
@@ -1202,7 +1205,8 @@ mod tests {
             (5, (mulsu_result >> 32) as u32, 1),
         ];
 
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     fn test_imm_integer_ops_with_values(src_value: u32, imm: u16) -> Result<()> {

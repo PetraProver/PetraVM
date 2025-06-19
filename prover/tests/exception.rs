@@ -21,7 +21,8 @@ pub fn generate_exception_trace() -> Result<(Trace, FramePointer)> {
     // Slot 3: Argument b = 0 (to throw an exception)
     let init_values = vec![0, 0, 40, 0];
 
-    generate_trace(asm_code, Some(init_values), None)
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), None, isa)
 }
 
 #[test]

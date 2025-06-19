@@ -503,7 +503,9 @@ mod tests {
             (22, 9012, 1),
             (23, 3456, 1),
         ];
-        generate_trace(asm_code, None, Some(vrom_writes)).map(|(trace, _)| trace)
+
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     #[test]
@@ -538,7 +540,8 @@ mod tests {
         "#
         .to_string();
 
-        generate_trace(asm_code, None, None).map(|(trace, _)| trace)
+        let isa = Box::new(GenericISA);
+        generate_trace(asm_code, None, None, isa).map(|(trace, _)| trace)
     }
 
     #[test]

@@ -107,6 +107,10 @@ Expansion to include RAM-related instructions is kept for future work.
 #### Register Operations
 - [x] `FP` - Dump current FP value
 
+### Groestl Primitives
+- [x] `GROESTL256_COMPRESS` - [Groestl](https://www.groestl.info/Groestl.pdf) compression function
+- [x] `GROESTL256_OUTPUT` - [Groestl](https://www.groestl.info/Groestl.pdf) output function
+
 #### Exceptions
 - [x] `TRAP` - Set a new exception frame and abort.
 

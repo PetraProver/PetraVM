@@ -18,7 +18,8 @@ pub fn generate_opcodes_trace() -> Result<(Trace, FramePointer)> {
     // Slot 2: Final result 0 means success
     let init_values = vec![0, 0, 0];
 
-    generate_trace(asm_code, Some(init_values), None)
+    let isa = Box::new(GenericISA);
+    generate_trace(asm_code, Some(init_values), None, isa)
 }
 
 #[test]

@@ -27,6 +27,7 @@ pub(crate) mod context;
 pub(crate) mod exception;
 pub(crate) mod fp;
 pub(crate) mod gadgets;
+pub(crate) mod groestl;
 pub(crate) mod integer_ops;
 pub(crate) mod jump;
 #[macro_use]
@@ -50,6 +51,7 @@ pub use self::{
     exception::TrapEvent,
     fp::FpEvent,
     gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
+    groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
     integer_ops::{AddEvent, AddiEvent, MulEvent, MuliEvent, MulsuEvent, MuluEvent, SubEvent},
     jump::{JumpiEvent, JumpvEvent},
     mv::{LdiEvent, MvihEvent, MvvlEvent, MvvwEvent},
@@ -98,6 +100,12 @@ impl Opcode {
     ) -> Result<(), InterpreterError> {
         match self {
             Opcode::Fp => fp::FpEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Groestl256Compress => {
+                groestl::Groestl256CompressEvent::generate(ctx, arg0, arg1, arg2)
+            }
+            Opcode::Groestl256Output => {
+                groestl::Groestl256OutputEvent::generate(ctx, arg0, arg1, arg2)
+            }
             Opcode::Bnz => BnzEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Bz => {
                 unreachable!("BzEvent can only be triggered through the Bnz instruction.")
