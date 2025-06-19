@@ -8,7 +8,7 @@ use std::{
 use petravm_asm::{
     isa::GenericISA,
     memory::{vrom::VromValueT, vrom_allocator::VromAllocator},
-    AssembledProgram, Assembler, Memory, PetraTrace, ValueRom,
+    AssembledProgram, Assembler, BoundaryValues, Memory, PetraTrace, ValueRom,
 };
 
 // Lightweight handle that can be dereferenced to the actual frame.
@@ -216,6 +216,7 @@ impl From<&'static str> for AsmToExecute {
 pub struct ExecutedTestProgInfo {
     pub frames: Frames,
     pub compiled_program: AssembledProgram,
+    pub boundary_values: BoundaryValues,
 }
 
 /// Common logic that all ASM tests need to run.
@@ -250,10 +251,11 @@ pub fn execute_test_asm<T: Into<AsmToExecute>>(prog: T) -> ExecutedTestProgInfo 
     .expect("Trace generation should not fail");
 
     // Validate the trace
-    trace.validate(boundary_values);
+    trace.validate(boundary_values.clone());
 
     ExecutedTestProgInfo {
         frames: Frames::new(Rc::new(trace), frame_templates),
         compiled_program,
+        boundary_values,
     }
 }

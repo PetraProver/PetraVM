@@ -3,7 +3,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use strum::EnumCount;
 use strum_macros::{Display, EnumCount, IntoStaticStr, VariantArray};
 
-use crate::event::*;
+use crate::{event::*, exception::TrapEvent};
 
 /// Represents the set of instructions supported by the PetraVM.
 #[derive(
@@ -32,6 +32,9 @@ pub enum Opcode {
     // GROESTL instructions
     Groestl256Compress,
     Groestl256Output,
+
+    // Exception instruction
+    Trap,
 
     // Integer instructions
     Xori,
@@ -170,6 +173,7 @@ impl Opcode {
             Opcode::Ldi => 3,                // dst, imm_low, imm_high
             Opcode::Alloci => 2,             // dst, imm
             Opcode::Allocv => 2,             // dst, src
+            Opcode::Trap => 1,               // excpetion code
             Opcode::Invalid => 0,            // invalid
         }
     }
@@ -187,6 +191,7 @@ impl Opcode {
                 | Opcode::Calli
                 | Opcode::Callv
                 | Opcode::Ret
+                | Opcode::Trap
         )
     }
 }
@@ -260,4 +265,5 @@ impl_instruction_info!(
     (XoriEvent, Opcode::Xori),
     (AllociEvent, Opcode::Alloci),
     (AllocvEvent, Opcode::Allocv),
+    (TrapEvent, Opcode::Trap),
 );

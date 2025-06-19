@@ -111,6 +111,9 @@ Expansion to include RAM-related instructions is kept for future work.
 - [x] `GROESTL256_COMPRESS` - [Groestl](https://www.groestl.info/Groestl.pdf) compression function
 - [x] `GROESTL256_OUTPUT` - [Groestl](https://www.groestl.info/Groestl.pdf) output function
 
+#### Exceptions
+- [x] `TRAP` - Set a new exception frame and abort.
+
 #### Future Random-Access Memory Extensions
 - [ ] `LW`/`SW` - Load/Store word
 - [ ] `LB`/`SB` - Load/Store byte

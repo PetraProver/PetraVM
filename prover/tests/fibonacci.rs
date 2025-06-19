@@ -11,7 +11,7 @@ fn test_fibonacci() -> Result<()> {
     let n = 11;
     let res = fibonacci(n);
 
-    let trace = generate_fibonacci_trace(n, res)?;
+    let (trace, _) = generate_fibonacci_trace(n, res)?;
 
     // Step 2: Validate trace
     trace.validate()?;
