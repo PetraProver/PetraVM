@@ -1296,7 +1296,7 @@ mod tests {
                     RET\n",
         );
         let isa = Box::new(GenericISA);
-        let trace = generate_trace(asm_code, None, None, isa)?;
+        let trace = generate_trace(asm_code, None, None, isa)?.0;
         trace.validate()?;
         assert_eq!(trace.slt_events().len(), 2);
         assert_eq!(trace.sltu_events().len(), 2);
@@ -1322,7 +1322,7 @@ mod tests {
                     RET\n",
         );
         let isa = Box::new(GenericISA);
-        let trace = generate_trace(asm_code, None, None, isa)?;
+        let trace = generate_trace(asm_code, None, None, isa)?.0;
         trace.validate()?;
         assert_eq!(trace.slti_events().len(), 2);
         assert_eq!(trace.sltiu_events().len(), 2);

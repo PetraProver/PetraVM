@@ -59,6 +59,7 @@ CALLV_instr               = { "CALLV" }
 TAILV_instr               = { "TAILV" }
 ALLOCI_instr              = { "ALLOCI" }
 ALLOCV_instr              = { "ALLOCV" }
+TRAP_instr                = { "TRAP" }
 
 // Note: This does not refer to BinaryFields but instructions that takes in three operands including destination
 binary_non_imm_instrs = ${
@@ -107,6 +108,7 @@ load_imm_instr        = ${ LDI_W_instr ~ prover_flag? }
 alloc_imm_instr       = ${ ALLOCI_instr ~ prover_flag }
 alloc_non_imm_instr   = ${ ALLOCV_instr ~ prover_flag }
 fp_instr              = ${ FP_instr ~ prover_flag? }
+trap_instr            = ${ TRAP_instr }
 nullary_instrs        = ${ RET_instr }
 
 // Since these need to support labels, we need to handle them separately, the compiler handles immediate vs offsetted
@@ -147,6 +149,7 @@ load_store           = ${ load_store_instrs ~ spaces+ ~ slot ~ separator ~ slot 
 alloc_imm            = ${ alloc_imm_instr ~ spaces+ ~ slot ~ separator ~ immediate }
 alloc_non_imm        = ${ alloc_non_imm_instr ~ spaces+ ~ slot ~ separator ~ slot }
 fp                   = ${ fp_instr ~ spaces+ ~ slot ~ separator ~ immediate }
+trap                 = ${ trap_instr ~ spaces+ ~ slot }
 
 instruction = {
     nullary
@@ -162,6 +165,7 @@ instruction = {
   | alloc_imm
   | alloc_non_imm
   | fp
+  | trap
 }
 
 line = { (((frame_size_annotation? ~ label ~ instruction?) | instruction) ~ COMMENT?) | COMMENT }

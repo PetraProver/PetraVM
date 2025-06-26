@@ -81,7 +81,7 @@ _start:
     BNZ test_failed, @16
 
     LDI.W @2, #0    ;; overall success flag
-    RET
+    TRAP @17
 
 #[framesize(0x3)]
 test_failed:

@@ -46,7 +46,7 @@ fn generate_shift_trace(n: usize) -> Result<Trace, anyhow::Error> {
     let asm_code = asm_lines.join("\n");
 
     let isa = Box::new(GenericISA);
-    generate_trace(asm_code, None, None, isa)
+    generate_trace(asm_code, None, None, isa).map(|(trace, _)| trace)
 }
 
 fn bench_shifts(c: &mut Criterion) {

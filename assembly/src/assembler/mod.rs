@@ -1211,6 +1211,21 @@ pub fn get_prom_inst_from_inst_with_label(
                 true,
             ));
         }
+        InstructionsWithLabels::Trap { src } => {
+            let instruction = [
+                Opcode::Trap.get_field_elt(),
+                src.get_16bfield_val(),
+                B16::zero(),
+                B16::zero(),
+            ];
+            prom.push(InterpreterInstruction::new(
+                instruction,
+                *field_pc,
+                None,
+                false,
+            ));
+            *field_pc *= G;
+        }
     }
     Ok(())
 }

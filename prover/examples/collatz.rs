@@ -24,7 +24,7 @@ fn main() -> Result<()> {
         args.n, num_steps
     );
 
-    let trace = generate_collatz_trace(args.n)?;
+    let (trace, _) = generate_collatz_trace(args.n)?;
     trace.validate()?;
 
     let prover = Prover::new(Box::new(GenericISA));

@@ -24,6 +24,7 @@ pub(crate) mod branch;
 pub(crate) mod call;
 pub(crate) mod comparison;
 pub(crate) mod context;
+pub(crate) mod exception;
 pub(crate) mod fp;
 pub(crate) mod gadgets;
 pub(crate) mod groestl;
@@ -47,6 +48,7 @@ pub use self::{
     comparison::{
         SleEvent, SleiEvent, SleiuEvent, SleuEvent, SltEvent, SltiEvent, SltiuEvent, SltuEvent,
     },
+    exception::TrapEvent,
     fp::FpEvent,
     gadgets::right_logic_shift::RightLogicShiftGadgetEvent,
     groestl::{Groestl256CompressEvent, Groestl256OutputEvent},
@@ -152,6 +154,7 @@ impl Opcode {
             Opcode::B128Mul => b128::B128MulEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Alloci => alloc::AllociEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Allocv => alloc::AllocvEvent::generate(ctx, arg0, arg1, arg2),
+            Opcode::Trap => exception::TrapEvent::generate(ctx, arg0, arg1, arg2),
             Opcode::Invalid => Err(InterpreterError::InvalidOpcode),
         }
     }

@@ -505,7 +505,7 @@ mod tests {
         ];
 
         let isa = Box::new(GenericISA);
-        generate_trace(asm_code, None, Some(vrom_writes), isa)
+        generate_trace(asm_code, None, Some(vrom_writes), isa).map(|(trace, _)| trace)
     }
 
     #[test]
@@ -541,7 +541,7 @@ mod tests {
         .to_string();
 
         let isa = Box::new(GenericISA);
-        generate_trace(asm_code, None, None, isa)
+        generate_trace(asm_code, None, None, isa).map(|(trace, _)| trace)
     }
 
     #[test]

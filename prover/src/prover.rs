@@ -97,9 +97,15 @@ impl Prover {
     /// # Returns
     /// * Result containing the proof, statement, and compiled constraint system
     #[instrument(level = "info", skip_all)]
-    pub fn prove(&self, trace: &Trace) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
+    pub fn prove_with_final_fp(
+        &self,
+        trace: &Trace,
+        final_fp: u128,
+    ) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
         // Create a statement from the trace
-        let statement = self.circuit.create_statement(trace)?;
+        let statement = self
+            .circuit
+            .create_statement_with_final_fp(trace, final_fp)?;
 
         // Compile the constraint system
         let compiled_cs = self.circuit.cs.compile().map_err(|e| anyhow!(e))?;
@@ -157,6 +163,11 @@ impl Prover {
         )?;
 
         Ok((proof, statement, compiled_cs))
+    }
+
+    pub fn prove(&self, trace: &Trace) -> Result<(Proof, Statement, ConstraintSystem<B128>)> {
+        // Call the main proving function with final frame pointer as 0
+        self.prove_with_final_fp(trace, 0)
     }
 
     /// Validate a PetraVM execution trace.

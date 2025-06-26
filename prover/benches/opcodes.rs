@@ -49,7 +49,9 @@ fn generate_trace_for_opcode(opcode: Opcode, length: usize) -> Trace {
     // ——— Emit the trace ———
     let program = asm.join("\n");
     let isa = Box::new(GenericISA);
-    generate_trace(program, None, None, isa).expect("Trace generation failed")
+    generate_trace(program, None, None, isa)
+        .expect("Trace generation failed")
+        .0
 }
 
 /// Format a single instruction for benchmarking

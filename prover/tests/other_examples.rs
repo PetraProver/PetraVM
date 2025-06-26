@@ -7,7 +7,7 @@ use petravm_prover::{
 
 fn run_test(files: &[&str], init_values: Vec<u32>) -> Result<()> {
     // Step 1: Generate trace
-    let trace = generate_asm_trace(files, init_values, Box::new(GenericISA)).unwrap();
+    let (trace, _) = generate_asm_trace(files, init_values, Box::new(GenericISA)).unwrap();
 
     // Step 2: Validate trace
     trace.validate()?;

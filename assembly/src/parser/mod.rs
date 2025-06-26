@@ -603,6 +603,22 @@ fn parse_line(
                             _ => {
                                 unreachable!("We have implemented all alloc_non_imm instructions");
                             }
+                        };
+                    }
+                    Rule::trap => {
+                        let mut trap = instruction.into_inner();
+                        let opcode_rule =
+                            get_first_inner(trap.next().unwrap(), "trap has instruction").as_rule();
+                        let exc_slot = trap.next().expect("trap has exc_slot");
+                        match opcode_rule {
+                            Rule::TRAP_instr => {
+                                instrs.push(InstructionsWithLabels::Trap {
+                                    src: Slot::from_str(exc_slot.as_str())?,
+                                });
+                            }
+                            _ => {
+                                unreachable!("We have implemented all alloc_non_imm instructions");
+                            }
                         }
                     }
 

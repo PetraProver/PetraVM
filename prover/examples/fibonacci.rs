@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     println!("Generating trace for fib({}) = {}...", args.n, res);
 
-    let trace = generate_fibonacci_trace(args.n, res)?;
+    let (trace, _) = generate_fibonacci_trace(args.n, res)?;
     trace.validate()?;
 
     let prover = Prover::new(Box::new(GenericISA));

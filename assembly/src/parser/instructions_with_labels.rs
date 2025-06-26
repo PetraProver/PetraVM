@@ -268,6 +268,9 @@ pub enum InstructionsWithLabels {
         dst: Slot,
         src: Slot,
     },
+    Trap {
+        src: Slot,
+    },
     Ret,
 }
 
@@ -493,6 +496,9 @@ impl std::fmt::Display for InstructionsWithLabels {
             }
             Allocv { dst, src } => {
                 write!(f, "ALLOCV! {dst} {src}")
+            }
+            Trap { src } => {
+                write!(f, "TRAP {src}")
             }
         }
     }

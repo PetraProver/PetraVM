@@ -33,4 +33,8 @@ fn test_opcodes() {
         0,
         "Final result should be 0"
     );
+
+    // Verify the final frame pointer is not 0
+    let final_fp = *info.boundary_values.final_fp;
+    assert_ne!(final_fp, 0);
 }
